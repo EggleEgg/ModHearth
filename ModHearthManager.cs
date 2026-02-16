@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Reflection;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace ModHearth
@@ -79,7 +80,18 @@ namespace ModHearth
             if (!string.IsNullOrWhiteSpace(runNumber))
                 return runNumber;
 
-            return " dev";
+            string infoVersion = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(infoVersion))
+            {
+                int plusIndex = infoVersion.IndexOf('+');
+                if (plusIndex > 0)
+                    infoVersion = infoVersion.Substring(0, plusIndex);
+                if (!string.IsNullOrWhiteSpace(infoVersion))
+                    return infoVersion;
+            }
+
+            return " none";
         }
 
         // Maps strings to ModReferences. The keys match DFHMods.ToString() perfectly. Given a value V, V.ToDFHMod.ToString() returns it's key.
