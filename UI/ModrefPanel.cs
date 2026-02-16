@@ -14,6 +14,10 @@ namespace ModHearth.UI
     public class ModRefPanel : Panel
     {
         private bool isDragging = false;
+        private bool dragPending = false;
+        private Point dragStart;
+        private bool isSelected = false;
+        private const int DragThreshold = 4;
 
         // Reference to the form, to notify of changes.
         public MainForm form;
@@ -82,6 +86,7 @@ namespace ModHearth.UI
             highlightUp = false;
             highlightDown = false;
             problem = false;
+            isSelected = false;
 
             //BackgroundImage = Resource1.transparent_square;
         }
@@ -97,21 +102,35 @@ namespace ModHearth.UI
             // Fix colors as well.
             label.Font = Style.modRefFont;
             label.ForeColor = Style.instance.modRefTextColor;
-            BackColor = Style.instance.modRefColor;
+            UpdateSelectionVisual();
         }
 
         // On mouse down, set isDragging to true, this to be the draggee, and change cursor. Also change draggee color.
         private void ModrefPanel_MouseDown(object sender, MouseEventArgs e)
         {
-            isDragging = true;
-            draggee = this;
-            Cursor.Current = new Cursor(Resource1.grab_cursor.GetHicon());
-            draggee.BackColor = Style.instance.modRefHighlightColor;
+            dragPending = true;
+            dragStart = MousePosition;
+            isDragging = false;
+            form.ModrefMouseDown(this, e);
         }
 
         // While this is being dragged and gets moved, notify the form, and update the last recorded position.
         private void ModrefPanel_MouseMove(object sender, MouseEventArgs e)
         {
+            if (dragPending && !isDragging)
+            {
+                Point mousePos = MousePosition;
+                if (Math.Abs(mousePos.X - dragStart.X) >= DragThreshold || Math.Abs(mousePos.Y - dragStart.Y) >= DragThreshold)
+                {
+                    isDragging = true;
+                    dragPending = false;
+                    draggee = this;
+                    Cursor.Current = new Cursor(Resource1.grab_cursor.GetHicon());
+                    draggee.BackColor = Style.instance.modRefHighlightColor;
+                    form.ModrefDragStart(this);
+                }
+            }
+
             if (isDragging)
             {
                 Point mousePos = MousePosition;
@@ -123,10 +142,18 @@ namespace ModHearth.UI
         // When this panel is dropped, reset isDragging, reset the cursor, and notify the form. Also reset draggee color.
         private void ModrefPanel_MouseUp(object sender, MouseEventArgs e)
         {
-            isDragging = false;
-            Cursor.Current = Cursors.Default;
-            form.ModrefMouseUp(lastPosition, this);
-            draggee.BackColor = Style.instance.modRefColor;
+            if (isDragging)
+            {
+                isDragging = false;
+                Cursor.Current = Cursors.Default;
+                form.ModrefMouseUp(lastPosition, this);
+                UpdateSelectionVisual();
+            }
+            else
+            {
+                dragPending = false;
+                form.ModrefMouseUpNoDrag(this);
+            }
         }
 
         // When this is clicked, show this mod info.
@@ -169,6 +196,32 @@ namespace ModHearth.UI
             highlightUp = top; 
             highlightDown = bottom;
             Invalidate();
+        }
+
+        public bool IsSelected => isSelected;
+
+        public void SetSelected(bool selected)
+        {
+            if (isSelected == selected)
+                return;
+            isSelected = selected;
+            UpdateSelectionVisual();
+        }
+
+        private void UpdateSelectionVisual()
+        {
+            if (isDragging)
+                return;
+            if (isSelected)
+            {
+                BackColor = Style.instance.modRefSelectedColor != null
+                    ? Style.instance.modRefSelectedColor
+                    : Style.instance.modRefHighlightColor;
+            }
+            else
+            {
+                BackColor = Style.instance.modRefColor;
+            }
         }
 
         // Set label color and tooltips.

@@ -464,6 +464,76 @@ namespace ModHearth
             FindModlistProblems();
         }
 
+        public void MoveMods(List<DFHMod> mods, int newIndex, bool sourceLeft, bool destinationLeft)
+        {
+            if (mods == null || mods.Count == 0)
+                return;
+
+            List<DFHMod> uniqueMods = new List<DFHMod>();
+            HashSet<DFHMod> seen = new HashSet<DFHMod>();
+            foreach (DFHMod mod in mods)
+            {
+                if (seen.Add(mod))
+                    uniqueMods.Add(mod);
+            }
+
+            if (uniqueMods.Count == 0)
+                return;
+
+            bool changed = false;
+
+            if (sourceLeft && destinationLeft)
+            {
+                return;
+            }
+            else if (!sourceLeft && !destinationLeft)
+            {
+                HashSet<DFHMod> selectedSet = new HashSet<DFHMod>(uniqueMods);
+                List<DFHMod> selectedInOrder = enabledMods.Where(m => selectedSet.Contains(m)).ToList();
+                if (selectedInOrder.Count == 0)
+                    return;
+
+                int clampedIndex = Math.Max(0, Math.Min(newIndex, enabledMods.Count));
+                int selectedBefore = enabledMods.Take(clampedIndex).Count(m => selectedSet.Contains(m));
+                int targetIndex = clampedIndex - selectedBefore;
+
+                List<DFHMod> remaining = enabledMods.Where(m => !selectedSet.Contains(m)).ToList();
+                targetIndex = Math.Max(0, Math.Min(targetIndex, remaining.Count));
+
+                List<DFHMod> newList = new List<DFHMod>();
+                newList.AddRange(remaining.Take(targetIndex));
+                newList.AddRange(selectedInOrder);
+                newList.AddRange(remaining.Skip(targetIndex));
+
+                if (!enabledMods.SequenceEqual(newList))
+                {
+                    enabledMods = newList;
+                    changed = true;
+                }
+            }
+            else if (!sourceLeft && destinationLeft)
+            {
+                HashSet<DFHMod> selectedSet = new HashSet<DFHMod>(uniqueMods);
+                int beforeCount = enabledMods.Count;
+                enabledMods = enabledMods.Where(m => !selectedSet.Contains(m)).ToList();
+                foreach (DFHMod mod in uniqueMods)
+                    disabledMods.Add(mod);
+                changed = enabledMods.Count != beforeCount;
+            }
+            else if (sourceLeft && !destinationLeft)
+            {
+                foreach (DFHMod mod in uniqueMods)
+                    disabledMods.Remove(mod);
+
+                int insertIndex = Math.Max(0, Math.Min(newIndex, enabledMods.Count));
+                enabledMods.InsertRange(insertIndex, uniqueMods);
+                changed = true;
+            }
+
+            if (changed)
+                FindModlistProblems();
+        }
+
         // Go through modlist and scan for problems.
         // Tuple representing problem has problem mod, int problemType (missing before, missing after, conflict present), and string modID.
         public void FindModlistProblems()
@@ -514,6 +584,277 @@ namespace ModHearth
                 scannedModIDs.Add(currentDFM.id.ToLower());
                 unscannedModIDs.Remove(currentDFM.id.ToLower());
             }
+        }
+
+        public bool AutoSortEnabledMods()
+        {
+            Dictionary<string, ModReference> idMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
+            foreach (ModReference modref in modrefMap.Values)
+                if (!idMap.ContainsKey(modref.ID))
+                    idMap.Add(modref.ID, modref);
+
+            Dictionary<string, int> originalIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            List<ModReference> enabledRefs = new List<ModReference>();
+            for (int i = 0; i < enabledMods.Count; i++)
+            {
+                if (modrefMap.TryGetValue(enabledMods[i].ToString(), out ModReference modref))
+                {
+                    enabledRefs.Add(modref);
+                    if (!originalIndex.ContainsKey(modref.ID))
+                        originalIndex[modref.ID] = i;
+                }
+            }
+
+            HashSet<string> enabledIds = new HashSet<string>(enabledRefs.Select(m => m.ID), StringComparer.OrdinalIgnoreCase);
+            Queue<ModReference> queue = new Queue<ModReference>(enabledRefs);
+            while (queue.Count > 0)
+            {
+                ModReference current = queue.Dequeue();
+                foreach (string dep in current.require_before_me.Concat(current.require_after_me))
+                {
+                    string depId = dep?.Trim();
+                    if (string.IsNullOrEmpty(depId))
+                        continue;
+                    if (enabledIds.Contains(depId))
+                        continue;
+                    if (idMap.TryGetValue(depId, out ModReference depRef))
+                    {
+                        enabledIds.Add(depRef.ID);
+                        queue.Enqueue(depRef);
+                    }
+                }
+            }
+
+            List<ModReference> allEnabled = new List<ModReference>();
+            foreach (string id in enabledIds)
+                if (idMap.TryGetValue(id, out ModReference modref))
+                    allEnabled.Add(modref);
+
+            Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache =
+                new Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)>(StringComparer.OrdinalIgnoreCase);
+
+            List<ModReference> baseOrder = allEnabled
+                .OrderBy(m => GetAutoSortGroup(m, traitCache))
+                .ThenBy(m => GetReactionPriority(m))
+                .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
+                .ThenBy(m => m.name ?? m.ID)
+                .ToList();
+
+            Dictionary<string, int> baseIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < baseOrder.Count; i++)
+                baseIndex[baseOrder[i].ID] = i;
+
+            Dictionary<string, List<string>> edges = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, int> indegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (ModReference modref in allEnabled)
+            {
+                edges[modref.ID] = new List<string>();
+                indegree[modref.ID] = 0;
+            }
+
+            foreach (ModReference modref in allEnabled)
+            {
+                foreach (string dep in modref.require_before_me)
+                {
+                    string depId = dep?.Trim();
+                    if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
+                        continue;
+                    edges[depId].Add(modref.ID);
+                    indegree[modref.ID]++;
+                }
+                foreach (string dep in modref.require_after_me)
+                {
+                    string depId = dep?.Trim();
+                    if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
+                        continue;
+                    edges[modref.ID].Add(depId);
+                    indegree[depId]++;
+                }
+            }
+
+            List<string> available = new List<string>();
+            foreach (KeyValuePair<string, int> kv in indegree)
+                if (kv.Value == 0)
+                    available.Add(kv.Key);
+
+            List<string> sortedIds = new List<string>();
+            while (available.Count > 0)
+            {
+                string next = available.OrderBy(id => baseIndex.TryGetValue(id, out int idx) ? idx : int.MaxValue).First();
+                available.Remove(next);
+                sortedIds.Add(next);
+                foreach (string dest in edges[next])
+                {
+                    indegree[dest]--;
+                    if (indegree[dest] == 0)
+                        available.Add(dest);
+                }
+            }
+
+            if (sortedIds.Count != enabledIds.Count)
+                sortedIds = baseOrder.Select(m => m.ID).ToList();
+
+            List<DFHMod> sortedMods = new List<DFHMod>();
+            foreach (string id in sortedIds)
+                if (idMap.TryGetValue(id, out ModReference modref))
+                    sortedMods.Add(modref.ToDFHMod());
+
+            bool changed = sortedMods.Count != enabledMods.Count;
+            if (!changed)
+                for (int i = 0; i < sortedMods.Count; i++)
+                    if (sortedMods[i] != enabledMods[i])
+                    {
+                        changed = true;
+                        break;
+                    }
+
+            if (changed)
+            {
+                SetActiveMods(sortedMods);
+                FindModlistProblems();
+            }
+
+            return changed;
+        }
+
+        private int GetAutoSortGroup(ModReference modref, Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache)
+        {
+            var traits = GetModTraits(modref, traitCache);
+            if (traits.beforeVanilla || (modref.name ?? "").IndexOf("better instruments", StringComparison.OrdinalIgnoreCase) >= 0)
+                return 0;
+            if (traits.vanillaEntity)
+                return 0;
+            if (traits.newEntity)
+                return 1;
+            if (traits.reaction)
+                return 4;
+            if (traits.graphics)
+                return 2;
+            if (traits.newStuff)
+                return 5;
+            return 3;
+        }
+
+        private int GetReactionPriority(ModReference modref)
+        {
+            string label = ((modref.name ?? "") + " " + modref.ID).ToLowerInvariant();
+            if (label.Contains("set production"))
+                return 0;
+            if (label.Contains("smelt ore by product"))
+                return 1;
+            if (label.Contains("stone beds") || label.Contains("stoneworking expanded"))
+                return 2;
+            if (label.Contains("specific decoration"))
+                return 3;
+            if (label.Contains("fermented milk"))
+                return 4;
+            return 100;
+        }
+
+        private (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla) GetModTraits(
+            ModReference modref,
+            Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache)
+        {
+            if (traitCache.TryGetValue(modref.ID, out var cached))
+                return cached;
+
+            bool vanillaEntity = false;
+            bool newEntity = false;
+            bool reaction = false;
+            bool creature = false;
+            bool newStuff = false;
+            bool graphics = false;
+            bool beforeVanilla = false;
+
+            string infoPath = Path.Combine(modref.path, "info.txt");
+            if (File.Exists(infoPath))
+            {
+                string info = File.ReadAllText(infoPath);
+                if (info.IndexOf("before vanilla", StringComparison.OrdinalIgnoreCase) >= 0)
+                    beforeVanilla = true;
+                if (info.IndexOf("graphics", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    info.IndexOf("tileset", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    info.IndexOf("tile set", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    info.IndexOf("portrait", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    info.IndexOf("sprite", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    info.IndexOf("landscape", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    info.IndexOf("stone variation", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    info.IndexOf("rounded hills", StringComparison.OrdinalIgnoreCase) >= 0)
+                    graphics = true;
+            }
+
+            if (Directory.Exists(Path.Combine(modref.path, "graphics")) ||
+                Directory.Exists(Path.Combine(modref.path, "raw", "graphics")))
+                graphics = true;
+
+            if (Directory.Exists(modref.path))
+            {
+                foreach (string file in Directory.EnumerateFiles(modref.path, "*.txt", SearchOption.AllDirectories))
+                {
+                    string lowerPath = file.ToLowerInvariant();
+                    if (lowerPath.Contains("\\graphics\\") || lowerPath.Contains("/graphics/"))
+                        graphics = true;
+                    if (!lowerPath.Contains("\\raw\\") && !lowerPath.Contains("/raw/"))
+                        continue;
+
+                    string text;
+                    try
+                    {
+                        text = File.ReadAllText(file);
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    if (!reaction && text.IndexOf("[REACTION:", StringComparison.OrdinalIgnoreCase) >= 0)
+                        reaction = true;
+                    if (!creature && text.IndexOf("[CREATURE:", StringComparison.OrdinalIgnoreCase) >= 0)
+                        creature = true;
+                    if (!newStuff &&
+                        (text.IndexOf("[INORGANIC:", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         text.IndexOf("[PLANT:", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         text.IndexOf("[ITEM_", StringComparison.OrdinalIgnoreCase) >= 0))
+                        newStuff = true;
+
+                    if (!vanillaEntity || !newEntity)
+                    {
+                        MatchCollection entityMatches = Regex.Matches(text, @"\[ENTITY:([^\]]+)\]", RegexOptions.IgnoreCase);
+                        foreach (Match match in entityMatches)
+                        {
+                            string ent = match.Groups[1].Value.Trim();
+                            if (IsVanillaEntity(ent))
+                                vanillaEntity = true;
+                            else if (!string.IsNullOrEmpty(ent))
+                                newEntity = true;
+                        }
+                    }
+
+                    if (reaction && creature && newStuff && graphics && (vanillaEntity || newEntity))
+                        break;
+                }
+            }
+
+            if (creature)
+                newStuff = true;
+
+            var result = (vanillaEntity, newEntity, reaction, creature, newStuff, graphics, beforeVanilla);
+            traitCache[modref.ID] = result;
+            return result;
+        }
+
+        private bool IsVanillaEntity(string id)
+        {
+            switch (id.ToUpperInvariant())
+            {
+                case "DWARF":
+                case "ELF":
+                case "HUMAN":
+                case "GOBLIN":
+                case "KOBOLD":
+                    return true;
+            }
+            return false;
         }
 
         #region initialization file stuff

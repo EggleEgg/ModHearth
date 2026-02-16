@@ -30,6 +30,7 @@ namespace ModHearth
 
         public List<string> require_before_me;
         public List<string> require_after_me;
+        public List<string> require_ids;
         public List<string> conflicts_with;
 
         // Path of mod folder, not path to info.
@@ -60,6 +61,7 @@ namespace ModHearth
 
             require_before_me = new List<string>();
             require_after_me = new List<string>();
+            require_ids = new List<string>();
             conflicts_with = new List<string>();
         }
 
@@ -81,6 +83,7 @@ namespace ModHearth
 
             require_before_me = new List<string>();
             require_after_me = new List<string>();
+            require_ids = new List<string>();
             conflicts_with = new List<string>();
 
             // In theory info file is always present, but handle missing files gracefully.
@@ -94,6 +97,7 @@ namespace ModHearth
                 MatchCollection requireBeforeMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_BEFORE_ME\]:*(.*?)\n|\[REQUIRES_ID_BEFORE_ME:*(.*?)\]", RegexOptions.IgnoreCase);
                 MatchCollection requireAfterMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_AFTER_ME\]:*(.*?)\n|\[REQUIRES_ID_AFTER_ME:*(.*?)\]", RegexOptions.IgnoreCase);
                 MatchCollection conflictsMatches = Regex.Matches(modInfo, @"\[CONFLICTS_WITH_ID\]:*(.*?)\n|\[CONFLICTS_WITH_ID:*(.*?)\]", RegexOptions.IgnoreCase);
+                MatchCollection requiresMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID\]:*(.*?)\n|\[REQUIRES_ID:*(.*?)\]", RegexOptions.IgnoreCase);
 
                 // See if this mod has any extra needs. The groups are added, since one is empty.
                 foreach (Match match in requireBeforeMatches)
@@ -110,6 +114,11 @@ namespace ModHearth
                 {
                     conflicts_with.Add(match.Groups[1].Value + match.Groups[2].Value);
                 }
+
+                foreach (Match match in requiresMatches)
+                {
+                    require_ids.Add(match.Groups[1].Value + match.Groups[2].Value);
+                }
             }
             else
             {
@@ -117,7 +126,7 @@ namespace ModHearth
             }
 
             // Set problematic based on if this mod has extra needs.
-            problematic = require_before_me.Count != 0 || require_after_me.Count != 0 || conflicts_with.Count != 0;
+            problematic = require_before_me.Count != 0 || require_after_me.Count != 0 || require_ids.Count != 0 || conflicts_with.Count != 0;
 
         }
 

@@ -47,6 +47,7 @@ namespace ModHearth
             redoConfigButton = new Button();
             exportButton = new Button();
             importButton = new Button();
+            autoSortButton = new Button();
             newListButton = new Button();
             deleteListButton = new Button();
             renameListButton = new Button();
@@ -201,6 +202,7 @@ namespace ModHearth
             rightPanel.Controls.Add(redoConfigButton);
             rightPanel.Controls.Add(exportButton);
             rightPanel.Controls.Add(importButton);
+            rightPanel.Controls.Add(autoSortButton);
             rightPanel.Controls.Add(newListButton);
             rightPanel.Controls.Add(deleteListButton);
             rightPanel.Controls.Add(renameListButton);
@@ -254,6 +256,16 @@ namespace ModHearth
             importButton.Text = "Import";
             importButton.UseVisualStyleBackColor = true;
             importButton.Click += importButton_Click;
+            // 
+            // autoSortButton
+            // 
+            autoSortButton.Location = new Point(3, 141);
+            autoSortButton.Name = "autoSortButton";
+            autoSortButton.Size = new Size(191, 23);
+            autoSortButton.TabIndex = 18;
+            autoSortButton.Text = "Auto Sort";
+            autoSortButton.UseVisualStyleBackColor = true;
+            autoSortButton.Click += autoSortButton_Click;
             // 
             // newListButton
             // 
@@ -420,5 +432,6 @@ namespace ModHearth
         private TextBox rightSearchBox;
         private Button redoConfigButton;
         private ComboBox themeComboBox;
+        private Button autoSortButton;
     }
 }

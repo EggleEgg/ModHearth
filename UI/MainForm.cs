@@ -41,6 +41,13 @@ namespace ModHearth
         // Tracking which modrefPanels are highlighted.
         private HashSet<ModRefPanel> highlightAffected = new HashSet<ModRefPanel>();
 
+        // Selection tracking for shift/ctrl selection.
+        private readonly HashSet<ModRefPanel> selectedPanels = new HashSet<ModRefPanel>();
+        private ModRefPanel leftSelectionAnchor;
+        private ModRefPanel rightSelectionAnchor;
+        private ModRefPanel pendingSingleClickPanel;
+        private bool pendingSingleClickActive;
+
         // ComboBox handling.
         private int lastIndex;
         private bool modifyingCombobox = false;
@@ -137,6 +144,7 @@ namespace ModHearth
                 style.modRefPanelColor = Color.LightGray;
                 style.modRefColor = Color.LightGray;
                 style.modRefHighlightColor = Color.AliceBlue;
+                style.modRefSelectedColor = Color.LightSteelBlue;
                 style.modRefTextColor = Color.Black;
                 style.modRefTextBadColor = Color.Red;
                 style.modRefTextFilteredColor = Color.DarkGray;
@@ -192,6 +200,7 @@ namespace ModHearth
             toolTip1.SetToolTip(saveButton, "Save the current modlist");
             toolTip1.SetToolTip(undoChangesButton, "Undo changes to the current modlist");
             toolTip1.SetToolTip(playGameButton, "Run dwarf fortress");
+            toolTip1.SetToolTip(autoSortButton, "Auto sort the current modlist and add missing dependencies");
         }
 
         private void SetupModlistBox()
@@ -231,6 +240,182 @@ namespace ModHearth
             }
 
             panel.Initialize(conts, members, !left);
+        }
+
+        private ModRefPanel GetSelectionAnchor(VerticalFlowPanel panel)
+        {
+            return panel == leftModlistPanel ? leftSelectionAnchor : rightSelectionAnchor;
+        }
+
+        private void SetSelectionAnchor(VerticalFlowPanel panel, ModRefPanel anchor)
+        {
+            if (panel == leftModlistPanel)
+                leftSelectionAnchor = anchor;
+            else
+                rightSelectionAnchor = anchor;
+        }
+
+        private void ClearSelection(VerticalFlowPanel panel)
+        {
+            List<ModRefPanel> toClear = selectedPanels.Where(p => p.vParent == panel).ToList();
+            foreach (ModRefPanel panelItem in toClear)
+            {
+                panelItem.SetSelected(false);
+                selectedPanels.Remove(panelItem);
+            }
+        }
+
+        private void ClearSelectionOtherPanel(VerticalFlowPanel activePanel)
+        {
+            VerticalFlowPanel other = activePanel == leftModlistPanel ? rightModlistPanel : leftModlistPanel;
+            ClearSelection(other);
+            SetSelectionAnchor(other, null);
+        }
+
+        private void AddSelection(ModRefPanel panel)
+        {
+            if (selectedPanels.Add(panel))
+                panel.SetSelected(true);
+        }
+
+        private void RemoveSelection(ModRefPanel panel)
+        {
+            if (selectedPanels.Remove(panel))
+                panel.SetSelected(false);
+        }
+
+        private void SelectSingle(ModRefPanel panel)
+        {
+            ClearSelection(panel.vParent);
+            AddSelection(panel);
+        }
+
+        private int SelectionCount(VerticalFlowPanel panel)
+        {
+            return selectedPanels.Count(p => p.vParent == panel);
+        }
+
+        private bool IsSelected(ModRefPanel panel)
+        {
+            return selectedPanels.Contains(panel);
+        }
+
+        private void SelectRange(VerticalFlowPanel panel, ModRefPanel anchor, ModRefPanel target, bool addToExisting)
+        {
+            if (anchor == null || target == null)
+            {
+                if (!addToExisting && target != null)
+                    SelectSingle(target);
+                else if (target != null)
+                    AddSelection(target);
+                return;
+            }
+
+            List<ModRefPanel> ordered = panel.GetVisibleModrefs();
+            int start = ordered.IndexOf(anchor);
+            int end = ordered.IndexOf(target);
+            if (start < 0 || end < 0)
+            {
+                if (!addToExisting)
+                    SelectSingle(target);
+                else
+                    AddSelection(target);
+                return;
+            }
+
+            if (!addToExisting)
+                ClearSelection(panel);
+
+            int min = Math.Min(start, end);
+            int max = Math.Max(start, end);
+            for (int i = min; i <= max; i++)
+            {
+                AddSelection(ordered[i]);
+            }
+        }
+
+        private List<ModRefPanel> GetSelectedPanelsInOrder(VerticalFlowPanel panel)
+        {
+            List<ModRefPanel> ordered = panel.GetVisibleModrefs();
+            return ordered.Where(p => selectedPanels.Contains(p)).ToList();
+        }
+
+        private void SelectModsInPanel(VerticalFlowPanel panel, IEnumerable<DFHMod> mods, bool clearFirst)
+        {
+            if (clearFirst)
+                ClearSelection(panel);
+
+            foreach (DFHMod mod in mods)
+            {
+                if (panel.modrefMap.TryGetValue(mod, out ModRefPanel panelItem))
+                {
+                    AddSelection(panelItem);
+                }
+            }
+        }
+
+        private void CancelPendingSingleClick()
+        {
+            pendingSingleClickActive = false;
+            pendingSingleClickPanel = null;
+        }
+
+        public void ModrefMouseDown(ModRefPanel modrefPanel, MouseEventArgs e)
+        {
+            bool shift = (ModifierKeys & Keys.Shift) == Keys.Shift;
+            bool ctrl = (ModifierKeys & Keys.Control) == Keys.Control;
+            VerticalFlowPanel parent = modrefPanel.vParent;
+
+            if (shift)
+            {
+                ClearSelectionOtherPanel(parent);
+                ModRefPanel anchor = GetSelectionAnchor(parent) ?? modrefPanel;
+                SelectRange(parent, anchor, modrefPanel, ctrl);
+                SetSelectionAnchor(parent, anchor);
+                CancelPendingSingleClick();
+                return;
+            }
+
+            if (ctrl)
+            {
+                ClearSelectionOtherPanel(parent);
+                if (IsSelected(modrefPanel))
+                    RemoveSelection(modrefPanel);
+                else
+                    AddSelection(modrefPanel);
+                SetSelectionAnchor(parent, modrefPanel);
+                CancelPendingSingleClick();
+                return;
+            }
+
+            ClearSelectionOtherPanel(parent);
+
+            if (IsSelected(modrefPanel) && SelectionCount(parent) > 1)
+            {
+                pendingSingleClickActive = true;
+                pendingSingleClickPanel = modrefPanel;
+                SetSelectionAnchor(parent, modrefPanel);
+                return;
+            }
+
+            SelectSingle(modrefPanel);
+            SetSelectionAnchor(parent, modrefPanel);
+            CancelPendingSingleClick();
+        }
+
+        public void ModrefDragStart(ModRefPanel modrefPanel)
+        {
+            CancelPendingSingleClick();
+        }
+
+        public void ModrefMouseUpNoDrag(ModRefPanel modrefPanel)
+        {
+            if (pendingSingleClickActive && pendingSingleClickPanel == modrefPanel)
+            {
+                SelectSingle(modrefPanel);
+                SetSelectionAnchor(modrefPanel.vParent, modrefPanel);
+            }
+            CancelPendingSingleClick();
         }
 
         // When a modrefPanel is being dragged, it calls this. Just handles highlighting.
@@ -299,8 +484,27 @@ namespace ModHearth
             // Changes have been made.
             SetAndMarkChanges(true);
 
+            VerticalFlowPanel sourcePanel = modrefPanel.vParent;
+            List<ModRefPanel> selectedPanelsInSource = GetSelectedPanelsInOrder(sourcePanel);
+            if (selectedPanelsInSource.Count == 0 || !selectedPanelsInSource.Contains(modrefPanel))
+            {
+                selectedPanelsInSource = new List<ModRefPanel> { modrefPanel };
+            }
+
+            List<DFHMod> selectedMods = selectedPanelsInSource.Select(p => p.dfmodref).ToList();
+
             // Have the manager apply the changes to the actual enabled mods, then refresh panels to show.
-            manager.MoveMod(modrefPanel.modref, index, modrefPanel.vParent == leftModlistPanel, destinationPanel == leftModlistPanel);
+            manager.MoveMods(selectedMods, index, sourcePanel == leftModlistPanel, destinationPanel == leftModlistPanel);
+
+            if (sourcePanel != destinationPanel)
+            {
+                ClearSelection(sourcePanel);
+                SelectModsInPanel(destinationPanel, selectedMods, true);
+                DFHMod anchorMod = modrefPanel.dfmodref;
+                if (anchorMod != null && destinationPanel.modrefMap.TryGetValue(anchorMod, out ModRefPanel anchorPanel))
+                    SetSelectionAnchor(destinationPanel, anchorPanel);
+            }
+
             RefreshModlistPanels();
         }
 
@@ -475,6 +679,14 @@ namespace ModHearth
                 // Undo our changes and immediately refresh
                 UndoListChanges();
             }
+        }
+
+        private void autoSortButton_Click(object sender, EventArgs e)
+        {
+            bool changed = manager.AutoSortEnabledMods();
+            if (changed)
+                SetAndMarkChanges(true);
+            RefreshModlistPanels();
         }
 
         // Run the dwarf fortress executable.
