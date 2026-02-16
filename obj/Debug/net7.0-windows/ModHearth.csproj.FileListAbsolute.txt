@@ -54,6 +54,7 @@ C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-wi
 C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.genruntimeconfig.cache
 C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ref\ModHearth.dll
 C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\GetModMemoryData.lua
+C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ReloadModManager.lua
 C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.exe
 C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.deps.json
 C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.runtimeconfig.json

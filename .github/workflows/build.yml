@@ -19,7 +19,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build -c Debug --no-restore /p:InformationalVersion=${{ github.run_number }} /p:SourceRevisionId= /p:ContinuousIntegrationBuild=false
+      run: dotnet build -c Debug --no-restore /p:InformationalVersion=${{ github.run_number }}
     - name: Package
       run: Compress-Archive -Path bin\Debug\net7.0-windows\* -DestinationPath ModHearth-win-x64.zip
     - name: Create release

@@ -14,7 +14,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Reflection;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace ModHearth
@@ -80,12 +79,7 @@ namespace ModHearth
             if (!string.IsNullOrWhiteSpace(runNumber))
                 return runNumber;
 
-            string infoVersion = Assembly.GetExecutingAssembly()
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-            if (!string.IsNullOrWhiteSpace(infoVersion))
-                return infoVersion;
-
-            return "dev";
+            return " dev";
         }
 
         // Maps strings to ModReferences. The keys match DFHMods.ToString() perfectly. Given a value V, V.ToDFHMod.ToString() returns it's key.
@@ -404,6 +398,50 @@ namespace ModHearth
             };
             string modlistJson = JsonSerializer.Serialize(modpacks, options);
             File.WriteAllText(dfHackModlistPath, modlistJson);
+
+            ReloadDFHackModManagerScreen();
+        }
+
+        private void ReloadDFHackModManagerScreen()
+        {
+            if (!DwarfFortressRunning())
+                return;
+
+            string dfhackRunPath = Path.Combine(config.DFFolderPath, "dfhack-run.exe");
+            if (!File.Exists(dfhackRunPath))
+                return;
+
+            string luaPath = Path.Combine(Environment.CurrentDirectory, "ReloadModManager.lua");
+            if (!File.Exists(luaPath))
+                return;
+
+            ProcessStartInfo processStartInfo = new ProcessStartInfo
+            {
+                FileName = dfhackRunPath,
+                WorkingDirectory = config.DFFolderPath,
+                Arguments = $"lua -f \"{luaPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            try
+            {
+                using Process process = new Process { StartInfo = processStartInfo };
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                string error = process.StandardError.ReadToEnd();
+                process.WaitForExit();
+                if (!string.IsNullOrWhiteSpace(output))
+                    Console.WriteLine(output.TrimEnd());
+                if (!string.IsNullOrWhiteSpace(error))
+                    Console.WriteLine(error.TrimEnd());
+            }
+            catch
+            {
+                // Ignore reload failures to avoid disrupting saving.
+            }
         }
 
         public void SetSelectedModpack(int index)

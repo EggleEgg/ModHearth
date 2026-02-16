@@ -17,10 +17,10 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 
 ### Instructions
 Information on the four buttons from left to right:
-- Save button: saves the current modlist to file.
+- Save button: saves the current modlist to file, and reloads the game's mod screen.
 - Undo button: undoes changes made to the current modlist. Can only undo mod order/enable/disable changes, not renaming or deletion.
 - Play button: plays the game.
-- Reload button: not yet implemented.
+- Reload button: restarts ModHearth.
 
 ## Contributor Information
 
