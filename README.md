@@ -22,6 +22,10 @@ Information on the four buttons from left to right:
 - Trash can: clears installed mods cache.
 - Reload button: restarts ModHearth.
 
+# Shortcuts
+- Ctrl+Z triggers the undo button.
+- Ctrl+Y re‑applies the last undone modlist.
+
 ## Contributor Information
 
 ### General Functionality

@@ -37,6 +37,9 @@ namespace ModHearth
         // Tracking unsaved changes and visually marking them.
         private bool changesMade;
         private bool changesMarked = false;
+        private List<DFHMod> redoMods;
+        private bool redoAvailable;
+        private bool isRedoing;
 
         // Tracking which modrefPanels are highlighted.
         private HashSet<ModRefPanel> highlightAffected = new HashSet<ModRefPanel>();
@@ -654,6 +657,8 @@ namespace ModHearth
         // Set changesMade, fix buttons, and mark/unmark changes.
         private void SetAndMarkChanges(bool changesMade)
         {
+            if (changesMade && !isRedoing)
+                ClearRedo();
             SetChangesMade(changesMade);
             if (changesMade)
                 MarkChanges(lastIndex);
@@ -754,12 +759,56 @@ namespace ModHearth
         {
             Console.WriteLine("Undid changes.");
 
+            redoMods = new List<DFHMod>(manager.enabledMods);
+            redoAvailable = true;
+
             // Set the modpack to lastIndex (loads modlist from modpack, undoing changes)
             SetAndRefreshModpack(lastIndex);
 
             // Unmark changes and fix buttons.
             SetAndMarkChanges(false);
 
+        }
+
+        private void RedoListChanges()
+        {
+            if (!redoAvailable || redoMods == null || redoMods.Count == 0)
+                return;
+
+            Console.WriteLine("Redid changes.");
+
+            isRedoing = true;
+            manager.SetActiveMods(new List<DFHMod>(redoMods));
+            RefreshModlistPanels();
+            SetAndMarkChanges(true);
+            isRedoing = false;
+
+            redoAvailable = false;
+            redoMods = null;
+        }
+
+        private void ClearRedo()
+        {
+            redoAvailable = false;
+            redoMods = null;
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.Z))
+            {
+                if (undoChangesButton.Enabled)
+                    undoChangesButton.PerformClick();
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.Y))
+            {
+                RedoListChanges();
+                return true;
+            }
+
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private void modlistComboBox_SelectedIndexChanged(object sender, EventArgs e)
