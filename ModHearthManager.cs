@@ -30,6 +30,9 @@ namespace ModHearth
         public string DFFolderPath => Path.GetDirectoryName(DFEXEPath);
         public string ModsPath => Path.Combine(DFFolderPath, "Mods");
 
+        // Path to installed mods cache.
+        public string InstalledModsPath { get; set; }
+
         // Should this be in lightmode?
         public int theme { get; set; }
 
@@ -154,32 +157,71 @@ namespace ModHearth
             Console.WriteLine();
         }
 
-        // Run the game.
-        public void RunDwarfFortress()
-        {
-            if (config == null || string.IsNullOrWhiteSpace(config.DFEXEPath) || !File.Exists(config.DFEXEPath))
-            {
-                MessageBox.Show("Dwarf Fortress executable not found. Please fix your config.", "Missing DF.exe", MessageBoxButtons.OK);
-                return;
-            }
-
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\nStarting " + config.DFEXEPath);
-            Console.ForegroundColor = ConsoleColor.White;
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = config.DFEXEPath,
-                WorkingDirectory = Path.GetDirectoryName(config.DFEXEPath),
-                UseShellExecute = true,
-                ErrorDialog = true
-            });
-        }
 
         //??
         public ModHearthConfig GetConfig()
         {
             return config;
+        }
+
+        public string GetInstalledModsPath()
+        {
+            if (config == null || string.IsNullOrWhiteSpace(config.InstalledModsPath))
+                return GetDefaultInstalledModsPath();
+            return config.InstalledModsPath;
+        }
+
+        private string GetDefaultInstalledModsPath()
+        {
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Bay 12 Games",
+                "Dwarf Fortress",
+                "data",
+                "installed_mods");
+        }
+
+        public bool ClearInstalledModsFolder(out string message)
+        {
+            string installedModsPath = GetInstalledModsPath();
+            if (string.IsNullOrWhiteSpace(installedModsPath))
+            {
+                message = "Installed mods path is not set.";
+                return false;
+            }
+
+            if (!Directory.Exists(installedModsPath))
+            {
+                message = $"Installed mods folder not found:\n{installedModsPath}";
+                return false;
+            }
+
+            int deleted = 0;
+            List<string> failures = new List<string>();
+            foreach (string entry in Directory.EnumerateFileSystemEntries(installedModsPath))
+            {
+                try
+                {
+                    if (Directory.Exists(entry))
+                        Directory.Delete(entry, true);
+                    else if (File.Exists(entry))
+                        File.Delete(entry);
+                    deleted++;
+                }
+                catch
+                {
+                    failures.Add(Path.GetFileName(entry));
+                }
+            }
+
+            if (failures.Count > 0)
+            {
+                message = "Failed to delete: " + string.Join(", ", failures);
+                return false;
+            }
+
+            message = $"Cleared {deleted} item(s).";
+            return true;
         }
 
         private void FindAllModsDFHackLua()
@@ -1094,6 +1136,9 @@ namespace ModHearth
                 }
                 config.DFEXEPath = newPath;
             }
+
+            if (string.IsNullOrWhiteSpace(config.InstalledModsPath))
+                config.InstalledModsPath = GetDefaultInstalledModsPath();
 
             // Save the fixed config file.
             SaveConfigFile();

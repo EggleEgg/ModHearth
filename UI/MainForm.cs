@@ -169,8 +169,8 @@ namespace ModHearth
 
             modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
 
-            string dfExePath = manager.GetConfig()?.DFEXEPath ?? "";
-            playGameButton.Enabled = File.Exists(dfExePath);
+            string installedModsPath = manager.GetInstalledModsPath();
+            clearInstalledModsButton.Enabled = Directory.Exists(installedModsPath);
         }
 
         private void PostLoadFix(object sender, EventArgs e)
@@ -203,7 +203,7 @@ namespace ModHearth
         {
             toolTip1.SetToolTip(saveButton, "Save the current modlist");
             toolTip1.SetToolTip(undoChangesButton, "Undo changes to the current modlist");
-            toolTip1.SetToolTip(playGameButton, "Run dwarf fortress");
+            toolTip1.SetToolTip(clearInstalledModsButton, "Clear installed mods cache");
             toolTip1.SetToolTip(autoSortButton, "Auto sort the current modlist and add missing dependencies");
         }
 
@@ -693,10 +693,20 @@ namespace ModHearth
             RefreshModlistPanels();
         }
 
-        // Run the dwarf fortress executable.
-        private void playGameButton_Click(object sender, EventArgs e)
+        private void clearInstalledModsButton_Click(object sender, EventArgs e)
         {
-            manager.RunDwarfFortress();
+            string installedModsPath = manager.GetInstalledModsPath();
+            DialogResult result = LocationMessageBox.Show(
+                $"Clear installed mods cache?\n{installedModsPath}",
+                "Clear installed mods",
+                MessageBoxButtons.YesNo);
+            if (result != DialogResult.Yes)
+                return;
+
+            bool success = manager.ClearInstalledModsFolder(out string message);
+            LocationMessageBox.Show(message, success ? "Installed mods cleared" : "Clear failed", MessageBoxButtons.OK);
+
+            clearInstalledModsButton.Enabled = Directory.Exists(installedModsPath);
         }
 
         // Restart the application, to look for new mods. #TODO: could me bade to rescan mods, but a full restart is easiest.

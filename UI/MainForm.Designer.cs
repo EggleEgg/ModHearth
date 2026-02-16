@@ -52,7 +52,7 @@ namespace ModHearth
             deleteListButton = new Button();
             renameListButton = new Button();
             reloadButton = new Button();
-            playGameButton = new Button();
+            clearInstalledModsButton = new Button();
             undoChangesButton = new Button();
             saveButton = new Button();
             modInfoPanel = new TableLayoutPanel();
@@ -209,7 +209,7 @@ namespace ModHearth
             rightPanel.Controls.Add(renameListButton);
             rightPanel.Controls.Add(reloadButton);
             rightPanel.Controls.Add(modpackComboBox);
-            rightPanel.Controls.Add(playGameButton);
+            rightPanel.Controls.Add(clearInstalledModsButton);
             rightPanel.Controls.Add(undoChangesButton);
             rightPanel.Controls.Add(saveButton);
             rightPanel.Location = new Point(1043, 3);
@@ -308,15 +308,15 @@ namespace ModHearth
             reloadButton.UseVisualStyleBackColor = true;
             reloadButton.Click += restartButton_Click;
             // 
-            // playGameButton
+            // clearInstalledModsButton
             // 
-            playGameButton.Image = Resource1.playIcon;
-            playGameButton.Location = new Point(101, 3);
-            playGameButton.Name = "playGameButton";
-            playGameButton.Size = new Size(43, 43);
-            playGameButton.TabIndex = 9;
-            playGameButton.UseVisualStyleBackColor = true;
-            playGameButton.Click += playGameButton_Click;
+            clearInstalledModsButton.Image = Resource1.trashIcon;
+            clearInstalledModsButton.Location = new Point(101, 3);
+            clearInstalledModsButton.Name = "clearInstalledModsButton";
+            clearInstalledModsButton.Size = new Size(43, 43);
+            clearInstalledModsButton.TabIndex = 9;
+            clearInstalledModsButton.UseVisualStyleBackColor = true;
+            clearInstalledModsButton.Click += clearInstalledModsButton_Click;
             // 
             // undoChangesButton
             // 
@@ -426,7 +426,7 @@ namespace ModHearth
         private TableLayoutPanel outerTableLayout;
         private Panel rightPanel;
         private Button reloadButton;
-        private Button playGameButton;
+        private Button clearInstalledModsButton;
         private Button undoChangesButton;
         private Button saveButton;
         private TableLayoutPanel modInfoPanel;
