@@ -34,6 +34,10 @@ namespace ModHearth.UI
         // The label showing the modrefs name
         private Label label;
 
+        private ContextMenuStrip contextMenu;
+        private ToolStripMenuItem deleteMenuItem;
+        private ToolStripMenuItem openMenuItem;
+
         // Which ModrefPanel is currently being dragged. Only one is dragged at once, hence static.
         public static ModRefPanel draggee;
 
@@ -78,6 +82,8 @@ namespace ModHearth.UI
             Click += ModrefPanel_Click;
             DoubleClick += ModrefPanel_DoubleClick;
 
+            InitializeContextMenu();
+
             // Some style things.
             BorderStyle = Style.modRefBorder;
             Margin = Style.modRefPadding;
@@ -108,6 +114,15 @@ namespace ModHearth.UI
         // On mouse down, set isDragging to true, this to be the draggee, and change cursor. Also change draggee color.
         private void ModrefPanel_MouseDown(object sender, MouseEventArgs e)
         {
+            if (e.Button == MouseButtons.Right)
+            {
+                form.ModrefMouseDown(this, e);
+                return;
+            }
+
+            if (e.Button != MouseButtons.Left)
+                return;
+
             dragPending = true;
             dragStart = MousePosition;
             isDragging = false;
@@ -142,6 +157,9 @@ namespace ModHearth.UI
         // When this panel is dropped, reset isDragging, reset the cursor, and notify the form. Also reset draggee color.
         private void ModrefPanel_MouseUp(object sender, MouseEventArgs e)
         {
+            if (e.Button != MouseButtons.Left)
+                return;
+
             if (isDragging)
             {
                 isDragging = false;
@@ -222,6 +240,21 @@ namespace ModHearth.UI
             {
                 BackColor = Style.instance.modRefColor;
             }
+        }
+
+        private void InitializeContextMenu()
+        {
+            contextMenu = new ContextMenuStrip();
+            deleteMenuItem = new ToolStripMenuItem("Delete from Mods folder");
+            openMenuItem = new ToolStripMenuItem("Open mod location");
+
+            deleteMenuItem.Click += (s, e) => form.DeleteModFromModsFolder(this);
+            openMenuItem.Click += (s, e) => form.OpenModLocation(this);
+            contextMenu.Items.AddRange(new ToolStripItem[] { deleteMenuItem, openMenuItem });
+            contextMenu.Opening += (s, e) => form.ConfigureModContextMenu(this, deleteMenuItem);
+
+            ContextMenuStrip = contextMenu;
+            label.ContextMenuStrip = contextMenu;
         }
 
         // Set label color and tooltips.

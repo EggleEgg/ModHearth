@@ -171,6 +171,64 @@ namespace ModHearth
             return config.InstalledModsPath;
         }
 
+        public bool CanDeleteModFromModsFolder(ModReference modref)
+        {
+            if (modref == null || string.IsNullOrWhiteSpace(modref.path) || config == null)
+                return false;
+            if (string.IsNullOrWhiteSpace(config.ModsPath))
+                return false;
+            string modPath = Path.GetFullPath(modref.path);
+            string modsPath = Path.GetFullPath(config.ModsPath);
+            if (!IsPathUnderRoot(modPath, modsPath))
+                return false;
+            return Directory.Exists(modPath);
+        }
+
+        public bool DeleteModFromModsFolder(ModReference modref, out string message)
+        {
+            if (modref == null)
+            {
+                message = "No mod selected.";
+                return false;
+            }
+
+            if (!CanDeleteModFromModsFolder(modref))
+            {
+                message = "Mod is not in the Mods folder or was already removed.";
+                return false;
+            }
+
+            string modPath = Path.GetFullPath(modref.path);
+            try
+            {
+                Directory.Delete(modPath, true);
+            }
+            catch (Exception ex)
+            {
+                message = $"Failed to delete mod folder: {ex.Message}";
+                return false;
+            }
+
+            DFHMod dfm = modref.ToDFHMod();
+            modPool.Remove(dfm);
+            enabledMods.Remove(dfm);
+            disabledMods.Remove(dfm);
+            modrefMap.Remove(modref.DFHackCompatibleString());
+            FindModlistProblems();
+            ReloadDFHackModManagerScreen();
+
+            message = $"Deleted {modPath}";
+            return true;
+        }
+
+        private static bool IsPathUnderRoot(string path, string root)
+        {
+            string normalizedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            normalizedRoot += Path.DirectorySeparatorChar;
+            return normalizedPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+        }
+
         private string GetDefaultInstalledModsPath()
         {
             return Path.Combine(

@@ -122,13 +122,11 @@ namespace ModHearth
             if (selfClosing)
                 return;
 
-            // Ask the user to confirm closing the application.
-            string message = "Are you sure you want to exit?";
-            if (changesMade)
-            {
-                message = message + "There are unsaved changes. ";
-            }
+            if (!changesMade)
+                return;
 
+            // Ask the user to confirm closing the application.
+            string message = "Are you sure you want to exit? There are unsaved changes.";
             if (LocationMessageBox.Show(message, "Exit", MessageBoxButtons.YesNo) == DialogResult.No)
                 e.Cancel = true;
         }
@@ -207,7 +205,53 @@ namespace ModHearth
             toolTip1.SetToolTip(saveButton, "Save the current modlist");
             toolTip1.SetToolTip(undoChangesButton, "Undo changes to the current modlist");
             toolTip1.SetToolTip(clearInstalledModsButton, "Clear installed mods cache");
+            toolTip1.SetToolTip(reloadButton, "Restart the program");
             toolTip1.SetToolTip(autoSortButton, "Auto sort the current modlist and add missing dependencies");
+        }
+
+        public void ConfigureModContextMenu(ModRefPanel modrefPanel, ToolStripMenuItem deleteMenuItem)
+        {
+            deleteMenuItem.Enabled = manager.CanDeleteModFromModsFolder(modrefPanel.modref);
+        }
+
+        public void OpenModLocation(ModRefPanel modrefPanel)
+        {
+            string path = modrefPanel.modref?.path;
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = path,
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+                Console.WriteLine("Failed to open mod location: " + path);
+            }
+        }
+
+        public void DeleteModFromModsFolder(ModRefPanel modrefPanel)
+        {
+            if (modrefPanel?.modref == null)
+                return;
+
+            DFHMod dfm = modrefPanel.modref.ToDFHMod();
+            bool wasEnabled = manager.enabledMods.Contains(dfm);
+
+            if (!manager.DeleteModFromModsFolder(modrefPanel.modref, out string message))
+            {
+                Console.WriteLine(message);
+                return;
+            }
+
+            if (wasEnabled)
+                SetAndMarkChanges(true);
+
+            RefreshModlistPanels();
         }
 
         private void SetupModlistBox()
