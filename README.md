@@ -10,7 +10,7 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 - Game has been launched at least once
 
 ### Installation Guide
-1. Go to [releases]([https://www.google.ca](https://github.com/ch3mbot/ModHearth/releases/tag/v0.0.3-beta)) and download the most recent version 
+1. Go to [releases]([https://www.google.ca](https://github.com/EggleEgg/ModHearth/releases)) and download the most recent version 
 2. Extract zip to suitable location
 3. Run ModHearth.exe
 4. Locate Dwarf Fortress.exe

@@ -58,6 +58,7 @@ namespace ModHearth
             modInfoPanel = new TableLayoutPanel();
             modTitleLabel = new Label();
             modDescriptionLabel = new Label();
+            modVersionLabel = new Label();
             modPictureBox = new PictureBox();
             modlistColumnTableLayout.SuspendLayout();
             rightSearchPanel.SuspendLayout();
@@ -344,14 +345,16 @@ namespace ModHearth
             modInfoPanel.ColumnCount = 1;
             modInfoPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             modInfoPanel.Controls.Add(modTitleLabel, 0, 0);
-            modInfoPanel.Controls.Add(modDescriptionLabel, 0, 2);
             modInfoPanel.Controls.Add(modPictureBox, 0, 1);
+            modInfoPanel.Controls.Add(modDescriptionLabel, 0, 2);
+            modInfoPanel.Controls.Add(modVersionLabel, 0, 3);
             modInfoPanel.Location = new Point(3, 3);
             modInfoPanel.Name = "modInfoPanel";
-            modInfoPanel.RowCount = 3;
+            modInfoPanel.RowCount = 4;
             modInfoPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
             modInfoPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 636F));
             modInfoPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            modInfoPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
             modInfoPanel.Size = new Size(506, 798);
             modInfoPanel.TabIndex = 8;
             // 
@@ -370,8 +373,19 @@ namespace ModHearth
             modDescriptionLabel.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
             modDescriptionLabel.Location = new Point(3, 678);
             modDescriptionLabel.Name = "modDescriptionLabel";
-            modDescriptionLabel.Size = new Size(500, 120);
+            modDescriptionLabel.Size = new Size(500, 102);
             modDescriptionLabel.TabIndex = 1;
+            // 
+            // modVersionLabel
+            // 
+            modVersionLabel.AutoSize = true;
+            modVersionLabel.Dock = DockStyle.Fill;
+            modVersionLabel.Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point);
+            modVersionLabel.Location = new Point(3, 780);
+            modVersionLabel.Name = "modVersionLabel";
+            modVersionLabel.Size = new Size(500, 18);
+            modVersionLabel.TabIndex = 3;
+            modVersionLabel.Text = "Build";
             // 
             // modPictureBox
             // 
@@ -418,6 +432,7 @@ namespace ModHearth
         private TableLayoutPanel modInfoPanel;
         private Label modTitleLabel;
         private Label modDescriptionLabel;
+        private Label modVersionLabel;
         private PictureBox modPictureBox;
         private Button newListButton;
         private Button deleteListButton;

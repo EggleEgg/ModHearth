@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Reflection;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace ModHearth
@@ -73,6 +74,20 @@ namespace ModHearth
 
     public class ModHearthManager
     {
+        public static string GetBuildVersionString()
+        {
+            string runNumber = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
+            if (!string.IsNullOrWhiteSpace(runNumber))
+                return runNumber;
+
+            string infoVersion = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(infoVersion))
+                return infoVersion;
+
+            return "dev";
+        }
+
         // Maps strings to ModReferences. The keys match DFHMods.ToString() perfectly. Given a value V, V.ToDFHMod.ToString() returns it's key.
         private Dictionary<string, ModReference> modrefMap;
 
@@ -115,7 +130,7 @@ namespace ModHearth
 
         public ModHearthManager() 
         {
-            Console.WriteLine("Crafting Hearth");
+            Console.WriteLine($"Crafting Hearth v{GetBuildVersionString()}");
 
             // Get and load config file, fix if needed.
             AttemptLoadConfig();
@@ -136,19 +151,23 @@ namespace ModHearth
         // Run the game.
         public void RunDwarfFortress()
         {
+            if (config == null || string.IsNullOrWhiteSpace(config.DFEXEPath) || !File.Exists(config.DFEXEPath))
+            {
+                MessageBox.Show("Dwarf Fortress executable not found. Please fix your config.", "Missing DF.exe", MessageBoxButtons.OK);
+                return;
+            }
+
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("\nStarting " + config.DFEXEPath);
             Console.ForegroundColor = ConsoleColor.White;
 
-            ProcessStartInfo processInfo = new ProcessStartInfo();
-            processInfo.FileName = config.DFEXEPath;
-            processInfo.ErrorDialog = true;
-            processInfo.UseShellExecute = false;
-            processInfo.RedirectStandardOutput = true;
-            processInfo.RedirectStandardError = true;
-            processInfo.WorkingDirectory = Path.GetDirectoryName(config.DFEXEPath);
-
-            Process.Start(processInfo);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = config.DFEXEPath,
+                WorkingDirectory = Path.GetDirectoryName(config.DFEXEPath),
+                UseShellExecute = true,
+                ErrorDialog = true
+            });
         }
 
         //??

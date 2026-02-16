@@ -153,6 +153,7 @@ namespace ModHearth
             this.BackColor = style.formColor;
             modTitleLabel.ForeColor = style.textColor;
             modDescriptionLabel.ForeColor = style.textColor;
+            modVersionLabel.ForeColor = style.textColor;
 
             leftModlistPanel.BackColor = style.modRefPanelColor;
             rightModlistPanel.BackColor = style.modRefPanelColor;
@@ -166,7 +167,10 @@ namespace ModHearth
             leftSearchBox.BorderStyle = BorderStyle.None;
             rightSearchBox.BorderStyle = BorderStyle.None;
 
-            playGameButton.Enabled = false;
+            modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
+
+            string dfExePath = manager.GetConfig()?.DFEXEPath ?? "";
+            playGameButton.Enabled = File.Exists(dfExePath);
         }
 
         private void PostLoadFix(object sender, EventArgs e)
