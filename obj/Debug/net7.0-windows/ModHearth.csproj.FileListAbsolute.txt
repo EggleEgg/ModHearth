@@ -34,3 +34,41 @@ C:\Users\chembot\source\repos\ModHearth\obj\Debug\net7.0-windows\ref\ModHearth.d
 G:\Git Projects\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.MainForm.resources
 G:\Git Projects\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.UI.VerticalFlowPanel.resources
 G:\Git Projects\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.UI.LocationMessageBox.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\bin\Debug\net7.0-windows\ModHearth.exe
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\bin\Debug\net7.0-windows\ModHearth.deps.json
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\bin\Debug\net7.0-windows\ModHearth.runtimeconfig.json
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\bin\Debug\net7.0-windows\ModHearth.dll
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\bin\Debug\net7.0-windows\ModHearth.pdb
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.Resource1.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.UI.LocationMessageBox.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.MainForm.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.UI.VerticalFlowPanel.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.csproj.GenerateResource.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.AssemblyInfoInputs.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.AssemblyInfo.cs
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.csproj.CoreCompileInputs.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.dll
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\refint\ModHearth.dll
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.pdb
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ModHearth.genruntimeconfig.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\ModHearth\obj\Debug\net7.0-windows\ref\ModHearth.dll
+C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.exe
+C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.deps.json
+C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.runtimeconfig.json
+C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.dll
+C:\Users\User\Documents\Git-repositories\ModHearth\bin\Debug\net7.0-windows\ModHearth.pdb
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.Resource1.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.UI.LocationMessageBox.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.MainForm.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.UI.VerticalFlowPanel.resources
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.csproj.GenerateResource.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.AssemblyInfoInputs.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.AssemblyInfo.cs
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.csproj.CoreCompileInputs.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.dll
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\refint\ModHearth.dll
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.pdb
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ModHearth.genruntimeconfig.cache
+C:\Users\User\Documents\Git-repositories\ModHearth\obj\Debug\net7.0-windows\ref\ModHearth.dll

@@ -1,5 +1,5 @@
 ﻿# ModHearth Mod Manager for Dwarf Fortress
-This is a mod manager for the steam version of Dwarf Fortress, made to interact with both DFHack and steam workshop mods.
+This is a modified mod manager for the steam version of Dwarf Fortress, made to interact with both DFHack and steam workshop mods. Yes this was vibe coded with the assistance of codex and claude, because I have 0 idea how c# and lua work. Yes you have absolutely the right to kill me and spit on my grave for this.
 
 ## User Information:
 

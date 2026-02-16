@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <StartupObject>ModHearth.Program</StartupObject>
     <ApplicationIcon>modhearth_icon_v1 (1).ico</ApplicationIcon>
+    <Nullable>disable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

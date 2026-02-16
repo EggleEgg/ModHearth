@@ -79,32 +79,41 @@ namespace ModHearth
             steamName = mmd["steam_title"];
             steamDescription = mmd["steam_description"];
 
-            // In theory info file is always present
-            string modInfo = File.ReadAllText(Path.Combine(path, "info.txt"));
-
-            // FIXME: this should really pull from memory using lua, but dealing with the tables sucks.
-            // FIXME: this may not match the game internals.
-            MatchCollection requireBeforeMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_BEFORE_ME\]:*(.*?)\n|\[REQUIRES_ID_BEFORE_ME:*(.*?)\]", RegexOptions.IgnoreCase);
-            MatchCollection requireAfterMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_AFTER_ME\]:*(.*?)\n|\[REQUIRES_ID_AFTER_ME:*(.*?)\]", RegexOptions.IgnoreCase);
-            MatchCollection conflictsMatches = Regex.Matches(modInfo, @"\[CONFLICTS_WITH_ID\]:*(.*?)\n|\[CONFLICTS_WITH_ID:*(.*?)\]", RegexOptions.IgnoreCase);
-
-            // See if this mod has any extra needs. The groups are added, since one is empty.
             require_before_me = new List<string>();
-            foreach (Match match in requireBeforeMatches)
-            {
-                require_before_me.Add(match.Groups[1].Value + match.Groups[2].Value);
-            }
-
             require_after_me = new List<string>();
-            foreach (Match match in requireAfterMatches)
-            {
-                require_after_me.Add(match.Groups[1].Value + match.Groups[2].Value);
-            }
-
             conflicts_with = new List<string>();
-            foreach (Match match in conflictsMatches)
+
+            // In theory info file is always present, but handle missing files gracefully.
+            string modInfoPath = Path.Combine(path, "info.txt");
+            if (File.Exists(modInfoPath))
             {
-                conflicts_with.Add(match.Groups[1].Value + match.Groups[2].Value);
+                string modInfo = File.ReadAllText(modInfoPath);
+
+                // FIXME: this should really pull from memory using lua, but dealing with the tables sucks.
+                // FIXME: this may not match the game internals.
+                MatchCollection requireBeforeMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_BEFORE_ME\]:*(.*?)\n|\[REQUIRES_ID_BEFORE_ME:*(.*?)\]", RegexOptions.IgnoreCase);
+                MatchCollection requireAfterMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_AFTER_ME\]:*(.*?)\n|\[REQUIRES_ID_AFTER_ME:*(.*?)\]", RegexOptions.IgnoreCase);
+                MatchCollection conflictsMatches = Regex.Matches(modInfo, @"\[CONFLICTS_WITH_ID\]:*(.*?)\n|\[CONFLICTS_WITH_ID:*(.*?)\]", RegexOptions.IgnoreCase);
+
+                // See if this mod has any extra needs. The groups are added, since one is empty.
+                foreach (Match match in requireBeforeMatches)
+                {
+                    require_before_me.Add(match.Groups[1].Value + match.Groups[2].Value);
+                }
+
+                foreach (Match match in requireAfterMatches)
+                {
+                    require_after_me.Add(match.Groups[1].Value + match.Groups[2].Value);
+                }
+
+                foreach (Match match in conflictsMatches)
+                {
+                    conflicts_with.Add(match.Groups[1].Value + match.Groups[2].Value);
+                }
+            }
+            else
+            {
+                Console.WriteLine($"   Warning: info.txt missing for mod '{name}' at '{modInfoPath}'. Skipping dependency parsing.");
             }
 
             // Set problematic based on if this mod has extra needs.

@@ -186,11 +186,12 @@ namespace ModHearth
             Console.WriteLine("Finding all mods... ");
 
             HashSet<Dictionary<string, string>> modData = GetModMemoryData();
+            Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
 
             foreach (Dictionary<string, string> modDataEntry in modData)
             {
                 // Directory correction.
-                modDataEntry["src_dir"] = Path.Combine(config.DFFolderPath, modDataEntry["src_dir"]);
+                modDataEntry["src_dir"] = ResolveModPath(modDataEntry, modIdPathMap);
 
                 // Mod setup and registry.
                 ModReference modRef = new ModReference(modDataEntry);
@@ -199,6 +200,78 @@ namespace ModHearth
                 modrefMap.Add(key, modRef);
                 modPool.Add(modRef.ToDFHMod());
             }
+        }
+
+        private Dictionary<string, string> BuildModIdPathMap()
+        {
+            Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            string installedModsPath = Path.Combine(config.DFFolderPath, "data", "installed_mods");
+            List<string> roots = new List<string> { config.ModsPath, installedModsPath };
+
+            foreach (string root in roots)
+            {
+                if (!Directory.Exists(root))
+                    continue;
+
+                foreach (string dir in Directory.EnumerateDirectories(root))
+                {
+                    string infoPath = Path.Combine(dir, "info.txt");
+                    if (!File.Exists(infoPath))
+                        continue;
+
+                    try
+                    {
+                        string info = File.ReadAllText(infoPath);
+                        Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
+                        if (idMatch.Success)
+                        {
+                            string id = idMatch.Groups[1].Value.Trim();
+                            if (!string.IsNullOrEmpty(id))
+                                map[id] = dir;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore unreadable info files.
+                    }
+                }
+            }
+
+            return map;
+        }
+
+        private string ResolveModPath(Dictionary<string, string> modDataEntry, Dictionary<string, string> modIdPathMap)
+        {
+            string rawSrcDir = modDataEntry["src_dir"];
+            string fullPath = Path.Combine(config.DFFolderPath, rawSrcDir);
+
+            if (Directory.Exists(fullPath))
+                return fullPath;
+
+            // Try matching the folder name in known roots.
+            string rawFolderName = Path.GetFileName(rawSrcDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (!string.IsNullOrEmpty(rawFolderName))
+            {
+                string candidate = Path.Combine(config.ModsPath, rawFolderName);
+                if (Directory.Exists(candidate))
+                    return candidate;
+
+                string installedModsPath = Path.Combine(config.DFFolderPath, "data", "installed_mods");
+                candidate = Path.Combine(installedModsPath, rawFolderName);
+                if (Directory.Exists(candidate))
+                    return candidate;
+            }
+
+            // Fall back to ID-based lookup.
+            if (modDataEntry.TryGetValue("id", out string id) &&
+                !string.IsNullOrWhiteSpace(id) &&
+                modIdPathMap.TryGetValue(id, out string mappedPath))
+            {
+                return mappedPath;
+            }
+
+            return fullPath;
         }
 
         // Output a dictionary, that given a modID gets the true version.
