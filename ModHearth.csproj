@@ -37,6 +37,12 @@
     <None Update="horrid_cursor.bmp">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
+    <None Update="style.light.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="style.dark.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="GetModMemoryData.lua">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

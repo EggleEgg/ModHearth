@@ -47,6 +47,7 @@ namespace ModHearth.UI
         // Should this be highlighted up or down
         private bool highlightUp;
         private bool highlightDown;
+        private bool jumpHighlighted;
 
         // Keep track of if this is a problem
         private bool problem;
@@ -92,6 +93,7 @@ namespace ModHearth.UI
             highlightUp = false;
             highlightDown = false;
             problem = false;
+            jumpHighlighted = false;
             isSelected = false;
 
             //BackgroundImage = Resource1.transparent_square;
@@ -137,13 +139,13 @@ namespace ModHearth.UI
                 Point mousePos = MousePosition;
                 if (Math.Abs(mousePos.X - dragStart.X) >= DragThreshold || Math.Abs(mousePos.Y - dragStart.Y) >= DragThreshold)
                 {
-                    isDragging = true;
-                    dragPending = false;
-                    draggee = this;
-                    Cursor.Current = new Cursor(Resource1.grab_cursor.GetHicon());
-                    draggee.BackColor = Style.instance.modRefHighlightColor;
-                    form.ModrefDragStart(this);
-                }
+            isDragging = true;
+            dragPending = false;
+            draggee = this;
+            Cursor.Current = new Cursor(Resource1.grab_cursor.GetHicon());
+            draggee.BackColor = ControlPaint.Light(Style.instance.modRefColor);
+            form.ModrefDragStart(this);
+        }
             }
 
             if (isDragging)
@@ -226,20 +228,45 @@ namespace ModHearth.UI
             UpdateSelectionVisual();
         }
 
+        public void SetJumpHighlight(bool active)
+        {
+            if (jumpHighlighted == active)
+                return;
+            jumpHighlighted = active;
+            UpdateSelectionVisual();
+        }
+
         private void UpdateSelectionVisual()
         {
             if (isDragging)
                 return;
-            if (isSelected)
+            Color baseColor = Style.instance.modRefColor;
+            Color? overlay = null;
+            if (jumpHighlighted)
             {
-                BackColor = Style.instance.modRefSelectedColor != null
-                    ? Style.instance.modRefSelectedColor
-                    : Style.instance.modRefHighlightColor;
+                overlay = Style.instance.modRefJumpHighlightColor
+                    ?? Style.instance.modRefHighlightColor;
             }
-            else
+            else if (isSelected)
             {
-                BackColor = Style.instance.modRefColor;
+                overlay = Style.instance.modRefHighlightColor;
             }
+
+            BackColor = overlay.HasValue
+                ? BlendColor(baseColor, overlay.Value)
+                : baseColor;
+        }
+
+        private Color BlendColor(Color baseColor, Color overlay)
+        {
+            if (overlay.A >= 255)
+                return overlay;
+
+            float a = overlay.A / 255f;
+            int r = (int)(baseColor.R * (1 - a) + overlay.R * a);
+            int g = (int)(baseColor.G * (1 - a) + overlay.G * a);
+            int b = (int)(baseColor.B * (1 - a) + overlay.B * a);
+            return Color.FromArgb(255, r, g, b);
         }
 
         private void InitializeContextMenu()

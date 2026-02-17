@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Drawing;
 using System.Drawing.Text;
 using System.IO;
 using System.Linq;
@@ -132,7 +133,9 @@ namespace ModHearth
 
         // Paths.
         private static readonly string configPath = "config.json";
-        private static readonly string stylePath = "style.json";
+        private static readonly string styleLightPath = "style.light.json";
+        private static readonly string styleDarkPath = "style.dark.json";
+        private static readonly string styleLegacyPath = "style.json";
 
         // Mod problem tracker.
         public List<ModProblem> modproblems;
@@ -1278,34 +1281,40 @@ namespace ModHearth
         public Style LoadStyle()
         {
             Style style = new Style();
+            int theme = GetTheme();
+            string stylePath = GetStylePathForTheme(theme);
 
             try
             {
                 if (File.Exists(stylePath))
                 {
                     Console.WriteLine("Style file found.");
-                    string jsonContent = File.ReadAllText(stylePath);
-
-                    // Deserialize the JSON content into an object
-                    Style foundStyle = JsonSerializer.Deserialize<Style>(jsonContent);
-
-                    // If broken, save working one, otherwise, use found one.
-                    if (foundStyle == null)
+                    if (!TryLoadStyleFromPath(stylePath, out style))
                     {
                         Console.WriteLine("Style file borked. Style regenerated.");
-                        style = Style.lightModeStyle();
-                        SaveStyle(style);
+                        style = GetDefaultStyleForTheme(theme);
+                        SaveStyle(style, stylePath);
+                    }
+                }
+                else if (File.Exists(styleLegacyPath))
+                {
+                    Console.WriteLine("Legacy style file found. Migrating.");
+                    if (!TryLoadStyleFromPath(styleLegacyPath, out style))
+                    {
+                        Console.WriteLine("Legacy style file borked. Style regenerated.");
+                        style = GetDefaultStyleForTheme(theme);
+                        SaveStyle(style, stylePath);
                     }
                     else
                     {
-                        style = foundStyle;
+                        SaveStyle(style, stylePath);
                     }
                 }
                 else
                 {
                     Console.WriteLine("Style file missing. New style reated.");
-                    style = Style.lightModeStyle();
-                    SaveStyle(style);
+                    style = GetDefaultStyleForTheme(theme);
+                    SaveStyle(style, stylePath);
                 }
             }
             catch (Exception ex)
@@ -1320,7 +1329,7 @@ namespace ModHearth
         } 
 
         // Save the style to file.
-        private void SaveStyle(Style style)
+        private void SaveStyle(Style style, string stylePath)
         {
             Console.WriteLine("Style saved.");
             JsonSerializerOptions options = new JsonSerializerOptions
@@ -1329,6 +1338,75 @@ namespace ModHearth
             };
             string jsonContent = JsonSerializer.Serialize(style, options);
             File.WriteAllText(stylePath, jsonContent);
+        }
+
+        private string GetStylePathForTheme(int theme)
+        {
+            return theme == 0 ? styleLightPath : styleDarkPath;
+        }
+
+        private Style GetDefaultStyleForTheme(int theme)
+        {
+            string stylePath = GetStylePathForTheme(theme);
+            if (TryLoadStyleFromPath(stylePath, out Style style))
+                return style;
+
+            if (TryLoadStyleFromPath(styleLegacyPath, out style))
+                return style;
+
+            return GetFallbackStyle();
+        }
+
+        private bool TryLoadStyleFromPath(string stylePath, out Style style)
+        {
+            style = null;
+            if (!File.Exists(stylePath))
+                return false;
+
+            try
+            {
+                string jsonContent = File.ReadAllText(stylePath);
+                Style foundStyle = JsonSerializer.Deserialize<Style>(jsonContent);
+                if (foundStyle == null)
+                    return false;
+                style = EnsureStyleDefaults(foundStyle);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private Style EnsureStyleDefaults(Style style)
+        {
+            Style fallback = GetFallbackStyle();
+            style.modRefColor ??= fallback.modRefColor;
+            style.modRefHighlightColor ??= fallback.modRefHighlightColor;
+            style.modRefJumpHighlightColor ??= fallback.modRefJumpHighlightColor;
+            style.modRefPanelColor ??= fallback.modRefPanelColor;
+            style.modRefTextColor ??= fallback.modRefTextColor;
+            style.modRefTextBadColor ??= fallback.modRefTextBadColor;
+            style.modRefTextFilteredColor ??= fallback.modRefTextFilteredColor;
+            style.formColor ??= fallback.formColor;
+            style.textColor ??= fallback.textColor;
+            return style;
+        }
+
+        private Style GetFallbackStyle()
+        {
+            return new Style
+            {
+                modRefColor = SystemColors.ControlLight,
+                modRefHighlightColor = SystemColors.Highlight,
+                modRefJumpHighlightColor = SystemColors.Highlight,
+                modRefPanelColor = SystemColors.Window,
+                modRefTextColor = SystemColors.WindowText,
+                modRefTextBadColor = Color.Red,
+                modRefTextFilteredColor = SystemColors.GrayText,
+                formColor = SystemColors.Window,
+                textColor = SystemColors.WindowText
+            };
         }
         #endregion
     }

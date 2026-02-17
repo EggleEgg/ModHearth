@@ -44,6 +44,17 @@ namespace ModHearth
         // Tracking which modrefPanels are highlighted.
         private HashSet<ModRefPanel> highlightAffected = new HashSet<ModRefPanel>();
 
+        private List<DFHMod> problemMods = new List<DFHMod>();
+        private int problemModIndex;
+        private ModRefPanel jumpHighlightedPanel;
+        private Image warningIconScaled;
+        private Size warningIconLastSize;
+        private ClickAwayMessageFilter clickAwayFilter;
+        private TextWriter originalStdOut;
+        private TextWriter originalStdErr;
+        private StreamWriter logFileWriter;
+        private StreamWriter errorFileWriter;
+
         // Selection tracking for shift/ctrl selection.
         private readonly HashSet<ModRefPanel> selectedPanels = new HashSet<ModRefPanel>();
         private ModRefPanel leftSelectionAnchor;
@@ -75,6 +86,7 @@ namespace ModHearth
             // Make console function.
             AllocConsole();
             Console.ForegroundColor = ConsoleColor.White;
+            SetupLogging();
 
             // Basic initialization.
             InitializeComponent();
@@ -101,11 +113,210 @@ namespace ModHearth
             // Apply some post load fixes.
             this.Load += PostLoadFix;
             this.FormClosing += CloseConfirmation;
+            this.FormClosed += (_, __) =>
+            {
+                TearDownLogging();
+                warningIconScaled?.Dispose();
+                if (clickAwayFilter != null)
+                    Application.RemoveMessageFilter(clickAwayFilter);
+            };
 
             // Fix resizing issues.
             this.Resize += ResizeFixes;
 
+            SetupWarningIconScaling();
+            SetupJumpHighlightClearOnClickAway();
+
             selfClosing = false;
+        }
+
+        private void SetupJumpHighlightClearOnClickAway()
+        {
+            clickAwayFilter = new ClickAwayMessageFilter(this);
+            Application.AddMessageFilter(clickAwayFilter);
+        }
+
+        private void SetupLogging()
+        {
+            try
+            {
+                string baseDir = AppContext.BaseDirectory;
+                string logPath = Path.Combine(baseDir, "gamelog.txt");
+                string errPath = Path.Combine(baseDir, "errorlog.txt");
+
+                originalStdOut = Console.Out;
+                originalStdErr = Console.Error;
+
+                logFileWriter = new StreamWriter(logPath, append: true) { AutoFlush = true };
+                errorFileWriter = new StreamWriter(errPath, append: true) { AutoFlush = true };
+
+                Console.SetOut(new TeeTextWriter(originalStdOut, logFileWriter));
+                Console.SetError(new TeeTextWriter(originalStdErr, errorFileWriter));
+            }
+            catch
+            {
+                // If log setup fails, keep console output as-is.
+            }
+        }
+
+        private void TearDownLogging()
+        {
+            if (originalStdOut != null)
+                Console.SetOut(originalStdOut);
+            if (originalStdErr != null)
+                Console.SetError(originalStdErr);
+
+            logFileWriter?.Dispose();
+            errorFileWriter?.Dispose();
+            logFileWriter = null;
+            errorFileWriter = null;
+        }
+
+        private sealed class TeeTextWriter : TextWriter
+        {
+            private readonly TextWriter primary;
+            private readonly TextWriter secondary;
+
+            public TeeTextWriter(TextWriter primary, TextWriter secondary)
+            {
+                this.primary = primary;
+                this.secondary = secondary;
+            }
+
+            public override Encoding Encoding => primary.Encoding;
+
+            public override void Write(char value)
+            {
+                primary.Write(value);
+                secondary.Write(value);
+            }
+
+            public override void Write(char[] buffer, int index, int count)
+            {
+                primary.Write(buffer, index, count);
+                secondary.Write(buffer, index, count);
+            }
+
+            public override void Write(string value)
+            {
+                primary.Write(value);
+                secondary.Write(value);
+            }
+
+            public override void Flush()
+            {
+                primary.Flush();
+                secondary.Flush();
+            }
+        }
+
+        private void ClearJumpHighlight()
+        {
+            if (jumpHighlightedPanel == null)
+                return;
+            jumpHighlightedPanel.SetJumpHighlight(false);
+            jumpHighlightedPanel = null;
+        }
+
+        private class ClickAwayMessageFilter : IMessageFilter
+        {
+            private const int WM_LBUTTONDOWN = 0x0201;
+            private const int WM_RBUTTONDOWN = 0x0204;
+            private readonly MainForm form;
+
+            public ClickAwayMessageFilter(MainForm form)
+            {
+                this.form = form;
+            }
+
+            public bool PreFilterMessage(ref Message m)
+            {
+                if (m.Msg != WM_LBUTTONDOWN && m.Msg != WM_RBUTTONDOWN)
+                    return false;
+
+                Control control = Control.FromHandle(m.HWnd);
+                if (control == null || form.warningIssuesButton == null)
+                    return false;
+
+                if (control == form.warningIssuesButton || form.warningIssuesButton.Contains(control))
+                    return false;
+
+                form.ClearJumpHighlight();
+                return false;
+            }
+        }
+
+        private void SetupWarningIconScaling()
+        {
+            warningIssuesButton.BackgroundImage = null;
+            warningIssuesButton.BackgroundImageLayout = ImageLayout.None;
+            warningIssuesButton.ImageAlign = ContentAlignment.MiddleCenter;
+            warningIssuesButton.Resize += WarningIssuesButton_Resize;
+            UpdateWarningIconScaled();
+        }
+
+        private void WarningIssuesButton_Resize(object sender, EventArgs e)
+        {
+            UpdateWarningIconScaled();
+        }
+
+        private void UpdateWarningIconScaled()
+        {
+            if (warningIssuesButton == null)
+                return;
+
+            Size targetSize = warningIssuesButton.ClientSize;
+            if (targetSize.Width <= 0 || targetSize.Height <= 0)
+                return;
+
+            if (warningIconScaled != null && targetSize == warningIconLastSize)
+                return;
+
+            Image source = Resource1.warningIcon;
+            if (source == null)
+            {
+                warningIssuesButton.Image = null;
+                return;
+            }
+
+            Size scaledSize = GetScaledSize(source.Size, targetSize);
+            Bitmap bmp = new Bitmap(targetSize.Width, targetSize.Height);
+            using (Graphics graphics = Graphics.FromImage(bmp))
+            {
+                graphics.Clear(Color.Transparent);
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                Rectangle destRect = new Rectangle(
+                    (targetSize.Width - scaledSize.Width) / 2,
+                    (targetSize.Height - scaledSize.Height) / 2,
+                    scaledSize.Width,
+                    scaledSize.Height);
+
+                graphics.DrawImage(source, destRect);
+            }
+
+            Image old = warningIconScaled;
+            warningIconScaled = bmp;
+            warningIconLastSize = targetSize;
+            warningIssuesButton.Image = warningIconScaled;
+            old?.Dispose();
+        }
+
+        private static Size GetScaledSize(Size imageSize, Size bounds)
+        {
+            if (imageSize.Width <= 0 || imageSize.Height <= 0)
+                return new Size(1, 1);
+
+            float ratio = Math.Min(
+                (float)bounds.Width / imageSize.Width,
+                (float)bounds.Height / imageSize.Height);
+
+            int width = Math.Max(1, (int)Math.Round(imageSize.Width * ratio - 3));
+            int height = Math.Max(1, (int)Math.Round(imageSize.Height * ratio - 3));
+
+            return new Size(width, height);
         }
 
         // Resize childen of panels.
@@ -136,21 +347,6 @@ namespace ModHearth
         {
             Style style = manager.LoadStyle();
 
-            // Force lightmode if true.
-            if (manager.GetTheme() == 0)
-            {
-                style.formColor = Color.White;
-                style.textColor = Color.Black;
-
-                style.modRefPanelColor = Color.LightGray;
-                style.modRefColor = Color.LightGray;
-                style.modRefHighlightColor = Color.AliceBlue;
-                style.modRefSelectedColor = Color.LightSteelBlue;
-                style.modRefTextColor = Color.Black;
-                style.modRefTextBadColor = Color.Red;
-                style.modRefTextFilteredColor = Color.DarkGray;
-            }
-
             this.BackColor = style.formColor;
             modTitleLabel.ForeColor = style.textColor;
             modDescriptionLabel.ForeColor = style.textColor;
@@ -160,11 +356,12 @@ namespace ModHearth
             rightModlistPanel.BackColor = style.modRefPanelColor;
             leftModlistPanel.FixChildrenStyle();
             rightModlistPanel.FixChildrenStyle();
+            RefreshProblemColors();
 
             leftSearchBox.ForeColor = style.textColor;
             rightSearchBox.ForeColor = style.textColor;
-            leftSearchBox.BackColor = style.modRefPanelColor;
-            rightSearchBox.BackColor = style.modRefPanelColor;
+            leftSearchBox.BackColor = style.modRefColor;
+            rightSearchBox.BackColor = style.modRefColor;
             leftSearchBox.BorderStyle = BorderStyle.None;
             rightSearchBox.BorderStyle = BorderStyle.None;
 
@@ -172,6 +369,13 @@ namespace ModHearth
 
             string installedModsPath = manager.GetInstalledModsPath();
             clearInstalledModsButton.Enabled = Directory.Exists(installedModsPath);
+        }
+
+        private void RefreshProblemColors()
+        {
+            if (manager?.modproblems == null)
+                return;
+            rightModlistPanel.ColorProblemMods(manager.modproblems);
         }
 
         private void PostLoadFix(object sender, EventArgs e)
@@ -207,6 +411,48 @@ namespace ModHearth
             toolTip1.SetToolTip(clearInstalledModsButton, "Clear installed mods cache");
             toolTip1.SetToolTip(reloadButton, "Restart the program");
             toolTip1.SetToolTip(autoSortButton, "Auto sort the current modlist and add missing dependencies");
+        }
+
+
+        private void UpdateProblemWarningIndicator()
+        {
+            if (manager?.modproblems == null)
+            {
+                problemMods.Clear();
+                problemModIndex = 0;
+                warningIssuesButton.Visible = false;
+                warningIssuesButton.Enabled = false;
+                toolTip1.SetToolTip(warningIssuesButton, null);
+                return;
+            }
+
+            HashSet<string> problemIds = new HashSet<string>(
+                manager.modproblems.Select(p => p.problemThrowerID),
+                StringComparer.OrdinalIgnoreCase);
+
+            problemMods = manager.enabledMods
+                .Where(m => problemIds.Contains(m.id))
+                .ToList();
+
+            bool hasProblems = problemMods.Count > 0;
+            warningIssuesButton.Visible = hasProblems;
+            warningIssuesButton.Enabled = hasProblems;
+            if (hasProblems)
+            {
+                toolTip1.SetToolTip(warningIssuesButton, $"{problemMods.Count} mod(s) with issues");
+                if (problemModIndex >= problemMods.Count)
+                    problemModIndex = 0;
+            }
+            else
+            {
+                toolTip1.SetToolTip(warningIssuesButton, null);
+                problemModIndex = 0;
+                if (jumpHighlightedPanel != null)
+                {
+                    jumpHighlightedPanel.SetJumpHighlight(false);
+                    jumpHighlightedPanel = null;
+                }
+            }
         }
 
         public void ConfigureModContextMenu(ModRefPanel modrefPanel, ToolStripMenuItem deleteMenuItem)
@@ -663,6 +909,7 @@ namespace ModHearth
 
             // Make the right panel show any problems that pop up.
             rightModlistPanel.ColorProblemMods(manager.modproblems);
+            UpdateProblemWarningIndicator();
 
             // Force refrash search boxes.
             leftSearchBox_TextChanged("", new EventArgs());
@@ -1111,6 +1358,33 @@ namespace ModHearth
             Application.Restart();
         }
 
+        private void warningIssuesButton_Click(object sender, EventArgs e)
+        {
+            if (problemMods == null || problemMods.Count == 0)
+                return;
+
+            if (problemModIndex >= problemMods.Count)
+                problemModIndex = 0;
+
+            DFHMod target = problemMods[problemModIndex];
+            problemModIndex = (problemModIndex + 1) % problemMods.Count;
+
+            if (rightModlistPanel.modrefMap.TryGetValue(target, out ModRefPanel panel))
+            {
+                if (jumpHighlightedPanel != null && jumpHighlightedPanel != panel)
+                    jumpHighlightedPanel.SetJumpHighlight(false);
+                jumpHighlightedPanel = panel;
+                panel.SetJumpHighlight(true);
+
+                ClearSelectionOtherPanel(rightModlistPanel);
+                ClearSelection(rightModlistPanel);
+                AddSelection(panel);
+                SetSelectionAnchor(rightModlistPanel, panel);
+                rightModlistPanel.ScrollControlIntoView(panel);
+                ChangeModInfoDisplay(panel.modref);
+            }
+        }
+
         // If the theme index was changed, save the change to manager config file, and fix our style.
         private void themeComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -1122,6 +1396,7 @@ namespace ModHearth
             lastStyle = themeComboBox.SelectedIndex;
             manager.SetTheme(themeComboBox.SelectedIndex);
             FixStyle();
+            RefreshProblemColors();
         }
     }
 }

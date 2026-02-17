@@ -1,14 +1,14 @@
 {
   "modRefColor": {
-    "R": 128,
-    "G": 128,
-    "B": 128,
+    "R": 211,
+    "G": 211,
+    "B": 211,
     "A": 255
   },
   "modRefHighlightColor": {
-    "R": 240,
-    "G": 248,
-    "B": 255,
+    "R": 176,
+    "G": 196,
+    "B": 222,
     "A": 255
   },
   "modRefJumpHighlightColor": {
@@ -18,9 +18,9 @@
     "A": 70
   },
   "modRefPanelColor": {
-    "R": 255,
-    "G": 255,
-    "B": 255,
+    "R": 211,
+    "G": 211,
+    "B": 211,
     "A": 255
   },
   "modRefTextColor": {

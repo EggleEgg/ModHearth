@@ -65,7 +65,7 @@
         // Colors.
         public SimpleColor modRefColor { get; set; }
         public SimpleColor modRefHighlightColor { get; set; }
-        public SimpleColor modRefSelectedColor { get; set; }
+        public SimpleColor modRefJumpHighlightColor { get; set; }
         public SimpleColor modRefPanelColor { get; set; }
         public SimpleColor modRefTextColor { get; set; }
         public SimpleColor modRefTextBadColor { get; set; }
@@ -77,21 +77,6 @@
         public Style()
         {
             instance = this;
-        }
-
-        public static Style lightModeStyle()
-        {
-            Style style = new Style();
-            style.modRefColor = Color.Gray;
-            style.modRefHighlightColor = Color.AliceBlue;
-            style.modRefSelectedColor = Color.LightSteelBlue;
-            style.modRefPanelColor = Color.White;
-            style.modRefTextColor = Color.Black;
-            style.modRefTextBadColor = Color.Red;
-            style.modRefTextFilteredColor = Color.DarkGray;
-            style.formColor = Color.White;
-            style.textColor = Color.Black;
-            return style;
         }
 
         // ModReferencePanel style.

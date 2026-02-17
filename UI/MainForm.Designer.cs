@@ -45,6 +45,7 @@ namespace ModHearth
             rightPanel = new Panel();
             themeComboBox = new ComboBox();
             redoConfigButton = new Button();
+            warningIssuesButton = new Button();
             exportButton = new Button();
             importButton = new Button();
             autoSortButton = new Button();
@@ -200,6 +201,7 @@ namespace ModHearth
             // rightPanel
             // 
             rightPanel.Controls.Add(themeComboBox);
+            rightPanel.Controls.Add(warningIssuesButton);
             rightPanel.Controls.Add(redoConfigButton);
             rightPanel.Controls.Add(exportButton);
             rightPanel.Controls.Add(importButton);
@@ -212,7 +214,7 @@ namespace ModHearth
             rightPanel.Controls.Add(clearInstalledModsButton);
             rightPanel.Controls.Add(undoChangesButton);
             rightPanel.Controls.Add(saveButton);
-            rightPanel.Location = new Point(1043, 3);
+            rightPanel.Location = new Point(1103, 3);
             rightPanel.Name = "rightPanel";
             rightPanel.Size = new Size(194, 798);
             rightPanel.TabIndex = 0;
@@ -237,6 +239,17 @@ namespace ModHearth
             redoConfigButton.Text = "Redo Config";
             redoConfigButton.UseVisualStyleBackColor = true;
             redoConfigButton.Click += redoConfigButton_Click;
+            // 
+            // warningIssuesButton
+            // 
+            warningIssuesButton.BackgroundImage = Resource1.warningIcon;
+            warningIssuesButton.BackgroundImageLayout = ImageLayout.Zoom;
+            warningIssuesButton.Location = new Point(0, 742);
+            warningIssuesButton.Name = "warningIssuesButton";
+            warningIssuesButton.Size = new Size(50, 50);
+            warningIssuesButton.TabIndex = 19;
+            warningIssuesButton.UseVisualStyleBackColor = true;
+            warningIssuesButton.Click += warningIssuesButton_Click;
             // 
             // exportButton
             // 
@@ -446,6 +459,7 @@ namespace ModHearth
         private Button rightSearchCloseButton;
         private TextBox rightSearchBox;
         private Button redoConfigButton;
+        private Button warningIssuesButton;
         private ComboBox themeComboBox;
         private Button autoSortButton;
     }

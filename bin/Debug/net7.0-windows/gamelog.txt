@@ -1,0 +1,1502 @@
+Crafting Hearth v1.0.0
+Attempting config file load.
+Config file found.
+Config saved.
+Finding all mods... 
+Mods found: 239
+   Mod Found: Vanilla Text
+   Mod Found: Vanilla Languages
+   Mod Found: Vanilla Descriptors
+   Mod Found: Vanilla Materials
+   Mod Found: Vanilla Environment
+   Mod Found: Vanilla Plants
+   Mod Found: Vanilla Items
+   Mod Found: Vanilla Buildings
+   Mod Found: Vanilla Bodies
+   Mod Found: Vanilla Creatures
+   Mod Found: Vanilla Entities
+   Mod Found: Vanilla Reactions
+   Mod Found: Vanilla Interactions
+   Mod Found: Vanilla Descriptors Graphics
+   Mod Found: Vanilla Plants Graphics
+   Mod Found: Vanilla Items Graphics
+   Mod Found: Vanilla Buildings Graphics
+   Mod Found: Vanilla Creatures Graphics
+   Mod Found: Vanilla Interactions Graphics
+   Mod Found: Vanilla World Map
+   Mod Found: Vanilla Interface
+   Mod Found: Vanilla Music
+   Mod Found: Vanilla Procedural Objects
+   Mod Found: Accurate Animal Names
+   Mod Found: Accurate Domestic Animal Graphics Compilation
+   Mod Found: Additional Hyenas
+   Mod Found: Additional Races. Erinyes (Updated to be playable in adventure mode)
+   Mod Found: Additional Races. Gnolls
+   Mod Found: Additional Races. Gnolls Graphical Update
+   Mod Found: Additional Races. Ixthid
+   Mod Found: Additional Races. Naga
+   Mod Found: Additional Races. Naga Graphical Update
+   Mod Found: Additional Races. Ratfolk
+   Mod Found: Additional Races. Ratfolk Graphical Update
+   Mod Found: Adjusted Creature Portraits
+   Mod Found: Advanced Agriculture
+   Mod Found: Advanced Botanical Orchards
+   Mod Found: Advanced Botanical Variety
+   Mod Found: Advanced Orchards
+   Mod Found: Adventure mode - Magic classes
+   Mod Found: Adventurous Giants
+   Mod Found: Alert Manager
+   Mod Found: Alterations
+   Mod Found: Ambiance Additions
+   Mod Found: Animal Catalogue - Badgerfolk (playable)
+   Mod Found: Animal Catalogue - Canidfolk (playable)
+   Mod Found: Armor and Weapon Encrusting
+   Mod Found: Armor Value Rebalance
+   Mod Found: Audible Alerts
+   Mod Found: Base Resources
+   Mod Found: Beastmen of Farum Azula
+   Mod Found: Beasts of Yore - Gryphon
+   Mod Found: Beasts of Yore - Hippogryph
+   Mod Found: Beekeeping Buff
+   Mod Found: Beholders
+   Mod Found: Better Birch Trees
+   Mod Found: Better Creature Descriptions
+   Mod Found: Better University
+   Mod Found: Bit of Diversity
+   Mod Found: Bourbon's Dark Floors
+   Mod Found: Bourbon's March of Wrath
+   Mod Found: Bravely Default Bestiary
+   Mod Found: Bucket O' Creatures
+   Mod Found: Bunny Fortress
+   Mod Found: Burn goods and furniture
+   Mod Found: Caboose's Deer Expanded
+   Mod Found: Cartilage Rots
+   Mod Found: Cave Spider Syndrome Recovery
+   Mod Found: Cave Tree Farming
+   Mod Found: Cavern Aquaculture
+   Mod Found: Ceramics Expanded
+   Mod Found: Ceramics Expanded Civ Patch
+   Mod Found: Civilizations support more biomes
+   Mod Found: Cloth Quivers
+   Mod Found: Cobalt Crafting
+   Mod Found: COBALTS Patches - Adavnced Brewing and More Mushrooms
+   Mod Found: Combat Log with Combat sound
+   Mod Found: Conundrum's Tweaks - Ramps & Flooring
+   Mod Found: Cooler World Names
+   Mod Found: Crundlings
+   Mod Found: Crystal lizards
+   Mod Found: Dark Ages V - War & Mythos
+   Mod Found: Dark Elves Redux
+   Mod Found: DC Cavern Flora Patch for Advanced Agriculture
+   Mod Found: DC's Cavern Flora
+   Mod Found: Dead end paths to immortality
+   Mod Found: Deep rothe
+   Mod Found: Divine Metallic
+   Mod Found: Domestic Egglayer Nerf
+   Mod Found: Don't Drink Troll Blood
+   Mod Found: Dump water bucket
+   Mod Found: Dump Water Civ Patch
+   Mod Found: DW420 - Work Detail Icons
+   Mod Found: Dwarven Arrows
+   Mod Found: Dwarven Female Statues
+   Mod Found: Dwarven Memorial
+   Mod Found: Dwarven Therapist
+   Mod Found: EBs Adventurer Crafting
+   Mod Found: Elves Aren't Immortal(Just long-lived)
+   Mod Found: Emblems of Distinction
+   Mod Found: Enhanced Trade
+   Mod Found: Ents
+   Mod Found: Erinyes Graphics Update
+   Mod Found: Extended Necromancy
+   Mod Found: Fantastic Trees
+   Mod Found: Fantastic Trees Civ Patch
+   Mod Found: FB's Animal People Redux
+   Mod Found: FB's Revised Domestics
+   Mod Found: FB's Revised Wildlife
+   Mod Found: Flux plants
+   Mod Found: Foreign weapons +
+   Mod Found: From a taste of the infinite
+   Mod Found: Frost wyrms
+   Mod Found: Gargoyles
+   Mod Found: Gender Name Colors
+   Mod Found: Giant Babies
+   Mod Found: Giant Cave Spiderlings
+   Mod Found: Give me water
+   Mod Found: Glassworks
+   Mod Found: Goblins Aren't Immortal
+   Mod Found: Goblins' Slang Language
+   Mod Found: Grind bones and shells into flux (and more)
+   Mod Found: Grind bones, shells, chitin into flux Civ Patch
+   Mod Found: Hobgoblins
+   Mod Found: Ice Drakes
+   Mod Found: Interface Tweaks
+   Mod Found: Invisible Filled Jugs Fix
+   Mod Found: Invisible Minecart Fix
+   Mod Found: Ivory
+   Mod Found: Just put it on the floor
+   Mod Found: Ketaros Stones Variations
+   Mod Found: KM.One's Training Pool
+   Mod Found: Kobold Caverns
+   Mod Found: Large Gem Furniture
+   Mod Found: Less Busy Floors
+   Mod Found: Lightly Detailed Grass
+   Mod Found: Living Gods
+   Mod Found: Magma Sieve
+   Mod Found: Make more Vanilla animals available at embark
+   Mod Found: Mandate Manager
+   Mod Found: Maned Wolves
+   Mod Found: Mcnuggy's Mythical Beasts
+   Mod Found: Metal Beds
+   Mod Found: Metal Plate floor
+   Mod Found: Metallic
+   Mod Found: MicroMod Sunflowers
+   Mod Found: Mineral Fertilizer
+   Mod Found: Mineral Powders
+   Mod Found: Modest Plants
+   Mod Found: More Book Titles
+   Mod Found: More Food Names
+   Mod Found: More Mushrooms
+   Mod Found: More Mushrooms Patch for Advanced Agriculture
+   Mod Found: More Valuable Procedural Creatures
+   Mod Found: More Vanilla Creatures
+   Mod Found: More Vanilla Creatures Adjusted
+   Mod Found: Moss tortoises
+   Mod Found: No More Hangnail
+   Mod Found: Oops! No Ovaries - Geld/Spay Female Creatures
+   Mod Found: Outdoor Crops on Embark
+   Mod Found: Painted Dogs
+   Mod Found: Perspective Walls - Rewalled
+   Mod Found: Phongr Stella Elf Graphics Update
+   Mod Found: Pitcher Pump
+   Mod Found: Playable Races. Stella Elves
+   Mod Found: Plump Helmet Man Fortress
+   Mod Found: Pool Spawn Fix
+   Mod Found: Pygmy Wyrms
+   Mod Found: Quick Fix Pale Birch
+   Mod Found: RebOOter's Library
+   Mod Found: ReColossus Tweaks
+   Mod Found: Recycle clothes and armor
+   Mod Found: Red dragons
+   Mod Found: ReDragons Tweaks
+   Mod Found: Reduced Z Fog
+   Mod Found: Rounded Hills
+   Mod Found: Scale Tanning
+   Mod Found: Seed Extractor
+   Mod Found: Shaped Gloves
+   Mod Found: Shaped Shoes/Boots
+   Mod Found: Shearable Rutherers
+   Mod Found: Silk Eggs
+   Mod Found: Simon Swerwer Soundtrack
+   Mod Found: SK Blueprint Arrows
+   Mod Found: SK Colorful Priority Buttons
+   Mod Found: SK Designation Items
+   Mod Found: SK Menu Buttons
+   Mod Found: SK Moon Stars
+   Mod Found: SK Remove Buttons
+   Mod Found: SK Suspend Button
+   Mod Found: SK To From Arrows
+   Mod Found: SK Transparent Designations
+   Mod Found: SK Zone Icons
+   Mod Found: Skunkier Skunks
+   Mod Found: Smelt Ore By Product
+   Mod Found: Snow Man Fortress
+   Mod Found: Some Weapons & Armor Available
+   Mod Found: Squad & Burrow Icons
+   Mod Found: Stingless Bees
+   Mod Found: Stoneworking Expanded
+   Mod Found: Stoneworking Expanded Civ Patch
+   Mod Found: Succubus Dungeon
+   Mod Found: Tanning - Redux
+   Mod Found: Tefnut's Better Giant Bugs
+   Mod Found: Temple of Monstrosity
+   Mod Found: Tobb's Armor Statues
+   Mod Found: Tobb's Dwarven Polearms
+   Mod Found: Tobb's Steel for Humans
+   Mod Found: Topples' Halflings
+   Mod Found: Topples' Jewelry Portrait Graphics
+   Mod Found: Topples' Layered Graphics Merge
+   Mod Found: Topples' Lizardmen
+   Mod Found: Topples' Orcs
+   Mod Found: Topples' Quarry
+   Mod Found: Topples' Workshop Icons
+   Mod Found: Train engraving
+   Mod Found: Train Engraving Civ Patch
+   Mod Found: Transparent Glass Floors
+   Mod Found: traps and utility
+   Mod Found: Umber hulks
+   Mod Found: Unicorn Tweaks
+   Mod Found: Unused materials remover
+   Mod Found: Useful Kiln
+   Mod Found: Valuable Underground Trees
+   Mod Found: Vanilla Drow Expanded Playable
+   Mod Found: Vanilla Dye Rebalance
+   Mod Found: Vanilla Moon Elves Expanded
+   Mod Found: Vanilla Sun Elves Expanded
+   Mod Found: Vanilla Weapon Overhaul
+   Mod Found: Vanilla Wild Elves Expanded
+   Mod Found: Vanilla Wood Elves Expanded
+   Mod Found: Variable Values & Dwarven Animism
+   Mod Found: Venom Immunity Expanded
+   Mod Found: Veridian Elemental
+   Mod Found: VSR - Snacks & Sushi
+   Mod Found: VSR - Superior Snakes & Serpents
+   Mod Found: Wanderer - Adventure mode crafting
+   Mod Found: Wooden Clogs
+   Mod Found: Workshops Without Floors Reforged
+   Mod registered: Vanilla Text.
+   Mod registered: Vanilla Languages.
+   Mod registered: Vanilla Descriptors.
+   Mod registered: Vanilla Materials.
+   Mod registered: Vanilla Environment.
+   Mod registered: Vanilla Plants.
+   Mod registered: Vanilla Items.
+   Mod registered: Vanilla Buildings.
+   Mod registered: Vanilla Bodies.
+   Mod registered: Vanilla Creatures.
+   Mod registered: Vanilla Entities.
+   Mod registered: Vanilla Reactions.
+   Mod registered: Vanilla Interactions.
+   Mod registered: Vanilla Descriptors Graphics.
+   Mod registered: Vanilla Plants Graphics.
+   Mod registered: Vanilla Items Graphics.
+   Mod registered: Vanilla Buildings Graphics.
+   Mod registered: Vanilla Creatures Graphics.
+   Mod registered: Vanilla Interactions Graphics.
+   Mod registered: Vanilla World Map.
+   Mod registered: Vanilla Interface.
+   Mod registered: Vanilla Music.
+   Mod registered: Vanilla Procedural Objects.
+   Mod registered: Accurate Animal Names.
+   Mod registered: Accurate Domestic Animal Graphics Compilation.
+   Mod registered: Additional Hyenas.
+   Mod registered: Additional Races. Erinyes (Updated to be playable in adventure mode).
+   Mod registered: Additional Races. Gnolls.
+   Mod registered: Additional Races. Gnolls Graphical Update.
+   Mod registered: Additional Races. Ixthid.
+   Mod registered: Additional Races. Naga.
+   Mod registered: Additional Races. Naga Graphical Update.
+   Mod registered: Additional Races. Ratfolk.
+   Mod registered: Additional Races. Ratfolk Graphical Update.
+   Mod registered: Adjusted Creature Portraits.
+   Mod registered: Advanced Agriculture.
+   Mod registered: Advanced Botanical Orchards.
+   Mod registered: Advanced Botanical Variety.
+   Mod registered: Advanced Orchards.
+   Mod registered: Adventure mode - Magic classes.
+   Mod registered: Adventurous Giants.
+   Mod registered: Alert Manager.
+   Mod registered: Alterations.
+   Mod registered: Ambiance Additions.
+   Mod registered: Animal Catalogue - Badgerfolk (playable).
+   Mod registered: Animal Catalogue - Canidfolk (playable).
+   Mod registered: Armor and Weapon Encrusting.
+   Mod registered: Armor Value Rebalance.
+   Mod registered: Audible Alerts.
+   Mod registered: Base Resources.
+   Mod registered: Beastmen of Farum Azula.
+   Mod registered: Beasts of Yore - Gryphon.
+   Mod registered: Beasts of Yore - Hippogryph.
+   Mod registered: Beekeeping Buff.
+   Mod registered: Beholders.
+   Mod registered: Better Birch Trees.
+   Mod registered: Better Creature Descriptions.
+   Mod registered: Better University.
+   Mod registered: Bit of Diversity.
+   Mod registered: Bourbon's Dark Floors.
+   Mod registered: Bourbon's March of Wrath.
+   Mod registered: Bravely Default Bestiary.
+   Mod registered: Bucket O' Creatures.
+   Mod registered: Bunny Fortress.
+   Mod registered: Burn goods and furniture.
+   Mod registered: Caboose's Deer Expanded.
+   Mod registered: Cartilage Rots.
+   Mod registered: Cave Spider Syndrome Recovery.
+   Mod registered: Cave Tree Farming.
+   Mod registered: Cavern Aquaculture.
+   Mod registered: Ceramics Expanded.
+   Mod registered: Ceramics Expanded Civ Patch.
+   Mod registered: Civilizations support more biomes.
+   Mod registered: Cloth Quivers.
+   Mod registered: Cobalt Crafting.
+   Mod registered: COBALTS Patches - Adavnced Brewing and More Mushrooms.
+   Mod registered: Combat Log with Combat sound.
+   Mod registered: Conundrum's Tweaks - Ramps & Flooring.
+   Mod registered: Cooler World Names.
+   Mod registered: Crundlings.
+   Mod registered: Crystal lizards.
+   Mod registered: Dark Ages V - War & Mythos.
+   Mod registered: Dark Elves Redux.
+   Mod registered: DC Cavern Flora Patch for Advanced Agriculture.
+   Mod registered: DC's Cavern Flora.
+   Mod registered: Dead end paths to immortality.
+   Mod registered: Deep rothe.
+   Mod registered: Divine Metallic.
+   Mod registered: Domestic Egglayer Nerf.
+   Mod registered: Don't Drink Troll Blood.
+   Mod registered: Dump water bucket.
+   Mod registered: Dump Water Civ Patch.
+   Mod registered: DW420 - Work Detail Icons.
+   Mod registered: Dwarven Arrows.
+   Mod registered: Dwarven Female Statues.
+   Mod registered: Dwarven Memorial.
+   Mod registered: Dwarven Therapist.
+   Mod registered: EBs Adventurer Crafting.
+   Mod registered: Elves Aren't Immortal(Just long-lived).
+   Mod registered: Emblems of Distinction.
+   Mod registered: Enhanced Trade.
+   Mod registered: Ents.
+   Mod registered: Erinyes Graphics Update.
+   Mod registered: Extended Necromancy.
+   Mod registered: Fantastic Trees.
+   Mod registered: Fantastic Trees Civ Patch.
+   Mod registered: FB's Animal People Redux.
+   Mod registered: FB's Revised Domestics.
+   Mod registered: FB's Revised Wildlife.
+   Mod registered: Flux plants.
+   Mod registered: Foreign weapons +.
+   Mod registered: From a taste of the infinite.
+   Mod registered: Frost wyrms.
+   Mod registered: Gargoyles.
+   Mod registered: Gender Name Colors.
+   Mod registered: Giant Babies.
+   Mod registered: Giant Cave Spiderlings.
+   Mod registered: Give me water.
+   Mod registered: Glassworks.
+   Mod registered: Goblins Aren't Immortal.
+   Mod registered: Goblins' Slang Language.
+   Mod registered: Grind bones and shells into flux (and more).
+   Mod registered: Grind bones, shells, chitin into flux Civ Patch.
+   Mod registered: Hobgoblins.
+   Mod registered: Ice Drakes.
+   Mod registered: Interface Tweaks.
+   Mod registered: Invisible Filled Jugs Fix.
+   Mod registered: Invisible Minecart Fix.
+   Mod registered: Ivory.
+   Mod registered: Just put it on the floor.
+   Mod registered: Ketaros Stones Variations.
+   Mod registered: KM.One's Training Pool.
+   Mod registered: Kobold Caverns.
+   Mod registered: Large Gem Furniture.
+   Mod registered: Less Busy Floors.
+   Mod registered: Lightly Detailed Grass.
+   Mod registered: Living Gods.
+   Mod registered: Magma Sieve.
+   Mod registered: Make more Vanilla animals available at embark.
+   Mod registered: Mandate Manager.
+   Mod registered: Maned Wolves.
+   Mod registered: Mcnuggy's Mythical Beasts.
+   Mod registered: Metal Beds.
+   Mod registered: Metal Plate floor.
+   Mod registered: Metallic.
+   Mod registered: MicroMod Sunflowers.
+   Mod registered: Mineral Fertilizer.
+   Mod registered: Mineral Powders.
+   Mod registered: Modest Plants.
+   Mod registered: More Book Titles.
+   Mod registered: More Food Names.
+   Mod registered: More Mushrooms.
+   Mod registered: More Mushrooms Patch for Advanced Agriculture.
+   Mod registered: More Valuable Procedural Creatures.
+   Mod registered: More Vanilla Creatures.
+   Mod registered: More Vanilla Creatures Adjusted.
+   Mod registered: Moss tortoises.
+   Mod registered: No More Hangnail.
+   Mod registered: Oops! No Ovaries - Geld/Spay Female Creatures.
+   Mod registered: Outdoor Crops on Embark.
+   Mod registered: Painted Dogs.
+   Mod registered: Perspective Walls - Rewalled.
+   Mod registered: Phongr Stella Elf Graphics Update.
+   Mod registered: Pitcher Pump.
+   Mod registered: Playable Races. Stella Elves.
+   Mod registered: Plump Helmet Man Fortress.
+   Mod registered: Pool Spawn Fix.
+   Mod registered: Pygmy Wyrms.
+   Mod registered: Quick Fix Pale Birch.
+   Mod registered: RebOOter's Library.
+   Mod registered: ReColossus Tweaks.
+   Mod registered: Recycle clothes and armor.
+   Mod registered: Red dragons.
+   Mod registered: ReDragons Tweaks.
+   Mod registered: Reduced Z Fog.
+   Mod registered: Rounded Hills.
+   Mod registered: Scale Tanning.
+   Mod registered: Seed Extractor.
+   Mod registered: Shaped Gloves.
+   Mod registered: Shaped Shoes/Boots.
+   Mod registered: Shearable Rutherers.
+   Mod registered: Silk Eggs.
+   Mod registered: Simon Swerwer Soundtrack.
+   Mod registered: SK Blueprint Arrows.
+   Mod registered: SK Colorful Priority Buttons.
+   Mod registered: SK Designation Items.
+   Mod registered: SK Menu Buttons.
+   Mod registered: SK Moon Stars.
+   Mod registered: SK Remove Buttons.
+   Mod registered: SK Suspend Button.
+   Mod registered: SK To From Arrows.
+   Mod registered: SK Transparent Designations.
+   Mod registered: SK Zone Icons.
+   Mod registered: Skunkier Skunks.
+   Mod registered: Smelt Ore By Product.
+   Mod registered: Snow Man Fortress.
+   Mod registered: Some Weapons & Armor Available.
+   Mod registered: Squad & Burrow Icons.
+   Mod registered: Stingless Bees.
+   Mod registered: Stoneworking Expanded.
+   Mod registered: Stoneworking Expanded Civ Patch.
+   Mod registered: Succubus Dungeon.
+   Mod registered: Tanning - Redux.
+   Mod registered: Tefnut's Better Giant Bugs.
+   Mod registered: Temple of Monstrosity.
+   Mod registered: Tobb's Armor Statues.
+   Mod registered: Tobb's Dwarven Polearms.
+   Mod registered: Tobb's Steel for Humans.
+   Mod registered: Topples' Halflings.
+   Mod registered: Topples' Jewelry Portrait Graphics.
+   Mod registered: Topples' Layered Graphics Merge.
+   Mod registered: Topples' Lizardmen.
+   Mod registered: Topples' Orcs.
+   Mod registered: Topples' Quarry.
+   Mod registered: Topples' Workshop Icons.
+   Mod registered: Train engraving.
+   Mod registered: Train Engraving Civ Patch.
+   Mod registered: Transparent Glass Floors.
+   Mod registered: traps and utility.
+   Mod registered: Umber hulks.
+   Mod registered: Unicorn Tweaks.
+   Mod registered: Unused materials remover.
+   Mod registered: Useful Kiln.
+   Mod registered: Valuable Underground Trees.
+   Mod registered: Vanilla Drow Expanded Playable.
+   Mod registered: Vanilla Dye Rebalance.
+   Mod registered: Vanilla Moon Elves Expanded.
+   Mod registered: Vanilla Sun Elves Expanded.
+   Mod registered: Vanilla Weapon Overhaul.
+   Mod registered: Vanilla Wild Elves Expanded.
+   Mod registered: Vanilla Wood Elves Expanded.
+   Mod registered: Variable Values & Dwarven Animism.
+   Mod registered: Venom Immunity Expanded.
+   Mod registered: Veridian Elemental.
+   Mod registered: VSR - Snacks & Sushi.
+   Mod registered: VSR - Superior Snakes & Serpents.
+   Mod registered: Wanderer - Adventure mode crafting.
+   Mod registered: Wooden Clogs.
+   Mod registered: Workshops Without Floors Reforged.
+
+Found modlists: 
+   Name: default
+   Default: True
+   Mods count: 239
+
+
+Found 239 mods and 1 modlists
+
+Style change from 1 to 1
+Style file found.
+
+Initializing leftModlistPanel with 239 controls, 0 of which are enabled.
+Initializing rightModlistPanel with 239 controls, 239 of which are enabled.
+Crafting Hearth v1.0.0
+Attempting config file load.
+Config file found.
+Config saved.
+Finding all mods... 
+Mods found: 239
+   Mod Found: Vanilla Text
+   Mod Found: Vanilla Languages
+   Mod Found: Vanilla Descriptors
+   Mod Found: Vanilla Materials
+   Mod Found: Vanilla Environment
+   Mod Found: Vanilla Plants
+   Mod Found: Vanilla Items
+   Mod Found: Vanilla Buildings
+   Mod Found: Vanilla Bodies
+   Mod Found: Vanilla Creatures
+   Mod Found: Vanilla Entities
+   Mod Found: Vanilla Reactions
+   Mod Found: Vanilla Interactions
+   Mod Found: Vanilla Descriptors Graphics
+   Mod Found: Vanilla Plants Graphics
+   Mod Found: Vanilla Items Graphics
+   Mod Found: Vanilla Buildings Graphics
+   Mod Found: Vanilla Creatures Graphics
+   Mod Found: Vanilla Interactions Graphics
+   Mod Found: Vanilla World Map
+   Mod Found: Vanilla Interface
+   Mod Found: Vanilla Music
+   Mod Found: Vanilla Procedural Objects
+   Mod Found: Accurate Animal Names
+   Mod Found: Accurate Domestic Animal Graphics Compilation
+   Mod Found: Additional Hyenas
+   Mod Found: Additional Races. Erinyes (Updated to be playable in adventure mode)
+   Mod Found: Additional Races. Gnolls
+   Mod Found: Additional Races. Gnolls Graphical Update
+   Mod Found: Additional Races. Ixthid
+   Mod Found: Additional Races. Naga
+   Mod Found: Additional Races. Naga Graphical Update
+   Mod Found: Additional Races. Ratfolk
+   Mod Found: Additional Races. Ratfolk Graphical Update
+   Mod Found: Adjusted Creature Portraits
+   Mod Found: Advanced Agriculture
+   Mod Found: Advanced Botanical Orchards
+   Mod Found: Advanced Botanical Variety
+   Mod Found: Advanced Orchards
+   Mod Found: Adventure mode - Magic classes
+   Mod Found: Adventurous Giants
+   Mod Found: Alert Manager
+   Mod Found: Alterations
+   Mod Found: Ambiance Additions
+   Mod Found: Animal Catalogue - Badgerfolk (playable)
+   Mod Found: Animal Catalogue - Canidfolk (playable)
+   Mod Found: Armor and Weapon Encrusting
+   Mod Found: Armor Value Rebalance
+   Mod Found: Audible Alerts
+   Mod Found: Base Resources
+   Mod Found: Beastmen of Farum Azula
+   Mod Found: Beasts of Yore - Gryphon
+   Mod Found: Beasts of Yore - Hippogryph
+   Mod Found: Beekeeping Buff
+   Mod Found: Beholders
+   Mod Found: Better Birch Trees
+   Mod Found: Better Creature Descriptions
+   Mod Found: Better University
+   Mod Found: Bit of Diversity
+   Mod Found: Bourbon's Dark Floors
+   Mod Found: Bourbon's March of Wrath
+   Mod Found: Bravely Default Bestiary
+   Mod Found: Bucket O' Creatures
+   Mod Found: Bunny Fortress
+   Mod Found: Burn goods and furniture
+   Mod Found: Caboose's Deer Expanded
+   Mod Found: Cartilage Rots
+   Mod Found: Cave Spider Syndrome Recovery
+   Mod Found: Cave Tree Farming
+   Mod Found: Cavern Aquaculture
+   Mod Found: Ceramics Expanded
+   Mod Found: Ceramics Expanded Civ Patch
+   Mod Found: Civilizations support more biomes
+   Mod Found: Cloth Quivers
+   Mod Found: Cobalt Crafting
+   Mod Found: COBALTS Patches - Adavnced Brewing and More Mushrooms
+   Mod Found: Combat Log with Combat sound
+   Mod Found: Conundrum's Tweaks - Ramps & Flooring
+   Mod Found: Cooler World Names
+   Mod Found: Crundlings
+   Mod Found: Crystal lizards
+   Mod Found: Dark Ages V - War & Mythos
+   Mod Found: Dark Elves Redux
+   Mod Found: DC Cavern Flora Patch for Advanced Agriculture
+   Mod Found: DC's Cavern Flora
+   Mod Found: Dead end paths to immortality
+   Mod Found: Deep rothe
+   Mod Found: Divine Metallic
+   Mod Found: Domestic Egglayer Nerf
+   Mod Found: Don't Drink Troll Blood
+   Mod Found: Dump water bucket
+   Mod Found: Dump Water Civ Patch
+   Mod Found: DW420 - Work Detail Icons
+   Mod Found: Dwarven Arrows
+   Mod Found: Dwarven Female Statues
+   Mod Found: Dwarven Memorial
+   Mod Found: Dwarven Therapist
+   Mod Found: EBs Adventurer Crafting
+   Mod Found: Elves Aren't Immortal(Just long-lived)
+   Mod Found: Emblems of Distinction
+   Mod Found: Enhanced Trade
+   Mod Found: Ents
+   Mod Found: Erinyes Graphics Update
+   Mod Found: Extended Necromancy
+   Mod Found: Fantastic Trees
+   Mod Found: Fantastic Trees Civ Patch
+   Mod Found: FB's Animal People Redux
+   Mod Found: FB's Revised Domestics
+   Mod Found: FB's Revised Wildlife
+   Mod Found: Flux plants
+   Mod Found: Foreign weapons +
+   Mod Found: From a taste of the infinite
+   Mod Found: Frost wyrms
+   Mod Found: Gargoyles
+   Mod Found: Gender Name Colors
+   Mod Found: Giant Babies
+   Mod Found: Giant Cave Spiderlings
+   Mod Found: Give me water
+   Mod Found: Glassworks
+   Mod Found: Goblins Aren't Immortal
+   Mod Found: Goblins' Slang Language
+   Mod Found: Grind bones and shells into flux (and more)
+   Mod Found: Grind bones, shells, chitin into flux Civ Patch
+   Mod Found: Hobgoblins
+   Mod Found: Ice Drakes
+   Mod Found: Interface Tweaks
+   Mod Found: Invisible Filled Jugs Fix
+   Mod Found: Invisible Minecart Fix
+   Mod Found: Ivory
+   Mod Found: Just put it on the floor
+   Mod Found: Ketaros Stones Variations
+   Mod Found: KM.One's Training Pool
+   Mod Found: Kobold Caverns
+   Mod Found: Large Gem Furniture
+   Mod Found: Less Busy Floors
+   Mod Found: Lightly Detailed Grass
+   Mod Found: Living Gods
+   Mod Found: Magma Sieve
+   Mod Found: Make more Vanilla animals available at embark
+   Mod Found: Mandate Manager
+   Mod Found: Maned Wolves
+   Mod Found: Mcnuggy's Mythical Beasts
+   Mod Found: Metal Beds
+   Mod Found: Metal Plate floor
+   Mod Found: Metallic
+   Mod Found: MicroMod Sunflowers
+   Mod Found: Mineral Fertilizer
+   Mod Found: Mineral Powders
+   Mod Found: Modest Plants
+   Mod Found: More Book Titles
+   Mod Found: More Food Names
+   Mod Found: More Mushrooms
+   Mod Found: More Mushrooms Patch for Advanced Agriculture
+   Mod Found: More Valuable Procedural Creatures
+   Mod Found: More Vanilla Creatures
+   Mod Found: More Vanilla Creatures Adjusted
+   Mod Found: Moss tortoises
+   Mod Found: No More Hangnail
+   Mod Found: Oops! No Ovaries - Geld/Spay Female Creatures
+   Mod Found: Outdoor Crops on Embark
+   Mod Found: Painted Dogs
+   Mod Found: Perspective Walls - Rewalled
+   Mod Found: Phongr Stella Elf Graphics Update
+   Mod Found: Pitcher Pump
+   Mod Found: Playable Races. Stella Elves
+   Mod Found: Plump Helmet Man Fortress
+   Mod Found: Pool Spawn Fix
+   Mod Found: Pygmy Wyrms
+   Mod Found: Quick Fix Pale Birch
+   Mod Found: RebOOter's Library
+   Mod Found: ReColossus Tweaks
+   Mod Found: Recycle clothes and armor
+   Mod Found: Red dragons
+   Mod Found: ReDragons Tweaks
+   Mod Found: Reduced Z Fog
+   Mod Found: Rounded Hills
+   Mod Found: Scale Tanning
+   Mod Found: Seed Extractor
+   Mod Found: Shaped Gloves
+   Mod Found: Shaped Shoes/Boots
+   Mod Found: Shearable Rutherers
+   Mod Found: Silk Eggs
+   Mod Found: Simon Swerwer Soundtrack
+   Mod Found: SK Blueprint Arrows
+   Mod Found: SK Colorful Priority Buttons
+   Mod Found: SK Designation Items
+   Mod Found: SK Menu Buttons
+   Mod Found: SK Moon Stars
+   Mod Found: SK Remove Buttons
+   Mod Found: SK Suspend Button
+   Mod Found: SK To From Arrows
+   Mod Found: SK Transparent Designations
+   Mod Found: SK Zone Icons
+   Mod Found: Skunkier Skunks
+   Mod Found: Smelt Ore By Product
+   Mod Found: Snow Man Fortress
+   Mod Found: Some Weapons & Armor Available
+   Mod Found: Squad & Burrow Icons
+   Mod Found: Stingless Bees
+   Mod Found: Stoneworking Expanded
+   Mod Found: Stoneworking Expanded Civ Patch
+   Mod Found: Succubus Dungeon
+   Mod Found: Tanning - Redux
+   Mod Found: Tefnut's Better Giant Bugs
+   Mod Found: Temple of Monstrosity
+   Mod Found: Tobb's Armor Statues
+   Mod Found: Tobb's Dwarven Polearms
+   Mod Found: Tobb's Steel for Humans
+   Mod Found: Topples' Halflings
+   Mod Found: Topples' Jewelry Portrait Graphics
+   Mod Found: Topples' Layered Graphics Merge
+   Mod Found: Topples' Lizardmen
+   Mod Found: Topples' Orcs
+   Mod Found: Topples' Quarry
+   Mod Found: Topples' Workshop Icons
+   Mod Found: Train engraving
+   Mod Found: Train Engraving Civ Patch
+   Mod Found: Transparent Glass Floors
+   Mod Found: traps and utility
+   Mod Found: Umber hulks
+   Mod Found: Unicorn Tweaks
+   Mod Found: Unused materials remover
+   Mod Found: Useful Kiln
+   Mod Found: Valuable Underground Trees
+   Mod Found: Vanilla Drow Expanded Playable
+   Mod Found: Vanilla Dye Rebalance
+   Mod Found: Vanilla Moon Elves Expanded
+   Mod Found: Vanilla Sun Elves Expanded
+   Mod Found: Vanilla Weapon Overhaul
+   Mod Found: Vanilla Wild Elves Expanded
+   Mod Found: Vanilla Wood Elves Expanded
+   Mod Found: Variable Values & Dwarven Animism
+   Mod Found: Venom Immunity Expanded
+   Mod Found: Veridian Elemental
+   Mod Found: VSR - Snacks & Sushi
+   Mod Found: VSR - Superior Snakes & Serpents
+   Mod Found: Wanderer - Adventure mode crafting
+   Mod Found: Wooden Clogs
+   Mod Found: Workshops Without Floors Reforged
+   Mod registered: Vanilla Text.
+   Mod registered: Vanilla Languages.
+   Mod registered: Vanilla Descriptors.
+   Mod registered: Vanilla Materials.
+   Mod registered: Vanilla Environment.
+   Mod registered: Vanilla Plants.
+   Mod registered: Vanilla Items.
+   Mod registered: Vanilla Buildings.
+   Mod registered: Vanilla Bodies.
+   Mod registered: Vanilla Creatures.
+   Mod registered: Vanilla Entities.
+   Mod registered: Vanilla Reactions.
+   Mod registered: Vanilla Interactions.
+   Mod registered: Vanilla Descriptors Graphics.
+   Mod registered: Vanilla Plants Graphics.
+   Mod registered: Vanilla Items Graphics.
+   Mod registered: Vanilla Buildings Graphics.
+   Mod registered: Vanilla Creatures Graphics.
+   Mod registered: Vanilla Interactions Graphics.
+   Mod registered: Vanilla World Map.
+   Mod registered: Vanilla Interface.
+   Mod registered: Vanilla Music.
+   Mod registered: Vanilla Procedural Objects.
+   Mod registered: Accurate Animal Names.
+   Mod registered: Accurate Domestic Animal Graphics Compilation.
+   Mod registered: Additional Hyenas.
+   Mod registered: Additional Races. Erinyes (Updated to be playable in adventure mode).
+   Mod registered: Additional Races. Gnolls.
+   Mod registered: Additional Races. Gnolls Graphical Update.
+   Mod registered: Additional Races. Ixthid.
+   Mod registered: Additional Races. Naga.
+   Mod registered: Additional Races. Naga Graphical Update.
+   Mod registered: Additional Races. Ratfolk.
+   Mod registered: Additional Races. Ratfolk Graphical Update.
+   Mod registered: Adjusted Creature Portraits.
+   Mod registered: Advanced Agriculture.
+   Mod registered: Advanced Botanical Orchards.
+   Mod registered: Advanced Botanical Variety.
+   Mod registered: Advanced Orchards.
+   Mod registered: Adventure mode - Magic classes.
+   Mod registered: Adventurous Giants.
+   Mod registered: Alert Manager.
+   Mod registered: Alterations.
+   Mod registered: Ambiance Additions.
+   Mod registered: Animal Catalogue - Badgerfolk (playable).
+   Mod registered: Animal Catalogue - Canidfolk (playable).
+   Mod registered: Armor and Weapon Encrusting.
+   Mod registered: Armor Value Rebalance.
+   Mod registered: Audible Alerts.
+   Mod registered: Base Resources.
+   Mod registered: Beastmen of Farum Azula.
+   Mod registered: Beasts of Yore - Gryphon.
+   Mod registered: Beasts of Yore - Hippogryph.
+   Mod registered: Beekeeping Buff.
+   Mod registered: Beholders.
+   Mod registered: Better Birch Trees.
+   Mod registered: Better Creature Descriptions.
+   Mod registered: Better University.
+   Mod registered: Bit of Diversity.
+   Mod registered: Bourbon's Dark Floors.
+   Mod registered: Bourbon's March of Wrath.
+   Mod registered: Bravely Default Bestiary.
+   Mod registered: Bucket O' Creatures.
+   Mod registered: Bunny Fortress.
+   Mod registered: Burn goods and furniture.
+   Mod registered: Caboose's Deer Expanded.
+   Mod registered: Cartilage Rots.
+   Mod registered: Cave Spider Syndrome Recovery.
+   Mod registered: Cave Tree Farming.
+   Mod registered: Cavern Aquaculture.
+   Mod registered: Ceramics Expanded.
+   Mod registered: Ceramics Expanded Civ Patch.
+   Mod registered: Civilizations support more biomes.
+   Mod registered: Cloth Quivers.
+   Mod registered: Cobalt Crafting.
+   Mod registered: COBALTS Patches - Adavnced Brewing and More Mushrooms.
+   Mod registered: Combat Log with Combat sound.
+   Mod registered: Conundrum's Tweaks - Ramps & Flooring.
+   Mod registered: Cooler World Names.
+   Mod registered: Crundlings.
+   Mod registered: Crystal lizards.
+   Mod registered: Dark Ages V - War & Mythos.
+   Mod registered: Dark Elves Redux.
+   Mod registered: DC Cavern Flora Patch for Advanced Agriculture.
+   Mod registered: DC's Cavern Flora.
+   Mod registered: Dead end paths to immortality.
+   Mod registered: Deep rothe.
+   Mod registered: Divine Metallic.
+   Mod registered: Domestic Egglayer Nerf.
+   Mod registered: Don't Drink Troll Blood.
+   Mod registered: Dump water bucket.
+   Mod registered: Dump Water Civ Patch.
+   Mod registered: DW420 - Work Detail Icons.
+   Mod registered: Dwarven Arrows.
+   Mod registered: Dwarven Female Statues.
+   Mod registered: Dwarven Memorial.
+   Mod registered: Dwarven Therapist.
+   Mod registered: EBs Adventurer Crafting.
+   Mod registered: Elves Aren't Immortal(Just long-lived).
+   Mod registered: Emblems of Distinction.
+   Mod registered: Enhanced Trade.
+   Mod registered: Ents.
+   Mod registered: Erinyes Graphics Update.
+   Mod registered: Extended Necromancy.
+   Mod registered: Fantastic Trees.
+   Mod registered: Fantastic Trees Civ Patch.
+   Mod registered: FB's Animal People Redux.
+   Mod registered: FB's Revised Domestics.
+   Mod registered: FB's Revised Wildlife.
+   Mod registered: Flux plants.
+   Mod registered: Foreign weapons +.
+   Mod registered: From a taste of the infinite.
+   Mod registered: Frost wyrms.
+   Mod registered: Gargoyles.
+   Mod registered: Gender Name Colors.
+   Mod registered: Giant Babies.
+   Mod registered: Giant Cave Spiderlings.
+   Mod registered: Give me water.
+   Mod registered: Glassworks.
+   Mod registered: Goblins Aren't Immortal.
+   Mod registered: Goblins' Slang Language.
+   Mod registered: Grind bones and shells into flux (and more).
+   Mod registered: Grind bones, shells, chitin into flux Civ Patch.
+   Mod registered: Hobgoblins.
+   Mod registered: Ice Drakes.
+   Mod registered: Interface Tweaks.
+   Mod registered: Invisible Filled Jugs Fix.
+   Mod registered: Invisible Minecart Fix.
+   Mod registered: Ivory.
+   Mod registered: Just put it on the floor.
+   Mod registered: Ketaros Stones Variations.
+   Mod registered: KM.One's Training Pool.
+   Mod registered: Kobold Caverns.
+   Mod registered: Large Gem Furniture.
+   Mod registered: Less Busy Floors.
+   Mod registered: Lightly Detailed Grass.
+   Mod registered: Living Gods.
+   Mod registered: Magma Sieve.
+   Mod registered: Make more Vanilla animals available at embark.
+   Mod registered: Mandate Manager.
+   Mod registered: Maned Wolves.
+   Mod registered: Mcnuggy's Mythical Beasts.
+   Mod registered: Metal Beds.
+   Mod registered: Metal Plate floor.
+   Mod registered: Metallic.
+   Mod registered: MicroMod Sunflowers.
+   Mod registered: Mineral Fertilizer.
+   Mod registered: Mineral Powders.
+   Mod registered: Modest Plants.
+   Mod registered: More Book Titles.
+   Mod registered: More Food Names.
+   Mod registered: More Mushrooms.
+   Mod registered: More Mushrooms Patch for Advanced Agriculture.
+   Mod registered: More Valuable Procedural Creatures.
+   Mod registered: More Vanilla Creatures.
+   Mod registered: More Vanilla Creatures Adjusted.
+   Mod registered: Moss tortoises.
+   Mod registered: No More Hangnail.
+   Mod registered: Oops! No Ovaries - Geld/Spay Female Creatures.
+   Mod registered: Outdoor Crops on Embark.
+   Mod registered: Painted Dogs.
+   Mod registered: Perspective Walls - Rewalled.
+   Mod registered: Phongr Stella Elf Graphics Update.
+   Mod registered: Pitcher Pump.
+   Mod registered: Playable Races. Stella Elves.
+   Mod registered: Plump Helmet Man Fortress.
+   Mod registered: Pool Spawn Fix.
+   Mod registered: Pygmy Wyrms.
+   Mod registered: Quick Fix Pale Birch.
+   Mod registered: RebOOter's Library.
+   Mod registered: ReColossus Tweaks.
+   Mod registered: Recycle clothes and armor.
+   Mod registered: Red dragons.
+   Mod registered: ReDragons Tweaks.
+   Mod registered: Reduced Z Fog.
+   Mod registered: Rounded Hills.
+   Mod registered: Scale Tanning.
+   Mod registered: Seed Extractor.
+   Mod registered: Shaped Gloves.
+   Mod registered: Shaped Shoes/Boots.
+   Mod registered: Shearable Rutherers.
+   Mod registered: Silk Eggs.
+   Mod registered: Simon Swerwer Soundtrack.
+   Mod registered: SK Blueprint Arrows.
+   Mod registered: SK Colorful Priority Buttons.
+   Mod registered: SK Designation Items.
+   Mod registered: SK Menu Buttons.
+   Mod registered: SK Moon Stars.
+   Mod registered: SK Remove Buttons.
+   Mod registered: SK Suspend Button.
+   Mod registered: SK To From Arrows.
+   Mod registered: SK Transparent Designations.
+   Mod registered: SK Zone Icons.
+   Mod registered: Skunkier Skunks.
+   Mod registered: Smelt Ore By Product.
+   Mod registered: Snow Man Fortress.
+   Mod registered: Some Weapons & Armor Available.
+   Mod registered: Squad & Burrow Icons.
+   Mod registered: Stingless Bees.
+   Mod registered: Stoneworking Expanded.
+   Mod registered: Stoneworking Expanded Civ Patch.
+   Mod registered: Succubus Dungeon.
+   Mod registered: Tanning - Redux.
+   Mod registered: Tefnut's Better Giant Bugs.
+   Mod registered: Temple of Monstrosity.
+   Mod registered: Tobb's Armor Statues.
+   Mod registered: Tobb's Dwarven Polearms.
+   Mod registered: Tobb's Steel for Humans.
+   Mod registered: Topples' Halflings.
+   Mod registered: Topples' Jewelry Portrait Graphics.
+   Mod registered: Topples' Layered Graphics Merge.
+   Mod registered: Topples' Lizardmen.
+   Mod registered: Topples' Orcs.
+   Mod registered: Topples' Quarry.
+   Mod registered: Topples' Workshop Icons.
+   Mod registered: Train engraving.
+   Mod registered: Train Engraving Civ Patch.
+   Mod registered: Transparent Glass Floors.
+   Mod registered: traps and utility.
+   Mod registered: Umber hulks.
+   Mod registered: Unicorn Tweaks.
+   Mod registered: Unused materials remover.
+   Mod registered: Useful Kiln.
+   Mod registered: Valuable Underground Trees.
+   Mod registered: Vanilla Drow Expanded Playable.
+   Mod registered: Vanilla Dye Rebalance.
+   Mod registered: Vanilla Moon Elves Expanded.
+   Mod registered: Vanilla Sun Elves Expanded.
+   Mod registered: Vanilla Weapon Overhaul.
+   Mod registered: Vanilla Wild Elves Expanded.
+   Mod registered: Vanilla Wood Elves Expanded.
+   Mod registered: Variable Values & Dwarven Animism.
+   Mod registered: Venom Immunity Expanded.
+   Mod registered: Veridian Elemental.
+   Mod registered: VSR - Snacks & Sushi.
+   Mod registered: VSR - Superior Snakes & Serpents.
+   Mod registered: Wanderer - Adventure mode crafting.
+   Mod registered: Wooden Clogs.
+   Mod registered: Workshops Without Floors Reforged.
+
+Found modlists: 
+   Name: default
+   Default: True
+   Mods count: 239
+
+
+Found 239 mods and 1 modlists
+
+Style change from 1 to 1
+Style file found.
+
+Initializing leftModlistPanel with 239 controls, 0 of which are enabled.
+Initializing rightModlistPanel with 239 controls, 239 of which are enabled.
+Crafting Hearth v1.0.0
+Attempting config file load.
+Config file found.
+Config saved.
+Finding all mods... 
+Mods found: 239
+   Mod Found: Vanilla Text
+   Mod Found: Vanilla Languages
+   Mod Found: Vanilla Descriptors
+   Mod Found: Vanilla Materials
+   Mod Found: Vanilla Environment
+   Mod Found: Vanilla Plants
+   Mod Found: Vanilla Items
+   Mod Found: Vanilla Buildings
+   Mod Found: Vanilla Bodies
+   Mod Found: Vanilla Creatures
+   Mod Found: Vanilla Entities
+   Mod Found: Vanilla Reactions
+   Mod Found: Vanilla Interactions
+   Mod Found: Vanilla Descriptors Graphics
+   Mod Found: Vanilla Plants Graphics
+   Mod Found: Vanilla Items Graphics
+   Mod Found: Vanilla Buildings Graphics
+   Mod Found: Vanilla Creatures Graphics
+   Mod Found: Vanilla Interactions Graphics
+   Mod Found: Vanilla World Map
+   Mod Found: Vanilla Interface
+   Mod Found: Vanilla Music
+   Mod Found: Vanilla Procedural Objects
+   Mod Found: Accurate Animal Names
+   Mod Found: Accurate Domestic Animal Graphics Compilation
+   Mod Found: Additional Hyenas
+   Mod Found: Additional Races. Erinyes (Updated to be playable in adventure mode)
+   Mod Found: Additional Races. Gnolls
+   Mod Found: Additional Races. Gnolls Graphical Update
+   Mod Found: Additional Races. Ixthid
+   Mod Found: Additional Races. Naga
+   Mod Found: Additional Races. Naga Graphical Update
+   Mod Found: Additional Races. Ratfolk
+   Mod Found: Additional Races. Ratfolk Graphical Update
+   Mod Found: Adjusted Creature Portraits
+   Mod Found: Advanced Agriculture
+   Mod Found: Advanced Botanical Orchards
+   Mod Found: Advanced Botanical Variety
+   Mod Found: Advanced Orchards
+   Mod Found: Adventure mode - Magic classes
+   Mod Found: Adventurous Giants
+   Mod Found: Alert Manager
+   Mod Found: Alterations
+   Mod Found: Ambiance Additions
+   Mod Found: Animal Catalogue - Badgerfolk (playable)
+   Mod Found: Animal Catalogue - Canidfolk (playable)
+   Mod Found: Armor and Weapon Encrusting
+   Mod Found: Armor Value Rebalance
+   Mod Found: Audible Alerts
+   Mod Found: Base Resources
+   Mod Found: Beastmen of Farum Azula
+   Mod Found: Beasts of Yore - Gryphon
+   Mod Found: Beasts of Yore - Hippogryph
+   Mod Found: Beekeeping Buff
+   Mod Found: Beholders
+   Mod Found: Better Birch Trees
+   Mod Found: Better Creature Descriptions
+   Mod Found: Better University
+   Mod Found: Bit of Diversity
+   Mod Found: Bourbon's Dark Floors
+   Mod Found: Bourbon's March of Wrath
+   Mod Found: Bravely Default Bestiary
+   Mod Found: Bucket O' Creatures
+   Mod Found: Bunny Fortress
+   Mod Found: Burn goods and furniture
+   Mod Found: Caboose's Deer Expanded
+   Mod Found: Cartilage Rots
+   Mod Found: Cave Spider Syndrome Recovery
+   Mod Found: Cave Tree Farming
+   Mod Found: Cavern Aquaculture
+   Mod Found: Ceramics Expanded
+   Mod Found: Ceramics Expanded Civ Patch
+   Mod Found: Civilizations support more biomes
+   Mod Found: Cloth Quivers
+   Mod Found: Cobalt Crafting
+   Mod Found: COBALTS Patches - Adavnced Brewing and More Mushrooms
+   Mod Found: Combat Log with Combat sound
+   Mod Found: Conundrum's Tweaks - Ramps & Flooring
+   Mod Found: Cooler World Names
+   Mod Found: Crundlings
+   Mod Found: Crystal lizards
+   Mod Found: Dark Ages V - War & Mythos
+   Mod Found: Dark Elves Redux
+   Mod Found: DC Cavern Flora Patch for Advanced Agriculture
+   Mod Found: DC's Cavern Flora
+   Mod Found: Dead end paths to immortality
+   Mod Found: Deep rothe
+   Mod Found: Divine Metallic
+   Mod Found: Domestic Egglayer Nerf
+   Mod Found: Don't Drink Troll Blood
+   Mod Found: Dump water bucket
+   Mod Found: Dump Water Civ Patch
+   Mod Found: DW420 - Work Detail Icons
+   Mod Found: Dwarven Arrows
+   Mod Found: Dwarven Female Statues
+   Mod Found: Dwarven Memorial
+   Mod Found: Dwarven Therapist
+   Mod Found: EBs Adventurer Crafting
+   Mod Found: Elves Aren't Immortal(Just long-lived)
+   Mod Found: Emblems of Distinction
+   Mod Found: Enhanced Trade
+   Mod Found: Ents
+   Mod Found: Erinyes Graphics Update
+   Mod Found: Extended Necromancy
+   Mod Found: Fantastic Trees
+   Mod Found: Fantastic Trees Civ Patch
+   Mod Found: FB's Animal People Redux
+   Mod Found: FB's Revised Domestics
+   Mod Found: FB's Revised Wildlife
+   Mod Found: Flux plants
+   Mod Found: Foreign weapons +
+   Mod Found: From a taste of the infinite
+   Mod Found: Frost wyrms
+   Mod Found: Gargoyles
+   Mod Found: Gender Name Colors
+   Mod Found: Giant Babies
+   Mod Found: Giant Cave Spiderlings
+   Mod Found: Give me water
+   Mod Found: Glassworks
+   Mod Found: Goblins Aren't Immortal
+   Mod Found: Goblins' Slang Language
+   Mod Found: Grind bones and shells into flux (and more)
+   Mod Found: Grind bones, shells, chitin into flux Civ Patch
+   Mod Found: Hobgoblins
+   Mod Found: Ice Drakes
+   Mod Found: Interface Tweaks
+   Mod Found: Invisible Filled Jugs Fix
+   Mod Found: Invisible Minecart Fix
+   Mod Found: Ivory
+   Mod Found: Just put it on the floor
+   Mod Found: Ketaros Stones Variations
+   Mod Found: KM.One's Training Pool
+   Mod Found: Kobold Caverns
+   Mod Found: Large Gem Furniture
+   Mod Found: Less Busy Floors
+   Mod Found: Lightly Detailed Grass
+   Mod Found: Living Gods
+   Mod Found: Magma Sieve
+   Mod Found: Make more Vanilla animals available at embark
+   Mod Found: Mandate Manager
+   Mod Found: Maned Wolves
+   Mod Found: Mcnuggy's Mythical Beasts
+   Mod Found: Metal Beds
+   Mod Found: Metal Plate floor
+   Mod Found: Metallic
+   Mod Found: MicroMod Sunflowers
+   Mod Found: Mineral Fertilizer
+   Mod Found: Mineral Powders
+   Mod Found: Modest Plants
+   Mod Found: More Book Titles
+   Mod Found: More Food Names
+   Mod Found: More Mushrooms
+   Mod Found: More Mushrooms Patch for Advanced Agriculture
+   Mod Found: More Valuable Procedural Creatures
+   Mod Found: More Vanilla Creatures
+   Mod Found: More Vanilla Creatures Adjusted
+   Mod Found: Moss tortoises
+   Mod Found: No More Hangnail
+   Mod Found: Oops! No Ovaries - Geld/Spay Female Creatures
+   Mod Found: Outdoor Crops on Embark
+   Mod Found: Painted Dogs
+   Mod Found: Perspective Walls - Rewalled
+   Mod Found: Phongr Stella Elf Graphics Update
+   Mod Found: Pitcher Pump
+   Mod Found: Playable Races. Stella Elves
+   Mod Found: Plump Helmet Man Fortress
+   Mod Found: Pool Spawn Fix
+   Mod Found: Pygmy Wyrms
+   Mod Found: Quick Fix Pale Birch
+   Mod Found: RebOOter's Library
+   Mod Found: ReColossus Tweaks
+   Mod Found: Recycle clothes and armor
+   Mod Found: Red dragons
+   Mod Found: ReDragons Tweaks
+   Mod Found: Reduced Z Fog
+   Mod Found: Rounded Hills
+   Mod Found: Scale Tanning
+   Mod Found: Seed Extractor
+   Mod Found: Shaped Gloves
+   Mod Found: Shaped Shoes/Boots
+   Mod Found: Shearable Rutherers
+   Mod Found: Silk Eggs
+   Mod Found: Simon Swerwer Soundtrack
+   Mod Found: SK Blueprint Arrows
+   Mod Found: SK Colorful Priority Buttons
+   Mod Found: SK Designation Items
+   Mod Found: SK Menu Buttons
+   Mod Found: SK Moon Stars
+   Mod Found: SK Remove Buttons
+   Mod Found: SK Suspend Button
+   Mod Found: SK To From Arrows
+   Mod Found: SK Transparent Designations
+   Mod Found: SK Zone Icons
+   Mod Found: Skunkier Skunks
+   Mod Found: Smelt Ore By Product
+   Mod Found: Snow Man Fortress
+   Mod Found: Some Weapons & Armor Available
+   Mod Found: Squad & Burrow Icons
+   Mod Found: Stingless Bees
+   Mod Found: Stoneworking Expanded
+   Mod Found: Stoneworking Expanded Civ Patch
+   Mod Found: Succubus Dungeon
+   Mod Found: Tanning - Redux
+   Mod Found: Tefnut's Better Giant Bugs
+   Mod Found: Temple of Monstrosity
+   Mod Found: Tobb's Armor Statues
+   Mod Found: Tobb's Dwarven Polearms
+   Mod Found: Tobb's Steel for Humans
+   Mod Found: Topples' Halflings
+   Mod Found: Topples' Jewelry Portrait Graphics
+   Mod Found: Topples' Layered Graphics Merge
+   Mod Found: Topples' Lizardmen
+   Mod Found: Topples' Orcs
+   Mod Found: Topples' Quarry
+   Mod Found: Topples' Workshop Icons
+   Mod Found: Train engraving
+   Mod Found: Train Engraving Civ Patch
+   Mod Found: Transparent Glass Floors
+   Mod Found: traps and utility
+   Mod Found: Umber hulks
+   Mod Found: Unicorn Tweaks
+   Mod Found: Unused materials remover
+   Mod Found: Useful Kiln
+   Mod Found: Valuable Underground Trees
+   Mod Found: Vanilla Drow Expanded Playable
+   Mod Found: Vanilla Dye Rebalance
+   Mod Found: Vanilla Moon Elves Expanded
+   Mod Found: Vanilla Sun Elves Expanded
+   Mod Found: Vanilla Weapon Overhaul
+   Mod Found: Vanilla Wild Elves Expanded
+   Mod Found: Vanilla Wood Elves Expanded
+   Mod Found: Variable Values & Dwarven Animism
+   Mod Found: Venom Immunity Expanded
+   Mod Found: Veridian Elemental
+   Mod Found: VSR - Snacks & Sushi
+   Mod Found: VSR - Superior Snakes & Serpents
+   Mod Found: Wanderer - Adventure mode crafting
+   Mod Found: Wooden Clogs
+   Mod Found: Workshops Without Floors Reforged
+   Mod registered: Vanilla Text.
+   Mod registered: Vanilla Languages.
+   Mod registered: Vanilla Descriptors.
+   Mod registered: Vanilla Materials.
+   Mod registered: Vanilla Environment.
+   Mod registered: Vanilla Plants.
+   Mod registered: Vanilla Items.
+   Mod registered: Vanilla Buildings.
+   Mod registered: Vanilla Bodies.
+   Mod registered: Vanilla Creatures.
+   Mod registered: Vanilla Entities.
+   Mod registered: Vanilla Reactions.
+   Mod registered: Vanilla Interactions.
+   Mod registered: Vanilla Descriptors Graphics.
+   Mod registered: Vanilla Plants Graphics.
+   Mod registered: Vanilla Items Graphics.
+   Mod registered: Vanilla Buildings Graphics.
+   Mod registered: Vanilla Creatures Graphics.
+   Mod registered: Vanilla Interactions Graphics.
+   Mod registered: Vanilla World Map.
+   Mod registered: Vanilla Interface.
+   Mod registered: Vanilla Music.
+   Mod registered: Vanilla Procedural Objects.
+   Mod registered: Accurate Animal Names.
+   Mod registered: Accurate Domestic Animal Graphics Compilation.
+   Mod registered: Additional Hyenas.
+   Mod registered: Additional Races. Erinyes (Updated to be playable in adventure mode).
+   Mod registered: Additional Races. Gnolls.
+   Mod registered: Additional Races. Gnolls Graphical Update.
+   Mod registered: Additional Races. Ixthid.
+   Mod registered: Additional Races. Naga.
+   Mod registered: Additional Races. Naga Graphical Update.
+   Mod registered: Additional Races. Ratfolk.
+   Mod registered: Additional Races. Ratfolk Graphical Update.
+   Mod registered: Adjusted Creature Portraits.
+   Mod registered: Advanced Agriculture.
+   Mod registered: Advanced Botanical Orchards.
+   Mod registered: Advanced Botanical Variety.
+   Mod registered: Advanced Orchards.
+   Mod registered: Adventure mode - Magic classes.
+   Mod registered: Adventurous Giants.
+   Mod registered: Alert Manager.
+   Mod registered: Alterations.
+   Mod registered: Ambiance Additions.
+   Mod registered: Animal Catalogue - Badgerfolk (playable).
+   Mod registered: Animal Catalogue - Canidfolk (playable).
+   Mod registered: Armor and Weapon Encrusting.
+   Mod registered: Armor Value Rebalance.
+   Mod registered: Audible Alerts.
+   Mod registered: Base Resources.
+   Mod registered: Beastmen of Farum Azula.
+   Mod registered: Beasts of Yore - Gryphon.
+   Mod registered: Beasts of Yore - Hippogryph.
+   Mod registered: Beekeeping Buff.
+   Mod registered: Beholders.
+   Mod registered: Better Birch Trees.
+   Mod registered: Better Creature Descriptions.
+   Mod registered: Better University.
+   Mod registered: Bit of Diversity.
+   Mod registered: Bourbon's Dark Floors.
+   Mod registered: Bourbon's March of Wrath.
+   Mod registered: Bravely Default Bestiary.
+   Mod registered: Bucket O' Creatures.
+   Mod registered: Bunny Fortress.
+   Mod registered: Burn goods and furniture.
+   Mod registered: Caboose's Deer Expanded.
+   Mod registered: Cartilage Rots.
+   Mod registered: Cave Spider Syndrome Recovery.
+   Mod registered: Cave Tree Farming.
+   Mod registered: Cavern Aquaculture.
+   Mod registered: Ceramics Expanded.
+   Mod registered: Ceramics Expanded Civ Patch.
+   Mod registered: Civilizations support more biomes.
+   Mod registered: Cloth Quivers.
+   Mod registered: Cobalt Crafting.
+   Mod registered: COBALTS Patches - Adavnced Brewing and More Mushrooms.
+   Mod registered: Combat Log with Combat sound.
+   Mod registered: Conundrum's Tweaks - Ramps & Flooring.
+   Mod registered: Cooler World Names.
+   Mod registered: Crundlings.
+   Mod registered: Crystal lizards.
+   Mod registered: Dark Ages V - War & Mythos.
+   Mod registered: Dark Elves Redux.
+   Mod registered: DC Cavern Flora Patch for Advanced Agriculture.
+   Mod registered: DC's Cavern Flora.
+   Mod registered: Dead end paths to immortality.
+   Mod registered: Deep rothe.
+   Mod registered: Divine Metallic.
+   Mod registered: Domestic Egglayer Nerf.
+   Mod registered: Don't Drink Troll Blood.
+   Mod registered: Dump water bucket.
+   Mod registered: Dump Water Civ Patch.
+   Mod registered: DW420 - Work Detail Icons.
+   Mod registered: Dwarven Arrows.
+   Mod registered: Dwarven Female Statues.
+   Mod registered: Dwarven Memorial.
+   Mod registered: Dwarven Therapist.
+   Mod registered: EBs Adventurer Crafting.
+   Mod registered: Elves Aren't Immortal(Just long-lived).
+   Mod registered: Emblems of Distinction.
+   Mod registered: Enhanced Trade.
+   Mod registered: Ents.
+   Mod registered: Erinyes Graphics Update.
+   Mod registered: Extended Necromancy.
+   Mod registered: Fantastic Trees.
+   Mod registered: Fantastic Trees Civ Patch.
+   Mod registered: FB's Animal People Redux.
+   Mod registered: FB's Revised Domestics.
+   Mod registered: FB's Revised Wildlife.
+   Mod registered: Flux plants.
+   Mod registered: Foreign weapons +.
+   Mod registered: From a taste of the infinite.
+   Mod registered: Frost wyrms.
+   Mod registered: Gargoyles.
+   Mod registered: Gender Name Colors.
+   Mod registered: Giant Babies.
+   Mod registered: Giant Cave Spiderlings.
+   Mod registered: Give me water.
+   Mod registered: Glassworks.
+   Mod registered: Goblins Aren't Immortal.
+   Mod registered: Goblins' Slang Language.
+   Mod registered: Grind bones and shells into flux (and more).
+   Mod registered: Grind bones, shells, chitin into flux Civ Patch.
+   Mod registered: Hobgoblins.
+   Mod registered: Ice Drakes.
+   Mod registered: Interface Tweaks.
+   Mod registered: Invisible Filled Jugs Fix.
+   Mod registered: Invisible Minecart Fix.
+   Mod registered: Ivory.
+   Mod registered: Just put it on the floor.
+   Mod registered: Ketaros Stones Variations.
+   Mod registered: KM.One's Training Pool.
+   Mod registered: Kobold Caverns.
+   Mod registered: Large Gem Furniture.
+   Mod registered: Less Busy Floors.
+   Mod registered: Lightly Detailed Grass.
+   Mod registered: Living Gods.
+   Mod registered: Magma Sieve.
+   Mod registered: Make more Vanilla animals available at embark.
+   Mod registered: Mandate Manager.
+   Mod registered: Maned Wolves.
+   Mod registered: Mcnuggy's Mythical Beasts.
+   Mod registered: Metal Beds.
+   Mod registered: Metal Plate floor.
+   Mod registered: Metallic.
+   Mod registered: MicroMod Sunflowers.
+   Mod registered: Mineral Fertilizer.
+   Mod registered: Mineral Powders.
+   Mod registered: Modest Plants.
+   Mod registered: More Book Titles.
+   Mod registered: More Food Names.
+   Mod registered: More Mushrooms.
+   Mod registered: More Mushrooms Patch for Advanced Agriculture.
+   Mod registered: More Valuable Procedural Creatures.
+   Mod registered: More Vanilla Creatures.
+   Mod registered: More Vanilla Creatures Adjusted.
+   Mod registered: Moss tortoises.
+   Mod registered: No More Hangnail.
+   Mod registered: Oops! No Ovaries - Geld/Spay Female Creatures.
+   Mod registered: Outdoor Crops on Embark.
+   Mod registered: Painted Dogs.
+   Mod registered: Perspective Walls - Rewalled.
+   Mod registered: Phongr Stella Elf Graphics Update.
+   Mod registered: Pitcher Pump.
+   Mod registered: Playable Races. Stella Elves.
+   Mod registered: Plump Helmet Man Fortress.
+   Mod registered: Pool Spawn Fix.
+   Mod registered: Pygmy Wyrms.
+   Mod registered: Quick Fix Pale Birch.
+   Mod registered: RebOOter's Library.
+   Mod registered: ReColossus Tweaks.
+   Mod registered: Recycle clothes and armor.
+   Mod registered: Red dragons.
+   Mod registered: ReDragons Tweaks.
+   Mod registered: Reduced Z Fog.
+   Mod registered: Rounded Hills.
+   Mod registered: Scale Tanning.
+   Mod registered: Seed Extractor.
+   Mod registered: Shaped Gloves.
+   Mod registered: Shaped Shoes/Boots.
+   Mod registered: Shearable Rutherers.
+   Mod registered: Silk Eggs.
+   Mod registered: Simon Swerwer Soundtrack.
+   Mod registered: SK Blueprint Arrows.
+   Mod registered: SK Colorful Priority Buttons.
+   Mod registered: SK Designation Items.
+   Mod registered: SK Menu Buttons.
+   Mod registered: SK Moon Stars.
+   Mod registered: SK Remove Buttons.
+   Mod registered: SK Suspend Button.
+   Mod registered: SK To From Arrows.
+   Mod registered: SK Transparent Designations.
+   Mod registered: SK Zone Icons.
+   Mod registered: Skunkier Skunks.
+   Mod registered: Smelt Ore By Product.
+   Mod registered: Snow Man Fortress.
+   Mod registered: Some Weapons & Armor Available.
+   Mod registered: Squad & Burrow Icons.
+   Mod registered: Stingless Bees.
+   Mod registered: Stoneworking Expanded.
+   Mod registered: Stoneworking Expanded Civ Patch.
+   Mod registered: Succubus Dungeon.
+   Mod registered: Tanning - Redux.
+   Mod registered: Tefnut's Better Giant Bugs.
+   Mod registered: Temple of Monstrosity.
+   Mod registered: Tobb's Armor Statues.
+   Mod registered: Tobb's Dwarven Polearms.
+   Mod registered: Tobb's Steel for Humans.
+   Mod registered: Topples' Halflings.
+   Mod registered: Topples' Jewelry Portrait Graphics.
+   Mod registered: Topples' Layered Graphics Merge.
+   Mod registered: Topples' Lizardmen.
+   Mod registered: Topples' Orcs.
+   Mod registered: Topples' Quarry.
+   Mod registered: Topples' Workshop Icons.
+   Mod registered: Train engraving.
+   Mod registered: Train Engraving Civ Patch.
+   Mod registered: Transparent Glass Floors.
+   Mod registered: traps and utility.
+   Mod registered: Umber hulks.
+   Mod registered: Unicorn Tweaks.
+   Mod registered: Unused materials remover.
+   Mod registered: Useful Kiln.
+   Mod registered: Valuable Underground Trees.
+   Mod registered: Vanilla Drow Expanded Playable.
+   Mod registered: Vanilla Dye Rebalance.
+   Mod registered: Vanilla Moon Elves Expanded.
+   Mod registered: Vanilla Sun Elves Expanded.
+   Mod registered: Vanilla Weapon Overhaul.
+   Mod registered: Vanilla Wild Elves Expanded.
+   Mod registered: Vanilla Wood Elves Expanded.
+   Mod registered: Variable Values & Dwarven Animism.
+   Mod registered: Venom Immunity Expanded.
+   Mod registered: Veridian Elemental.
+   Mod registered: VSR - Snacks & Sushi.
+   Mod registered: VSR - Superior Snakes & Serpents.
+   Mod registered: Wanderer - Adventure mode crafting.
+   Mod registered: Wooden Clogs.
+   Mod registered: Workshops Without Floors Reforged.
+
+Found modlists: 
+   Name: default
+   Default: True
+   Mods count: 239
+
+
+Found 239 mods and 1 modlists
+
+Style change from 1 to 1
+Style file found.
+
+Initializing leftModlistPanel with 239 controls, 0 of which are enabled.
+Initializing rightModlistPanel with 239 controls, 239 of which are enabled.
+Modlists saved.
+[ModHearth] Applying default modlist to Mods screen.
+Modlists saved.
+[ModHearth] Applying default modlist to Mods screen.
+Mod 'more_vanilla_creatures' moved from enabled to disabled.
+Mod 'niemst_more_vanilla_creatures_ajusted' moved from enabled to disabled.
+Modlists saved.
+[ModHearth] Applying default modlist to Mods screen.
