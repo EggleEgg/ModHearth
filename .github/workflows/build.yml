@@ -16,10 +16,10 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 7.0.x
-    - name: Restore dependencies
-      run: dotnet restore
+    - name: Clean
+      run: dotnet clean -c Debug
     - name: Build
-      run: dotnet build -c Debug --no-restore /p:InformationalVersion=${{ github.run_number }}
+      run: dotnet build -c Debug /p:InformationalVersion=${{ github.run_number }}
     - name: Package
       run: Compress-Archive -Path bin\Debug\net7.0-windows\* -DestinationPath ModHearth-win-x64.zip
     - name: Create release

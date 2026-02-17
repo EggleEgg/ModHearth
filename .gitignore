@@ -1,0 +1,20 @@
+# Build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+
+# .NET build artifacts
+*.pdb
+*.dll
+*.exe
+*.deps.json
+*.runtimeconfig.json
+
+# Logs
+gamelog.txt
+errorlog.txt
+
+# User-specific
+*.user
+*.suo

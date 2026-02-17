@@ -147,8 +147,8 @@ namespace ModHearth
                 originalStdOut = Console.Out;
                 originalStdErr = Console.Error;
 
-                logFileWriter = new StreamWriter(logPath, append: true) { AutoFlush = true };
-                errorFileWriter = new StreamWriter(errPath, append: true) { AutoFlush = true };
+                logFileWriter = new StreamWriter(logPath, append: false) { AutoFlush = true };
+                errorFileWriter = new StreamWriter(errPath, append: false) { AutoFlush = true };
 
                 Console.SetOut(new TeeTextWriter(originalStdOut, logFileWriter));
                 Console.SetError(new TeeTextWriter(originalStdErr, errorFileWriter));

@@ -43,6 +43,9 @@
     <None Update="style.dark.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+      <None Update="config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="GetModMemoryData.lua">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -50,4 +53,13 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <Target Name="CleanRuntimeFiles" AfterTargets="Clean">
+    <Delete Files="$(OutputPath)config.json" />
+    <Delete Files="$(OutputPath)gamelog.txt" />
+    <Delete Files="$(OutputPath)errorlog.txt" />
+    <Delete Files="$(IntermediateOutputPath)config.json" />
+    <Delete Files="$(IntermediateOutputPath)gamelog.txt" />
+    <Delete Files="$(IntermediateOutputPath)errorlog.txt" />
+  </Target>
 </Project>
