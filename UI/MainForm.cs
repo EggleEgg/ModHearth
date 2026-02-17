@@ -1348,9 +1348,10 @@ namespace ModHearth
         private void redoConfigButton_Click(object sender, EventArgs e)
         {
             // Ask before proceeding.
-            //DialogResult result = LocationMessageBox.Show("Are you sure you want to reset config file? Application will restart.", "Redo Config", MessageBoxButtons.YesNo);
-            DialogResult result = LocationMessageBox.Show("Are you sure you want to reset config file? Application will restart.", "Redo Config", MessageBoxButtons.YesNo);
-            if (result == DialogResult.No)
+            if (LocationMessageBox.Show(
+                    "Are you sure you want to reset config file? Application will restart.",
+                    "Redo Config",
+                    MessageBoxButtons.YesNo) != DialogResult.Yes)
                 return;
 
             manager.DestroyConfig();

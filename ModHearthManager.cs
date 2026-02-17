@@ -1198,8 +1198,28 @@ namespace ModHearth
                 config.DFEXEPath = newPath;
             }
 
-            if (string.IsNullOrWhiteSpace(config.InstalledModsPath))
-                config.InstalledModsPath = GetDefaultInstalledModsPath();
+            if (string.IsNullOrWhiteSpace(config.InstalledModsPath) || !Directory.Exists(config.InstalledModsPath))
+            {
+                if (string.IsNullOrWhiteSpace(config.InstalledModsPath))
+                    Console.WriteLine("Config file missing installed mods path.");
+                else
+                    Console.WriteLine("Installed mods path not found.");
+
+                string defaultPath = GetDefaultInstalledModsPath();
+                if (Directory.Exists(defaultPath))
+                {
+                    config.InstalledModsPath = defaultPath;
+                }
+                else
+                {
+                    string newPath = "";
+                    while (string.IsNullOrWhiteSpace(newPath) || !Directory.Exists(newPath))
+                    {
+                        newPath = GetInstalledModsPathFromUser();
+                    }
+                    config.InstalledModsPath = newPath;
+                }
+            }
 
             // Save the fixed config file.
             SaveConfigFile();
@@ -1226,6 +1246,23 @@ namespace ModHearth
                 string selectedFilePath = dfFileDialog.FileName;
                 Console.WriteLine("DF path set to: " + selectedFilePath);
                 return selectedFilePath;
+            }
+            return "";
+        }
+
+        private string GetInstalledModsPathFromUser()
+        {
+            string defaultPath = GetDefaultInstalledModsPath();
+            LocationMessageBox.Show("Please select your Dwarf Fortress installed_mods folder.", "installed_mods location", MessageBoxButtons.OK);
+            using FolderBrowserDialog folderDialog = new FolderBrowserDialog();
+            folderDialog.Description = "Select the installed_mods folder";
+            if (Directory.Exists(defaultPath))
+                folderDialog.SelectedPath = defaultPath;
+            DialogResult result = folderDialog.ShowDialog();
+            if (result == DialogResult.OK && Directory.Exists(folderDialog.SelectedPath))
+            {
+                Console.WriteLine("Installed mods path set to: " + folderDialog.SelectedPath);
+                return folderDialog.SelectedPath;
             }
             return "";
         }
