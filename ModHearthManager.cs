@@ -133,12 +133,15 @@ namespace ModHearth
 
         // Paths.
         private static readonly string configPath = "config.json";
-        private static readonly string styleLightPath = "style.light.json";
-        private static readonly string styleDarkPath = "style.dark.json";
-        private static readonly string styleLegacyPath = "style.json";
+        private static readonly string styleLightPath = Path.Combine("styles", "style.light.json");
+        private static readonly string styleDarkPath = Path.Combine("styles", "style.dark.json");
+        private static readonly string styleLegacyPath = Path.Combine("styles", "style.json");
+        private static readonly string styleLegacyRootPath = "style.json";
 
         // Mod problem tracker.
         public List<ModProblem> modproblems;
+        public bool IsSavingModpacks { get; private set; }
+        private HashSet<string> installedCacheModIds;
 
         public ModHearthManager() 
         {
@@ -152,7 +155,7 @@ namespace ModHearth
             FindAllModsDFHackLua();
 
             // Find DFHModpacks, and fix them if needed.
-            FindModpacks();
+            FindModpacks(null);
 
             // Write some info on found things.
             Console.WriteLine();
@@ -172,6 +175,13 @@ namespace ModHearth
             if (config == null || string.IsNullOrWhiteSpace(config.InstalledModsPath))
                 return GetDefaultInstalledModsPath();
             return config.InstalledModsPath;
+        }
+
+        public string GetModManagerConfigPath()
+        {
+            if (config == null || string.IsNullOrWhiteSpace(config.DFFolderPath))
+                return string.Empty;
+            return Path.Combine(config.DFFolderPath, @"dfhack-config\mod-manager.json");
         }
 
         public bool CanDeleteModFromModsFolder(ModReference modref)
@@ -282,7 +292,53 @@ namespace ModHearth
             }
 
             message = $"Cleared {deleted} item(s).";
+            RefreshInstalledCacheModIds();
             return true;
+        }
+
+        public HashSet<string> GetInstalledCacheModIds()
+        {
+            if (installedCacheModIds == null)
+                installedCacheModIds = BuildInstalledCacheModIds();
+            return installedCacheModIds;
+        }
+
+        public void RefreshInstalledCacheModIds()
+        {
+            installedCacheModIds = BuildInstalledCacheModIds();
+        }
+
+        private HashSet<string> BuildInstalledCacheModIds()
+        {
+            HashSet<string> ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string installedModsPath = GetInstalledModsPath();
+            if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
+                return ids;
+
+            foreach (string dir in Directory.EnumerateDirectories(installedModsPath))
+            {
+                string infoPath = Path.Combine(dir, "info.txt");
+                if (!File.Exists(infoPath))
+                    continue;
+
+                try
+                {
+                    string info = File.ReadAllText(infoPath);
+                    Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
+                    if (idMatch.Success)
+                    {
+                        string id = idMatch.Groups[1].Value.Trim();
+                        if (!string.IsNullOrEmpty(id))
+                            ids.Add(id);
+                    }
+                }
+                catch
+                {
+                    // Ignore unreadable info files.
+                }
+            }
+
+            return ids;
         }
 
         private void FindAllModsDFHackLua()
@@ -452,7 +508,7 @@ namespace ModHearth
         private string LoadModMemoryData()
         {
             // Get path to lua script.
-            string luaPath = Path.Combine(Environment.CurrentDirectory, "GetModMemoryData.lua");
+            string luaPath = Path.Combine(Environment.CurrentDirectory, "lua", "GetModMemoryData.lua");
 
             // Set up dfhack process.
             ProcessStartInfo processStartInfo = new ProcessStartInfo
@@ -506,13 +562,21 @@ namespace ModHearth
             Console.WriteLine("Modlists saved.");
 
             // Get the path, serialize with right options, and write to file.
-            string dfHackModlistPath = Path.Combine(config.DFFolderPath, @"dfhack-config\mod-manager.json");
+            string dfHackModlistPath = GetModManagerConfigPath();
             JsonSerializerOptions options = new JsonSerializerOptions
             {
                 WriteIndented = true // Enable pretty formatting
             };
             string modlistJson = JsonSerializer.Serialize(modpacks, options);
-            File.WriteAllText(dfHackModlistPath, modlistJson);
+            IsSavingModpacks = true;
+            try
+            {
+                File.WriteAllText(dfHackModlistPath, modlistJson);
+            }
+            finally
+            {
+                IsSavingModpacks = false;
+            }
 
             ReloadDFHackModManagerScreen();
         }
@@ -526,7 +590,7 @@ namespace ModHearth
             if (!File.Exists(dfhackRunPath))
                 return;
 
-            string luaPath = Path.Combine(Environment.CurrentDirectory, "ReloadModManager.lua");
+            string luaPath = Path.Combine(Environment.CurrentDirectory, "lua", "ReloadModManager.lua");
             if (!File.Exists(luaPath))
                 return;
 
@@ -1032,12 +1096,32 @@ namespace ModHearth
         #region initialization file stuff
 
         // Find modpacks from dfhack mod-manager config file.
-        private void FindModpacks()
+        public bool ReloadModpacksFromDisk(string preferredModlistName)
+        {
+            return FindModpacks(preferredModlistName);
+        }
+
+        private bool FindModpacks(string preferredModlistName)
         {
             // Get paths and read file. #TODO: handling the file not existing.
-            string dfHackModpackPath = Path.Combine(config.DFFolderPath, @"dfhack-config\mod-manager.json");
+            string dfHackModpackPath = GetModManagerConfigPath();
+            if (string.IsNullOrWhiteSpace(dfHackModpackPath) || !File.Exists(dfHackModpackPath))
+            {
+                Console.WriteLine("Modlist file missing.");
+                modpacks = new List<DFHModpack>();
+                return false;
+            }
+
             string dfHackModpackJson = File.ReadAllText(dfHackModpackPath);
-            modpacks = new List<DFHModpack>(JsonSerializer.Deserialize<List<DFHModpack>>(dfHackModpackJson));
+            List<DFHModpack> loadedModpacks = JsonSerializer.Deserialize<List<DFHModpack>>(dfHackModpackJson);
+            if (loadedModpacks == null)
+            {
+                Console.WriteLine("Modlist file borked.");
+                modpacks = new List<DFHModpack>();
+                return false;
+            }
+
+            modpacks = new List<DFHModpack>(loadedModpacks);
 
             Console.WriteLine();
             Console.WriteLine("Found modlists: ");
@@ -1048,7 +1132,8 @@ namespace ModHearth
             HashSet<DFHMod> notFound = new HashSet<DFHMod>();
 
             // If a default modpack exists.
-            bool defaultFound = false;
+            int defaultIndex = -1;
+            int preferredIndex = -1;
 
             // Go through modpacks, and go through their modlists, looking for mods that we don't have.
             for (int i = 0; i < modpacks.Count; i++)
@@ -1079,23 +1164,34 @@ namespace ModHearth
                 Console.WriteLine("   Mods count: " + modlist.modlist.Count);
                 Console.WriteLine();
 
-                // If  this is the default modpack, set index to that. 
-                if (modlist.@default)
-                {
-                    SetSelectedModpack(i);
-                    defaultFound = true;
-                }
+                if (modlist.@default && defaultIndex < 0)
+                    defaultIndex = i;
+
+                if (!string.IsNullOrWhiteSpace(preferredModlistName) &&
+                    string.Equals(modlist.name, preferredModlistName, StringComparison.OrdinalIgnoreCase))
+                    preferredIndex = i;
 
                 // Set modpacks[i] back to this modpack. #FIXME: why is this necessary? Isn't modpack a reference type?
                 modpacks[i] = modlist;
             }
 
             // Set default as backup.
-            if (!defaultFound)
+            if (modpacks.Count > 0)
             {
-                SetSelectedModpack(0);
-                modpacks[0].@default = true;
-                SaveAllModpacks();
+                if (preferredIndex >= 0)
+                {
+                    SetSelectedModpack(preferredIndex);
+                }
+                else if (defaultIndex >= 0)
+                {
+                    SetSelectedModpack(defaultIndex);
+                }
+                else
+                {
+                    SetSelectedModpack(0);
+                    modpacks[0].@default = true;
+                    SaveAllModpacks();
+                }
             }
 
             // Create default modpack if none present.
@@ -1112,6 +1208,7 @@ namespace ModHearth
             {
                 MessageBox.Show(missingMessage, "Missing Mods", MessageBoxButtons.OK);
             }
+            return true;
         }
 
         // Generated a vanilla modlist using manually generated mod ID list.
@@ -1333,19 +1430,10 @@ namespace ModHearth
                         SaveStyle(style, stylePath);
                     }
                 }
-                else if (File.Exists(styleLegacyPath))
+                else if (TryLoadLegacyStyle(out style))
                 {
                     Console.WriteLine("Legacy style file found. Migrating.");
-                    if (!TryLoadStyleFromPath(styleLegacyPath, out style))
-                    {
-                        Console.WriteLine("Legacy style file borked. Style regenerated.");
-                        style = GetDefaultStyleForTheme(theme);
-                        SaveStyle(style, stylePath);
-                    }
-                    else
-                    {
-                        SaveStyle(style, stylePath);
-                    }
+                    SaveStyle(style, stylePath);
                 }
                 else
                 {
@@ -1369,6 +1457,11 @@ namespace ModHearth
         private void SaveStyle(Style style, string stylePath)
         {
             Console.WriteLine("Style saved.");
+            string styleDir = Path.GetDirectoryName(stylePath);
+            if (!string.IsNullOrWhiteSpace(styleDir) && !Directory.Exists(styleDir))
+            {
+                Directory.CreateDirectory(styleDir);
+            }
             JsonSerializerOptions options = new JsonSerializerOptions
             {
                 WriteIndented = true // Enable pretty formatting
@@ -1388,7 +1481,7 @@ namespace ModHearth
             if (TryLoadStyleFromPath(stylePath, out Style style))
                 return style;
 
-            if (TryLoadStyleFromPath(styleLegacyPath, out style))
+            if (TryLoadLegacyStyle(out style))
                 return style;
 
             return GetFallbackStyle();
@@ -1421,6 +1514,7 @@ namespace ModHearth
             style.modRefColor ??= fallback.modRefColor;
             style.modRefHighlightColor ??= fallback.modRefHighlightColor;
             style.modRefJumpHighlightColor ??= fallback.modRefJumpHighlightColor;
+            style.modRefCacheBarColor ??= fallback.modRefCacheBarColor;
             style.modRefPanelColor ??= fallback.modRefPanelColor;
             style.modRefTextColor ??= fallback.modRefTextColor;
             style.modRefTextBadColor ??= fallback.modRefTextBadColor;
@@ -1430,20 +1524,82 @@ namespace ModHearth
             return style;
         }
 
+        private Style fallbackStyle;
+
         private Style GetFallbackStyle()
         {
-            return new Style
+            if (fallbackStyle != null)
+                return fallbackStyle;
+
+            if (TryLoadEmbeddedStyle(out Style embedded))
             {
-                modRefColor = SystemColors.ControlLight,
-                modRefHighlightColor = SystemColors.Highlight,
-                modRefJumpHighlightColor = SystemColors.Highlight,
-                modRefPanelColor = SystemColors.Window,
-                modRefTextColor = SystemColors.WindowText,
-                modRefTextBadColor = Color.Red,
-                modRefTextFilteredColor = SystemColors.GrayText,
-                formColor = SystemColors.Window,
-                textColor = SystemColors.WindowText
-            };
+                fallbackStyle = embedded;
+                return fallbackStyle;
+            }
+
+            if (TryLoadLegacyStyleRaw(out Style legacy))
+            {
+                fallbackStyle = legacy;
+                return fallbackStyle;
+            }
+
+            throw new InvalidOperationException("Fallback style missing.");
+        }
+
+        private bool TryLoadEmbeddedStyle(out Style style)
+        {
+            style = null;
+            try
+            {
+                Assembly assembly = Assembly.GetExecutingAssembly();
+                using Stream stream = assembly.GetManifestResourceStream("ModHearth.style.json");
+                if (stream == null)
+                    return false;
+                using StreamReader reader = new StreamReader(stream);
+                string jsonContent = reader.ReadToEnd();
+                style = JsonSerializer.Deserialize<Style>(jsonContent);
+                return style != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool TryLoadLegacyStyle(out Style style)
+        {
+            if (TryLoadStyleFromPath(styleLegacyPath, out style))
+                return true;
+            if (TryLoadStyleFromPath(styleLegacyRootPath, out style))
+                return true;
+            return false;
+        }
+
+        private bool TryLoadLegacyStyleRaw(out Style style)
+        {
+            if (TryLoadStyleRawFromPath(styleLegacyPath, out style))
+                return true;
+            if (TryLoadStyleRawFromPath(styleLegacyRootPath, out style))
+                return true;
+            return false;
+        }
+
+        private bool TryLoadStyleRawFromPath(string stylePath, out Style style)
+        {
+            style = null;
+            if (!File.Exists(stylePath))
+                return false;
+
+            try
+            {
+                string jsonContent = File.ReadAllText(stylePath);
+                style = JsonSerializer.Deserialize<Style>(jsonContent);
+                return style != null;
+            }
+            catch
+            {
+                return false;
+            }
         }
         #endregion
     }

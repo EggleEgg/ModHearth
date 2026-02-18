@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a problem with ModHearth
+title: "[Bug]: "
+labels: ["bug"]
+assignees: []
+
+body:
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: The build number shown in the bottom left corner.
+      placeholder: e.g. 1.2.3
+    validations:
+      required: true
+
+  - type: input
+    id: install_type
+    attributes:
+      label: Installation Type
+      description: How was ModHearth installed?
+      placeholder: e.g. Release ZIP / Built from source / Debug build
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: Issue
+      description: Explain your issue in detail.
+      placeholder: Describe what is happening...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: What exactly did you do to trigger the issue?
+      placeholder: |
+        1. Open ModHearth
+        2. Click ...
+        3. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste gamelog.txt and errorlog.txt here.
+      render: shell
+      placeholder: Paste logs here...

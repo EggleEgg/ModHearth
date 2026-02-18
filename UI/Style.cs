@@ -66,6 +66,7 @@
         public SimpleColor modRefColor { get; set; }
         public SimpleColor modRefHighlightColor { get; set; }
         public SimpleColor modRefJumpHighlightColor { get; set; }
+        public SimpleColor modRefCacheBarColor { get; set; }
         public SimpleColor modRefPanelColor { get; set; }
         public SimpleColor modRefTextColor { get; set; }
         public SimpleColor modRefTextBadColor { get; set; }

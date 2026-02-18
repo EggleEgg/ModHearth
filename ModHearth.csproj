@@ -32,34 +32,42 @@
       <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+  
+  <ItemGroup>
+    <EmbeddedResource Include="styles\\style.json">
+      <LogicalName>ModHearth.style.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
   <ItemGroup>
     <None Update="horrid_cursor.bmp">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <None Update="style.light.json">
+    <None Update="styles\\style.light.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="style.dark.json">
+    <None Update="styles\\style.dark.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
       <None Update="config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="GetModMemoryData.lua">
+    <None Update="lua\\GetModMemoryData.lua">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="ReloadModManager.lua">
+    <None Update="lua\\ReloadModManager.lua">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
   <Target Name="CleanRuntimeFiles" AfterTargets="Clean">
     <Delete Files="$(OutputPath)config.json" />
-    <Delete Files="$(OutputPath)gamelog.txt" />
-    <Delete Files="$(OutputPath)errorlog.txt" />
     <Delete Files="$(IntermediateOutputPath)config.json" />
-    <Delete Files="$(IntermediateOutputPath)gamelog.txt" />
-    <Delete Files="$(IntermediateOutputPath)errorlog.txt" />
+    <RemoveDir Directories="$(OutputPath)logs" />
+    <RemoveDir Directories="$(IntermediateOutputPath)logs" />
+    <RemoveDir Directories="$(OutputPath)styles" />
+    <RemoveDir Directories="$(IntermediateOutputPath)styles" />
+    <RemoveDir Directories="$(OutputPath)lua" />
+    <RemoveDir Directories="$(IntermediateOutputPath)lua" />
   </Target>
 </Project>

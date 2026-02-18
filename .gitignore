@@ -11,10 +11,6 @@ obj/
 *.deps.json
 *.runtimeconfig.json
 
-# Logs
-gamelog.txt
-errorlog.txt
-
 # User-specific
 *.user
 *.suo

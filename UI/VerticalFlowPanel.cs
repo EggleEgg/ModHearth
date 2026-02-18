@@ -103,14 +103,25 @@ namespace ModHearth.UI
                 return true;
             }
 
-            // Loop through the list of bisible controls, returning if the point is within bounds.
-            // #TODO: instead of bounds use Y level, increasing each time, to account for gaps between modrefpanels due to margins.
+            if (pos.Y < 0)
+            {
+                index = 0;
+                return false;
+            }
+
+            // Loop through the list of visible controls, using Y level (including margins) to account for gaps.
+            int yLevel = visList[0].Top - visList[0].Margin.Top;
             for (index = 0; index < visList.Count; index++)
             {
-                if (visList[index].Bounds.Contains(pos) && visList[index].Visible)
+                ModRefPanel panel = visList[index];
+                int slotHeight = panel.Height + panel.Margin.Top + panel.Margin.Bottom;
+                if (pos.Y < yLevel + slotHeight &&
+                    pos.X >= panel.Bounds.Left && pos.X < panel.Bounds.Right &&
+                    panel.Visible)
                 {
                     return true;
                 }
+                yLevel += slotHeight;
             }
 
             // If the point isn't in any bounds, then check if the point is in form bounds, but below any visible mod. Add 10 to give some wiggle room.
@@ -136,8 +147,6 @@ namespace ModHearth.UI
             }
             return list;
         }
-
-        // Given a list of problems, highlight the appropriate problem mods, and add mouseover? TODO
         public void ColorProblemMods(List<ModProblem> problems)
         {
             // Generate map of ID to list of problems.
@@ -163,6 +172,19 @@ namespace ModHearth.UI
                 {
                     visibleRefs[i].RemoveProblems();
                 }
+            }
+        }
+
+        public void ColorCachedMods(HashSet<string> cachedIds)
+        {
+            List<ModRefPanel> visibleRefs = GetVisibleModrefs();
+            for (int i = 0; i < visibleRefs.Count; i++)
+            {
+                ModRefPanel panel = visibleRefs[i];
+                bool active = panel.modref != null &&
+                    cachedIds != null &&
+                    cachedIds.Contains(panel.dfmodref.id);
+                panel.SetCacheIndicator(active);
             }
         }
 

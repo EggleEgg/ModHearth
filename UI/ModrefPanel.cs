@@ -18,6 +18,7 @@ namespace ModHearth.UI
         private Point dragStart;
         private bool isSelected = false;
         private const int DragThreshold = 4;
+        private const int CacheBarWidth = 2;
 
         // Reference to the form, to notify of changes.
         public MainForm form;
@@ -33,6 +34,8 @@ namespace ModHearth.UI
 
         // The label showing the modrefs name
         private Label label;
+        private Panel cacheBar;
+        private bool cacheBarActive;
 
         private ContextMenuStrip contextMenu;
         private ToolStripMenuItem deleteMenuItem;
@@ -67,6 +70,16 @@ namespace ModHearth.UI
             label.Dock = DockStyle.Fill;
             Controls.Add(label);
 
+            cacheBar = new Panel();
+            cacheBar.Width = CacheBarWidth;
+            cacheBar.Dock = DockStyle.Left;
+            cacheBar.Margin = Padding.Empty;
+            cacheBar.TabStop = false;
+            cacheBar.Enabled = false;
+            cacheBar.Visible = false;
+            Controls.Add(cacheBar);
+            cacheBar.BringToFront();
+
             // Set up anchors.
             Margin = Style.modRefPadding;
 
@@ -76,6 +89,12 @@ namespace ModHearth.UI
             label.MouseUp += ModrefPanel_MouseUp;
             label.Click += ModrefPanel_Click;
             label.DoubleClick += ModrefPanel_DoubleClick;
+
+            cacheBar.MouseDown += ModrefPanel_MouseDown;
+            cacheBar.MouseMove += ModrefPanel_MouseMove;
+            cacheBar.MouseUp += ModrefPanel_MouseUp;
+            cacheBar.Click += ModrefPanel_Click;
+            cacheBar.DoubleClick += ModrefPanel_DoubleClick;
 
             MouseDown += ModrefPanel_MouseDown;
             MouseMove += ModrefPanel_MouseMove;
@@ -95,6 +114,7 @@ namespace ModHearth.UI
             problem = false;
             jumpHighlighted = false;
             isSelected = false;
+            cacheBarActive = false;
 
             //BackgroundImage = Resource1.transparent_square;
         }
@@ -111,6 +131,7 @@ namespace ModHearth.UI
             label.Font = Style.modRefFont;
             label.ForeColor = Style.instance.modRefTextColor;
             UpdateSelectionVisual();
+            UpdateCacheBarStyle();
         }
 
         // On mouse down, set isDragging to true, this to be the draggee, and change cursor. Also change draggee color.
@@ -257,6 +278,26 @@ namespace ModHearth.UI
                 : baseColor;
         }
 
+        private void UpdateCacheBarStyle()
+        {
+            if (cacheBar == null)
+                return;
+            cacheBar.BackColor = Style.instance.modRefCacheBarColor;
+            cacheBar.Width = CacheBarWidth;
+            cacheBar.BringToFront();
+        }
+
+        public void SetCacheIndicator(bool active)
+        {
+            if (cacheBarActive == active)
+                return;
+            cacheBarActive = active;
+            if (cacheBar == null)
+                return;
+            cacheBar.Visible = active;
+            cacheBar.BringToFront();
+        }
+
         private Color BlendColor(Color baseColor, Color overlay)
         {
             if (overlay.A >= 255)
@@ -282,6 +323,7 @@ namespace ModHearth.UI
 
             ContextMenuStrip = contextMenu;
             label.ContextMenuStrip = contextMenu;
+            cacheBar.ContextMenuStrip = contextMenu;
         }
 
         // Set label color and tooltips.

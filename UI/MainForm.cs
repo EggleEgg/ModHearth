@@ -54,6 +54,8 @@ namespace ModHearth
         private TextWriter originalStdErr;
         private StreamWriter logFileWriter;
         private StreamWriter errorFileWriter;
+        private FileSystemWatcher modManagerWatcher;
+        private System.Windows.Forms.Timer modManagerReloadTimer;
 
         // Selection tracking for shift/ctrl selection.
         private readonly HashSet<ModRefPanel> selectedPanels = new HashSet<ModRefPanel>();
@@ -91,6 +93,7 @@ namespace ModHearth
             // Basic initialization.
             InitializeComponent();
             manager = new ModHearthManager();
+            SetupModManagerWatcher();
 
             // Set combobox for theme.
             lastStyle = manager.GetTheme();
@@ -119,6 +122,8 @@ namespace ModHearth
                 warningIconScaled?.Dispose();
                 if (clickAwayFilter != null)
                     Application.RemoveMessageFilter(clickAwayFilter);
+                modManagerWatcher?.Dispose();
+                modManagerReloadTimer?.Dispose();
             };
 
             // Fix resizing issues.
@@ -141,8 +146,10 @@ namespace ModHearth
             try
             {
                 string baseDir = AppContext.BaseDirectory;
-                string logPath = Path.Combine(baseDir, "gamelog.txt");
-                string errPath = Path.Combine(baseDir, "errorlog.txt");
+                string logDir = Path.Combine(baseDir, "logs");
+                Directory.CreateDirectory(logDir);
+                string logPath = Path.Combine(logDir, "gamelog.txt");
+                string errPath = Path.Combine(logDir, "errorlog.txt");
 
                 originalStdOut = Console.Out;
                 originalStdErr = Console.Error;
@@ -324,6 +331,7 @@ namespace ModHearth
         {
             leftModlistPanel.FixChildrenStyle();
             rightModlistPanel.FixChildrenStyle();
+            RefreshProblemColors();
         }
 
         // Check if they really want to close.
@@ -351,6 +359,10 @@ namespace ModHearth
             modTitleLabel.ForeColor = style.textColor;
             modDescriptionLabel.ForeColor = style.textColor;
             modVersionLabel.ForeColor = style.textColor;
+            leftHeaderLabel.ForeColor = style.textColor;
+            rightHeaderLabel.ForeColor = style.textColor;
+            leftHeaderLabel.BackColor = style.formColor;
+            rightHeaderLabel.BackColor = style.formColor;
 
             leftModlistPanel.BackColor = style.modRefPanelColor;
             rightModlistPanel.BackColor = style.modRefPanelColor;
@@ -409,8 +421,100 @@ namespace ModHearth
             toolTip1.SetToolTip(saveButton, "Save the current modlist");
             toolTip1.SetToolTip(undoChangesButton, "Undo changes to the current modlist");
             toolTip1.SetToolTip(clearInstalledModsButton, "Clear installed mods cache");
-            toolTip1.SetToolTip(reloadButton, "Restart the program");
+            toolTip1.SetToolTip(reloadButton, "Reload modlists");
             toolTip1.SetToolTip(autoSortButton, "Auto sort the current modlist and add missing dependencies");
+        }
+
+        private void SetupModManagerWatcher()
+        {
+            string modManagerPath = manager.GetModManagerConfigPath();
+            if (string.IsNullOrWhiteSpace(modManagerPath))
+                return;
+
+            string directory = Path.GetDirectoryName(modManagerPath);
+            string fileName = Path.GetFileName(modManagerPath);
+            if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName) || !Directory.Exists(directory))
+                return;
+
+            modManagerReloadTimer = new System.Windows.Forms.Timer();
+            modManagerReloadTimer.Interval = 500;
+            modManagerReloadTimer.Tick += (_, __) =>
+            {
+                modManagerReloadTimer.Stop();
+                if (manager.IsSavingModpacks)
+                    return;
+                ReloadModpacksFromDisk();
+            };
+
+            modManagerWatcher = new FileSystemWatcher(directory, fileName)
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.CreationTime
+            };
+            modManagerWatcher.Changed += ModManagerWatcher_Changed;
+            modManagerWatcher.Created += ModManagerWatcher_Changed;
+            modManagerWatcher.Renamed += ModManagerWatcher_Renamed;
+            modManagerWatcher.EnableRaisingEvents = true;
+        }
+
+        private void ModManagerWatcher_Changed(object sender, FileSystemEventArgs e)
+        {
+            if (manager == null || manager.IsSavingModpacks)
+                return;
+            if (IsDisposed || modManagerReloadTimer == null)
+                return;
+
+            void RestartTimer()
+            {
+                modManagerReloadTimer.Stop();
+                modManagerReloadTimer.Start();
+            }
+
+            if (InvokeRequired)
+                BeginInvoke((Action)RestartTimer);
+            else
+                RestartTimer();
+        }
+
+        private void ModManagerWatcher_Renamed(object sender, RenamedEventArgs e)
+        {
+            ModManagerWatcher_Changed(sender, e);
+        }
+
+        private void ReloadModpacksFromDisk()
+        {
+            if (manager == null)
+                return;
+
+            string preferredName = manager.modpacks != null && manager.modpacks.Count > 0
+                ? manager.SelectedModlist?.name
+                : null;
+
+            if (!manager.ReloadModpacksFromDisk(preferredName))
+                return;
+
+            modifyingCombobox = true;
+            modpackComboBox.Items.Clear();
+            foreach (DFHModpack pack in manager.modpacks)
+                modpackComboBox.Items.Add(pack.name);
+
+            if (modpackComboBox.Items.Count > 0 &&
+                manager.selectedModlistIndex >= 0 &&
+                manager.selectedModlistIndex < modpackComboBox.Items.Count)
+            {
+                modpackComboBox.SelectedIndex = manager.selectedModlistIndex;
+                lastIndex = manager.selectedModlistIndex;
+            }
+            else
+            {
+                modpackComboBox.SelectedIndex = -1;
+                lastIndex = -1;
+            }
+
+            modifyingCombobox = false;
+
+            manager.RefreshInstalledCacheModIds();
+            RefreshModlistPanels();
+            SetAndMarkChanges(false);
         }
 
 
@@ -524,6 +628,10 @@ namespace ModHearth
             Console.WriteLine();
             GenerateModrefControlSided(leftModlistPanel, new List<DFHMod>(manager.disabledMods), true);
             GenerateModrefControlSided(rightModlistPanel, new List<DFHMod>(manager.enabledMods), false);
+
+            HashSet<string> cachedIds = manager.GetInstalledCacheModIds();
+            leftModlistPanel.ColorCachedMods(cachedIds);
+            rightModlistPanel.ColorCachedMods(cachedIds);
         }
 
 
@@ -862,6 +970,8 @@ namespace ModHearth
         {
             if (changesMarked)
                 return;
+            if (index < 0 || index >= modpackComboBox.Items.Count)
+                return;
 
             modifyingCombobox = true;
 
@@ -876,6 +986,11 @@ namespace ModHearth
         {
             if (!changesMarked)
                 return;
+            if (index < 0 || index >= modpackComboBox.Items.Count)
+            {
+                changesMarked = false;
+                return;
+            }
             modifyingCombobox = true;
 
             string currstr = modpackComboBox.Items[index].ToString();
@@ -907,9 +1022,14 @@ namespace ModHearth
             leftModlistPanel.UpdateVisibleOrder(new List<DFHMod>(manager.disabledMods));
             rightModlistPanel.UpdateVisibleOrder(manager.enabledMods);
 
+            HashSet<string> cachedIds = manager.GetInstalledCacheModIds();
+            leftModlistPanel.ColorCachedMods(cachedIds);
+            rightModlistPanel.ColorCachedMods(cachedIds);
+
             // Make the right panel show any problems that pop up.
             rightModlistPanel.ColorProblemMods(manager.modproblems);
             UpdateProblemWarningIndicator();
+            UpdateModlistHeaders();
 
             // Force refrash search boxes.
             leftSearchBox_TextChanged("", new EventArgs());
@@ -1003,38 +1123,32 @@ namespace ModHearth
             LocationMessageBox.Show(message, success ? "Installed mods cleared" : "Clear failed", MessageBoxButtons.OK);
 
             clearInstalledModsButton.Enabled = Directory.Exists(installedModsPath);
+            if (success)
+                RefreshModlistPanels();
         }
 
-        // Restart the application, to look for new mods. #TODO: could me bade to rescan mods, but a full restart is easiest.
+        private void UpdateModlistHeaders()
+        {
+            int inactiveCount = manager?.disabledMods?.Count ?? 0;
+            int activeCount = manager?.enabledMods?.Count ?? 0;
+            leftHeaderLabel.Text = $"Inactive [{inactiveCount}]";
+            rightHeaderLabel.Text = $"Active [{activeCount}]";
+        }
+
+        // Restart the application, to look for new mods.
         private void restartButton_Click(object sender, EventArgs e)
         {
-            // If changes were made, ask if the user wants to save them first. If no changes are made, ask if the user really wants to do this.
             if (changesMade)
             {
-                DialogResult result = LocationMessageBox.Show($"You have unsaved changes to '{manager.SelectedModlist.name}', do you want to save before restarting the application?", "Unsaved Changes", MessageBoxButtons.YesNoCancel);
-
-                if (result == DialogResult.Yes)
-                {
-                    // If yes, save changes before reloading.
-                    SaveCurrentModpack();
-                }
-                else if (result == DialogResult.No)
-                {
-                    // If no, do nothing, since the application will reload.
-                }
-                else
-                {
-                    // If cancel, set index to last, then return, so as not to proceed with swap.
+                DialogResult result = LocationMessageBox.Show(
+                    $"You have unsaved changes to '{manager.SelectedModlist.name}'. Reloading will discard them. Continue?",
+                    "Reload modlists",
+                    MessageBoxButtons.YesNo);
+                if (result != DialogResult.Yes)
                     return;
-                }
             }
-            else
-                if (LocationMessageBox.Show("Are you sure you want reload? Application will restart.", "Application Reload", MessageBoxButtons.YesNo) == DialogResult.No)
-                return;
 
-            // Mark that we are closing and restart the application.
-            selfClosing = true;
-            Application.Restart();
+            ReloadModpacksFromDisk();
         }
 
         private void SaveCurrentModpack()

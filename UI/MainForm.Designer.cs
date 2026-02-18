@@ -41,6 +41,8 @@ namespace ModHearth
             leftSearchPanel = new Panel();
             leftSearchCloseButton = new Button();
             leftSearchBox = new TextBox();
+            rightHeaderLabel = new Label();
+            leftHeaderLabel = new Label();
             outerTableLayout = new TableLayoutPanel();
             rightPanel = new Panel();
             themeComboBox = new ComboBox();
@@ -110,23 +112,26 @@ namespace ModHearth
             modlistColumnTableLayout.ColumnCount = 2;
             modlistColumnTableLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             modlistColumnTableLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            modlistColumnTableLayout.Controls.Add(rightSearchPanel, 1, 0);
-            modlistColumnTableLayout.Controls.Add(leftSearchPanel, 0, 0);
-            modlistColumnTableLayout.Controls.Add(leftModlistPanel, 0, 1);
-            modlistColumnTableLayout.Controls.Add(rightModlistPanel, 1, 1);
+            modlistColumnTableLayout.Controls.Add(rightSearchPanel, 1, 1);
+            modlistColumnTableLayout.Controls.Add(leftSearchPanel, 0, 1);
+            modlistColumnTableLayout.Controls.Add(leftModlistPanel, 0, 2);
+            modlistColumnTableLayout.Controls.Add(rightModlistPanel, 1, 2);
+            modlistColumnTableLayout.Controls.Add(rightHeaderLabel, 1, 0);
+            modlistColumnTableLayout.Controls.Add(leftHeaderLabel, 0, 0);
             modlistColumnTableLayout.Location = new Point(515, 3);
             modlistColumnTableLayout.Name = "modlistColumnTableLayout";
-            modlistColumnTableLayout.RowCount = 2;
+            modlistColumnTableLayout.RowCount = 3;
+            modlistColumnTableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));
             modlistColumnTableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
             modlistColumnTableLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            modlistColumnTableLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             modlistColumnTableLayout.Size = new Size(522, 798);
             modlistColumnTableLayout.TabIndex = 7;
             // 
             // rightSearchPanel
             // 
-            rightSearchPanel.Controls.Add(rightSearchCloseButton);
             rightSearchPanel.Controls.Add(rightSearchBox);
+            rightSearchPanel.Controls.Add(rightSearchCloseButton);
+            rightSearchPanel.Dock = DockStyle.Fill;
             rightSearchPanel.Location = new Point(264, 3);
             rightSearchPanel.Name = "rightSearchPanel";
             rightSearchPanel.Size = new Size(255, 24);
@@ -134,8 +139,9 @@ namespace ModHearth
             // 
             // rightSearchCloseButton
             // 
+            rightSearchCloseButton.Dock = DockStyle.Right;
             rightSearchCloseButton.Image = Resource1.XIcon;
-            rightSearchCloseButton.Location = new Point(233, 0);
+            rightSearchCloseButton.Location = new Point(231, 0);
             rightSearchCloseButton.Name = "rightSearchCloseButton";
             rightSearchCloseButton.Size = new Size(24, 24);
             rightSearchCloseButton.TabIndex = 6;
@@ -144,17 +150,19 @@ namespace ModHearth
             // 
             // rightSearchBox
             // 
+            rightSearchBox.Dock = DockStyle.Fill;
             rightSearchBox.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
             rightSearchBox.Location = new Point(0, 0);
             rightSearchBox.Name = "rightSearchBox";
-            rightSearchBox.Size = new Size(230, 27);
+            rightSearchBox.Size = new Size(231, 27);
             rightSearchBox.TabIndex = 5;
             rightSearchBox.TextChanged += rightSearchBox_TextChanged;
             // 
             // leftSearchPanel
             // 
-            leftSearchPanel.Controls.Add(leftSearchCloseButton);
             leftSearchPanel.Controls.Add(leftSearchBox);
+            leftSearchPanel.Controls.Add(leftSearchCloseButton);
+            leftSearchPanel.Dock = DockStyle.Fill;
             leftSearchPanel.Location = new Point(3, 3);
             leftSearchPanel.Name = "leftSearchPanel";
             leftSearchPanel.Size = new Size(255, 24);
@@ -163,8 +171,9 @@ namespace ModHearth
             // leftSearchCloseButton
             // 
             leftSearchCloseButton.BackgroundImageLayout = ImageLayout.Stretch;
+            leftSearchCloseButton.Dock = DockStyle.Right;
             leftSearchCloseButton.Image = Resource1.XIcon;
-            leftSearchCloseButton.Location = new Point(233, 0);
+            leftSearchCloseButton.Location = new Point(231, 0);
             leftSearchCloseButton.Name = "leftSearchCloseButton";
             leftSearchCloseButton.Size = new Size(24, 24);
             leftSearchCloseButton.TabIndex = 6;
@@ -173,12 +182,33 @@ namespace ModHearth
             // 
             // leftSearchBox
             // 
+            leftSearchBox.Dock = DockStyle.Fill;
             leftSearchBox.Font = new Font("Segoe UI", 11.25F, FontStyle.Regular, GraphicsUnit.Point);
             leftSearchBox.Location = new Point(0, 0);
             leftSearchBox.Name = "leftSearchBox";
-            leftSearchBox.Size = new Size(230, 27);
+            leftSearchBox.Size = new Size(231, 27);
             leftSearchBox.TabIndex = 5;
             leftSearchBox.TextChanged += leftSearchBox_TextChanged;
+            // 
+            // rightHeaderLabel
+            // 
+            rightHeaderLabel.Dock = DockStyle.Fill;
+            rightHeaderLabel.Location = new Point(264, 0);
+            rightHeaderLabel.Name = "rightHeaderLabel";
+            rightHeaderLabel.Size = new Size(255, 0);
+            rightHeaderLabel.TabIndex = 18;
+            rightHeaderLabel.Text = "Active[0]";
+            rightHeaderLabel.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // leftHeaderLabel
+            // 
+            leftHeaderLabel.Dock = DockStyle.Fill;
+            leftHeaderLabel.Location = new Point(0, 0);
+            leftHeaderLabel.Name = "leftHeaderLabel";
+            leftHeaderLabel.Size = new Size(255, 0);
+            leftHeaderLabel.TabIndex = 19;
+            leftHeaderLabel.Text = "Inactive[0]";
+            leftHeaderLabel.TextAlign = ContentAlignment.MiddleCenter;
             // 
             // outerTableLayout
             // 
@@ -214,6 +244,7 @@ namespace ModHearth
             rightPanel.Controls.Add(clearInstalledModsButton);
             rightPanel.Controls.Add(undoChangesButton);
             rightPanel.Controls.Add(saveButton);
+            rightPanel.Dock = DockStyle.Fill;
             rightPanel.Location = new Point(1103, 3);
             rightPanel.Name = "rightPanel";
             rightPanel.Size = new Size(194, 798);
@@ -221,6 +252,7 @@ namespace ModHearth
             // 
             // themeComboBox
             // 
+            themeComboBox.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             themeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
             themeComboBox.FormattingEnabled = true;
             themeComboBox.Items.AddRange(new object[] { "light theme", "dark theme" });
@@ -232,6 +264,7 @@ namespace ModHearth
             // 
             // redoConfigButton
             // 
+            redoConfigButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             redoConfigButton.Location = new Point(101, 772);
             redoConfigButton.Name = "redoConfigButton";
             redoConfigButton.Size = new Size(90, 23);
@@ -242,6 +275,7 @@ namespace ModHearth
             // 
             // warningIssuesButton
             // 
+            warningIssuesButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             warningIssuesButton.BackgroundImage = Resource1.warningIcon;
             warningIssuesButton.BackgroundImageLayout = ImageLayout.Zoom;
             warningIssuesButton.Location = new Point(0, 742);
@@ -458,6 +492,8 @@ namespace ModHearth
         private Panel rightSearchPanel;
         private Button rightSearchCloseButton;
         private TextBox rightSearchBox;
+        private Label rightHeaderLabel;
+        private Label leftHeaderLabel;
         private Button redoConfigButton;
         private Button warningIssuesButton;
         private ComboBox themeComboBox;

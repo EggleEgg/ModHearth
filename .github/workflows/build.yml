@@ -21,7 +21,9 @@ jobs:
     - name: Build
       run: dotnet build -c Debug /p:InformationalVersion=${{ github.run_number }}
     - name: Package
-      run: Compress-Archive -Path bin\Debug\net7.0-windows\* -DestinationPath ModHearth-win-x64.zip
+      run: |
+        $items = Get-ChildItem -Path bin\Debug\net7.0-windows -Recurse -File | Where-Object { $_.Name -ne 'style.json' }
+        Compress-Archive -Path $items.FullName -DestinationPath ModHearth-win-x64.zip
     - name: Create release
       uses: svenstaro/upload-release-action@v2
       with:
