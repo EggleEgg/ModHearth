@@ -7,6 +7,10 @@ on:
 permissions:
   contents: write
 
+env:
+  DOTNET_VERSION: 7.0.x
+  CLI_FRAMEWORK: net7.0
+
 jobs:
   test-cli:
     strategy:
@@ -19,7 +23,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Restore
         run: dotnet restore ModHearth.Cli.Tests/ModHearth.Cli.Tests.csproj
       - name: Test CLI
@@ -34,7 +38,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Build (Windows GUI)
         run: dotnet build ModHearth.csproj -c Release /p:InformationalVersion=${{ github.run_number }}
       - name: Package (Windows GUI)
@@ -46,6 +50,7 @@ jobs:
         with:
           name: modhearth-win-gui
           path: ModHearth-win-x64.zip
+          if-no-files-found: error
 
   build-cli:
     strategy:
@@ -67,20 +72,20 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 7.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Publish CLI
         run: dotnet publish ModHearth.Cli/ModHearth.Cli.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:InformationalVersion=${{ github.run_number }}
       - name: Package CLI (Windows)
         if: matrix.archive == 'zip'
         run: |
           $out = "modhearth-cli-${{ matrix.rid }}.zip"
-          Compress-Archive -Path ModHearth.Cli/bin/Release/net7.0/${{ matrix.rid }}/publish/* -DestinationPath $out
+          Compress-Archive -Path ModHearth.Cli/bin/Release/${{ env.CLI_FRAMEWORK }}/${{ matrix.rid }}/publish/* -DestinationPath $out
       - name: Package CLI (Unix)
         if: matrix.archive == 'tar'
         shell: bash
         run: |
-          out=\"modhearth-cli-${{ matrix.rid }}.tar.gz\"
-          tar -czf \"$out\" -C ModHearth.Cli/bin/Release/net7.0/${{ matrix.rid }}/publish .
+          out="modhearth-cli-${{ matrix.rid }}.tar.gz"
+          tar -czf "$out" -C ModHearth.Cli/bin/Release/${{ env.CLI_FRAMEWORK }}/${{ matrix.rid }}/publish .
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -88,6 +93,7 @@ jobs:
           path: |
             modhearth-cli-${{ matrix.rid }}.zip
             modhearth-cli-${{ matrix.rid }}.tar.gz
+          if-no-files-found: error
 
   release:
     needs: [build-windows, build-cli]
@@ -96,13 +102,24 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+      - name: Gather Release Files
+        id: release_files
+        shell: bash
+        run: |
+          files=$(find dist -type f \( -name 'ModHearth-win-x64.zip' -o -name 'modhearth-cli-*.zip' -o -name 'modhearth-cli-*.tar.gz' \))
+          if [ -z "$files" ]; then
+            echo "No release files found." >&2
+            exit 1
+          fi
+          {
+            echo "files<<EOF"
+            echo "$files"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Build ${{ github.run_number }}
           body: ${{ github.sha }}
-          files: |
-            dist/**/ModHearth-win-x64.zip
-            dist/**/modhearth-cli-*.zip
-            dist/**/modhearth-cli-*.tar.gz
+          files: ${{ steps.release_files.outputs.files }}
