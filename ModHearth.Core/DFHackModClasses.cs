@@ -43,7 +43,7 @@ namespace ModHearth
         }
 
         // Just use ==.
-        public override bool Equals(Object? other)
+        public override bool Equals(Object other)
         {
             if(other is DFHMod dfother)
                 return this == dfother;

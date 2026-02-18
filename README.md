@@ -5,15 +5,15 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 
 ### Requirements:
 - Dwarf Fortress steam version
-- Windows PC (TODO: eventual mac and linux support planned)
+- Windows PC for the GUI, or Linux/macOS for the CLI
 - DFHack Installed
 - Game has been launched at least once
 
 ### Installation Guide
 1. Go to [releases](https://github.com/EggleEgg/ModHearth/releases/) and download the most recent version 
-2. Extract zip to suitable location
-3. Run ModHearth.exe
-4. Locate Dwarf Fortress.exe
+2. Extract zip/tar to suitable location
+3. Windows GUI: run `ModHearth.exe` and locate `Dwarf Fortress.exe`
+4. Linux/macOS CLI: run `modhearth-cli` with `--mod-manager` or `--df-folder`
 
 ### Instructions
 Information on the four buttons from left to right:
@@ -46,3 +46,10 @@ Can easily be converted to a DFHMod.
 #### DFHModPack
 An object representing a modpack matching how DFHack handles them. Only has a name, a bool default, and a list of DFHMods.
 DFHack stores a list of these in a json file, which it loads into the game. 
+
+## CLI Usage (Linux/macOS)
+Examples:
+- `modhearth-cli --version`
+- `modhearth-cli list-packs --mod-manager /path/to/dfhack-config/mod-manager.json`
+- `modhearth-cli list-mods --df-folder /path/to/Dwarf Fortress --pack \"My Pack\"`
+- `modhearth-cli set-default --mod-manager /path/to/dfhack-config/mod-manager.json --pack \"My Pack\"`

@@ -4,6 +4,12 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModHearth", "ModHearth.csproj", "{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModHearth.Core", "ModHearth.Core\\ModHearth.Core.csproj", "{FB77D061-D2B4-423B-B68D-41726784C6F2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModHearth.Cli", "ModHearth.Cli\\ModHearth.Cli.csproj", "{1E196F91-7A28-49A4-B25A-4CC14DB75624}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModHearth.Cli.Tests", "ModHearth.Cli.Tests\\ModHearth.Cli.Tests.csproj", "{D46CF890-A6AC-41A2-AFDE-16B30C8D29B0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +20,18 @@ Global
 		{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB77D061-D2B4-423B-B68D-41726784C6F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB77D061-D2B4-423B-B68D-41726784C6F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB77D061-D2B4-423B-B68D-41726784C6F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB77D061-D2B4-423B-B68D-41726784C6F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1E196F91-7A28-49A4-B25A-4CC14DB75624}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E196F91-7A28-49A4-B25A-4CC14DB75624}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E196F91-7A28-49A4-B25A-4CC14DB75624}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E196F91-7A28-49A4-B25A-4CC14DB75624}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D46CF890-A6AC-41A2-AFDE-16B30C8D29B0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D46CF890-A6AC-41A2-AFDE-16B30C8D29B0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D46CF890-A6AC-41A2-AFDE-16B30C8D29B0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D46CF890-A6AC-41A2-AFDE-16B30C8D29B0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

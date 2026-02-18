@@ -16,6 +16,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="ModHearth.Core\\ModHearth.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="ModHearth.Core\\**\\*.cs" />
+    <Compile Remove="ModHearth.Cli\\**\\*.cs" />
+    <Compile Remove="ModHearth.Cli.Tests\\**\\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Update="UI\MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
