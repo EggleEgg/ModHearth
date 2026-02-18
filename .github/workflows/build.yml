@@ -21,7 +21,7 @@ jobs:
         with:
           dotnet-version: 7.0.x
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore ModHearth.Cli.Tests/ModHearth.Cli.Tests.csproj
       - name: Test CLI
         run: dotnet test ModHearth.Cli.Tests/ModHearth.Cli.Tests.csproj
       - name: Smoke Run CLI
@@ -73,7 +73,7 @@ jobs:
       - name: Package CLI (Windows)
         if: matrix.archive == 'zip'
         run: |
-          $out = \"modhearth-cli-${{ matrix.rid }}.zip\"
+          $out = "modhearth-cli-${{ matrix.rid }}.zip"
           Compress-Archive -Path ModHearth.Cli/bin/Release/net7.0/${{ matrix.rid }}/publish/* -DestinationPath $out
       - name: Package CLI (Unix)
         if: matrix.archive == 'tar'
