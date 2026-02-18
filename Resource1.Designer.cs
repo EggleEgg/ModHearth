@@ -83,66 +83,6 @@ namespace ModHearth {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap highlight_bottom {
-            get {
-                object obj = ResourceManager.GetObject("highlight_bottom", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap highlight_full {
-            get {
-                object obj = ResourceManager.GetObject("highlight_full", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap highlight_top {
-            get {
-                object obj = ResourceManager.GetObject("highlight_top", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap modhearth_icon_v1_small1 {
-            get {
-                object obj = ResourceManager.GetObject("modhearth_icon_v1_small1", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap modhearth_icon_v11 {
-            get {
-                object obj = ResourceManager.GetObject("modhearth_icon_v11", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap playIcon {
-            get {
-                object obj = ResourceManager.GetObject("playIcon", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
         internal static System.Drawing.Bitmap trashIcon {
             get {
                 object obj = ResourceManager.GetObject("trashIcon", resourceCulture);
@@ -176,16 +116,6 @@ namespace ModHearth {
         internal static System.Drawing.Bitmap saveIcon {
             get {
                 object obj = ResourceManager.GetObject("saveIcon", resourceCulture);
-                return ((System.Drawing.Bitmap)(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Drawing.Bitmap.
-        /// </summary>
-        internal static System.Drawing.Bitmap transparent_square {
-            get {
-                object obj = ResourceManager.GetObject("transparent_square", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

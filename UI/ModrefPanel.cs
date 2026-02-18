@@ -116,7 +116,6 @@ namespace ModHearth.UI
             isSelected = false;
             cacheBarActive = false;
 
-            //BackgroundImage = Resource1.transparent_square;
         }
 
         // This is run once when this object is added to its parent.

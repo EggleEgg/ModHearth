@@ -7,12 +7,12 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <StartupObject>ModHearth.Program</StartupObject>
-    <ApplicationIcon>modhearth_icon_v1 (1).ico</ApplicationIcon>
+    <ApplicationIcon>icons\\modhearth_icon_v1.ico</ApplicationIcon>
     <Nullable>disable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="modhearth_icon_v1 (1).ico" />
+    <Content Include="icons\\modhearth_icon_v1.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,9 +40,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="horrid_cursor.bmp">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
     <None Update="styles\\style.light.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
