@@ -1,18 +1,31 @@
+using Avalonia;
+using System;
 
-namespace ModHearth
+namespace ModHearth;
+
+internal static class Program
 {
-    internal static class Program
+    [STAThread]
+    public static void Main(string[] args)
     {
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
+        RuntimeBootstrap.Initialize();
+        try
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
-            ApplicationConfiguration.Initialize();
-            Application.Run(new MainForm());
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        catch (Exception ex)
+        {
+            AppLogging.LogException("Unhandled exception in Main", ex);
+            throw;
+        }
+        finally
+        {
+            AppLogging.Shutdown();
         }
     }
+
+    public static AppBuilder BuildAvaloniaApp()
+        => AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .LogToTrace();
 }

@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ModHearth.UI.MessageDialog"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Title="Message">
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock x:Name="MessageText" Width="360" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="OkButton" Content="OK" IsVisible="False" />
+      <Button x:Name="YesButton" Content="Yes" IsVisible="False" />
+      <Button x:Name="NoButton" Content="No" IsVisible="False" />
+    </StackPanel>
+  </StackPanel>
+</Window>

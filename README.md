@@ -5,15 +5,16 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 
 ### Requirements:
 - Dwarf Fortress steam version
-- Windows PC (TODO: eventual mac and linux support planned)
+- Windows, macOS, or Linux
 - DFHack Installed
 - Game has been launched at least once
+- .NET 8 runtime installed (if using framework-dependent builds)
 
 ### Installation Guide
-1. Go to [releases](https://github.com/EggleEgg/ModHearth/releases/) and download the most recent version 
-2. Extract zip to suitable location
-3. Run ModHearth.exe
-4. Locate Dwarf Fortress.exe
+1. Go to [releases](https://github.com/EggleEgg/ModHearth/releases/) and download the most recent version for your OS
+2. Extract the archive to a suitable location
+3. Run ModHearth (ModHearth.exe on Windows)
+4. Locate the Dwarf Fortress executable (df.exe on Windows, df on Linux, inside the app bundle on macOS)
 
 ### Instructions
 Information on the four buttons from left to right:

@@ -1,38 +1,35 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net7.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <UseWindowsForms>true</UseWindowsForms>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <StartupObject>ModHearth.Program</StartupObject>
+    <Nullable>enable</Nullable>
     <ApplicationIcon>icons\\modhearth_icon_v1.ico</ApplicationIcon>
-    <Nullable>disable</Nullable>
+    <DllOutputFolder>dlls</DllOutputFolder>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="icons\\modhearth_icon_v1.ico" />
+    <Compile Remove="ModHearth.App.Tests\\**\\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="UI\MainForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Update="Resource1.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Resource1.resx</DependentUpon>
-    </Compile>
+    <PackageReference Include="Avalonia" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
+    <PackageReference Include="Svg.Skia" Version="2.0.0.8" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Update="Resource1.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resource1.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>ModHearth.App.Tests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
-  
+
+  <ItemGroup>
+    <AvaloniaResource Include="Resources\\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="styles\\style.json">
       <LogicalName>ModHearth.style.json</LogicalName>
@@ -42,29 +39,79 @@
   <ItemGroup>
     <None Update="styles\\style.light.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
     <None Update="styles\\style.dark.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
-      <None Update="config.json">
+    <None Update="config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
     <None Update="lua\\GetModMemoryData.lua">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
     <None Update="lua\\ReloadModManager.lua">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
+    <Content Include="icons\\modhearth_icon_v1.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
-  <Target Name="CleanRuntimeFiles" AfterTargets="Clean">
+  <Target Name="CleanOutputDirectories" AfterTargets="Clean">
     <Delete Files="$(OutputPath)config.json" />
     <Delete Files="$(IntermediateOutputPath)config.json" />
-    <RemoveDir Directories="$(OutputPath)logs" />
-    <RemoveDir Directories="$(IntermediateOutputPath)logs" />
-    <RemoveDir Directories="$(OutputPath)styles" />
-    <RemoveDir Directories="$(IntermediateOutputPath)styles" />
-    <RemoveDir Directories="$(OutputPath)lua" />
-    <RemoveDir Directories="$(IntermediateOutputPath)lua" />
+    <ItemGroup>
+      <OutputSubDirs Include="$(OutputPath)*" />
+      <IntermediateSubDirs Include="$(IntermediateOutputPath)*" />
+    </ItemGroup>
+    <RemoveDir Directories="@(OutputSubDirs)" />
+    <RemoveDir Directories="@(IntermediateSubDirs)" />
+  </Target>
+
+  <Target Name="MoveOutputDlls" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <OutputDlls Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(AssemblyName).dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutputPath)$(DllOutputFolder)" />
+    <Move SourceFiles="@(OutputDlls)" DestinationFolder="$(OutputPath)$(DllOutputFolder)" Condition="@(OutputDlls) != ''" />
+  </Target>
+
+  <Target Name="MovePublishDlls" AfterTargets="Publish" Condition="'$(SelfContained)' != 'true'">
+    <ItemGroup>
+      <PublishDlls Include="$(PublishDir)*.dll" Exclude="$(PublishDir)$(AssemblyName).dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(PublishDir)$(DllOutputFolder)" />
+    <Move SourceFiles="@(PublishDlls)" DestinationFolder="$(PublishDir)$(DllOutputFolder)" Condition="@(PublishDlls) != ''" />
+  </Target>
+
+  <Target Name="CleanPublishDir" BeforeTargets="Publish" Condition="'$(PublishDir)' != ''">
+    <PropertyGroup>
+      <PublishDirFull>$([System.IO.Path]::GetFullPath('$(PublishDir)'))</PublishDirFull>
+      <ProjectDirFull>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)'))</ProjectDirFull>
+      <ProjectDirWithSep>$(ProjectDirFull)$([System.IO.Path]::DirectorySeparatorChar)</ProjectDirWithSep>
+      <AllowExternalPublishDirClean Condition="'$(AllowExternalPublishDirClean)' == ''">false</AllowExternalPublishDirClean>
+    </PropertyGroup>
+    <PropertyGroup>
+      <IsPublishDirUnderProject>$([System.String]::Copy('$(PublishDirFull)').StartsWith('$(ProjectDirWithSep)'))</IsPublishDirUnderProject>
+      <ShouldCleanPublishDir>$(IsPublishDirUnderProject)</ShouldCleanPublishDir>
+      <ShouldCleanPublishDir Condition="'$(AllowExternalPublishDirClean)' == 'true'">true</ShouldCleanPublishDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(PublishDirFull)"
+               Condition="Exists('$(PublishDirFull)') and '$(ShouldCleanPublishDir)' == 'true'" />
+  </Target>
+
+  <Target Name="OrganizePublishNativeLibraries" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishNativeLibs Include="$(PublishDir)*.so" />
+    </ItemGroup>
+    <MakeDir Directories="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
+    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native" Condition="'$(SelfContained)' == 'true' and @(PublishNativeLibs) != ''" />
+    <Move SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native" Condition="'$(SelfContained)' != 'true' and @(PublishNativeLibs) != ''" />
   </Target>
 </Project>

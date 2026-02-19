@@ -1,4 +1,10 @@
-﻿namespace ModHearth.UI
+using System;
+using System.IO;
+using System.Reflection;
+using System.Text.Json;
+using Avalonia.Media;
+
+namespace ModHearth.UI
 {
     /// <summary>
     /// A simpler representation of color for easy serialization.
@@ -14,7 +20,6 @@
         // Empty constructor for json serialization.
         public SimpleColor()
         {
-
         }
 
         // Create new simpleColor from rgba.
@@ -26,13 +31,8 @@
             A = a;
         }
 
-        // Explicit conversion to system drawing color.
-        public Color ToColor()
-        {
-            return Color.FromArgb(A, R, G, B);
-        }
+        public Color ToAvaloniaColor() => Color.FromArgb((byte)A, (byte)R, (byte)G, (byte)B);
 
-        // Create new simpleColor from system drawing color.
         public SimpleColor(Color color)
         {
             R = color.R;
@@ -41,13 +41,11 @@
             A = color.A;
         }
 
-        // Implicit conversion from simpleColor to system drawing color.
         public static implicit operator Color(SimpleColor color)
         {
-            return color.ToColor();
+            return color.ToAvaloniaColor();
         }
 
-        // Implicit conversion from system drawing color to simpleColor.
         public static implicit operator SimpleColor(Color color)
         {
             return new SimpleColor(color);
@@ -60,19 +58,22 @@
     public class Style
     {
         // This only ever has one instance
-        public static Style instance;
+        public static Style? instance;
 
         // Colors.
-        public SimpleColor modRefColor { get; set; }
-        public SimpleColor modRefHighlightColor { get; set; }
-        public SimpleColor modRefJumpHighlightColor { get; set; }
-        public SimpleColor modRefCacheBarColor { get; set; }
-        public SimpleColor modRefPanelColor { get; set; }
-        public SimpleColor modRefTextColor { get; set; }
-        public SimpleColor modRefTextBadColor { get; set; }
-        public SimpleColor modRefTextFilteredColor { get; set; }
-        public SimpleColor formColor { get; set; }
-        public SimpleColor textColor { get; set; }
+        public SimpleColor modRefColor { get; set; } = null!;
+        public SimpleColor modRefHighlightColor { get; set; } = null!;
+        public SimpleColor modRefJumpHighlightColor { get; set; } = null!;
+        public SimpleColor modRefCacheBarColor { get; set; } = null!;
+        public SimpleColor modRefPanelColor { get; set; } = null!;
+        public SimpleColor modRefTextColor { get; set; } = null!;
+        public SimpleColor modRefTextBadColor { get; set; } = null!;
+        public SimpleColor modRefTextFilteredColor { get; set; } = null!;
+        public SimpleColor formColor { get; set; } = null!;
+        public SimpleColor textColor { get; set; } = null!;
+        public SimpleColor buttonColor { get; set; } = null!;
+        public SimpleColor buttonTextColor { get; set; } = null!;
+        public SimpleColor buttonOutlineColor { get; set; } = null!;
 
         // Default style.
         public Style()
@@ -80,29 +81,55 @@
             instance = this;
         }
 
-        // ModReferencePanel style.
-        public static BorderStyle modRefBorder = BorderStyle.None;
-        public static Font modRefFont = new Font("Arial", 9, FontStyle.Bold);
-        public static Font modRefStrikeFont = new Font("Arial", 9, FontStyle.Bold | FontStyle.Regular);
-        public static int modRefHeight = 16;
-        public static Padding modRefPadding = new Padding(2, 0, 2, 0);
+        private static Style? fallback;
 
-        // Main form style.
-        public int largeBorder = 12;
-        public int smallBorder = 6;
+        public static Style GetFallback()
+        {
+            if (fallback != null)
+                return fallback;
 
-        // Right panel style.
-        public static int rightPanelW = 120;
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            Stream? stream = assembly.GetManifestResourceStream("ModHearth.style.json");
+            if (stream == null)
+                throw new InvalidOperationException("Embedded style.json not found.");
 
-        // Left panel style.
-        // The width and height of a standard steam workshop item image. 
-        public static int leftPanelW = 636;
-        public static int leftPanelH = 358;
+            using StreamReader reader = new StreamReader(stream);
+            string jsonContent = reader.ReadToEnd();
+            Style? embedded = JsonSerializer.Deserialize<Style>(jsonContent);
+            if (embedded == null)
+                throw new InvalidOperationException("Embedded style.json could not be parsed.");
 
-        // Popup style.
-        public static int popupMessageBorder = 20;
-        public static int popupHeight = 100;
-        public static int popupButtonWidth = 80;
-        public static int popupButtonHeight = 30;
+            fallback = embedded;
+            return fallback;
+        }
+
+        public void ApplyDefaults(Style fallback)
+        {
+            if (fallback == null)
+                throw new ArgumentNullException(nameof(fallback));
+
+            modRefColor ??= fallback.modRefColor;
+            modRefHighlightColor ??= fallback.modRefHighlightColor;
+            modRefJumpHighlightColor ??= fallback.modRefJumpHighlightColor;
+            modRefCacheBarColor ??= fallback.modRefCacheBarColor;
+            modRefPanelColor ??= fallback.modRefPanelColor;
+            modRefTextColor ??= fallback.modRefTextColor;
+            modRefTextBadColor ??= fallback.modRefTextBadColor;
+            modRefTextFilteredColor ??= fallback.modRefTextFilteredColor;
+            formColor ??= fallback.formColor;
+            textColor ??= fallback.textColor;
+            buttonColor ??= fallback.buttonColor;
+            buttonTextColor ??= fallback.buttonTextColor;
+            buttonOutlineColor ??= fallback.buttonOutlineColor ?? buttonTextColor;
+        }
+
+        public static Style EnsureDefaults(Style style, Style fallback)
+        {
+            if (style == null)
+                throw new ArgumentNullException(nameof(style));
+
+            style.ApplyDefaults(fallback);
+            return style;
+        }
     }
 }

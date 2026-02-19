@@ -1,8 +1,10 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ModHearth", "ModHearth.csproj", "{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModHearth", "ModHearth.csproj", "{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModHearth.App.Tests", "ModHearth.App.Tests\ModHearth.App.Tests.csproj", "{08B625D7-F4A2-443E-A3E5-5439AC59E490}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -14,6 +16,10 @@ Global
 		{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1B753B6F-DA13-2163-C22F-29D0FFBBD4DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08B625D7-F4A2-443E-A3E5-5439AC59E490}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08B625D7-F4A2-443E-A3E5-5439AC59E490}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08B625D7-F4A2-443E-A3E5-5439AC59E490}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08B625D7-F4A2-443E-A3E5-5439AC59E490}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

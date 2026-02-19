@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   width="666.66669"
+   height="750"
+   viewBox="0 0 20.000001 22.5"
+   fill="none"
+   version="1.1"
+   id="svg2"
+   sodipodi:docname="trashIcon.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="namedview2"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.504375"
+     inkscape:cx="264.68401"
+     inkscape:cy="417.3482"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2" />
+  <g
+     id="g2"
+     transform="translate(-2,-0.5)">
+    <path
+       d="m 8,1.5 v 1 H 3 c -0.55228,0 -1,0.44772 -1,1 v 1 c 0,0.55228 0.44772,1 1,1 h 18 c 0.5523,0 1,-0.44772 1,-1 v -1 c 0,-0.55228 -0.4477,-1 -1,-1 h -5 v -1 c 0,-0.552285 -0.4477,-1 -1,-1 H 9 c -0.55228,0 -1,0.447715 -1,1 z"
+       fill="#000000"
+       id="path1" />
+    <path
+       d="M 3.9231,7.5 H 20.0767 L 19.1344,20.2216 C 19.0183,21.7882 17.7135,23 16.1426,23 H 7.85724 C 6.28636,23 4.98148,21.7882 4.86544,20.2216 Z"
+       fill="#000000"
+       id="path2" />
+  </g>
+</svg>
