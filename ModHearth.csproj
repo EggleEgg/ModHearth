@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>icons\\modhearth_icon_v1.ico</ApplicationIcon>
     <DllOutputFolder>dlls</DllOutputFolder>
+    <IsPublishing>false</IsPublishing>
+    <MoveOutputDlls>true</MoveOutputDlls>
   </PropertyGroup>
 
   <ItemGroup>
@@ -74,7 +76,7 @@
     <RemoveDir Directories="@(IntermediateSubDirs)" />
   </Target>
 
-  <Target Name="MoveOutputDlls" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true'">
+  <Target Name="MoveOutputDlls" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsPublishing)' != 'true' and '$(MoveOutputDlls)' == 'true'">
     <ItemGroup>
       <OutputDlls Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(AssemblyName).dll" />
     </ItemGroup>
@@ -90,9 +92,17 @@
     <Move SourceFiles="@(PublishDlls)" DestinationFolder="$(PublishDir)$(DllOutputFolder)" Condition="@(PublishDlls) != ''" />
   </Target>
 
-  <Target Name="CleanPublishDir" BeforeTargets="Publish" Condition="'$(PublishDir)' != ''">
+  <Target Name="MarkPublishing" BeforeTargets="Publish">
     <PropertyGroup>
-      <PublishDirFull>$([System.IO.Path]::GetFullPath('$(PublishDir)'))</PublishDirFull>
+      <IsPublishing>true</IsPublishing>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="CleanPublishDir" BeforeTargets="_CopyResolvedFilesToPublishPreserveNewest;_CopyResolvedFilesToPublishAlways">
+    <PropertyGroup>
+      <EffectivePublishDir Condition="'$(PublishDir)' != ''">$(PublishDir)</EffectivePublishDir>
+      <EffectivePublishDir Condition="'$(PublishDir)' == ''">$(OutputPath)publish\</EffectivePublishDir>
+      <PublishDirFull>$([System.IO.Path]::GetFullPath('$(EffectivePublishDir)'))</PublishDirFull>
       <ProjectDirFull>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)'))</ProjectDirFull>
       <ProjectDirWithSep>$(ProjectDirFull)$([System.IO.Path]::DirectorySeparatorChar)</ProjectDirWithSep>
       <AllowExternalPublishDirClean Condition="'$(AllowExternalPublishDirClean)' == ''">false</AllowExternalPublishDirClean>
@@ -102,8 +112,12 @@
       <ShouldCleanPublishDir>$(IsPublishDirUnderProject)</ShouldCleanPublishDir>
       <ShouldCleanPublishDir Condition="'$(AllowExternalPublishDirClean)' == 'true'">true</ShouldCleanPublishDir>
     </PropertyGroup>
+    <ItemGroup>
+      <PublishStateFiles Include="$(IntermediateOutputPath)PublishOutputs*.txt" />
+    </ItemGroup>
     <RemoveDir Directories="$(PublishDirFull)"
                Condition="Exists('$(PublishDirFull)') and '$(ShouldCleanPublishDir)' == 'true'" />
+    <Delete Files="@(PublishStateFiles)" Condition="'@(PublishStateFiles)' != ''" />
   </Target>
 
   <Target Name="OrganizePublishNativeLibraries" AfterTargets="Publish">

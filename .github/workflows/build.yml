@@ -46,13 +46,34 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Publish
-        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:InformationalVersion=${{ github.run_number }}
+        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:InformationalVersion=${{ github.run_number }} /p:MoveOutputDlls=false
+      - name: Verify publish output (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          $publishDir = "bin\Release\net8.0\${{ matrix.rid }}\publish"
+          if (-not (Test-Path $publishDir)) { throw "Publish directory not found: $publishDir" }
+          $items = Get-ChildItem -Path $publishDir -Force
+          if ($items.Count -eq 0) { throw "Publish directory is empty: $publishDir" }
+          Get-ChildItem -Path $publishDir -Force | Format-Table -AutoSize
+      - name: Verify publish output (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          publish_dir="bin/Release/net8.0/${{ matrix.rid }}/publish"
+          if [ ! -d "$publish_dir" ]; then
+            echo "Publish directory not found: $publish_dir"
+            exit 1
+          fi
+          if [ -z "$(ls -A "$publish_dir")" ]; then
+            echo "Publish directory is empty: $publish_dir"
+            exit 1
+          fi
+          ls -la "$publish_dir"
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           $publishDir = "bin\Release\net8.0\${{ matrix.rid }}\publish"
-          Compress-Archive -Path "$publishDir\*" -DestinationPath "dist\ModHearth-${{ matrix.rid }}.${{ matrix.ext }}"
+          Compress-Archive -Path "$publishDir\*" -DestinationPath "dist\ModHearth-${{ matrix.rid }}.${{ matrix.ext }}" -Force
       - name: Package (Unix)
         if: matrix.os != 'windows-latest'
         run: |
