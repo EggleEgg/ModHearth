@@ -8,7 +8,7 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 - Windows, macOS, or Linux
 - DFHack Installed
 - Game has been launched at least once
-- .NET 8 runtime installed (if using framework-dependent builds)
+- [.NET 8 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) installed
 
 ### Installation Guide
 1. Go to [releases](https://github.com/EggleEgg/ModHearth/releases/) and download the most recent version for your OS

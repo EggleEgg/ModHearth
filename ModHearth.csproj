@@ -123,9 +123,9 @@
   <Target Name="OrganizePublishNativeLibraries" AfterTargets="Publish">
     <ItemGroup>
       <PublishNativeLibs Include="$(PublishDir)*.so" />
+      <PublishNativeLibs Include="$(PublishDir)*.dylib" />
     </ItemGroup>
     <MakeDir Directories="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
-    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native" Condition="'$(SelfContained)' == 'true' and @(PublishNativeLibs) != ''" />
-    <Move SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native" Condition="'$(SelfContained)' != 'true' and @(PublishNativeLibs) != ''" />
+    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
   </Target>
 </Project>
