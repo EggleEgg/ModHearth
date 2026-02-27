@@ -4,6 +4,8 @@ using ModHearth;
 using ModHearth.UI;
 using SkiaSharp;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace ModHearth.Tests;
@@ -11,38 +13,63 @@ namespace ModHearth.Tests;
 public class AppStartupTests
 {
     [Fact]
-    public void MainWindow_Shows_WithoutUnhandledExceptions()
+    public async Task MainWindow_Shows_WithoutUnhandledExceptions()
     {
         string? previous = Environment.GetEnvironmentVariable("MODHEARTH_TEST_MODE");
         Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", "1");
 
-        Program.BuildAvaloniaApp()
-            .SetupWithoutStarting();
-
-        Exception? uiException = null;
-        void OnUnhandled(object? sender, DispatcherUnhandledExceptionEventArgs e)
+        var tcs = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
         {
-            uiException = e.Exception;
-            e.Handled = true;
-        }
+            Exception? uiException = null;
+            void OnUnhandled(object? sender, DispatcherUnhandledExceptionEventArgs e)
+            {
+                uiException = e.Exception;
+                e.Handled = true;
+            }
 
-        Dispatcher.UIThread.UnhandledException += OnUnhandled;
+            try
+            {
+                Program.BuildAvaloniaApp()
+                    .SetupWithoutStarting();
+
+                Dispatcher.UIThread.UnhandledException += OnUnhandled;
+
+                var window = new MainWindow();
+                window.Show();
+                Assert.True(window.IsVisible);
+                window.Close();
+
+                Dispatcher.UIThread.InvokeShutdown();
+            }
+            catch (Exception ex)
+            {
+                uiException = ex;
+            }
+            finally
+            {
+                Dispatcher.UIThread.UnhandledException -= OnUnhandled;
+                tcs.TrySetResult(uiException);
+            }
+        })
+        {
+            IsBackground = true
+        };
 
         try
         {
-            var window = new MainWindow();
-            window.Show();
-            Dispatcher.UIThread.InvokeAsync(() => { }).GetAwaiter().GetResult();
-            Assert.True(window.IsVisible);
-            window.Close();
+            thread.Start();
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+            if (completed != tcs.Task)
+                Assert.Fail("UI startup test timed out.");
+
+            var exception = await tcs.Task;
+            Assert.Null(exception);
         }
         finally
         {
-            Dispatcher.UIThread.UnhandledException -= OnUnhandled;
             Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", previous);
         }
-
-        Assert.Null(uiException);
     }
 
     [Fact]
@@ -58,7 +85,7 @@ public class AppStartupTests
         }
         catch (Exception ex)
         {
-            Assert.True(false, $"SkiaSharp native library failed to load: {ex}");
+            Assert.Fail($"SkiaSharp native library failed to load: {ex}");
         }
     }
 }

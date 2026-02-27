@@ -25,7 +25,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
-          xvfb-run -a dotnet test -c Release
+          echo "Running UI tests under Xvfb (required for Skia smoke test)."
+          if ! xvfb-run -a dotnet test -c Release; then
+            echo "Tests failed. This can include the Skia native smoke test on Linux."
+            exit 1
+          fi
       - name: Test (Windows/macOS)
         if: matrix.os != 'ubuntu-latest'
         run: dotnet test -c Release
