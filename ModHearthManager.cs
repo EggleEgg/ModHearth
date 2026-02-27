@@ -110,9 +110,9 @@ namespace ModHearth
     {
         public static string GetBuildVersionString()
         {
-            string? runNumber = Environment.GetEnvironmentVariable("GITHUB_RUN_NUMBER");
-            if (!string.IsNullOrWhiteSpace(runNumber))
-                return runNumber;
+            string? buildNumber = Environment.GetEnvironmentVariable("MODHEARTH_BUILD_NUMBER");
+            if (!string.IsNullOrWhiteSpace(buildNumber))
+                return buildNumber;
 
             string? infoVersion = Assembly.GetExecutingAssembly()
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;

@@ -1,8 +1,8 @@
 using Avalonia;
-using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using ModHearth;
 using ModHearth.UI;
+using SkiaSharp;
 using System;
 using Xunit;
 
@@ -10,14 +10,13 @@ namespace ModHearth.Tests;
 
 public class AppStartupTests
 {
-    [AvaloniaFact]
+    [Fact]
     public void MainWindow_Shows_WithoutUnhandledExceptions()
     {
         string? previous = Environment.GetEnvironmentVariable("MODHEARTH_TEST_MODE");
         Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", "1");
 
-        AppBuilder.Configure<global::ModHearth.App>()
-            .UseHeadless(new AvaloniaHeadlessPlatformOptions())
+        Program.BuildAvaloniaApp()
             .SetupWithoutStarting();
 
         Exception? uiException = null;
@@ -33,6 +32,7 @@ public class AppStartupTests
         {
             var window = new MainWindow();
             window.Show();
+            Dispatcher.UIThread.InvokeAsync(() => { }).GetAwaiter().GetResult();
             Assert.True(window.IsVisible);
             window.Close();
         }
@@ -43,5 +43,22 @@ public class AppStartupTests
         }
 
         Assert.Null(uiException);
+    }
+
+    [Fact]
+    public void SkiaSharp_Native_Library_Loads_On_Linux()
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        try
+        {
+            var fontManager = SKFontManager.Default;
+            Assert.NotNull(fontManager);
+        }
+        catch (Exception ex)
+        {
+            Assert.True(false, $"SkiaSharp native library failed to load: {ex}");
+        }
     }
 }
