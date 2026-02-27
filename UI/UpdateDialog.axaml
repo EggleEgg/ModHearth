@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ModHearth.UI.UpdateDialog"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Title="Update ModHearth">
+  <StackPanel Margin="16" Spacing="12" Width="480">
+    <TextBlock x:Name="HeaderText" TextWrapping="Wrap" />
+    <ItemsControl x:Name="ReleaseList">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+            <StackPanel>
+              <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Subtitle}" FontSize="11" Opacity="0.7" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Content="{Binding ButtonLabel}"
+                    IsEnabled="{Binding CanInstall}"
+                    Click="InstallClicked"
+                    Margin="8,0,0,0"
+                    VerticalAlignment="Center" />
+          </Grid>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </StackPanel>
+</Window>

@@ -1,6 +1,7 @@
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
@@ -43,6 +44,8 @@ public partial class MainWindow : Window
     private List<DFHMod> redoMods = new();
     private List<DFHMod> problemMods = new();
     private int problemModIndex;
+    private List<DFHMod> duplicateWarningMods = new();
+    private int duplicateWarningIndex;
 
     private DispatcherTimer? modManagerReloadTimer;
     private FileSystemWatcher? modManagerWatcher;
@@ -57,6 +60,15 @@ public partial class MainWindow : Window
     private Cursor? previousCursor;
 
     private IImage? currentPreview;
+    private bool suppressSelectionHandling;
+    private bool suppressSelectionForScrollbar;
+    private List<ModRefViewModel>? suppressSelectionSnapshot;
+    private ListBox? suppressSelectionList;
+    private List<ModRefViewModel>? contextSelectionSnapshot;
+    private ListBox? contextSelectionList;
+    private bool updateInProgress;
+    private bool hideFilteredLeft;
+    private bool hideFilteredRight;
 
 
     public MainWindow()
@@ -80,6 +92,8 @@ public partial class MainWindow : Window
         rightModlist.AddHandler(InputElement.PointerPressedEvent, ModlistPointerPressed, RoutingStrategies.Tunnel, true);
         leftModlist.AddHandler(InputElement.PointerMovedEvent, ModlistPointerMoved, RoutingStrategies.Tunnel, true);
         rightModlist.AddHandler(InputElement.PointerMovedEvent, ModlistPointerMoved, RoutingStrategies.Tunnel, true);
+        leftModlist.AddHandler(InputElement.PointerReleasedEvent, ModlistPointerReleased, RoutingStrategies.Tunnel, true);
+        rightModlist.AddHandler(InputElement.PointerReleasedEvent, ModlistPointerReleased, RoutingStrategies.Tunnel, true);
 
         leftModlist.AddHandler(DragDrop.DragOverEvent, ModlistDragOver);
         rightModlist.AddHandler(DragDrop.DragOverEvent, ModlistDragOver);
@@ -87,16 +101,20 @@ public partial class MainWindow : Window
         rightModlist.AddHandler(DragDrop.DropEvent, ModlistDrop);
         leftModlist.AddHandler(DragDrop.DragLeaveEvent, ModlistDragLeave);
         rightModlist.AddHandler(DragDrop.DragLeaveEvent, ModlistDragLeave);
+        AddHandler(InputElement.PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
 
         leftSearchBox.TextChanged += (_, _) => ApplySearchFilter();
         rightSearchBox.TextChanged += (_, _) => ApplySearchFilter();
         leftSearchCloseButton.Click += (_, _) => leftSearchBox.Text = string.Empty;
         rightSearchCloseButton.Click += (_, _) => rightSearchBox.Text = string.Empty;
+        leftSearchToggleButton.Click += (_, _) => ToggleSearchFilterVisibility(true);
+        rightSearchToggleButton.Click += (_, _) => ToggleSearchFilterVisibility(false);
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
         autoSortButton.Click += (_, _) => AutoSort();
         clearInstalledModsButton.Click += async (_, _) => await ClearInstalledModsAsync();
+        clearInstalledModsButton.AddHandler(InputElement.PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);
         reloadButton.Click += async (_, _) => await ReloadModpacksAsync();
 
         newListButton.Click += async (_, _) => await CreateNewModpackAsync();
@@ -107,6 +125,7 @@ public partial class MainWindow : Window
 
         warningIssuesButton.Click += (_, _) => JumpToNextProblem();
         redoConfigButton.Click += async (_, _) => await RedoConfigAsync();
+        updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
 
         themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
         themeComboBox.SelectionChanged += (_, _) => OnThemeChanged();
@@ -122,6 +141,8 @@ public partial class MainWindow : Window
             if (currentPreview is IDisposable disposable)
                 disposable.Dispose();
         };
+
+        UpdateSearchToggleIcons();
     }
 
     private void SetWindowIcon()
@@ -294,34 +315,11 @@ public partial class MainWindow : Window
 
     private void RefreshModlistPanels()
     {
-        List<DFHMod> selectedInactive = leftModlist.SelectedItems?
-            .Cast<ModRefViewModel>()
-            .Select(m => m.DfMod)
-            .ToList() ?? new List<DFHMod>();
-        List<DFHMod> selectedActive = rightModlist.SelectedItems?
-            .Cast<ModRefViewModel>()
-            .Select(m => m.DfMod)
-            .ToList() ?? new List<DFHMod>();
-
-        inactiveMods.Clear();
-        foreach (DFHMod mod in manager.disabledMods.OrderBy(m => manager.GetRefFromDFHMod(m).name ?? string.Empty))
-        {
-            if (modViewMap.TryGetValue(mod.ToString(), out ModRefViewModel? vm) && vm != null)
-                inactiveMods.Add(vm);
-        }
-
-        activeMods.Clear();
-        foreach (DFHMod mod in manager.enabledMods)
-        {
-            if (modViewMap.TryGetValue(mod.ToString(), out ModRefViewModel? vm) && vm != null)
-                activeMods.Add(vm);
-        }
-
         UpdateCachedIndicators();
         UpdateProblemIndicators();
+        UpdateDuplicateWarningIndicators();
         UpdateModlistHeaders();
         ApplySearchFilter();
-        RestoreSelections(selectedInactive, selectedActive);
     }
 
     private void RestoreSelections(IEnumerable<DFHMod> inactive, IEnumerable<DFHMod> active)
@@ -378,7 +376,7 @@ public partial class MainWindow : Window
         {
             problemMods = new List<DFHMod>();
             problemModIndex = 0;
-            warningIssuesButton.IsVisible = false;
+            UpdateWarningIssuesButton();
             return;
         }
 
@@ -411,9 +409,32 @@ public partial class MainWindow : Window
             }
         }
 
-        bool hasProblems = problemMods.Count > 0;
-        warningIssuesButton.IsVisible = hasProblems;
-        warningIssuesButton.IsEnabled = hasProblems;
+    }
+
+    private void UpdateDuplicateWarningIndicators()
+    {
+        IReadOnlyDictionary<string, List<string>> duplicateMap = manager.GetDuplicateWarningMap();
+
+        duplicateWarningMods = manager.enabledMods
+            .Where(m => duplicateMap.ContainsKey(m.id))
+            .ToList();
+
+        foreach (ModRefViewModel vm in modViewMap.Values)
+        {
+            if (duplicateMap.TryGetValue(vm.ModReference.ID, out List<string>? duplicates) &&
+                duplicates.Count > 0)
+            {
+                vm.IsDuplicateWarning = true;
+                vm.DuplicateWarningTooltip = BuildDuplicateWarningTooltip(duplicates);
+            }
+            else
+            {
+                vm.IsDuplicateWarning = false;
+                vm.DuplicateWarningTooltip = null;
+            }
+        }
+
+        UpdateWarningIssuesButton();
     }
 
     private static string BuildProblemTooltip(List<ModProblem> problems)
@@ -422,6 +443,61 @@ public partial class MainWindow : Window
         foreach (ModProblem problem in problems)
             builder.AppendLine().Append(problem.ToString());
         return builder.ToString();
+    }
+
+    private string BuildDuplicateWarningTooltip(IEnumerable<string> duplicates)
+    {
+        string errorLogPath = manager?.GetErrorLogPath() ?? "errorlog.txt";
+        StringBuilder builder = new StringBuilder($"Duplicate raw definitions ({errorLogPath}):");
+        foreach (string entry in duplicates)
+            builder.AppendLine().Append(entry);
+        return builder.ToString();
+    }
+
+    private void UpdateWarningIssuesButton()
+    {
+        int problemCount = problemMods?.Count ?? 0;
+        int duplicateCount = duplicateWarningMods?.Count ?? 0;
+        bool hasProblems = problemCount > 0;
+        bool hasDuplicates = duplicateCount > 0;
+        bool hasIssues = hasProblems || hasDuplicates;
+
+        warningIssuesButton.IsVisible = hasIssues;
+        warningIssuesButton.IsEnabled = hasIssues;
+        ToolTip.SetTip(warningIssuesButton, BuildWarningIssuesTooltip(problemCount, duplicateCount));
+
+        if (!hasIssues || warningIssuesIcon == null)
+            return;
+
+        string iconName = hasProblems && hasDuplicates
+            ? "warningErrorIcon.svg"
+            : hasProblems
+                ? "errorIcon.svg"
+                : "warningIcon.svg";
+
+        warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri($"avares://ModHearth/resources/{iconName}")
+            ?? warningIssuesIcon.Source;
+    }
+
+    private static string? BuildWarningIssuesTooltip(int problemCount, int duplicateCount)
+    {
+        if (problemCount <= 0 && duplicateCount <= 0)
+            return null;
+
+        string problemText = problemCount > 0
+            ? $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues"
+            : string.Empty;
+
+        string duplicateText = duplicateCount > 0
+            ? $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws"
+            : string.Empty;
+
+        if (string.IsNullOrEmpty(problemText))
+            return duplicateText;
+        if (string.IsNullOrEmpty(duplicateText))
+            return problemText;
+
+        return $"{problemText}{Environment.NewLine}{duplicateText}";
     }
 
     private void UpdateModlistHeaders()
@@ -435,20 +511,86 @@ public partial class MainWindow : Window
         string leftFilter = (leftSearchBox.Text ?? string.Empty).Trim().ToLowerInvariant();
         string rightFilter = (rightSearchBox.Text ?? string.Empty).Trim().ToLowerInvariant();
 
-        foreach (ModRefViewModel vm in inactiveMods)
-        {
-            bool match = string.IsNullOrEmpty(leftFilter) ||
-                (vm.ModReference.name?.ToLowerInvariant().Contains(leftFilter) ?? false) ||
-                (vm.ModReference.ID?.ToLowerInvariant().Contains(leftFilter) ?? false);
-            vm.IsFilteredOut = !match;
-        }
+        List<DFHMod> selectedInactive = leftModlist.SelectedItems?
+            .Cast<ModRefViewModel>()
+            .Select(m => m.DfMod)
+            .ToList() ?? new List<DFHMod>();
+        List<DFHMod> selectedActive = rightModlist.SelectedItems?
+            .Cast<ModRefViewModel>()
+            .Select(m => m.DfMod)
+            .ToList() ?? new List<DFHMod>();
 
-        foreach (ModRefViewModel vm in activeMods)
+        RebuildFilteredList(
+            inactiveMods,
+            manager.disabledMods.OrderBy(m => manager.GetRefFromDFHMod(m).name ?? string.Empty),
+            leftFilter,
+            hideFilteredLeft);
+
+        RebuildFilteredList(
+            activeMods,
+            manager.enabledMods,
+            rightFilter,
+            hideFilteredRight);
+
+        RestoreSelections(selectedInactive, selectedActive);
+    }
+
+    private void RebuildFilteredList(
+        ObservableCollection<ModRefViewModel> target,
+        IEnumerable<DFHMod> mods,
+        string filter,
+        bool hideFiltered)
+    {
+        target.Clear();
+        foreach (DFHMod mod in mods)
         {
-            bool match = string.IsNullOrEmpty(rightFilter) ||
-                (vm.ModReference.name?.ToLowerInvariant().Contains(rightFilter) ?? false) ||
-                (vm.ModReference.ID?.ToLowerInvariant().Contains(rightFilter) ?? false);
+            if (!modViewMap.TryGetValue(mod.ToString(), out ModRefViewModel? vm) || vm == null)
+                continue;
+
+            bool match = string.IsNullOrEmpty(filter) ||
+                (vm.ModReference.name?.ToLowerInvariant().Contains(filter) ?? false) ||
+                (vm.ModReference.ID?.ToLowerInvariant().Contains(filter) ?? false);
+
             vm.IsFilteredOut = !match;
+            vm.IsVisible = !hideFiltered || match;
+            if (!vm.IsVisible)
+                vm.IsJumpHighlighted = false;
+
+            if (!hideFiltered || match)
+                target.Add(vm);
+        }
+    }
+
+    private void ToggleSearchFilterVisibility(bool isLeft)
+    {
+        if (isLeft)
+            hideFilteredLeft = !hideFilteredLeft;
+        else
+            hideFilteredRight = !hideFilteredRight;
+
+        UpdateSearchToggleIcons();
+        ApplySearchFilter();
+    }
+
+    private void UpdateSearchToggleIcons()
+    {
+        UpdateSearchToggleIcon(leftSearchToggleIcon, leftSearchToggleButton, hideFilteredLeft);
+        UpdateSearchToggleIcon(rightSearchToggleIcon, rightSearchToggleButton, hideFilteredRight);
+    }
+
+    private static void UpdateSearchToggleIcon(Image? icon, Button? button, bool isHidden)
+    {
+        if (icon == null)
+            return;
+
+        string iconName = isHidden ? "hideEyeIcon.svg" : "viewEyeIcon.svg";
+        icon.Source = ImageSourceLoader.LoadFromAssetUri($"avares://ModHearth/resources/{iconName}") ?? icon.Source;
+
+        if (button != null)
+        {
+            ToolTip.SetTip(button, isHidden
+                ? "Show mismatched mods"
+                : "Hide mismatched mods");
         }
     }
 
@@ -464,6 +606,7 @@ public partial class MainWindow : Window
         IBrush buttonBrush = new SolidColorBrush(style.buttonColor.ToAvaloniaColor());
         IBrush buttonTextBrush = new SolidColorBrush(style.buttonTextColor.ToAvaloniaColor());
         IBrush buttonOutlineBrush = new SolidColorBrush(style.buttonOutlineColor.ToAvaloniaColor());
+        IBrush searchButtonBrush = new SolidColorBrush(style.searchButtonColor.ToAvaloniaColor());
 
         Background = formBrush;
         leftHeaderLabel.Foreground = textBrush;
@@ -515,7 +658,8 @@ public partial class MainWindow : Window
             exportButton,
             autoSortButton,
             redoConfigButton,
-            warningIssuesButton
+            warningIssuesButton,
+            updateButton,
         };
 
         foreach (Button button in buttons)
@@ -524,6 +668,22 @@ public partial class MainWindow : Window
             button.Foreground = buttonTextBrush;
             button.BorderBrush = buttonOutlineBrush;
             button.BorderThickness = new Thickness(1);
+        }
+
+        Button[] searchButtons =
+        {
+            leftSearchToggleButton,
+            leftSearchCloseButton,
+            rightSearchToggleButton,
+            rightSearchCloseButton
+        };
+
+        foreach (Button button in searchButtons)
+        {
+            button.Background = searchButtonBrush;
+            button.Foreground = buttonTextBrush;
+            button.BorderBrush = Brushes.Transparent;
+            button.BorderThickness = new Thickness(0);
         }
 
         foreach (ModRefViewModel vm in modViewMap.Values)
@@ -537,6 +697,12 @@ public partial class MainWindow : Window
     }
     private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (suppressSelectionHandling)
+            return;
+
+        if (sender is ListBox list && TryRestoreScrollbarSelection(list))
+            return;
+
         if (sender == leftModlist && leftModlist.SelectedItems?.Count > 0)
             rightModlist.SelectedItems?.Clear();
         if (sender == rightModlist && rightModlist.SelectedItems?.Count > 0)
@@ -567,11 +733,22 @@ public partial class MainWindow : Window
         dragHitItem = null;
         dragPreserveSelection = false;
         ClearDragHighlight();
+        suppressSelectionForScrollbar = false;
+        suppressSelectionList = null;
+        suppressSelectionSnapshot = null;
 
         if (sender is not ListBox list)
             return;
 
         PointerPoint point = e.GetCurrentPoint(list);
+        CaptureContextSelectionSnapshot(list, point);
+
+        if (IsPointerOverScrollBar(list, point.Position))
+        {
+            CaptureScrollbarSelectionSnapshot(list, point);
+            return;
+        }
+
         if (!point.Properties.IsLeftButtonPressed)
             return;
 
@@ -644,6 +821,16 @@ public partial class MainWindow : Window
             dragHitItem = null;
             dragPreserveSelection = false;
         }
+    }
+
+    private void ModlistPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!suppressSelectionForScrollbar)
+            return;
+
+        suppressSelectionForScrollbar = false;
+        suppressSelectionList = null;
+        suppressSelectionSnapshot = null;
     }
 
     private void ModlistDragOver(object? sender, DragEventArgs e)
@@ -812,6 +999,18 @@ public partial class MainWindow : Window
         return item?.DataContext as ModRefViewModel;
     }
 
+    private static bool IsPointerOverScrollBar(ListBox list, Point point)
+    {
+        IInputElement? element = list.InputHitTest(point) as IInputElement;
+        if (element is not Control control)
+            return false;
+
+        if (control is ScrollBar)
+            return true;
+
+        return control.FindAncestorOfType<ScrollBar>() != null;
+    }
+
     private void RestoreListSelection(ListBox list, IEnumerable<ModRefViewModel> selection)
     {
         if (list.SelectedItems == null)
@@ -823,6 +1022,57 @@ public partial class MainWindow : Window
 
         ObservableCollection<ModRefViewModel> items = list == leftModlist ? inactiveMods : activeMods;
         UpdateSelectionState(list, items);
+    }
+
+    private void CaptureScrollbarSelectionSnapshot(ListBox list, PointerPoint point)
+    {
+        if (!point.Properties.IsLeftButtonPressed)
+            return;
+
+        suppressSelectionForScrollbar = true;
+        suppressSelectionList = list;
+        suppressSelectionSnapshot = list.SelectedItems?.Cast<ModRefViewModel>().ToList()
+            ?? new List<ModRefViewModel>();
+    }
+
+    private bool TryRestoreScrollbarSelection(ListBox list)
+    {
+        if (!suppressSelectionForScrollbar || suppressSelectionList != list)
+            return false;
+
+        suppressSelectionForScrollbar = false;
+        suppressSelectionList = null;
+
+        if (suppressSelectionSnapshot != null)
+        {
+            suppressSelectionHandling = true;
+            RestoreListSelection(list, suppressSelectionSnapshot);
+            suppressSelectionHandling = false;
+        }
+
+        suppressSelectionSnapshot = null;
+        return true;
+    }
+
+    private void CaptureContextSelectionSnapshot(ListBox list, PointerPoint point)
+    {
+        contextSelectionSnapshot = null;
+        contextSelectionList = null;
+
+        if (!point.Properties.IsRightButtonPressed)
+            return;
+
+        ModRefViewModel? hit = GetItemAtPoint(list, point.Position);
+        if (hit == null)
+            return;
+
+        List<ModRefViewModel> selected = list.SelectedItems?.Cast<ModRefViewModel>().ToList()
+            ?? new List<ModRefViewModel>();
+        if (selected.Count > 1 && selected.Contains(hit))
+        {
+            contextSelectionSnapshot = selected;
+            contextSelectionList = list;
+        }
     }
 
     private static List<ModRefViewModel> OrderSelectionByList(ListBox list, IEnumerable<ModRefViewModel> selection)
@@ -875,6 +1125,16 @@ public partial class MainWindow : Window
         ListBox? list = GetListForMod(vm);
         if (list != null)
         {
+            if (contextSelectionSnapshot != null &&
+                contextSelectionList == list &&
+                contextSelectionSnapshot.Contains(vm))
+            {
+                RestoreListSelection(list, contextSelectionSnapshot);
+            }
+
+            contextSelectionSnapshot = null;
+            contextSelectionList = null;
+
             if (list.SelectedItems == null || list.SelectedItems.Count == 0 || !list.SelectedItems.Contains(vm))
             {
                 list.SelectedItems?.Clear();
@@ -882,7 +1142,6 @@ public partial class MainWindow : Window
             }
         }
 
-        bool canDelete = manager.CanDeleteModFromModsFolder(vm.ModReference);
         bool canOpenFolder = !string.IsNullOrWhiteSpace(vm.ModReference.path) &&
                              Directory.Exists(vm.ModReference.path);
         bool hasSteamId = !string.IsNullOrWhiteSpace(vm.ModReference.steamID) &&
@@ -893,7 +1152,14 @@ public partial class MainWindow : Window
             if (item.Tag is string tag)
             {
                 if (tag == "delete-mod")
-                    item.IsEnabled = canDelete;
+                {
+                    int deletableCount = list?.SelectedItems?.Cast<ModRefViewModel>()
+                        .Count(mod => manager.CanDeleteModFromModsFolder(mod.ModReference)) ?? 0;
+                    item.IsEnabled = deletableCount > 0;
+                    item.Header = deletableCount > 1
+                        ? $"Delete Mods ({deletableCount})"
+                        : "Delete Mod";
+                }
                 else if (tag == "open")
                     item.IsEnabled = canOpenFolder;
                 else if (tag == "open-steam")
@@ -1093,11 +1359,11 @@ public partial class MainWindow : Window
 
     private IImage LoadFallbackPreview()
     {
-        IImage? fallback = ImageSourceLoader.LoadFromAssetUri("avares://ModHearth/Resources/43G6tag.png");
+        IImage? fallback = ImageSourceLoader.LoadFromAssetUri("avares://ModHearth/resources/43G6tag.png");
         if (fallback != null)
             return fallback;
 
-        Uri uri = new Uri("avares://ModHearth/Resources/43G6tag.png");
+        Uri uri = new Uri("avares://ModHearth/resources/43G6tag.png");
         using Stream stream = AssetLoader.Open(uri);
         return new Bitmap(stream);
     }
@@ -1185,6 +1451,38 @@ public partial class MainWindow : Window
         }
     }
 
+    private async void ClearInstalledModsPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(clearInstalledModsButton).Properties.IsRightButtonPressed)
+            return;
+
+        e.Handled = true;
+        await RevealInstalledModsFolderAsync();
+    }
+
+    private async Task RevealInstalledModsFolderAsync()
+    {
+        string installedModsPath = manager.GetInstalledModsPath();
+        if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
+        {
+            await DialogService.ShowMessageAsync(this, "Installed mods folder not found.", "Open Folder");
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = installedModsPath,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageAsync(this, ex.Message, "Open Folder");
+        }
+    }
+
     private async Task ReloadModpacksAsync()
     {
         if (changesMade)
@@ -1204,6 +1502,23 @@ public partial class MainWindow : Window
         string? preferredName = manager.modpacks.Count > 0
             ? manager.SelectedModlist?.name
             : null;
+
+        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Refreshing modlists from disk.");
+        try
+        {
+            manager.Initialize();
+            BuildModViewModels();
+        }
+        catch (UserActionRequiredException ex)
+        {
+            _ = DialogService.ShowMessageAsync(this, ex.Message, "Dwarf Fortress required");
+            return;
+        }
+        catch (Exception ex)
+        {
+            _ = DialogService.ShowMessageAsync(this, ex.Message, "Reload failed");
+            return;
+        }
 
         if (!manager.ReloadModpacksFromDisk(preferredName))
             return;
@@ -1402,14 +1717,26 @@ public partial class MainWindow : Window
 
     private void JumpToNextProblem()
     {
-        if (problemMods == null || problemMods.Count == 0)
+        if (problemMods != null && problemMods.Count > 0)
+        {
+            JumpToNextIssue(problemMods, ref problemModIndex);
+            return;
+        }
+
+        if (duplicateWarningMods != null && duplicateWarningMods.Count > 0)
+            JumpToNextIssue(duplicateWarningMods, ref duplicateWarningIndex);
+    }
+
+    private void JumpToNextIssue(List<DFHMod> issues, ref int index)
+    {
+        if (issues.Count == 0)
             return;
 
-        if (problemModIndex >= problemMods.Count)
-            problemModIndex = 0;
+        if (index >= issues.Count)
+            index = 0;
 
-        DFHMod target = problemMods[problemModIndex];
-        problemModIndex = (problemModIndex + 1) % problemMods.Count;
+        DFHMod target = issues[index];
+        index = (index + 1) % issues.Count;
 
         ModRefViewModel? vm = activeMods.FirstOrDefault(m => m.DfMod == target);
         if (vm == null)
@@ -1425,6 +1752,36 @@ public partial class MainWindow : Window
         ShowModInfo(vm.ModReference);
     }
 
+    private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!HasJumpHighlights())
+            return;
+
+        if (e.Source is Control control)
+        {
+            if (warningIssuesButton != null &&
+                (control == warningIssuesButton || control.FindAncestorOfType<Button>() == warningIssuesButton))
+                return;
+
+            ListBoxItem? item = control.FindAncestorOfType<ListBoxItem>();
+            if (item?.DataContext is ModRefViewModel vm && vm.IsJumpHighlighted)
+                return;
+        }
+
+        ClearJumpHighlights();
+    }
+
+    private bool HasJumpHighlights()
+    {
+        return modViewMap.Values.Any(vm => vm.IsJumpHighlighted);
+    }
+
+    private void ClearJumpHighlights()
+    {
+        foreach (ModRefViewModel vm in modViewMap.Values)
+            vm.IsJumpHighlighted = false;
+    }
+
     private void OnThemeChanged()
     {
         if (themeComboBox.SelectedIndex < 0)
@@ -1433,6 +1790,7 @@ public partial class MainWindow : Window
         manager.SetTheme(themeComboBox.SelectedIndex);
         ApplyStyle(manager.LoadStyle());
         UpdateProblemIndicators();
+        UpdateDuplicateWarningIndicators();
     }
 
     private void OnModpackChanged()
@@ -1617,4 +1975,25 @@ public partial class MainWindow : Window
         Close();
     }
 
+    private async Task CheckForUpdatesAsync()
+    {
+        if (updateInProgress)
+            return;
+
+        updateInProgress = true;
+        updateButton.IsEnabled = false;
+
+        try
+        {
+            string currentBuild = ModHearthManager.GetBuildVersionString().Trim();
+            bool shouldRestart = await UpdateService.TryRunUpdateAsync(this, currentBuild);
+            if (shouldRestart)
+                Close();
+        }
+        finally
+        {
+            updateInProgress = false;
+            updateButton.IsEnabled = true;
+        }
+    }
 }

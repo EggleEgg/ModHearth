@@ -68,12 +68,14 @@ namespace ModHearth.UI
         public SimpleColor modRefPanelColor { get; set; } = null!;
         public SimpleColor modRefTextColor { get; set; } = null!;
         public SimpleColor modRefTextBadColor { get; set; } = null!;
+        public SimpleColor modRefTextWarningColor { get; set; } = null!;
         public SimpleColor modRefTextFilteredColor { get; set; } = null!;
         public SimpleColor formColor { get; set; } = null!;
         public SimpleColor textColor { get; set; } = null!;
         public SimpleColor buttonColor { get; set; } = null!;
         public SimpleColor buttonTextColor { get; set; } = null!;
         public SimpleColor buttonOutlineColor { get; set; } = null!;
+        public SimpleColor searchButtonColor { get; set; } = null!;
 
         // Default style.
         public Style()
@@ -115,12 +117,14 @@ namespace ModHearth.UI
             modRefPanelColor ??= fallback.modRefPanelColor;
             modRefTextColor ??= fallback.modRefTextColor;
             modRefTextBadColor ??= fallback.modRefTextBadColor;
+            modRefTextWarningColor ??= fallback.modRefTextWarningColor;
             modRefTextFilteredColor ??= fallback.modRefTextFilteredColor;
             formColor ??= fallback.formColor;
             textColor ??= fallback.textColor;
             buttonColor ??= fallback.buttonColor;
             buttonTextColor ??= fallback.buttonTextColor;
             buttonOutlineColor ??= fallback.buttonOutlineColor ?? buttonTextColor;
+            searchButtonColor ??= fallback.searchButtonColor ?? buttonColor;
         }
 
         public static Style EnsureDefaults(Style style, Style fallback)

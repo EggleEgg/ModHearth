@@ -9,7 +9,9 @@ public class ModRefViewModel : INotifyPropertyChanged
 {
     private readonly ModReference modref;
     private bool isProblem;
+    private bool isDuplicateWarning;
     private bool isFilteredOut;
+    private bool isVisible = true;
     private bool isCached;
     private bool isSelected;
     private bool isJumpHighlighted;
@@ -17,6 +19,7 @@ public class ModRefViewModel : INotifyPropertyChanged
     private bool showDropAbove;
     private bool showDropBelow;
     private string? problemTooltip;
+    private string? duplicateWarningTooltip;
 
     private IBrush backgroundBrush = Brushes.Transparent;
     private IBrush textBrush = Brushes.Black;
@@ -54,6 +57,19 @@ public class ModRefViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool IsDuplicateWarning
+    {
+        get => isDuplicateWarning;
+        set
+        {
+            if (isDuplicateWarning == value)
+                return;
+            isDuplicateWarning = value;
+            RefreshTextStyle();
+            OnPropertyChanged();
+        }
+    }
+
     public bool IsFilteredOut
     {
         get => isFilteredOut;
@@ -63,6 +79,18 @@ public class ModRefViewModel : INotifyPropertyChanged
                 return;
             isFilteredOut = value;
             RefreshTextStyle();
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsVisible
+    {
+        get => isVisible;
+        set
+        {
+            if (isVisible == value)
+                return;
+            isVisible = value;
             OnPropertyChanged();
         }
     }
@@ -211,6 +239,32 @@ public class ModRefViewModel : INotifyPropertyChanged
                 return;
             problemTooltip = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(HoverTooltip));
+        }
+    }
+
+    public string? DuplicateWarningTooltip
+    {
+        get => duplicateWarningTooltip;
+        set
+        {
+            if (duplicateWarningTooltip == value)
+                return;
+            duplicateWarningTooltip = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HoverTooltip));
+        }
+    }
+
+    public string? HoverTooltip
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(problemTooltip))
+                return duplicateWarningTooltip;
+            if (string.IsNullOrWhiteSpace(duplicateWarningTooltip))
+                return problemTooltip;
+            return $"{problemTooltip}{Environment.NewLine}{Environment.NewLine}{duplicateWarningTooltip}";
         }
     }
 
@@ -249,6 +303,8 @@ public class ModRefViewModel : INotifyPropertyChanged
         Color color;
         if (IsProblem)
             color = style.modRefTextBadColor.ToAvaloniaColor();
+        else if (IsDuplicateWarning)
+            color = style.modRefTextWarningColor.ToAvaloniaColor();
         else if (IsFilteredOut)
             color = style.modRefTextFilteredColor.ToAvaloniaColor();
         else

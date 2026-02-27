@@ -170,12 +170,18 @@ namespace ModHearth
         private static readonly string styleLegacyRootPath = Path.Combine(baseDir, "style.json");
         private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
+        private static readonly Regex DuplicateWarningRegex = new("^Duplicate Object:\\s*(?<object>.+?);\\s*Offending mods are\\s*(?<mods>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Mod problem tracker.
         public List<ModProblem> modproblems = new();
         public bool IsSavingModpacks { get; private set; }
         private HashSet<string> installedCacheModIds = new(StringComparer.OrdinalIgnoreCase);
         public string LastMissingModsMessage { get; private set; } = string.Empty;
+        private DateTime? duplicateWarningLastWriteUtc;
+        private Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
+        private string? lastLoggedErrorLogPath;
+        private bool lastLoggedErrorLogExists;
 
         public ModHearthManager() 
         {
@@ -211,6 +217,14 @@ namespace ModHearth
             if (config == null || string.IsNullOrWhiteSpace(config.InstalledModsPath))
                 return GetDefaultInstalledModsPath();
             return config.InstalledModsPath;
+        }
+
+        public string GetErrorLogPath()
+        {
+            if (config == null || string.IsNullOrWhiteSpace(config.DFFolderPath))
+                return Path.Combine(AppContext.BaseDirectory, "errorlog.txt");
+
+            return Path.Combine(config.DFFolderPath, "errorlog.txt");
         }
 
         public string GetModManagerConfigPath()
@@ -710,7 +724,7 @@ namespace ModHearth
                 // Mod setup and registry.
                 ModReference modRef = new ModReference(modDataEntry);
                 string key = modRef.DFHackCompatibleString();
-                Console.WriteLine($"   Mod registered: {modRef.name}.");
+                Console.WriteLine($"   Mod found + registered: {modRef.name}.");
                 modrefMap.Add(key, modRef);
                 modPool.Add(modRef.ToDFHMod());
             }
@@ -816,8 +830,7 @@ namespace ModHearth
                 if (headers == null)
                     continue;
                 modData.Add(headers);
-                if (headers.TryGetValue("name", out string? headerName))
-                    Console.WriteLine("   Mod Found: " + headerName);
+                // Mod found/registered logging happens after registration.
 
                 // To see which headers there are to choose from.
                 //foreach (string k in headers.Keys)
@@ -1195,6 +1208,104 @@ namespace ModHearth
                 scannedModIDs.Add(currentDFM.id.ToLower());
                 unscannedModIDs.Remove(currentDFM.id.ToLower());
             }
+        }
+
+        public IReadOnlyDictionary<string, List<string>> GetDuplicateWarningMap()
+        {
+            string errorLogPath = GetErrorLogPath();
+            bool exists = File.Exists(errorLogPath);
+            if (exists && (!string.Equals(lastLoggedErrorLogPath, errorLogPath, StringComparison.OrdinalIgnoreCase) || !lastLoggedErrorLogExists))
+            {
+                Console.WriteLine($"Error log found: {errorLogPath}");
+            }
+
+            lastLoggedErrorLogPath = errorLogPath;
+            lastLoggedErrorLogExists = exists;
+
+            if (!exists)
+                return new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            DateTime lastWriteUtc = File.GetLastWriteTimeUtc(errorLogPath);
+            if (duplicateWarningLastWriteUtc.HasValue &&
+                duplicateWarningLastWriteUtc.Value == lastWriteUtc)
+            {
+                return duplicateWarningMap;
+            }
+
+            duplicateWarningLastWriteUtc = lastWriteUtc;
+            try
+            {
+                duplicateWarningMap = ParseDuplicateWarnings(errorLogPath);
+            }
+            catch
+            {
+                duplicateWarningMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            }
+            return duplicateWarningMap;
+        }
+
+        private Dictionary<string, List<string>> ParseDuplicateWarnings(string errorLogPath)
+        {
+            Dictionary<string, string> aliasMap = BuildDuplicateWarningAliasMap();
+            Dictionary<string, HashSet<string>> map = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string line in File.ReadLines(errorLogPath))
+            {
+                Match match = DuplicateWarningRegex.Match(line);
+                if (!match.Success)
+                    continue;
+
+                string objectName = match.Groups["object"].Value.Trim();
+                string offenders = match.Groups["mods"].Value.Trim();
+                if (string.IsNullOrWhiteSpace(objectName) || string.IsNullOrWhiteSpace(offenders))
+                    continue;
+
+                foreach (string entry in offenders.Split(','))
+                {
+                    string token = DuplicateWarningCountRegex.Replace(entry, string.Empty).Trim();
+                    if (string.IsNullOrWhiteSpace(token))
+                        continue;
+
+                    if (!aliasMap.TryGetValue(token, out string? modId) || string.IsNullOrWhiteSpace(modId))
+                        continue;
+
+                    if (!map.TryGetValue(modId, out HashSet<string>? objects))
+                    {
+                        objects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        map[modId] = objects;
+                    }
+
+                    objects.Add(objectName);
+                }
+            }
+
+            Dictionary<string, List<string>> result = new(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, HashSet<string>> entry in map)
+                result[entry.Key] = entry.Value.OrderBy(value => value).ToList();
+
+            return result;
+        }
+
+        private Dictionary<string, string> BuildDuplicateWarningAliasMap()
+        {
+            Dictionary<string, string> aliasMap = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (ModReference modref in modrefMap.Values)
+            {
+                AddAlias(aliasMap, modref.ID, modref.ID);
+                AddAlias(aliasMap, modref.name, modref.ID);
+                AddAlias(aliasMap, Path.GetFileName(modref.path), modref.ID);
+            }
+
+            return aliasMap;
+        }
+
+        private static void AddAlias(Dictionary<string, string> aliasMap, string? key, string modId)
+        {
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(modId))
+                return;
+            if (!aliasMap.ContainsKey(key))
+                aliasMap[key] = modId;
         }
 
         public bool AutoSortEnabledMods()

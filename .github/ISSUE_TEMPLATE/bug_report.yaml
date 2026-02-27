@@ -11,6 +11,8 @@ body:
       description: What operating system are you using?
       options:
         - Windows
+        - Linux
+        - MacOS
     validations:
       required: true
 
@@ -44,5 +46,6 @@ body:
     attributes:
       label: Logs
       description: Paste gamelog.txt and errorlog.txt here.
-      render: shell
       placeholder: Paste logs here...
+    validations:
+      required: true

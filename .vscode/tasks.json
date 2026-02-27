@@ -36,6 +36,16 @@
                 "${workspaceFolder}/ModHearth.csproj"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "dotnet: clean",
+            "command": "powershell",
+            "type": "process",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Get-ChildItem -Path $dir -Force | Remove-Item -Recurse -Force } }"
+            ]
         }
     ]
 }

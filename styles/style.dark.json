@@ -41,6 +41,12 @@
     "B": 0,
     "A": 255
   },
+  "modRefTextWarningColor": {
+    "R": 255,
+    "G": 210,
+    "B": 70,
+    "A": 255
+  },
   "modRefTextFilteredColor": {
     "R": 169,
     "G": 169,
@@ -70,7 +76,13 @@
     "G": 0,
     "B": 0,
     "A": 255
-  },
+    },
+  "searchButtonColor": {
+    "R": 120,
+    "G": 120,
+    "B": 120,
+    "A": 255
+},
   "buttonOutlineColor": {
     "R": 0,
     "G": 0,

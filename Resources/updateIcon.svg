@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   fill="#000000"
+   width="600"
+   height="666.66669"
+   viewBox="0 0 18 20.000001"
+   id="update-alt"
+   class="icon glyph"
+   version="1.1"
+   sodipodi:docname="updateicon.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="namedview2"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="1.00875"
+     inkscape:cx="299.87608"
+     inkscape:cy="333.58116"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="update-alt" />
+  <path
+     d="M 9,1 A 9,9 0 0 0 3,3.32 V 1 A 1,1 0 0 0 1,1 V 6 A 1,1 0 0 0 1.92,7 H 7 A 1,1 0 0 0 7,5 H 4.11 A 7,7 0 0 1 16,10 1,1 0 0 0 18,10 9,9 0 0 0 9,1 Z"
+     id="path1" />
+  <path
+     d="M 16.08,13 H 11 a 1,1 0 0 0 0,2 h 2.89 A 7,7 0 0 1 2,10 1,1 0 0 0 0,10 9,9 0 0 0 15,16.68 V 19 a 1,1 0 0 0 2,0 v -5 a 1,1 0 0 0 -0.92,-1 z"
+     id="path2" />
+</svg>
