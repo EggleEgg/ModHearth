@@ -66,9 +66,11 @@ jobs:
                   tag = data.get("tag_name") or ""
           except Exception:
               tag = ""
-          match = re.match(r"build-(\\d+)", tag)
+          match = re.match(r"build-(\d+)", tag)
           default_start = 28
           build = int(match.group(1)) + 1 if match else default_start
+          if build < default_start:
+              build = default_start
           print(f"Computed build number: {build}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
               handle.write(f"build_number={build}\\n")
@@ -143,6 +145,19 @@ jobs:
     needs: [build-test, compute-version, publish]
     if: ${{ needs.build-test.result == 'success' && needs.publish.result == 'success' && needs.compute-version.result == 'success' }}
     steps:
+      - name: Normalize build tag
+        id: release_tag
+        run: |
+          raw="${{ needs.compute-version.outputs.build_number }}"
+          raw="$(echo -n "$raw" | tr -d '\r\n' | xargs)"
+          if [ -z "$raw" ]; then
+            echo "Missing build number from compute-version."
+            exit 1
+          fi
+          tag="build-$raw"
+          name="Build $raw"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          echo "name=$name" >> $GITHUB_OUTPUT
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -153,8 +168,8 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: build-${{ needs.compute-version.outputs.build_number }}
-          release_name: Build ${{ needs.compute-version.outputs.build_number }}
+          tag: ${{ steps.release_tag.outputs.tag }}
+          release_name: ${{ steps.release_tag.outputs.name }}
           body: ${{ github.sha }}
           file: dist/*
           file_glob: true
