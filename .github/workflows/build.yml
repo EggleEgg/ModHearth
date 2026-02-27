@@ -67,7 +67,8 @@ jobs:
           except Exception:
               tag = ""
           match = re.match(r"build-(\\d+)", tag)
-          build = int(match.group(1)) + 1 if match else 1
+          default_start = 28
+          build = int(match.group(1)) + 1 if match else default_start
           print(f"Computed build number: {build}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
               handle.write(f"build_number={build}\\n")
