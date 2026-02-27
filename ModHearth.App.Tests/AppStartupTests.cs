@@ -1,9 +1,8 @@
-using Avalonia;
-using Avalonia.Threading;
 using ModHearth;
-using ModHearth.UI;
 using SkiaSharp;
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -13,62 +12,71 @@ namespace ModHearth.Tests;
 public class AppStartupTests
 {
     [Fact]
-    public async Task MainWindow_Shows_WithoutUnhandledExceptions()
+    public async Task App_Starts_WithoutFatalErrors()
     {
-        string? previous = Environment.GetEnvironmentVariable("MODHEARTH_TEST_MODE");
-        Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", "1");
-
-        var tcs = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var thread = new Thread(() =>
-        {
-            Exception? uiException = null;
-            void OnUnhandled(object? sender, DispatcherUnhandledExceptionEventArgs e)
-            {
-                uiException = e.Exception;
-                e.Handled = true;
-            }
-
-            try
-            {
-                Program.BuildAvaloniaApp()
-                    .SetupWithoutStarting();
-
-                Dispatcher.UIThread.UnhandledException += OnUnhandled;
-
-                var window = new MainWindow();
-                window.Show();
-                Assert.True(window.IsVisible);
-                window.Close();
-
-                Dispatcher.UIThread.InvokeShutdown();
-            }
-            catch (Exception ex)
-            {
-                uiException = ex;
-            }
-            finally
-            {
-                Dispatcher.UIThread.UnhandledException -= OnUnhandled;
-                tcs.TrySetResult(uiException);
-            }
-        })
-        {
-            IsBackground = true
-        };
+        string? previousTestMode = Environment.GetEnvironmentVariable("MODHEARTH_TEST_MODE");
+        string? previousSmokeMode = Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST");
+        string? previousSmokeWindowMode = Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW");
 
         try
         {
-            thread.Start();
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
-            if (completed != tcs.Task)
-                Assert.Fail("UI startup test timed out.");
+            Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", "1");
+            Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST", "1");
+            Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW", "1");
 
-            var exception = await tcs.Task;
-            Assert.Null(exception);
+            string appPath = typeof(Program).Assembly.Location;
+            Assert.True(File.Exists(appPath), $"Expected app assembly at {appPath}");
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add(appPath);
+            startInfo.ArgumentList.Add("--smoke-test-window");
+            startInfo.Environment["MODHEARTH_TEST_MODE"] = "1";
+            startInfo.Environment["MODHEARTH_SMOKE_TEST"] = "1";
+            startInfo.Environment["MODHEARTH_SMOKE_TEST_WINDOW"] = "1";
+
+            using var process = Process.Start(startInfo);
+            Assert.NotNull(process);
+
+            Task<string> stdOutTask = process!.StandardOutput.ReadToEndAsync();
+            Task<string> stdErrTask = process.StandardError.ReadToEndAsync();
+
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            try
+            {
+                await process.WaitForExitAsync(timeoutCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                    // Ignore failures during kill.
+                }
+
+                Assert.Fail("App smoke test timed out.");
+            }
+
+            string stdout = await stdOutTask;
+            string stderr = await stdErrTask;
+
+            Assert.True(process.ExitCode == 0, $"App smoke test failed with exit code {process.ExitCode}\nstdout:\n{stdout}\nstderr:\n{stderr}");
         }
         finally
         {
-            Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", previous);
+            Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", previousTestMode);
+            Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST", previousSmokeMode);
+            Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW", previousSmokeWindowMode);
         }
     }
 
