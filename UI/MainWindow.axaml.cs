@@ -161,6 +161,18 @@ public partial class MainWindow : Window
 
     private async Task InitializeAsync()
     {
+        if (IsTestMode())
+        {
+            SetupModlistBox();
+            ApplyStyle(manager.LoadStyle());
+            BuildModViewModels();
+            RefreshModlistPanels();
+            clearInstalledModsButton.IsEnabled = Directory.Exists(manager.GetInstalledModsPath());
+            modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
+            SetChangesMade(false);
+            return;
+        }
+
         bool configReady = await EnsureConfigAsync();
         if (!configReady)
         {
@@ -201,6 +213,13 @@ public partial class MainWindow : Window
         modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
         SetChangesMade(false);
         SetupModManagerWatcher();
+    }
+
+    private static bool IsTestMode()
+    {
+        string? value = Environment.GetEnvironmentVariable("MODHEARTH_TEST_MODE");
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<bool> EnsureConfigAsync()
