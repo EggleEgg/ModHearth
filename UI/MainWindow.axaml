@@ -1,15 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="clr-namespace:ModHearth.UI"
-        x:Class="ModHearth.UI.MainWindow"
-        Title="Mod Hearth"
-        Width="1264"
-        Height="828"
-        MinWidth="1020"
-        MinHeight="640">
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="clr-namespace:ModHearth.UI"
+  x:Class="ModHearth.UI.MainWindow"
+  Title="Mod Hearth"
+  Width="1264"
+  Height="828"
+  MinWidth="1020"
+  MinHeight="640">
   <Window.DataTemplates>
     <DataTemplate DataType="ui:ModRefViewModel">
-      <Border Background="{Binding BackgroundBrush}" Padding="2,0" MinHeight="20" ToolTip.Tip="{Binding HoverTooltip}">
+      <Border Background="{Binding BackgroundBrush}" Padding="2,0" MinHeight="20"
+        ToolTip.Tip="{Binding HoverTooltip}">
         <Border.ContextMenu>
           <ContextMenu Opened="ModContextMenuOpened">
             <MenuItem Header="Delete Mod" Tag="delete-mod" Click="ModContextDeleteMod" />
@@ -22,25 +23,25 @@
         <Grid>
           <Grid ColumnDefinitions="Auto,*">
             <Border Width="2"
-                    Background="{Binding CacheBarBrush}"
-                    IsVisible="{Binding IsCached}"
-                    ZIndex="2" />
+              Background="{Binding CacheBarBrush}"
+              IsVisible="{Binding IsCached}"
+              ZIndex="2" />
             <TextBlock Grid.Column="1"
-                       Text="{Binding DisplayName}"
-                       Foreground="{Binding TextBrush}"
-                       TextTrimming="CharacterEllipsis"
-                       FontWeight="Normal"
-                       TextDecorations="{Binding TextDecorations}"
-                       Margin="4,0,0,0" />
+              Text="{Binding DisplayName}"
+              Foreground="{Binding TextBrush}"
+              TextTrimming="CharacterEllipsis"
+              FontWeight="Normal"
+              TextDecorations="{Binding TextDecorations}"
+              Margin="4,0,0,0" />
           </Grid>
           <Border Height="2"
-                  Background="{Binding DropHighlightBrush}"
-                  IsVisible="{Binding ShowDropAbove}"
-                  VerticalAlignment="Top" />
+            Background="{Binding DropHighlightBrush}"
+            IsVisible="{Binding ShowDropAbove}"
+            VerticalAlignment="Top" />
           <Border Height="2"
-                  Background="{Binding DropHighlightBrush}"
-                  IsVisible="{Binding ShowDropBelow}"
-                  VerticalAlignment="Bottom" />
+            Background="{Binding DropHighlightBrush}"
+            IsVisible="{Binding ShowDropBelow}"
+            VerticalAlignment="Bottom" />
         </Grid>
       </Border>
     </DataTemplate>
@@ -64,34 +65,48 @@
             <RowDefinition Height="2*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <TextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold" TextWrapping="Wrap" VerticalAlignment="Center" Margin="2,2,2,0" MinHeight="42" />
+          <TextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold" TextWrapping="Wrap"
+            VerticalAlignment="Center" Margin="2,2,2,0" MinHeight="42" />
           <Border Grid.Row="1" Background="Transparent" Margin="2,0,2,2">
-            <Image x:Name="modPreviewImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Image x:Name="modPreviewImage" Stretch="Uniform" HorizontalAlignment="Center"
+              VerticalAlignment="Center" />
           </Border>
-          <ScrollViewer Grid.Row="2" Margin="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <ScrollViewer Grid.Row="2" Margin="2" VerticalScrollBarVisibility="Auto"
+            HorizontalScrollBarVisibility="Disabled">
             <TextBlock x:Name="modDescriptionLabel" TextWrapping="Wrap" />
           </ScrollViewer>
-          <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,2,2" Spacing="6" MinHeight="18">
-            <Button x:Name="updateButton" Width="23" Height="23" Padding="0" ToolTip.Tip="Check for updates">
-              <Image Source="{ui:AssetImage avares://ModHearth/resources/updateIcon.svg}" Stretch="Uniform" />
-            </Button>
-            <TextBlock x:Name="modVersionLabel" FontSize="12" VerticalAlignment="Center" />
-          </StackPanel>
+          <Grid Grid.Row="3" ColumnDefinitions="Auto,*" VerticalAlignment="Center" Margin="0,5,2,2"
+            MinHeight="18">
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Button x:Name="updateButton" Width="23" Height="23" Padding="0"
+                ToolTip.Tip="Check for updates">
+                <Image Source="{ui:AssetImage avares://ModHearth/resources/updateIcon.svg}"
+                  Stretch="Uniform" />
+              </Button>
+              <TextBlock x:Name="modVersionLabel" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock x:Name="dfhackStatusLabel" Grid.Column="1" FontSize="11" Margin="0,5,0,0"
+              HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="False" />
+          </Grid>
         </Grid>
       </Grid>
     </Border>
 
     <Border Grid.Column="1" Margin="3">
       <Grid RowDefinitions="22,30,*" ColumnDefinitions="*,*" ColumnSpacing="0" RowSpacing="0">
-        <TextBlock x:Name="leftHeaderLabel" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center" />
-        <TextBlock x:Name="rightHeaderLabel" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <TextBlock x:Name="leftHeaderLabel" Grid.Row="0" Grid.Column="0"
+          HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <TextBlock x:Name="rightHeaderLabel" Grid.Row="0" Grid.Column="1"
+          HorizontalAlignment="Center" VerticalAlignment="Center" />
 
         <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
-          <TextBox x:Name="leftSearchBox" Watermark="Search" Height="22" Padding="6,2,50,2" VerticalContentAlignment="Center" />
-          <StackPanel Orientation="Horizontal" Spacing="2"
-                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0">
+          <TextBox x:Name="leftSearchBox" Watermark="Search" Height="22" Padding="6,2,65,2"
+            VerticalContentAlignment="Center" />
+          <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right"
+            VerticalAlignment="Center" Margin="0,0,3,0">
             <Button x:Name="leftSearchToggleButton" Width="26" Height="26" Padding="0">
-              <Image x:Name="leftSearchToggleIcon" Source="{ui:AssetImage avares://ModHearth/resources/viewEyeIcon.svg}" />
+              <Image x:Name="leftSearchToggleIcon"
+                Source="{ui:AssetImage avares://ModHearth/resources/viewEyeIcon.svg}" />
             </Button>
             <Button x:Name="leftSearchCloseButton" Width="26" Height="26" Padding="1">
               <Image Source="{ui:AssetImage avares://ModHearth/resources/XIcon.svg}" />
@@ -99,11 +114,13 @@
           </StackPanel>
         </Grid>
         <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,12,0">
-          <TextBox x:Name="rightSearchBox" Watermark="Search" Height="22" Padding="6,2,50,2" VerticalContentAlignment="Center" />
+          <TextBox x:Name="rightSearchBox" Watermark="Search" Height="22" Padding="6,2,65,2"
+            VerticalContentAlignment="Center" />
           <StackPanel Orientation="Horizontal" Spacing="2"
-                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0">
+            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0">
             <Button x:Name="rightSearchToggleButton" Width="26" Height="26" Padding="0">
-              <Image x:Name="rightSearchToggleIcon" Source="{ui:AssetImage avares://ModHearth/resources/viewEyeIcon.svg}" />
+              <Image x:Name="rightSearchToggleIcon"
+                Source="{ui:AssetImage avares://ModHearth/resources/viewEyeIcon.svg}" />
             </Button>
             <Button x:Name="rightSearchCloseButton" Width="26" Height="26" Padding="1">
               <Image Source="{ui:AssetImage avares://ModHearth/resources/XIcon.svg}" />
@@ -111,7 +128,8 @@
           </StackPanel>
         </Grid>
 
-        <ListBox x:Name="leftModlist" Grid.Row="2" Grid.Column="0" SelectionMode="Multiple" Margin="0,6,12,0">
+        <ListBox x:Name="leftModlist" Grid.Row="2" Grid.Column="0" SelectionMode="Multiple"
+          Margin="0,6,12,0">
           <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem">
               <Setter Property="Padding" Value="0" />
@@ -122,7 +140,8 @@
             </ControlTheme>
           </ListBox.ItemContainerTheme>
         </ListBox>
-        <ListBox x:Name="rightModlist" Grid.Row="2" Grid.Column="1" SelectionMode="Multiple" Margin="0,6,12,0">
+        <ListBox x:Name="rightModlist" Grid.Row="2" Grid.Column="1" SelectionMode="Multiple"
+          Margin="0,6,12,0">
           <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem">
               <Setter Property="Padding" Value="0" />
@@ -139,16 +158,23 @@
     <Border Grid.Column="2" Margin="0,3,3,3">
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="6">
         <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" ColumnSpacing="6">
-          <Button x:Name="saveButton" Height="42" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="Save the current modlist">
+          <Button x:Name="saveButton" Height="42" Padding="0" HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Center" ToolTip.Tip="Save the current modlist">
             <Image Source="{ui:AssetImage avares://ModHearth/resources/saveIcon.svg}" />
           </Button>
-          <Button x:Name="undoChangesButton" Grid.Column="1" Height="42" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="Undo unsaved changes">
+          <Button x:Name="undoChangesButton" Grid.Column="1" Height="42" Padding="0"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+            ToolTip.Tip="Undo unsaved changes">
             <Image Source="{ui:AssetImage avares://ModHearth/resources/undoIcon.svg}" />
           </Button>
-          <Button x:Name="clearInstalledModsButton" Grid.Column="2" Height="42" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="Clear the installed mods cache">
+          <Button x:Name="clearInstalledModsButton" Grid.Column="2" Height="42" Padding="0"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+            ToolTip.Tip="Clear the installed mods cache">
             <Image Source="{ui:AssetImage avares://ModHearth/resources/trashIcon.svg}" />
           </Button>
-          <Button x:Name="reloadButton" Grid.Column="3" Height="42" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" ToolTip.Tip="Reload modlists from disk">
+          <Button x:Name="reloadButton" Grid.Column="3" Height="42" Padding="0"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+            ToolTip.Tip="Reload modlists from disk">
             <Image Source="{ui:AssetImage avares://ModHearth/resources/reloadIcon.svg}" />
           </Button>
         </Grid>
@@ -156,25 +182,42 @@
         <ComboBox x:Name="modpackComboBox" Grid.Row="1" Height="30" HorizontalAlignment="Stretch" />
 
         <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="6">
-          <Button x:Name="newListButton" Content="New" FontSize="12" Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-          <Button x:Name="renameListButton" Grid.Column="1" Content="Rename" FontSize="12" Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-          <Button x:Name="deleteListButton" Grid.Column="2" Content="Delete" FontSize="12" Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+          <Button x:Name="newListButton" Content="New" FontSize="12" Height="28"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+          <Button x:Name="renameListButton" Grid.Column="1" Content="Rename" FontSize="12"
+            Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+          <Button x:Name="deleteListButton" Grid.Column="2" Content="Delete" FontSize="12"
+            Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         </Grid>
 
         <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="6">
-          <Button x:Name="importButton" Content="Import" Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
-          <Button x:Name="exportButton" Grid.Column="1" Content="Export" Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+          <Button x:Name="importButton" Content="Import" FontSize="13" Height="28" HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Center" />
+          <Button x:Name="exportButton" Grid.Column="1" Content="Export" FontSize="13" Height="28"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
         </Grid>
 
-        <Button x:Name="autoSortButton" Grid.Row="4" Content="Auto Sort" Height="28" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+          <Button x:Name="autoSortButton" Content="Auto Sort" Height="28"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+          <Button x:Name="sortRulesButton" Grid.Column="1" Width="28" Height="28" Padding="0"
+            ToolTip.Tip="Sort rules">
+            <Image Source="{ui:AssetImage avares://ModHearth/resources/gearIcon.svg}"
+              Stretch="Uniform" />
+          </Button>
+        </Grid>
 
         <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-          <Button x:Name="warningIssuesButton" Width="60" Height="60" Padding="0" IsVisible="False" IsEnabled="False" HorizontalAlignment="Left" VerticalAlignment="Center" ToolTip.Tip="Issues detected in mods">
-            <Image x:Name="warningIssuesIcon" Source="{ui:AssetImage avares://ModHearth/resources/errorIcon.svg}" Stretch="Uniform" />
+          <Button x:Name="warningIssuesButton" Width="60" Height="60" Padding="0" IsVisible="False"
+            IsEnabled="False" HorizontalAlignment="Left" VerticalAlignment="Center"
+            ToolTip.Tip="Issues detected in mods">
+            <Image x:Name="warningIssuesIcon"
+              Source="{ui:AssetImage avares://ModHearth/resources/errorIcon.svg}" Stretch="Uniform" />
           </Button>
           <StackPanel Spacing="6" HorizontalAlignment="Right">
             <ComboBox x:Name="themeComboBox" Width="130" Height="30" />
-            <Button x:Name="redoConfigButton" Content="Redo Config" FontSize="12" Height="30" HorizontalAlignment="Right" />
+            <Button x:Name="redoConfigButton" Content="Redo Config" FontSize="12" Height="30"
+              HorizontalAlignment="Right" />
           </StackPanel>
         </StackPanel>
       </Grid>

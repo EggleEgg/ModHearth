@@ -1,10 +1,10 @@
-local modman = reqscript('gui/mod-manager')
-local json = require('json')
+local modman = reqscript("gui/mod-manager")
+local json = require("json")
 
 local function has_mod_manager_focus(screen)
     local focus_strings = dfhack.gui.getFocusStrings(screen)
-    for _,fs in ipairs(focus_strings) do
-        if fs:find('mod%-manager') then
+    for _, fs in ipairs(focus_strings) do
+        if fs:find("mod%-manager") then
             return true
         end
     end
@@ -26,7 +26,7 @@ local function get_any_moddable_viewscreen_wrapper()
 end
 
 local function vanilla(dir)
-    return dir and dir:startswith('data/vanilla')
+    return dir and dir:startswith("data/vanilla")
 end
 
 local function copy_mod_entry(viewscreen, to, from, mod_id, mod_version, get_fields)
@@ -49,9 +49,9 @@ local function copy_mod_entry(viewscreen, to, from, mod_id, mod_version, get_fie
 
     for k, v in pairs(to_fields) do
         if type(from_fields[k][mod_index]) == "userdata" then
-            v:insert('#', from_fields[k][mod_index]:new())
+            v:insert("#", from_fields[k][mod_index]:new())
         else
-            v:insert('#', from_fields[k][mod_index])
+            v:insert("#", from_fields[k][mod_index])
         end
     end
 
@@ -59,8 +59,8 @@ local function copy_mod_entry(viewscreen, to, from, mod_id, mod_version, get_fie
 end
 
 local function clear_mods(viewscreen, get_fields)
-    local active_modlist = get_fields('object_load_order', viewscreen)
-    local avail_modlist = get_fields('available', viewscreen)
+    local active_modlist = get_fields("object_load_order", viewscreen)
+    local avail_modlist = get_fields("available", viewscreen)
     for _, modlist in ipairs({active_modlist, avail_modlist}) do
         for _, v in pairs(modlist) do
             for i = #v - 1, 0, -1 do
@@ -71,19 +71,19 @@ local function clear_mods(viewscreen, get_fields)
 end
 
 local function set_available_mods(viewscreen, loaded, get_fields)
-    local base_avail = get_fields('base_available', viewscreen)
+    local base_avail = get_fields("base_available", viewscreen)
     local unused = {}
     for i, id in ipairs(base_avail.id) do
         if not loaded[id.value] then
             local version = base_avail.numeric_version[i]
-            table.insert(unused, { id = id.value, version = version })
+            table.insert(unused, {id = id.value, version = version})
         end
     end
 
     for _, v in ipairs(unused) do
         local success = copy_mod_entry(viewscreen, "available", "base_available", v.id, v.version, get_fields)
         if not success then
-            dfhack.printerr('[ModHearth] Failed to show ' .. v.id .. ' in available list')
+            dfhack.printerr("[ModHearth] Failed to show " .. v.id .. " in available list")
         end
     end
 end
@@ -123,9 +123,9 @@ end
 local scr = dfhack.gui.getCurViewscreen(true)
 while scr do
     if has_mod_manager_focus(scr) then
-        dfhack.println('[ModHearth] Reloading mod manager screen.')
+        dfhack.println("[ModHearth] Reloading mod manager screen.")
         dfhack.screen.dismiss(scr)
-        modman.ModmanageScreen{}:show()
+        modman.ModmanageScreen {}:show()
         return
     end
     scr = scr.parent
@@ -137,13 +137,13 @@ local modlist_entry = get_default_modlist()
 local mod_screen = get_viewscreen and get_viewscreen() or nil
 
 if mod_screen and modlist_entry and modlist_entry.modlist then
-    dfhack.println('[ModHearth] Applying default modlist to Mods screen.')
+    dfhack.println("[ModHearth] Applying default modlist to Mods screen.")
     local failures = apply_modlist_to_screen(mod_screen, modlist_entry.modlist, get_fields)
     if #failures > 0 then
-        dfhack.println('[ModHearth] Failed mods: ' .. table.concat(failures, ', '))
+        dfhack.println("[ModHearth] Failed mods: " .. table.concat(failures, ", "))
         for _, v in ipairs(failures) do
         end
     end
 else
-    dfhack.println('[ModHearth] No reload performed.')
+    dfhack.println("[ModHearth] No reload performed.")
 end

@@ -5,9 +5,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -76,7 +73,7 @@ namespace ModHearth
 
         public override string ToString()
         {
-            switch(problemType)
+            switch (problemType)
             {
                 case ProblemType.MissingBefore:
                     return $"Mod '{problemThrowerID}' requires mod '{problemID}' to be loaded before it.";
@@ -106,7 +103,7 @@ namespace ModHearth
         }
     }
 
-    public class ModHearthManager
+    public partial class ModHearthManager
     {
         public static string GetBuildVersionString()
         {
@@ -166,38 +163,41 @@ namespace ModHearth
         private static readonly string configPath = Path.Combine(baseDir, "config.json");
         private static readonly string styleLightPath = Path.Combine(baseDir, "styles", "style.light.json");
         private static readonly string styleDarkPath = Path.Combine(baseDir, "styles", "style.dark.json");
-        private static readonly string styleLegacyPath = Path.Combine(baseDir, "styles", "style.json");
-        private static readonly string styleLegacyRootPath = Path.Combine(baseDir, "style.json");
+        private static readonly string modSortRulesPath = Path.Combine(baseDir, "modsort_rules.json");
         private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
         private static readonly Regex DuplicateWarningRegex = new("^Duplicate Object:\\s*(?<object>.+?);\\s*Offending mods are\\s*(?<mods>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private const string VanillaModIdPrefix = "vanilla_";
 
         // Mod problem tracker.
         public List<ModProblem> modproblems = new();
         public bool IsSavingModpacks { get; private set; }
         private HashSet<string> installedCacheModIds = new(StringComparer.OrdinalIgnoreCase);
+        private List<ModSortRule> sortRules = new();
         public string LastMissingModsMessage { get; private set; } = string.Empty;
         private DateTime? duplicateWarningLastWriteUtc;
         private Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
+        private List<HashSet<string>> duplicateWarningGroups = new();
         private string? lastLoggedErrorLogPath;
         private bool lastLoggedErrorLogExists;
 
-        public ModHearthManager() 
+        public ModHearthManager()
         {
             Console.WriteLine($"Crafting Hearth v{GetBuildVersionString()}");
 
             // Get and load config file, fix if needed.
             AttemptLoadConfig();
+            LoadSortRules();
         }
 
-        public void Initialize()
+        public void Initialize(string? preferredModlistName = null)
         {
             // Find all mods and add to the lists.
             FindAllModsDFHackLua();
 
             // Find DFHModpacks, and fix them if needed.
-            FindModpacks(null);
+            FindModpacks(preferredModlistName);
 
             // Write some info on found things.
             Console.WriteLine();
@@ -212,11 +212,99 @@ namespace ModHearth
             return config;
         }
 
+        public IReadOnlyList<ModSortRule> GetSortRules()
+        {
+            return sortRules;
+        }
+
+        public void SetSortRules(IEnumerable<ModSortRule> rules)
+        {
+            sortRules = NormalizeSortRules(rules);
+            SaveSortRules();
+        }
+
+        private static List<ModSortRule> NormalizeSortRules(IEnumerable<ModSortRule>? rules)
+        {
+            List<ModSortRule> normalized = new List<ModSortRule>();
+            if (rules == null)
+                return normalized;
+
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (ModSortRule rule in rules)
+            {
+                if (rule == null)
+                    continue;
+
+                string before = rule.BeforeId?.Trim() ?? string.Empty;
+                string after = rule.AfterId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(before) || string.IsNullOrWhiteSpace(after))
+                    continue;
+                if (string.Equals(before, after, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                string key = $"{before}>>{after}";
+                if (!seen.Add(key))
+                    continue;
+
+                normalized.Add(new ModSortRule
+                {
+                    BeforeId = before,
+                    AfterId = after
+                });
+            }
+
+            return normalized;
+        }
+
+        private void LoadSortRules()
+        {
+            sortRules = new List<ModSortRule>();
+            if (!File.Exists(modSortRulesPath))
+                return;
+
+            try
+            {
+                string jsonContent = File.ReadAllText(modSortRulesPath);
+                List<ModSortRule>? loadedRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent);
+                if (loadedRules != null)
+                    sortRules = NormalizeSortRules(loadedRules);
+            }
+            catch
+            {
+                sortRules = new List<ModSortRule>();
+            }
+        }
+
+        private void SaveSortRules()
+        {
+            try
+            {
+                JsonSerializerOptions options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+                string jsonContent = JsonSerializer.Serialize(sortRules, options);
+                File.WriteAllText(modSortRulesPath, jsonContent);
+            }
+            catch
+            {
+                // Ignore sort rule save failures.
+            }
+        }
+
         public string GetInstalledModsPath()
         {
             if (config == null || string.IsNullOrWhiteSpace(config.InstalledModsPath))
                 return GetDefaultInstalledModsPath();
             return config.InstalledModsPath;
+        }
+
+        private string? GetVanillaModsPath()
+        {
+            if (string.IsNullOrWhiteSpace(config?.DFFolderPath))
+                return null;
+
+            return Path.Combine(config.DFFolderPath, "data", "vanilla");
         }
 
         public string GetErrorLogPath()
@@ -232,6 +320,12 @@ namespace ModHearth
             if (config == null || string.IsNullOrWhiteSpace(config.DFFolderPath))
                 return string.Empty;
             return Path.Combine(config.DFFolderPath, "dfhack-config", "mod-manager.json");
+        }
+
+        public bool HasDfhack()
+        {
+            string dfhackRunPath = GetDfhackRunPath();
+            return !string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath);
         }
 
         public bool CanDeleteModFromModsFolder(ModReference modref)
@@ -661,7 +755,11 @@ namespace ModHearth
                 roots.Add(installedModsPath);
 
             if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
-                roots.Add(Path.Combine(config.DFFolderPath, "data", "vanilla"));
+            {
+                string? vanillaPath = GetVanillaModsPath();
+                if (!string.IsNullOrWhiteSpace(vanillaPath))
+                    roots.Add(vanillaPath);
+            }
 
             foreach (string root in roots)
             {
@@ -697,13 +795,11 @@ namespace ModHearth
 
         private void FindAllModsDFHackLua()
         {
-            // If game not running, prompt user to run it and force restart.
             if (!DwarfFortressRunning())
             {
-                Console.WriteLine("DF not running");
-                throw new UserActionRequiredException(
-                    UserActionRequired.StartDwarfFortress,
-                    "Please launch Dwarf Fortress and navigate to the world creation screen.");
+                Console.WriteLine("DF not running. Falling back to filesystem scan.");
+                FindAllModsFromDisk();
+                return;
             }
 
             // Initialize relevant variables.
@@ -713,7 +809,17 @@ namespace ModHearth
             // Get all mod folders.
             Console.WriteLine("Finding all mods... ");
 
-            HashSet<Dictionary<string, string>> modData = GetModMemoryData();
+            HashSet<Dictionary<string, string>> modData;
+            try
+            {
+                modData = GetModMemoryData();
+            }
+            catch (UserActionRequiredException)
+            {
+                Console.WriteLine("DF not on world creation screen. Falling back to filesystem scan.");
+                FindAllModsFromDisk();
+                return;
+            }
             Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
 
             foreach (Dictionary<string, string> modDataEntry in modData)
@@ -728,6 +834,136 @@ namespace ModHearth
                 modrefMap.Add(key, modRef);
                 modPool.Add(modRef.ToDFHMod());
             }
+        }
+
+        private void FindAllModsFromDisk()
+        {
+            modrefMap = new Dictionary<string, ModReference>();
+            modPool = new HashSet<DFHMod>();
+
+            Console.WriteLine("Finding all mods (filesystem)...");
+
+            foreach (string root in EnumerateModRoots())
+            {
+                if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+                    continue;
+
+                foreach (string dir in Directory.EnumerateDirectories(root))
+                {
+                    string infoPath = Path.Combine(dir, "info.txt");
+                    if (!File.Exists(infoPath))
+                        continue;
+
+                    Dictionary<string, string> modData = BuildModMemoryDataFromInfo(infoPath, dir, out bool missingVersion);
+                    if (!modData.TryGetValue("id", out string? id) || string.IsNullOrWhiteSpace(id))
+                        continue;
+
+                    ModReference modRef = new ModReference(modData)
+                    {
+                        MissingVersion = missingVersion
+                    };
+
+                    string key = modRef.DFHackCompatibleString();
+                    if (modrefMap.ContainsKey(key))
+                        continue;
+
+                    Console.WriteLine($"   Mod found + registered: {modRef.name}.");
+                    modrefMap.Add(key, modRef);
+                    modPool.Add(modRef.ToDFHMod());
+                }
+            }
+        }
+
+        private IEnumerable<string> EnumerateModRoots()
+        {
+            if (!string.IsNullOrWhiteSpace(config?.ModsPath))
+                yield return config.ModsPath;
+
+            string installedModsPath = GetInstalledModsPath();
+            if (!string.IsNullOrWhiteSpace(installedModsPath))
+                yield return installedModsPath;
+
+            if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
+            {
+                string? vanillaPath = GetVanillaModsPath();
+                if (!string.IsNullOrWhiteSpace(vanillaPath))
+                    yield return vanillaPath;
+            }
+        }
+
+        private static Dictionary<string, string> BuildModMemoryDataFromInfo(string infoPath, string modPath, out bool missingVersion)
+        {
+            missingVersion = false;
+            string info = File.ReadAllText(infoPath);
+            Dictionary<string, string> tags = ParseInfoTags(info);
+
+            string id = GetInfoTag(tags, "ID") ?? string.Empty;
+            string name = GetInfoTag(tags, "NAME") ?? Path.GetFileName(modPath);
+            string author = GetInfoTag(tags, "AUTHOR") ?? string.Empty;
+            string description = GetInfoTag(tags, "DESCRIPTION") ?? string.Empty;
+
+            string displayedVersion = GetInfoTag(tags, "DISPLAYED_VERSION") ??
+                                      GetInfoTag(tags, "VERSION") ?? string.Empty;
+            string numericVersion = GetInfoTag(tags, "NUMERIC_VERSION") ??
+                                    ExtractNumericVersion(displayedVersion) ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(numericVersion))
+            {
+                numericVersion = "1";
+                missingVersion = true;
+            }
+
+            string earliestCompatibleNumeric = GetInfoTag(tags, "EARLIEST_COMPATIBLE_NUMERIC_VERSION") ??
+                                              GetInfoTag(tags, "EARLIEST_COMPATIBLE_VERSION") ??
+                                              numericVersion;
+            string earliestCompatibleDisplayed = GetInfoTag(tags, "EARLIEST_COMPATIBLE_DISPLAYED_VERSION") ??
+                                                GetInfoTag(tags, "EARLIEST_COMPATIBLE_VERSION") ??
+                                                displayedVersion;
+
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["id"] = id,
+                ["numeric_version"] = numericVersion,
+                ["displayed_version"] = displayedVersion,
+                ["earliest_compatible_numeric_version"] = earliestCompatibleNumeric ?? numericVersion,
+                ["earliest_compatible_displayed_version"] = earliestCompatibleDisplayed ?? displayedVersion,
+                ["author"] = author,
+                ["name"] = name,
+                ["description"] = description,
+                ["steam_file_id"] = GetInfoTag(tags, "STEAM_FILE_ID") ?? string.Empty,
+                ["steam_title"] = GetInfoTag(tags, "STEAM_TITLE") ?? string.Empty,
+                ["steam_description"] = GetInfoTag(tags, "STEAM_DESCRIPTION") ?? string.Empty,
+                ["src_dir"] = modPath
+            };
+        }
+
+        private static Dictionary<string, string> ParseInfoTags(string info)
+        {
+            Dictionary<string, string> tags = new(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(info))
+                return tags;
+
+            foreach (Match match in Regex.Matches(info, @"\[(?<tag>[A-Z0-9_]+):(?<value>[^\]]*)\]", RegexOptions.IgnoreCase))
+            {
+                string tag = match.Groups["tag"].Value.Trim();
+                string value = match.Groups["value"].Value.Trim();
+                if (!string.IsNullOrWhiteSpace(tag))
+                    tags[tag] = value;
+            }
+
+            return tags;
+        }
+
+        private static string? GetInfoTag(Dictionary<string, string> tags, string key)
+            => tags.TryGetValue(key, out string? value) ? value : null;
+
+        private static string? ExtractNumericVersion(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            Match match = Regex.Match(value, @"\d+(?:\.\d+)*");
+            return match.Success ? match.Value : null;
         }
 
         private Dictionary<string, string> BuildModIdPathMap()
@@ -834,7 +1070,7 @@ namespace ModHearth
 
                 // To see which headers there are to choose from.
                 //foreach (string k in headers.Keys)
-                    //Console.WriteLine($"header found. k: {k}, v: {headers[k]}");
+                //Console.WriteLine($"header found. k: {k}, v: {headers[k]}");
 
             }
 
@@ -1197,7 +1433,7 @@ namespace ModHearth
                             //Console.WriteLine("Problem found: missing after mod with ID: " + afterID + " mod needing is: " + currentDFM.id);
                         }
                     foreach (string conflictID in currentMod.conflicts_with)
-                        if (scannedModIDs.Contains(conflictID.ToLower()) || unscannedModIDs.Contains(conflictID.ToLower()) )
+                        if (scannedModIDs.Contains(conflictID.ToLower()) || unscannedModIDs.Contains(conflictID.ToLower()))
                         {
                             modproblems.Add(new ModProblem(currentDFM.id, conflictID, ModProblem.ProblemType.ConflictPresent));
                             //Console.WriteLine("Problem found: conflict present mod with ID: " + conflictID + " mod needing is: " + currentDFM.id);
@@ -1212,9 +1448,16 @@ namespace ModHearth
 
         public IReadOnlyDictionary<string, List<string>> GetDuplicateWarningMap()
         {
+            EnsureDuplicateWarningCache(logFound: true);
+            return duplicateWarningMap;
+        }
+
+        private void EnsureDuplicateWarningCache(bool logFound)
+        {
             string errorLogPath = GetErrorLogPath();
             bool exists = File.Exists(errorLogPath);
-            if (exists && (!string.Equals(lastLoggedErrorLogPath, errorLogPath, StringComparison.OrdinalIgnoreCase) || !lastLoggedErrorLogExists))
+            if (logFound && exists &&
+                (!string.Equals(lastLoggedErrorLogPath, errorLogPath, StringComparison.OrdinalIgnoreCase) || !lastLoggedErrorLogExists))
             {
                 Console.WriteLine($"Error log found: {errorLogPath}");
             }
@@ -1223,31 +1466,38 @@ namespace ModHearth
             lastLoggedErrorLogExists = exists;
 
             if (!exists)
-                return new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            {
+                duplicateWarningLastWriteUtc = null;
+                duplicateWarningMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                duplicateWarningGroups = new List<HashSet<string>>();
+                return;
+            }
 
             DateTime lastWriteUtc = File.GetLastWriteTimeUtc(errorLogPath);
-            if (duplicateWarningLastWriteUtc.HasValue &&
-                duplicateWarningLastWriteUtc.Value == lastWriteUtc)
-            {
-                return duplicateWarningMap;
-            }
+            if (duplicateWarningLastWriteUtc.HasValue && duplicateWarningLastWriteUtc.Value == lastWriteUtc)
+                return;
 
             duplicateWarningLastWriteUtc = lastWriteUtc;
             try
             {
-                duplicateWarningMap = ParseDuplicateWarnings(errorLogPath);
+                ParseDuplicateWarnings(errorLogPath, out duplicateWarningMap, out duplicateWarningGroups);
             }
             catch
             {
                 duplicateWarningMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                duplicateWarningGroups = new List<HashSet<string>>();
             }
-            return duplicateWarningMap;
         }
 
-        private Dictionary<string, List<string>> ParseDuplicateWarnings(string errorLogPath)
+        private void ParseDuplicateWarnings(
+            string errorLogPath,
+            out Dictionary<string, List<string>> warningMap,
+            out List<HashSet<string>> groups)
         {
             Dictionary<string, string> aliasMap = BuildDuplicateWarningAliasMap();
             Dictionary<string, HashSet<string>> map = new(StringComparer.OrdinalIgnoreCase);
+            List<HashSet<string>> groupList = new();
+            HashSet<string> groupKeys = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (string line in File.ReadLines(errorLogPath))
             {
@@ -1260,6 +1510,7 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(objectName) || string.IsNullOrWhiteSpace(offenders))
                     continue;
 
+                HashSet<string> groupIds = new(StringComparer.OrdinalIgnoreCase);
                 foreach (string entry in offenders.Split(','))
                 {
                     string token = DuplicateWarningCountRegex.Replace(entry, string.Empty).Trim();
@@ -1269,6 +1520,8 @@ namespace ModHearth
                     if (!aliasMap.TryGetValue(token, out string? modId) || string.IsNullOrWhiteSpace(modId))
                         continue;
 
+                    groupIds.Add(modId);
+
                     if (!map.TryGetValue(modId, out HashSet<string>? objects))
                     {
                         objects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1277,13 +1530,21 @@ namespace ModHearth
 
                     objects.Add(objectName);
                 }
+
+                if (groupIds.Count >= 2)
+                {
+                    string key = string.Join("|", groupIds.OrderBy(value => value));
+                    if (groupKeys.Add(key))
+                        groupList.Add(groupIds);
+                }
             }
 
             Dictionary<string, List<string>> result = new(StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, HashSet<string>> entry in map)
                 result[entry.Key] = entry.Value.OrderBy(value => value).ToList();
 
-            return result;
+            warningMap = result;
+            groups = groupList;
         }
 
         private Dictionary<string, string> BuildDuplicateWarningAliasMap()
@@ -1307,278 +1568,6 @@ namespace ModHearth
             if (!aliasMap.ContainsKey(key))
                 aliasMap[key] = modId;
         }
-
-        public bool AutoSortEnabledMods()
-        {
-            Dictionary<string, ModReference> idMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
-            foreach (ModReference modref in modrefMap.Values)
-                if (!idMap.ContainsKey(modref.ID))
-                    idMap.Add(modref.ID, modref);
-
-            Dictionary<string, int> originalIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            List<ModReference> enabledRefs = new List<ModReference>();
-            for (int i = 0; i < enabledMods.Count; i++)
-            {
-                if (modrefMap.TryGetValue(enabledMods[i].ToString(), out ModReference? modref) && modref != null)
-                {
-                    enabledRefs.Add(modref);
-                    if (!originalIndex.ContainsKey(modref.ID))
-                        originalIndex[modref.ID] = i;
-                }
-            }
-
-            HashSet<string> enabledIds = new HashSet<string>(enabledRefs.Select(m => m.ID), StringComparer.OrdinalIgnoreCase);
-            Queue<ModReference> queue = new Queue<ModReference>(enabledRefs);
-            while (queue.Count > 0)
-            {
-                ModReference current = queue.Dequeue();
-                foreach (string dep in current.require_before_me.Concat(current.require_after_me))
-                {
-                    string? depId = dep?.Trim();
-                    if (string.IsNullOrEmpty(depId))
-                        continue;
-                    if (enabledIds.Contains(depId))
-                        continue;
-                    if (idMap.TryGetValue(depId, out ModReference? depRef) && depRef != null)
-                    {
-                        enabledIds.Add(depRef.ID);
-                        queue.Enqueue(depRef);
-                    }
-                }
-            }
-
-            List<ModReference> allEnabled = new List<ModReference>();
-            foreach (string id in enabledIds)
-                if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
-                    allEnabled.Add(modref);
-
-            Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache =
-                new Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)>(StringComparer.OrdinalIgnoreCase);
-
-            List<ModReference> baseOrder = allEnabled
-                .OrderBy(m => GetAutoSortGroup(m, traitCache))
-                .ThenBy(m => GetReactionPriority(m))
-                .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
-                .ThenBy(m => m.name ?? m.ID)
-                .ToList();
-
-            Dictionary<string, int> baseIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            for (int i = 0; i < baseOrder.Count; i++)
-                baseIndex[baseOrder[i].ID] = i;
-
-            Dictionary<string, List<string>> edges = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, int> indegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (ModReference modref in allEnabled)
-            {
-                edges[modref.ID] = new List<string>();
-                indegree[modref.ID] = 0;
-            }
-
-            foreach (ModReference modref in allEnabled)
-            {
-                foreach (string dep in modref.require_before_me)
-                {
-                    string? depId = dep?.Trim();
-                    if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
-                        continue;
-                    edges[depId].Add(modref.ID);
-                    indegree[modref.ID]++;
-                }
-                foreach (string dep in modref.require_after_me)
-                {
-                    string? depId = dep?.Trim();
-                    if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
-                        continue;
-                    edges[modref.ID].Add(depId);
-                    indegree[depId]++;
-                }
-            }
-
-            List<string> available = new List<string>();
-            foreach (KeyValuePair<string, int> kv in indegree)
-                if (kv.Value == 0)
-                    available.Add(kv.Key);
-
-            List<string> sortedIds = new List<string>();
-            while (available.Count > 0)
-            {
-                string next = available.OrderBy(id => baseIndex.TryGetValue(id, out int idx) ? idx : int.MaxValue).First();
-                available.Remove(next);
-                sortedIds.Add(next);
-                foreach (string dest in edges[next])
-                {
-                    indegree[dest]--;
-                    if (indegree[dest] == 0)
-                        available.Add(dest);
-                }
-            }
-
-            if (sortedIds.Count != enabledIds.Count)
-                sortedIds = baseOrder.Select(m => m.ID).ToList();
-
-            List<DFHMod> sortedMods = new List<DFHMod>();
-            foreach (string id in sortedIds)
-                if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
-                    sortedMods.Add(modref.ToDFHMod());
-
-            bool changed = sortedMods.Count != enabledMods.Count;
-            if (!changed)
-                for (int i = 0; i < sortedMods.Count; i++)
-                    if (sortedMods[i] != enabledMods[i])
-                    {
-                        changed = true;
-                        break;
-                    }
-
-            if (changed)
-            {
-                SetActiveMods(sortedMods);
-                FindModlistProblems();
-            }
-
-            return changed;
-        }
-
-        private int GetAutoSortGroup(ModReference modref, Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache)
-        {
-            var traits = GetModTraits(modref, traitCache);
-            if (traits.beforeVanilla || (modref.name ?? "").IndexOf("better instruments", StringComparison.OrdinalIgnoreCase) >= 0)
-                return 0;
-            if (traits.vanillaEntity)
-                return 0;
-            if (traits.newEntity)
-                return 1;
-            if (traits.reaction)
-                return 4;
-            if (traits.graphics)
-                return 2;
-            if (traits.newStuff)
-                return 5;
-            return 3;
-        }
-
-        private int GetReactionPriority(ModReference modref)
-        {
-            string label = ((modref.name ?? "") + " " + modref.ID).ToLowerInvariant();
-            if (label.Contains("set production"))
-                return 0;
-            if (label.Contains("smelt ore by product"))
-                return 1;
-            if (label.Contains("stone beds") || label.Contains("stoneworking expanded"))
-                return 2;
-            if (label.Contains("specific decoration"))
-                return 3;
-            if (label.Contains("fermented milk"))
-                return 4;
-            return 100;
-        }
-
-        private (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla) GetModTraits(
-            ModReference modref,
-            Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache)
-        {
-            if (traitCache.TryGetValue(modref.ID, out var cached))
-                return cached;
-
-            bool vanillaEntity = false;
-            bool newEntity = false;
-            bool reaction = false;
-            bool creature = false;
-            bool newStuff = false;
-            bool graphics = false;
-            bool beforeVanilla = false;
-
-            string infoPath = Path.Combine(modref.path, "info.txt");
-            if (File.Exists(infoPath))
-            {
-                string info = File.ReadAllText(infoPath);
-                if (info.IndexOf("before vanilla", StringComparison.OrdinalIgnoreCase) >= 0)
-                    beforeVanilla = true;
-                if (info.IndexOf("graphics", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    info.IndexOf("tileset", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    info.IndexOf("tile set", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    info.IndexOf("portrait", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    info.IndexOf("sprite", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    info.IndexOf("landscape", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    info.IndexOf("stone variation", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    info.IndexOf("rounded hills", StringComparison.OrdinalIgnoreCase) >= 0)
-                    graphics = true;
-            }
-
-            if (Directory.Exists(Path.Combine(modref.path, "graphics")) ||
-                Directory.Exists(Path.Combine(modref.path, "raw", "graphics")))
-                graphics = true;
-
-            if (Directory.Exists(modref.path))
-            {
-                foreach (string file in Directory.EnumerateFiles(modref.path, "*.txt", SearchOption.AllDirectories))
-                {
-                    string lowerPath = file.ToLowerInvariant();
-                    if (lowerPath.Contains("\\graphics\\") || lowerPath.Contains("/graphics/"))
-                        graphics = true;
-                    if (!lowerPath.Contains("\\raw\\") && !lowerPath.Contains("/raw/"))
-                        continue;
-
-                    string text;
-                    try
-                    {
-                        text = File.ReadAllText(file);
-                    }
-                    catch
-                    {
-                        continue;
-                    }
-
-                    if (!reaction && text.IndexOf("[REACTION:", StringComparison.OrdinalIgnoreCase) >= 0)
-                        reaction = true;
-                    if (!creature && text.IndexOf("[CREATURE:", StringComparison.OrdinalIgnoreCase) >= 0)
-                        creature = true;
-                    if (!newStuff &&
-                        (text.IndexOf("[INORGANIC:", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         text.IndexOf("[PLANT:", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                         text.IndexOf("[ITEM_", StringComparison.OrdinalIgnoreCase) >= 0))
-                        newStuff = true;
-
-                    if (!vanillaEntity || !newEntity)
-                    {
-                        MatchCollection entityMatches = Regex.Matches(text, @"\[ENTITY:([^\]]+)\]", RegexOptions.IgnoreCase);
-                        foreach (Match match in entityMatches)
-                        {
-                            string ent = match.Groups[1].Value.Trim();
-                            if (IsVanillaEntity(ent))
-                                vanillaEntity = true;
-                            else if (!string.IsNullOrEmpty(ent))
-                                newEntity = true;
-                        }
-                    }
-
-                    if (reaction && creature && newStuff && graphics && (vanillaEntity || newEntity))
-                        break;
-                }
-            }
-
-            if (creature)
-                newStuff = true;
-
-            var result = (vanillaEntity, newEntity, reaction, creature, newStuff, graphics, beforeVanilla);
-            traitCache[modref.ID] = result;
-            return result;
-        }
-
-        private bool IsVanillaEntity(string id)
-        {
-            switch (id.ToUpperInvariant())
-            {
-                case "DWARF":
-                case "ELF":
-                case "HUMAN":
-                case "GOBLIN":
-                case "KOBOLD":
-                    return true;
-            }
-            return false;
-        }
-
         #region initialization file stuff
 
         // Find modpacks from dfhack mod-manager config file.
@@ -1589,7 +1578,7 @@ namespace ModHearth
 
         private bool FindModpacks(string? preferredModlistName)
         {
-            // Get paths and read file. #TODO: handling the file not existing.
+            // Get paths and read file.
             string dfHackModpackPath = GetModManagerConfigPath();
             if (string.IsNullOrWhiteSpace(dfHackModpackPath) || !File.Exists(dfHackModpackPath))
             {
@@ -1627,9 +1616,9 @@ namespace ModHearth
                 DFHModpack modlist = modpacks[i];
 
                 HashSet<DFHMod> thisListMissingMods = new HashSet<DFHMod>();
-                foreach(DFHMod mod in modlist.modlist)
+                foreach (DFHMod mod in modlist.modlist)
                 {
-                    if(!modPool.Contains(mod))
+                    if (!modPool.Contains(mod))
                     {
                         modMissing = true;
                         notFound.Add(mod);
@@ -1637,9 +1626,9 @@ namespace ModHearth
                         missingMessage += $"\n{mod}";
                     }
                 }
-                
+
                 // Remove the missing mods from the modlist.
-                foreach(DFHMod m in thisListMissingMods)
+                foreach (DFHMod m in thisListMissingMods)
                 {
                     modlist.modlist.Remove(m);
                 }
@@ -1681,10 +1670,10 @@ namespace ModHearth
             }
 
             // Create default modpack if none present.
-            if(modpacks.Count == 0)
+            if (modpacks.Count == 0)
             {
                 DFHModpack newPack = new DFHModpack(true, new List<DFHMod>(), "Default");
-                // FIXME: generate vanilla modpack in a better way than this
+                // Generate default modpack from vanilla mods.
                 newPack.modlist = GenerateVanillaModlist();
                 modpacks.Add(newPack);
                 SetSelectedModpack(0);
@@ -1695,55 +1684,47 @@ namespace ModHearth
             return true;
         }
 
-        // Generated a vanilla modlist using manually generated mod ID list.
+        // Generate a vanilla modlist by selecting mods with the vanilla ID prefix.
         public List<DFHMod> GenerateVanillaModlist()
         {
-            // Manually made vanilla modlist.
-            List<string> vanillaModIDList = new List<string>()
-                {
-                    "vanilla_text",
-                    "vanilla_languages",
-                    "vanilla_descriptors",
-                    "vanilla_materials",
-                    "vanilla_environment",
-                    "vanilla_plants",
-                    "vanilla_items",
-                    "vanilla_buildings",
-                    "vanilla_bodies",
-                    "vanilla_creatures",
-                    "vanilla_entities",
-                    "vanilla_reactions",
-                    "vanilla_interactions",
-                    "vanilla_descriptors_graphics",
-                    "vanilla_plants_graphics",
-                    "vanilla_items_graphics",
-                    "vanilla_buildings_graphics",
-                    "vanilla_creatures_graphics",
-                    "vanilla_world_map",
-                    "vanilla_interface",
-                    "vanilla_music",
-                };
+            string? vanillaPath = GetVanillaModsPath();
+            bool hasVanillaPath = !string.IsNullOrWhiteSpace(vanillaPath) && Directory.Exists(vanillaPath);
+            if (hasVanillaPath)
+                vanillaPath = Path.GetFullPath(vanillaPath!);
 
-            // Get all mods that are probably vanilla.
-            Dictionary<string, DFHMod> vanillaPool = new Dictionary<string, DFHMod>();
-            foreach (DFHMod dfm in modPool)
+            List<ModReference> vanillaRefs = new List<ModReference>();
+            foreach (ModReference modref in modrefMap.Values)
             {
-                if (dfm.id.ToLower().Contains("vanilla"))
+                if (string.IsNullOrWhiteSpace(modref.ID))
+                    continue;
+                if (!modref.ID.StartsWith(VanillaModIdPrefix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (hasVanillaPath)
                 {
-                    vanillaPool.Add(dfm.id, dfm);
-                    Console.WriteLine("added mod with id " +  dfm.id);
+                    if (string.IsNullOrWhiteSpace(modref.path))
+                        continue;
+
+                    string modPath = Path.GetFullPath(modref.path);
+                    if (!IsPathUnderRoot(modPath, vanillaPath!))
+                        continue;
                 }
+
+                vanillaRefs.Add(modref);
             }
 
-            // Load vanilla mods into pack.
-            List<DFHMod> vanillaList = new List<DFHMod>();
-            for (int i = 0; i < vanillaModIDList.Count; i++)
+            if (vanillaRefs.Count == 0)
             {
-                Console.WriteLine("looking for mod with id " + vanillaModIDList[i]);
-                vanillaList.Add(vanillaPool[vanillaModIDList[i]]);
+                if (hasVanillaPath)
+                    Console.WriteLine($"No vanilla mods found under: {vanillaPath}");
+                else
+                    Console.WriteLine("No vanilla mods found.");
             }
 
-            return vanillaList;
+            return vanillaRefs
+                .OrderBy(modref => modref.ID, StringComparer.OrdinalIgnoreCase)
+                .Select(modref => modref.ToDFHMod())
+                .ToList();
         }
 
         // Get the theme from config.
@@ -1751,7 +1732,7 @@ namespace ModHearth
         {
             return config.theme;
         }
-        
+
         // Save the theme to config file.
         public void SetTheme(int theme)
         {
@@ -1881,38 +1862,25 @@ namespace ModHearth
 
             try
             {
-                if (File.Exists(stylePath))
-                {
-                    Console.WriteLine("Style file found.");
-                    if (!TryLoadStyleFromPath(stylePath, out style))
-                    {
-                        Console.WriteLine("Style file borked. Style regenerated.");
-                        style = GetDefaultStyleForTheme(theme);
-                        SaveStyle(style, stylePath);
-                    }
-                }
-                else if (TryLoadLegacyStyle(out style))
-                {
-                    Console.WriteLine("Legacy style file found. Migrating.");
-                    SaveStyle(style, stylePath);
-                }
-                else
-                {
-                    Console.WriteLine("Style file missing. New style reated.");
-                    style = GetDefaultStyleForTheme(theme);
-                    SaveStyle(style, stylePath);
-                }
+                if (!File.Exists(stylePath))
+                    throw new FileNotFoundException("Style file missing.", stylePath);
+
+                Console.WriteLine("Style file found.");
+                if (!TryLoadStyleFromPath(stylePath, out style))
+                    throw new InvalidOperationException($"Style file invalid: {stylePath}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred: {ex.Message}");
+                string message = $"Style load failed: {ex.Message}\nMissing or invalid style file: {stylePath}";
+                Console.WriteLine(message);
+                throw new InvalidOperationException(message, ex);
             }
 
 
             // Set global instance and return.
             Style.instance = style;
             return style;
-        } 
+        }
 
         // Save the style to file.
         private void SaveStyle(Style style, string stylePath)
@@ -1936,18 +1904,6 @@ namespace ModHearth
             return theme == 0 ? styleLightPath : styleDarkPath;
         }
 
-        private Style GetDefaultStyleForTheme(int theme)
-        {
-            string stylePath = GetStylePathForTheme(theme);
-            if (TryLoadStyleFromPath(stylePath, out Style style))
-                return style;
-
-            if (TryLoadLegacyStyle(out style))
-                return style;
-
-            return GetFallbackStyle();
-        }
-
         private bool TryLoadStyleFromPath(string stylePath, out Style style)
         {
             style = null!;
@@ -1960,78 +1916,19 @@ namespace ModHearth
                 Style? foundStyle = JsonSerializer.Deserialize<Style>(jsonContent);
                 if (foundStyle == null)
                     return false;
-                style = Style.EnsureDefaults(foundStyle, GetFallbackStyle());
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private Style? fallbackStyle;
-
-        private Style GetFallbackStyle()
-        {
-            if (fallbackStyle != null)
-                return fallbackStyle;
-
-            try
-            {
-                fallbackStyle = Style.GetFallback();
-                return fallbackStyle;
-            }
-            catch
-            {
-                // Ignore and fall back to legacy style if embedded style is unavailable.
-            }
-
-            if (TryLoadLegacyStyleRaw(out Style legacy))
-            {
-                fallbackStyle = legacy;
-                return fallbackStyle;
-            }
-
-            throw new InvalidOperationException("Fallback style missing.");
-        }
-
-        private bool TryLoadLegacyStyle(out Style style)
-        {
-            if (TryLoadStyleFromPath(styleLegacyPath, out style))
-                return true;
-            if (TryLoadStyleFromPath(styleLegacyRootPath, out style))
-                return true;
-            return false;
-        }
-
-        private bool TryLoadLegacyStyleRaw(out Style style)
-        {
-            if (TryLoadStyleRawFromPath(styleLegacyPath, out style))
-                return true;
-            if (TryLoadStyleRawFromPath(styleLegacyRootPath, out style))
-                return true;
-            return false;
-        }
-
-        private bool TryLoadStyleRawFromPath(string stylePath, out Style style)
-        {
-            style = null!;
-            if (!File.Exists(stylePath))
-                return false;
-
-            try
-            {
-                string jsonContent = File.ReadAllText(stylePath);
-                Style? loadedStyle = JsonSerializer.Deserialize<Style>(jsonContent);
-                if (loadedStyle == null)
+                if (!IsStyleComplete(foundStyle))
                     return false;
-                style = loadedStyle;
+                style = foundStyle;
                 return true;
             }
             catch
             {
                 return false;
             }
+        }
+        private static bool IsStyleComplete(Style style)
+        {
+            return style.IsComplete();
         }
         #endregion
     }

@@ -36,6 +36,17 @@ internal static class RuntimeBootstrap
         if (Directory.Exists(nativeFolder))
             paths.Add(nativeFolder);
 
+        string runtimesFolder = Path.Combine(baseDir, "runtimes");
+        if (Directory.Exists(runtimesFolder))
+        {
+            foreach (string ridDir in Directory.EnumerateDirectories(runtimesFolder))
+            {
+                string ridNative = Path.Combine(ridDir, "native");
+                if (Directory.Exists(ridNative))
+                    paths.Add(ridNative);
+            }
+        }
+
         string? existing = AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") as string;
         if (!string.IsNullOrWhiteSpace(existing))
         {

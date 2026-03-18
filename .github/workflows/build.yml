@@ -73,7 +73,7 @@ jobs:
               build = default_start
           print(f"Computed build number: {build}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
-              handle.write(f"build_number={build}\\n")
+              handle.write(f"build_number={build}\n")
           PY
 
   publish:
@@ -150,6 +150,8 @@ jobs:
         run: |
           raw="${{ needs.compute-version.outputs.build_number }}"
           raw="$(echo -n "$raw" | tr -d '\r\n' | xargs)"
+          raw="${raw//\\n/}"
+          raw="${raw//\\r/}"
           if [ -z "$raw" ]; then
             echo "Missing build number from compute-version."
             exit 1

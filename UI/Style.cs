@@ -1,7 +1,6 @@
 using System;
-using System.IO;
+using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using Avalonia.Media;
 
 namespace ModHearth.UI
@@ -60,6 +59,11 @@ namespace ModHearth.UI
         // This only ever has one instance
         public static Style? instance;
 
+        private static readonly PropertyInfo[] RequiredColorProperties = typeof(Style)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(property => property.PropertyType == typeof(SimpleColor))
+            .ToArray();
+
         // Colors.
         public SimpleColor modRefColor { get; set; } = null!;
         public SimpleColor modRefHighlightColor { get; set; } = null!;
@@ -83,57 +87,9 @@ namespace ModHearth.UI
             instance = this;
         }
 
-        private static Style? fallback;
-
-        public static Style GetFallback()
+        public bool IsComplete()
         {
-            if (fallback != null)
-                return fallback;
-
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            Stream? stream = assembly.GetManifestResourceStream("ModHearth.style.json");
-            if (stream == null)
-                throw new InvalidOperationException("Embedded style.json not found.");
-
-            using StreamReader reader = new StreamReader(stream);
-            string jsonContent = reader.ReadToEnd();
-            Style? embedded = JsonSerializer.Deserialize<Style>(jsonContent);
-            if (embedded == null)
-                throw new InvalidOperationException("Embedded style.json could not be parsed.");
-
-            fallback = embedded;
-            return fallback;
-        }
-
-        public void ApplyDefaults(Style fallback)
-        {
-            if (fallback == null)
-                throw new ArgumentNullException(nameof(fallback));
-
-            modRefColor ??= fallback.modRefColor;
-            modRefHighlightColor ??= fallback.modRefHighlightColor;
-            modRefJumpHighlightColor ??= fallback.modRefJumpHighlightColor;
-            modRefCacheBarColor ??= fallback.modRefCacheBarColor;
-            modRefPanelColor ??= fallback.modRefPanelColor;
-            modRefTextColor ??= fallback.modRefTextColor;
-            modRefTextBadColor ??= fallback.modRefTextBadColor;
-            modRefTextWarningColor ??= fallback.modRefTextWarningColor;
-            modRefTextFilteredColor ??= fallback.modRefTextFilteredColor;
-            formColor ??= fallback.formColor;
-            textColor ??= fallback.textColor;
-            buttonColor ??= fallback.buttonColor;
-            buttonTextColor ??= fallback.buttonTextColor;
-            buttonOutlineColor ??= fallback.buttonOutlineColor ?? buttonTextColor;
-            searchButtonColor ??= fallback.searchButtonColor ?? buttonColor;
-        }
-
-        public static Style EnsureDefaults(Style style, Style fallback)
-        {
-            if (style == null)
-                throw new ArgumentNullException(nameof(style));
-
-            style.ApplyDefaults(fallback);
-            return style;
+            return RequiredColorProperties.All(property => property.GetValue(this) is SimpleColor);
         }
     }
 }

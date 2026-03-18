@@ -1,10 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="ModHearth.UI.InputDialog"
-        SizeToContent="WidthAndHeight"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        Title="Input">
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  x:Class="ModHearth.UI.InputDialog"
+  SizeToContent="WidthAndHeight"
+  WindowStartupLocation="CenterOwner"
+  CanResize="False"
+  Title="Input">
   <StackPanel Margin="16" Spacing="12">
     <TextBlock x:Name="PromptText" Width="360" TextWrapping="Wrap" />
     <TextBox x:Name="InputBox" Width="360" />

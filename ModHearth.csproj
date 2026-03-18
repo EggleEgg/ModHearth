@@ -31,12 +31,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="resources\\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="styles\\style.json">
-      <LogicalName>ModHearth.style.json</LogicalName>
-    </EmbeddedResource>
+    <AvaloniaResource Include="icons\\modhearth_icon_v1.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -60,10 +55,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
-    <Content Include="icons\\modhearth_icon_v1.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
+    <!-- Icon is embedded as AvaloniaResource; no need to copy to output/publish. -->
   </ItemGroup>
 
   <Target Name="CleanOutputDirectories" AfterTargets="Clean">
@@ -77,12 +69,14 @@
     <RemoveDir Directories="@(IntermediateSubDirs)" />
   </Target>
 
-  <Target Name="MoveOutputDlls" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsPublishing)' != 'true' and '$(MoveOutputDlls)' == 'true'">
+  <Target Name="MoveOutputDlls" AfterTargets="Build"
+    Condition="'$(DesignTimeBuild)' != 'true' and '$(IsPublishing)' != 'true' and '$(MoveOutputDlls)' == 'true'">
     <ItemGroup>
       <OutputDlls Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(AssemblyName).dll" />
     </ItemGroup>
     <MakeDir Directories="$(OutputPath)$(DllOutputFolder)" />
-    <Move SourceFiles="@(OutputDlls)" DestinationFolder="$(OutputPath)$(DllOutputFolder)" Condition="@(OutputDlls) != ''" />
+    <Move SourceFiles="@(OutputDlls)" DestinationFolder="$(OutputPath)$(DllOutputFolder)"
+      Condition="@(OutputDlls) != ''" />
   </Target>
 
   <Target Name="MovePublishDlls" AfterTargets="Publish" Condition="'$(SelfContained)' != 'true'">
@@ -90,7 +84,8 @@
       <PublishDlls Include="$(PublishDir)*.dll" Exclude="$(PublishDir)$(AssemblyName).dll" />
     </ItemGroup>
     <MakeDir Directories="$(PublishDir)$(DllOutputFolder)" />
-    <Move SourceFiles="@(PublishDlls)" DestinationFolder="$(PublishDir)$(DllOutputFolder)" Condition="@(PublishDlls) != ''" />
+    <Move SourceFiles="@(PublishDlls)" DestinationFolder="$(PublishDir)$(DllOutputFolder)"
+      Condition="@(PublishDlls) != ''" />
   </Target>
 
   <Target Name="MarkPublishing" BeforeTargets="Publish">
@@ -99,7 +94,8 @@
     </PropertyGroup>
   </Target>
 
-  <Target Name="CleanPublishDir" BeforeTargets="_CopyResolvedFilesToPublishPreserveNewest;_CopyResolvedFilesToPublishAlways">
+  <Target Name="CleanPublishDir"
+    BeforeTargets="_CopyResolvedFilesToPublishPreserveNewest;_CopyResolvedFilesToPublishAlways">
     <PropertyGroup>
       <EffectivePublishDir Condition="'$(PublishDir)' != ''">$(PublishDir)</EffectivePublishDir>
       <EffectivePublishDir Condition="'$(PublishDir)' == ''">$(OutputPath)publish\</EffectivePublishDir>
@@ -109,7 +105,8 @@
       <AllowExternalPublishDirClean Condition="'$(AllowExternalPublishDirClean)' == ''">false</AllowExternalPublishDirClean>
     </PropertyGroup>
     <PropertyGroup>
-      <IsPublishDirUnderProject>$([System.String]::Copy('$(PublishDirFull)').StartsWith('$(ProjectDirWithSep)'))</IsPublishDirUnderProject>
+      <IsPublishDirUnderProject>
+        $([System.String]::Copy('$(PublishDirFull)').StartsWith('$(ProjectDirWithSep)'))</IsPublishDirUnderProject>
       <ShouldCleanPublishDir>$(IsPublishDirUnderProject)</ShouldCleanPublishDir>
       <ShouldCleanPublishDir Condition="'$(AllowExternalPublishDirClean)' == 'true'">true</ShouldCleanPublishDir>
     </PropertyGroup>
@@ -117,7 +114,7 @@
       <PublishStateFiles Include="$(IntermediateOutputPath)PublishOutputs*.txt" />
     </ItemGroup>
     <RemoveDir Directories="$(PublishDirFull)"
-               Condition="Exists('$(PublishDirFull)') and '$(ShouldCleanPublishDir)' == 'true'" />
+      Condition="Exists('$(PublishDirFull)') and '$(ShouldCleanPublishDir)' == 'true'" />
     <Delete Files="@(PublishStateFiles)" Condition="'@(PublishStateFiles)' != ''" />
   </Target>
 
@@ -125,8 +122,11 @@
     <ItemGroup>
       <PublishNativeLibs Include="$(PublishDir)*.so" />
       <PublishNativeLibs Include="$(PublishDir)*.dylib" />
+      <PublishNativeLibs Include="$(PublishDir)runtimes\**\native\*.so" />
+      <PublishNativeLibs Include="$(PublishDir)runtimes\**\native\*.dylib" />
     </ItemGroup>
     <MakeDir Directories="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
-    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
+    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native"
+      Condition="@(PublishNativeLibs) != ''" />
   </Target>
 </Project>

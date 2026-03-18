@@ -76,13 +76,13 @@
     "G": 0,
     "B": 0,
     "A": 255
-    },
+  },
   "searchButtonColor": {
     "R": 120,
     "G": 120,
     "B": 120,
     "A": 255
-},
+  },
   "buttonOutlineColor": {
     "R": 0,
     "G": 0,

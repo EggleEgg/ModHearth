@@ -26,13 +26,11 @@ namespace ModHearth.UI;
 
 public partial class MainWindow : Window
 {
-    private const string DragDataKey = "ModHearth.ModRefs";
-    private static readonly DataFormat<string> DragDataFormat =
-        DataFormat.CreateStringApplicationFormat(DragDataKey);
-
     private readonly ObservableCollection<ModRefViewModel> inactiveMods = new();
     private readonly ObservableCollection<ModRefViewModel> activeMods = new();
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ModListDragDropController modListController;
+    private readonly UndoRedoKeyHandler undoRedoHandler;
 
     private ModHearthManager manager;
     private bool changesMade;
@@ -50,22 +48,7 @@ public partial class MainWindow : Window
     private DispatcherTimer? modManagerReloadTimer;
     private FileSystemWatcher? modManagerWatcher;
 
-    private Point? dragStartPoint;
-    private ListBox? dragSourceList;
-    private List<ModRefViewModel>? dragSelectionSnapshot;
-    private ModRefViewModel? dragHitItem;
-    private bool dragPreserveSelection;
-    private List<ModRefViewModel>? dragHighlightedItems;
-    private Cursor? dragCursor;
-    private Cursor? previousCursor;
-
     private IImage? currentPreview;
-    private bool suppressSelectionHandling;
-    private bool suppressSelectionForScrollbar;
-    private List<ModRefViewModel>? suppressSelectionSnapshot;
-    private ListBox? suppressSelectionList;
-    private List<ModRefViewModel>? contextSelectionSnapshot;
-    private ListBox? contextSelectionList;
     private bool updateInProgress;
     private bool hideFilteredLeft;
     private bool hideFilteredRight;
@@ -77,30 +60,29 @@ public partial class MainWindow : Window
         SetWindowIcon();
 
         manager = new ModHearthManager();
+        modListController = new ModListDragDropController(
+            this,
+            () => modViewMap.Values,
+            key => modViewMap.TryGetValue(key, out ModRefViewModel? vm) ? vm : null,
+            vm => vm.DfMod.ToString());
+        modListController.Dropped += ModlistDropped;
+
+        undoRedoHandler = new UndoRedoKeyHandler(
+            () => undoChangesButton.IsEnabled,
+            () => UndoChangesAsync(),
+            () => redoAvailable,
+            () => RedoListChanges());
+        undoRedoHandler.Attach(this);
 
         leftModlist.ItemsSource = inactiveMods;
         rightModlist.ItemsSource = activeMods;
-        DragDrop.SetAllowDrop(leftModlist, true);
-        DragDrop.SetAllowDrop(rightModlist, true);
+        modListController.RegisterList(leftModlist, allowReorder: false);
+        modListController.RegisterList(rightModlist, allowReorder: true);
 
         leftModlist.SelectionChanged += ModlistSelectionChanged;
         rightModlist.SelectionChanged += ModlistSelectionChanged;
         leftModlist.DoubleTapped += (_, _) => MoveSelectedBetweenLists(true);
         rightModlist.DoubleTapped += (_, _) => MoveSelectedBetweenLists(false);
-
-        leftModlist.AddHandler(InputElement.PointerPressedEvent, ModlistPointerPressed, RoutingStrategies.Tunnel, true);
-        rightModlist.AddHandler(InputElement.PointerPressedEvent, ModlistPointerPressed, RoutingStrategies.Tunnel, true);
-        leftModlist.AddHandler(InputElement.PointerMovedEvent, ModlistPointerMoved, RoutingStrategies.Tunnel, true);
-        rightModlist.AddHandler(InputElement.PointerMovedEvent, ModlistPointerMoved, RoutingStrategies.Tunnel, true);
-        leftModlist.AddHandler(InputElement.PointerReleasedEvent, ModlistPointerReleased, RoutingStrategies.Tunnel, true);
-        rightModlist.AddHandler(InputElement.PointerReleasedEvent, ModlistPointerReleased, RoutingStrategies.Tunnel, true);
-
-        leftModlist.AddHandler(DragDrop.DragOverEvent, ModlistDragOver);
-        rightModlist.AddHandler(DragDrop.DragOverEvent, ModlistDragOver);
-        leftModlist.AddHandler(DragDrop.DropEvent, ModlistDrop);
-        rightModlist.AddHandler(DragDrop.DropEvent, ModlistDrop);
-        leftModlist.AddHandler(DragDrop.DragLeaveEvent, ModlistDragLeave);
-        rightModlist.AddHandler(DragDrop.DragLeaveEvent, ModlistDragLeave);
         AddHandler(InputElement.PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
 
         leftSearchBox.TextChanged += (_, _) => ApplySearchFilter();
@@ -113,6 +95,7 @@ public partial class MainWindow : Window
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
         autoSortButton.Click += (_, _) => AutoSort();
+        sortRulesButton.Click += async (_, _) => await OpenSortRulesAsync();
         clearInstalledModsButton.Click += async (_, _) => await ClearInstalledModsAsync();
         clearInstalledModsButton.AddHandler(InputElement.PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);
         reloadButton.Click += async (_, _) => await ReloadModpacksAsync();
@@ -128,11 +111,9 @@ public partial class MainWindow : Window
         updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
 
         themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
-        themeComboBox.SelectionChanged += (_, _) => OnThemeChanged();
+        themeComboBox.SelectionChanged += async (_, _) => await OnThemeChangedAsync();
 
         modpackComboBox.SelectionChanged += (_, _) => OnModpackChanged();
-
-        KeyDown += OnKeyDown;
         Opened += async (_, _) => await InitializeAsync();
         Closed += (_, _) =>
         {
@@ -149,9 +130,9 @@ public partial class MainWindow : Window
     {
         try
         {
-            string iconPath = Path.Combine(AppContext.BaseDirectory, "icons", "modhearth_icon_v1.ico");
-            if (File.Exists(iconPath))
-                Icon = new WindowIcon(iconPath);
+            Uri iconUri = new Uri("avares://ModHearth/icons/modhearth_icon_v1.ico");
+            using Stream stream = AssetLoader.Open(iconUri);
+            Icon = new WindowIcon(stream);
         }
         catch
         {
@@ -185,6 +166,7 @@ public partial class MainWindow : Window
             try
             {
                 manager.Initialize();
+                UpdateDfHackStatus();
                 break;
             }
             catch (UserActionRequiredException ex)
@@ -205,12 +187,22 @@ public partial class MainWindow : Window
         }
 
         SetupModlistBox();
-        ApplyStyle(manager.LoadStyle());
+        try
+        {
+            ApplyStyle(manager.LoadStyle());
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageAsync(this, ex.Message, "Style load failed");
+            Close();
+            return;
+        }
         manager.RefreshInstalledCacheModIds();
         BuildModViewModels();
         RefreshModlistPanels();
         clearInstalledModsButton.IsEnabled = Directory.Exists(manager.GetInstalledModsPath());
         modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
+        UpdateDfHackStatus();
         SetChangesMade(false);
         SetupModManagerWatcher();
     }
@@ -360,8 +352,8 @@ public partial class MainWindow : Window
                 rightModlist.SelectedItems?.Add(vm);
         }
 
-        UpdateSelectionState(leftModlist, inactiveMods);
-        UpdateSelectionState(rightModlist, activeMods);
+        modListController.UpdateSelectionState(leftModlist);
+        modListController.UpdateSelectionState(rightModlist);
     }
 
     private void SelectModsInList(bool destinationLeft, IEnumerable<DFHMod> mods)
@@ -377,7 +369,7 @@ public partial class MainWindow : Window
                 list.SelectedItems?.Add(vm);
         }
 
-        UpdateSelectionState(list, source);
+        modListController.UpdateSelectionState(list);
     }
 
     private void UpdateCachedIndicators()
@@ -626,6 +618,7 @@ public partial class MainWindow : Window
         IBrush buttonTextBrush = new SolidColorBrush(style.buttonTextColor.ToAvaloniaColor());
         IBrush buttonOutlineBrush = new SolidColorBrush(style.buttonOutlineColor.ToAvaloniaColor());
         IBrush searchButtonBrush = new SolidColorBrush(style.searchButtonColor.ToAvaloniaColor());
+        IBrush warningTextBrush = new SolidColorBrush(style.modRefTextWarningColor.ToAvaloniaColor());
 
         Background = formBrush;
         leftHeaderLabel.Foreground = textBrush;
@@ -633,6 +626,7 @@ public partial class MainWindow : Window
         modTitleLabel.Foreground = textBrush;
         modDescriptionLabel.Foreground = textBrush;
         modVersionLabel.Foreground = textBrush;
+        dfhackStatusLabel.Foreground = warningTextBrush;
 
         leftModlist.Background = panelBrush;
         rightModlist.Background = panelBrush;
@@ -676,6 +670,7 @@ public partial class MainWindow : Window
             importButton,
             exportButton,
             autoSortButton,
+            sortRulesButton,
             redoConfigButton,
             warningIssuesButton,
             updateButton,
@@ -716,10 +711,7 @@ public partial class MainWindow : Window
     }
     private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (suppressSelectionHandling)
-            return;
-
-        if (sender is ListBox list && TryRestoreScrollbarSelection(list))
+        if (sender is ListBox list && modListController.HandleSelectionChanged(list))
             return;
 
         if (sender == leftModlist && leftModlist.SelectedItems?.Count > 0)
@@ -727,407 +719,33 @@ public partial class MainWindow : Window
         if (sender == rightModlist && rightModlist.SelectedItems?.Count > 0)
             leftModlist.SelectedItems?.Clear();
 
-        UpdateSelectionState(leftModlist, inactiveMods);
-        UpdateSelectionState(rightModlist, activeMods);
+        modListController.UpdateSelectionState(leftModlist);
+        modListController.UpdateSelectionState(rightModlist);
 
         ModRefViewModel? selected = (sender as ListBox)?.SelectedItem as ModRefViewModel;
         if (selected != null)
             ShowModInfo(selected.ModReference);
     }
 
-    private static void UpdateSelectionState(ListBox list, ObservableCollection<ModRefViewModel> items)
+    private void ModlistDropped(ModListDropContext context)
     {
-        IEnumerable<ModRefViewModel> selectedItems = list.SelectedItems?.Cast<ModRefViewModel>()
-            ?? Enumerable.Empty<ModRefViewModel>();
-        HashSet<ModRefViewModel> selected = new HashSet<ModRefViewModel>(selectedItems);
-        foreach (ModRefViewModel vm in items)
-            vm.IsSelected = selected.Contains(vm);
-    }
-
-    private void ModlistPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        dragStartPoint = null;
-        dragSourceList = null;
-        dragSelectionSnapshot = null;
-        dragHitItem = null;
-        dragPreserveSelection = false;
-        ClearDragHighlight();
-        suppressSelectionForScrollbar = false;
-        suppressSelectionList = null;
-        suppressSelectionSnapshot = null;
-
-        if (sender is not ListBox list)
+        if (context.Items.Count == 0)
             return;
 
-        PointerPoint point = e.GetCurrentPoint(list);
-        CaptureContextSelectionSnapshot(list, point);
-
-        if (IsPointerOverScrollBar(list, point.Position))
-        {
-            CaptureScrollbarSelectionSnapshot(list, point);
-            return;
-        }
-
-        if (!point.Properties.IsLeftButtonPressed)
-            return;
-
-        dragStartPoint = e.GetPosition(list);
-        dragSourceList = list;
-        dragHitItem = GetItemAtPoint(list, dragStartPoint.Value);
-
-        bool hasModifier = e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-        if (!hasModifier && dragHitItem != null && list.SelectedItems?.Count > 1 && list.SelectedItems.Contains(dragHitItem))
-        {
-            dragPreserveSelection = true;
-            dragSelectionSnapshot = list.SelectedItems.Cast<ModRefViewModel>().ToList();
-        }
-    }
-
-    private async void ModlistPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (dragStartPoint == null || dragSourceList == null)
-            return;
-
-        if (!e.GetCurrentPoint(dragSourceList).Properties.IsLeftButtonPressed)
-            return;
-
-        Point current = e.GetPosition(dragSourceList);
-        if (Math.Abs(current.X - dragStartPoint.Value.X) < 4 && Math.Abs(current.Y - dragStartPoint.Value.Y) < 4)
-            return;
-
-        List<ModRefViewModel> selected = dragSourceList.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-        ModRefViewModel? hit = dragHitItem ?? GetItemAtPoint(dragSourceList, current);
-
-        if (dragPreserveSelection && dragSelectionSnapshot != null && dragSelectionSnapshot.Count > 0)
-        {
-            selected = new List<ModRefViewModel>(dragSelectionSnapshot);
-            RestoreListSelection(dragSourceList, dragSelectionSnapshot);
-        }
-
-        if (hit != null && selected.Count > 0 && !selected.Contains(hit))
-        {
-            dragSourceList.SelectedItems?.Clear();
-            dragSourceList.SelectedItems?.Add(hit);
-            selected = new List<ModRefViewModel> { hit };
-        }
-        else if (selected.Count == 0 && hit != null)
-        {
-            dragSourceList.SelectedItems?.Clear();
-            dragSourceList.SelectedItems?.Add(hit);
-            selected.Add(hit);
-        }
-
-        if (selected.Count == 0)
-            return;
-
-        selected = OrderSelectionByList(dragSourceList, selected);
-
-        SetDragHighlight(selected);
-        try
-        {
-            string payload = SerializeDragData(selected);
-            DataTransfer data = new DataTransfer();
-            data.Add(DataTransferItem.Create(DragDataFormat, payload));
-            await DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
-        }
-        finally
-        {
-            ClearDragHighlight();
-            dragStartPoint = null;
-            dragSourceList = null;
-            dragSelectionSnapshot = null;
-            dragHitItem = null;
-            dragPreserveSelection = false;
-        }
-    }
-
-    private void ModlistPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        if (!suppressSelectionForScrollbar)
-            return;
-
-        suppressSelectionForScrollbar = false;
-        suppressSelectionList = null;
-        suppressSelectionSnapshot = null;
-    }
-
-    private void ModlistDragOver(object? sender, DragEventArgs e)
-    {
-        if (sender is not ListBox list)
-            return;
-
-        if (!e.DataTransfer.Contains(DragDataFormat))
-            return;
-
-        e.DragEffects = DragDropEffects.Move;
-        Point pos = e.GetPosition(list);
-        UpdateDropHighlight(list, pos);
-    }
-
-    private void ModlistDragLeave(object? sender, DragEventArgs e)
-    {
-        ClearDropHighlights();
-    }
-
-    private void ModlistDrop(object? sender, DragEventArgs e)
-    {
-        if (sender is not ListBox list)
-            return;
-        if (!e.DataTransfer.Contains(DragDataFormat))
-            return;
-
-        ClearDropHighlights();
-        ClearDragHighlight();
-        Point pos = e.GetPosition(list);
-        int index = GetInsertIndex(list, pos);
-
-        string? payload = e.DataTransfer.TryGetValue(DragDataFormat);
-        if (string.IsNullOrWhiteSpace(payload))
-            return;
-
-        List<ModRefViewModel> selected = DeserializeDragData(payload);
-        if (selected.Count == 0)
-            return;
-
-        bool sourceLeft = dragSourceList == leftModlist;
-        if (dragSourceList == null)
-            sourceLeft = selected.Any(vm => inactiveMods.Contains(vm));
-        bool destinationLeft = list == leftModlist;
+        bool sourceLeft = context.SourceList == leftModlist;
+        if (context.SourceList == null)
+            sourceLeft = context.Items.Any(vm => inactiveMods.Contains(vm));
+        bool destinationLeft = context.DestinationList == leftModlist;
 
         if (sourceLeft && destinationLeft)
-        {
-            dragSourceList = null;
-            dragStartPoint = null;
-            dragSelectionSnapshot = null;
-            dragHitItem = null;
-            dragPreserveSelection = false;
             return;
-        }
 
-        List<DFHMod> mods = selected.Select(vm => vm.DfMod).ToList();
-        manager.MoveMods(mods, index, sourceLeft, destinationLeft);
+        List<DFHMod> mods = context.Items.Select(vm => vm.DfMod).ToList();
+        manager.MoveMods(mods, context.InsertIndex, sourceLeft, destinationLeft);
         SetAndMarkChanges(true);
         RefreshModlistPanels();
         if (sourceLeft != destinationLeft)
             SelectModsInList(destinationLeft, mods);
-        dragSourceList = null;
-        dragStartPoint = null;
-        dragSelectionSnapshot = null;
-        dragHitItem = null;
-        dragPreserveSelection = false;
-    }
-
-    private static string SerializeDragData(IEnumerable<ModRefViewModel> mods)
-    {
-        List<string> keys = mods.Select(vm => vm.DfMod.ToString()).ToList();
-        return JsonSerializer.Serialize(keys);
-    }
-
-    private List<ModRefViewModel> DeserializeDragData(string payload)
-    {
-        List<string>? keys = JsonSerializer.Deserialize<List<string>>(payload);
-        if (keys == null || keys.Count == 0)
-            return new List<ModRefViewModel>();
-
-        List<ModRefViewModel> mods = new List<ModRefViewModel>();
-        foreach (string key in keys)
-        {
-            if (modViewMap.TryGetValue(key, out ModRefViewModel? vm) && vm != null)
-                mods.Add(vm);
-        }
-        return mods;
-    }
-
-    private void UpdateDropHighlight(ListBox list, Point position)
-    {
-        ClearDropHighlights();
-        if (list.ItemCount == 0)
-            return;
-
-        (int index, bool after) = GetDropTarget(list, position);
-        if (list.ItemsSource is not IEnumerable<ModRefViewModel> items)
-            return;
-
-        List<ModRefViewModel> itemList = items.ToList();
-        if (itemList.Count == 0)
-            return;
-
-        if (index >= itemList.Count)
-        {
-            itemList[^1].ShowDropBelow = true;
-            return;
-        }
-
-        ModRefViewModel target = itemList[index];
-        if (after)
-            target.ShowDropBelow = true;
-        else
-            target.ShowDropAbove = true;
-    }
-
-    private void ClearDropHighlights()
-    {
-        foreach (ModRefViewModel vm in modViewMap.Values)
-        {
-            vm.ShowDropAbove = false;
-            vm.ShowDropBelow = false;
-        }
-    }
-
-    private void SetDragHighlight(List<ModRefViewModel> items)
-    {
-        ClearDragHighlight();
-        dragHighlightedItems = items;
-        foreach (ModRefViewModel vm in items)
-            vm.IsDragging = true;
-        SetDragCursor(true);
-    }
-
-    private void ClearDragHighlight()
-    {
-        if (dragHighlightedItems == null)
-            return;
-
-        foreach (ModRefViewModel vm in dragHighlightedItems)
-            vm.IsDragging = false;
-        dragHighlightedItems = null;
-        SetDragCursor(false);
-    }
-
-    private void SetDragCursor(bool active)
-    {
-        if (active)
-        {
-            dragCursor ??= new Cursor(StandardCursorType.Hand);
-            previousCursor ??= Cursor;
-            Cursor = dragCursor;
-        }
-        else
-        {
-            Cursor = previousCursor;
-            previousCursor = null;
-        }
-    }
-
-    private static ModRefViewModel? GetItemAtPoint(ListBox list, Point point)
-    {
-        IInputElement? element = list.InputHitTest(point) as IInputElement;
-        Control? control = element as Control;
-        ListBoxItem? item = control?.FindAncestorOfType<ListBoxItem>();
-        return item?.DataContext as ModRefViewModel;
-    }
-
-    private static bool IsPointerOverScrollBar(ListBox list, Point point)
-    {
-        IInputElement? element = list.InputHitTest(point) as IInputElement;
-        if (element is not Control control)
-            return false;
-
-        if (control is ScrollBar)
-            return true;
-
-        return control.FindAncestorOfType<ScrollBar>() != null;
-    }
-
-    private void RestoreListSelection(ListBox list, IEnumerable<ModRefViewModel> selection)
-    {
-        if (list.SelectedItems == null)
-            return;
-
-        list.SelectedItems.Clear();
-        foreach (ModRefViewModel vm in selection)
-            list.SelectedItems.Add(vm);
-
-        ObservableCollection<ModRefViewModel> items = list == leftModlist ? inactiveMods : activeMods;
-        UpdateSelectionState(list, items);
-    }
-
-    private void CaptureScrollbarSelectionSnapshot(ListBox list, PointerPoint point)
-    {
-        if (!point.Properties.IsLeftButtonPressed)
-            return;
-
-        suppressSelectionForScrollbar = true;
-        suppressSelectionList = list;
-        suppressSelectionSnapshot = list.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-    }
-
-    private bool TryRestoreScrollbarSelection(ListBox list)
-    {
-        if (!suppressSelectionForScrollbar || suppressSelectionList != list)
-            return false;
-
-        suppressSelectionForScrollbar = false;
-        suppressSelectionList = null;
-
-        if (suppressSelectionSnapshot != null)
-        {
-            suppressSelectionHandling = true;
-            RestoreListSelection(list, suppressSelectionSnapshot);
-            suppressSelectionHandling = false;
-        }
-
-        suppressSelectionSnapshot = null;
-        return true;
-    }
-
-    private void CaptureContextSelectionSnapshot(ListBox list, PointerPoint point)
-    {
-        contextSelectionSnapshot = null;
-        contextSelectionList = null;
-
-        if (!point.Properties.IsRightButtonPressed)
-            return;
-
-        ModRefViewModel? hit = GetItemAtPoint(list, point.Position);
-        if (hit == null)
-            return;
-
-        List<ModRefViewModel> selected = list.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-        if (selected.Count > 1 && selected.Contains(hit))
-        {
-            contextSelectionSnapshot = selected;
-            contextSelectionList = list;
-        }
-    }
-
-    private static List<ModRefViewModel> OrderSelectionByList(ListBox list, IEnumerable<ModRefViewModel> selection)
-    {
-        HashSet<ModRefViewModel> selectedSet = new HashSet<ModRefViewModel>(selection);
-        if (list.ItemsSource is IEnumerable<ModRefViewModel> items)
-            return items.Where(vm => selectedSet.Contains(vm)).ToList();
-
-        return selection.ToList();
-    }
-
-    private static (int index, bool after) GetDropTarget(ListBox list, Point point)
-    {
-        for (int i = 0; i < list.ItemCount; i++)
-        {
-            if (list.ContainerFromIndex(i) is not Control container)
-                continue;
-
-            Point? topLeft = container.TranslatePoint(new Point(0, 0), list);
-            if (topLeft == null)
-                continue;
-
-            double mid = topLeft.Value.Y + container.Bounds.Height / 2;
-            if (point.Y <= mid)
-                return (i, false);
-        }
-
-        return (list.ItemCount, true);
-    }
-
-    private static int GetInsertIndex(ListBox list, Point point)
-    {
-        (int index, bool after) = GetDropTarget(list, point);
-        if (after && index < list.ItemCount)
-            return index + 1;
-        return index;
     }
 
     private void ModContextMenuOpened(object? sender, RoutedEventArgs e)
@@ -1144,15 +762,7 @@ public partial class MainWindow : Window
         ListBox? list = GetListForMod(vm);
         if (list != null)
         {
-            if (contextSelectionSnapshot != null &&
-                contextSelectionList == list &&
-                contextSelectionSnapshot.Contains(vm))
-            {
-                RestoreListSelection(list, contextSelectionSnapshot);
-            }
-
-            contextSelectionSnapshot = null;
-            contextSelectionList = null;
+            modListController.TryRestoreContextSelection(list, vm);
 
             if (list.SelectedItems == null || list.SelectedItems.Count == 0 || !list.SelectedItems.Contains(vm))
             {
@@ -1227,8 +837,6 @@ public partial class MainWindow : Window
 
         try
         {
-            manager.Initialize();
-            BuildModViewModels();
             ReloadModpacksFromDisk();
         }
         catch (Exception ex)
@@ -1442,6 +1050,34 @@ public partial class MainWindow : Window
         redoMods.Clear();
     }
 
+    private async Task OpenSortRulesAsync()
+    {
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        List<ModReference> modRefs = new();
+        foreach (DFHMod mod in manager.enabledMods)
+        {
+            ModReference modref = manager.GetRefFromDFHMod(mod);
+            if (modref == null)
+                continue;
+            string id = modref.ID?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+            if (seen.Add(id))
+                modRefs.Add(modref);
+        }
+
+        SortRulesWindow dialog = new SortRulesWindow(manager.GetSortRules(), modRefs)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+
+        List<ModSortRule>? result = await dialog.ShowDialog<List<ModSortRule>?>(this);
+        if (result == null)
+            return;
+
+        manager.SetSortRules(result);
+    }
+
     private void AutoSort()
     {
         bool changed = manager.AutoSortEnabledMods();
@@ -1525,8 +1161,9 @@ public partial class MainWindow : Window
         Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Refreshing modlists from disk.");
         try
         {
-            manager.Initialize();
+            manager.Initialize(preferredName);
             BuildModViewModels();
+            UpdateDfHackStatus();
         }
         catch (UserActionRequiredException ex)
         {
@@ -1538,9 +1175,6 @@ public partial class MainWindow : Window
             _ = DialogService.ShowMessageAsync(this, ex.Message, "Reload failed");
             return;
         }
-
-        if (!manager.ReloadModpacksFromDisk(preferredName))
-            return;
 
         modifyingComboBox = true;
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();
@@ -1564,6 +1198,27 @@ public partial class MainWindow : Window
 
         if (!string.IsNullOrWhiteSpace(manager.LastMissingModsMessage))
             _ = DialogService.ShowMessageAsync(this, manager.LastMissingModsMessage, "Missing Mods");
+    }
+
+    private void UpdateDfHackStatus()
+    {
+        if (dfhackStatusLabel == null)
+            return;
+
+        bool dfRunning = manager.DwarfFortressRunning();
+        bool hasDfhack = manager.HasDfhack();
+
+        if (dfRunning && hasDfhack)
+        {
+            dfhackStatusLabel.IsVisible = false;
+            dfhackStatusLabel.Text = string.Empty;
+            return;
+        }
+
+        dfhackStatusLabel.Text = dfRunning
+            ? "DFHack not found"
+            : "Dwarf Fortress not running";
+        dfhackStatusLabel.IsVisible = true;
     }
     private async Task CreateNewModpackAsync()
     {
@@ -1801,13 +1456,22 @@ public partial class MainWindow : Window
             vm.IsJumpHighlighted = false;
     }
 
-    private void OnThemeChanged()
+    private async Task OnThemeChangedAsync()
     {
         if (themeComboBox.SelectedIndex < 0)
             return;
 
         manager.SetTheme(themeComboBox.SelectedIndex);
-        ApplyStyle(manager.LoadStyle());
+        try
+        {
+            ApplyStyle(manager.LoadStyle());
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageAsync(this, ex.Message, "Style load failed");
+            Close();
+            return;
+        }
         UpdateProblemIndicators();
         UpdateDuplicateWarningIndicators();
     }
@@ -1920,22 +1584,6 @@ public partial class MainWindow : Window
             UnmarkChanges(lastIndex);
     }
 
-    private void OnKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.Z)
-        {
-            if (undoChangesButton.IsEnabled)
-                _ = UndoChangesAsync();
-            e.Handled = true;
-            return;
-        }
-
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.Y)
-        {
-            RedoListChanges();
-            e.Handled = true;
-        }
-    }
     private void SetupModManagerWatcher()
     {
         string modManagerPath = manager.GetModManagerConfigPath();

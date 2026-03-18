@@ -277,7 +277,7 @@ public class ModRefViewModel : INotifyPropertyChanged
 
     public void RefreshBackground()
     {
-        Style style = Style.instance ?? Style.GetFallback();
+        Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
         Color baseColor = style.modRefColor.ToAvaloniaColor();
         if (IsDragging)
         {
@@ -299,7 +299,7 @@ public class ModRefViewModel : INotifyPropertyChanged
 
     private void RefreshTextStyle()
     {
-        Style style = Style.instance ?? Style.GetFallback();
+        Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
         Color color;
         if (IsProblem)
             color = style.modRefTextBadColor.ToAvaloniaColor();
@@ -316,7 +316,7 @@ public class ModRefViewModel : INotifyPropertyChanged
 
     private void RefreshAuxStyles()
     {
-        Style style = Style.instance ?? Style.GetFallback();
+        Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
         CacheBarBrush = new SolidColorBrush(style.modRefCacheBarColor.ToAvaloniaColor());
         DropHighlightBrush = new SolidColorBrush(style.modRefHighlightColor.ToAvaloniaColor());
     }
