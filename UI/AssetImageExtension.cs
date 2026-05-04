@@ -34,6 +34,7 @@ public sealed class AssetImageExtension : MarkupExtension
 internal static class ImageSourceLoader
 {
     private const string DefaultResourcesBaseUri = "avares://ModHearth/resources/";
+    private const string AlternateResourcesBaseUri = "avares://ModHearth/Resources/";
 
     public static IImage? LoadFromAssetUri(string assetUri)
     {
@@ -41,6 +42,19 @@ internal static class ImageSourceLoader
         if (string.IsNullOrWhiteSpace(normalizedAssetUri))
             return null;
 
+        IImage? primary = LoadFromNormalizedAssetUri(normalizedAssetUri);
+        if (primary != null)
+            return primary;
+
+        string? alternate = TrySwapResourcesBase(normalizedAssetUri);
+        if (string.IsNullOrWhiteSpace(alternate))
+            return null;
+
+        return LoadFromNormalizedAssetUri(alternate);
+    }
+
+    private static IImage? LoadFromNormalizedAssetUri(string normalizedAssetUri)
+    {
         try
         {
             if (IsSvgPath(normalizedAssetUri))
@@ -64,6 +78,17 @@ internal static class ImageSourceLoader
         {
             return null;
         }
+    }
+
+    private static string? TrySwapResourcesBase(string normalizedAssetUri)
+    {
+        if (normalizedAssetUri.StartsWith(DefaultResourcesBaseUri, StringComparison.Ordinal))
+            return AlternateResourcesBaseUri + normalizedAssetUri.Substring(DefaultResourcesBaseUri.Length);
+
+        if (normalizedAssetUri.StartsWith(AlternateResourcesBaseUri, StringComparison.Ordinal))
+            return DefaultResourcesBaseUri + normalizedAssetUri.Substring(AlternateResourcesBaseUri.Length);
+
+        return null;
     }
 
     public static IImage? LoadFromFilePath(string path)

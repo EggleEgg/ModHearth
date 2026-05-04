@@ -1630,9 +1630,29 @@ public partial class MainWindow : Window
         if (fallback != null)
             return fallback;
 
-        Uri uri = new Uri("avares://ModHearth/resources/43G6tag.png");
-        using Stream stream = AssetLoader.Open(uri);
-        return new Bitmap(stream);
+        try
+        {
+            Uri uri = new Uri("avares://ModHearth/resources/43G6tag.png");
+            using Stream stream = AssetLoader.Open(uri);
+            return new Bitmap(stream);
+        }
+        catch
+        {
+            // Linux CI can be case-sensitive on embedded resource paths.
+        }
+
+        try
+        {
+            Uri uri = new Uri("avares://ModHearth/Resources/43G6tag.png");
+            using Stream stream = AssetLoader.Open(uri);
+            return new Bitmap(stream);
+        }
+        catch
+        {
+            // If fallback preview cannot be loaded, return a tiny placeholder image.
+        }
+
+        return new Avalonia.Media.Imaging.RenderTargetBitmap(new PixelSize(1, 1));
     }
 
     private void SetPreviewImage(IImage? image)
