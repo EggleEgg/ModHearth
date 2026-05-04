@@ -11,6 +11,7 @@
       <Button x:Name="OkButton" Content="OK" IsVisible="False" />
       <Button x:Name="YesButton" Content="Yes" IsVisible="False" />
       <Button x:Name="NoButton" Content="No" IsVisible="False" />
+      <Button x:Name="CancelButton" Content="Cancel" IsVisible="False" />
     </StackPanel>
   </StackPanel>
 </Window>

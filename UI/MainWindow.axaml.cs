@@ -3,7 +3,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -19,6 +18,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -47,17 +47,31 @@ public partial class MainWindow : Window
 
     private DispatcherTimer? modManagerReloadTimer;
     private FileSystemWatcher? modManagerWatcher;
+    private DispatcherTimer? autoReloadTimer;
+    private DispatcherTimer? searchDebounceTimer;
+    private Flyout? reloadOptionsFlyout;
+    private CheckBox? autoReloadEnabledCheckBox;
+    private TextBox? autoReloadSecondsTextBox;
+    private bool suppressAutoReloadUiEvents;
+    private bool suppressSearchInputEvents;
+    private bool isApplyingSearchFilter;
+    private bool ensureSearchResultVisibleOnNextFilter;
+    private bool bypassUnsavedClosePrompt;
+    private bool unsavedClosePromptInFlight;
+    private const int MinimumAutoReloadSeconds = 3;
 
     private IImage? currentPreview;
     private bool updateInProgress;
-    private bool hideFilteredLeft;
-    private bool hideFilteredRight;
+    private string? currentSelectedModId;
+    private string? previousSelectedModId;
 
 
     public MainWindow()
     {
         InitializeComponent();
         SetWindowIcon();
+        SetPreviewImage(LoadFallbackPreview());
+        ShowFallbackHelpText();
 
         manager = new ModHearthManager();
         modListController = new ModListDragDropController(
@@ -84,13 +98,23 @@ public partial class MainWindow : Window
         leftModlist.DoubleTapped += (_, _) => MoveSelectedBetweenLists(true);
         rightModlist.DoubleTapped += (_, _) => MoveSelectedBetweenLists(false);
         AddHandler(InputElement.PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
+        KeyDown += MainWindowKeyDown;
 
-        leftSearchBox.TextChanged += (_, _) => ApplySearchFilter();
-        rightSearchBox.TextChanged += (_, _) => ApplySearchFilter();
-        leftSearchCloseButton.Click += (_, _) => leftSearchBox.Text = string.Empty;
-        rightSearchCloseButton.Click += (_, _) => rightSearchBox.Text = string.Empty;
-        leftSearchToggleButton.Click += (_, _) => ToggleSearchFilterVisibility(true);
-        rightSearchToggleButton.Click += (_, _) => ToggleSearchFilterVisibility(false);
+        searchDebounceTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(140)
+        };
+        searchDebounceTimer.Tick += (_, _) =>
+        {
+            searchDebounceTimer?.Stop();
+            TempSearchLog($"DebounceTick left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+            ApplySearchFilter();
+        };
+
+        leftSearchBar.SearchTextChanged += OnSearchInputChanged;
+        rightSearchBar.SearchTextChanged += OnSearchInputChanged;
+        leftSearchBar.HideFilteredToggled += OnHideFilteredChanged;
+        rightSearchBar.HideFilteredToggled += OnHideFilteredChanged;
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
@@ -99,6 +123,7 @@ public partial class MainWindow : Window
         clearInstalledModsButton.Click += async (_, _) => await ClearInstalledModsAsync();
         clearInstalledModsButton.AddHandler(InputElement.PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);
         reloadButton.Click += async (_, _) => await ReloadModpacksAsync();
+        reloadButton.AddHandler(InputElement.PointerPressedEvent, ReloadButtonPointerPressed, RoutingStrategies.Tunnel, true);
 
         newListButton.Click += async (_, _) => await CreateNewModpackAsync();
         renameListButton.Click += async (_, _) => await RenameModpackAsync();
@@ -109,21 +134,191 @@ public partial class MainWindow : Window
         warningIssuesButton.Click += (_, _) => JumpToNextProblem();
         redoConfigButton.Click += async (_, _) => await RedoConfigAsync();
         updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
+        updateLogButton.Click += (_, _) => OpenModUpdateLog();
 
         themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
         themeComboBox.SelectionChanged += async (_, _) => await OnThemeChangedAsync();
 
         modpackComboBox.SelectionChanged += (_, _) => OnModpackChanged();
         Opened += async (_, _) => await InitializeAsync();
+        Closing += MainWindowClosing;
         Closed += (_, _) =>
         {
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();
+            autoReloadTimer?.Stop();
+            searchDebounceTimer?.Stop();
             if (currentPreview is IDisposable disposable)
                 disposable.Dispose();
         };
 
-        UpdateSearchToggleIcons();
+        InitializeAutoReloadTimer();
+    }
+
+    private void ShowFallbackHelpText()
+    {
+        modTitleLabel.Text = "Welcome to ModHearth!";
+        modDescriptionLabel.Text = $"{BuildHelpTextFromReadme()}{Environment.NewLine}";
+    }
+
+    private static string BuildHelpTextFromReadme()
+    {
+        string? readmePath = FindReadmePath();
+        if (string.IsNullOrWhiteSpace(readmePath) || !File.Exists(readmePath))
+            return "README.md not found. Open README for instructions and shortcuts.";
+
+        try
+        {
+            string markdown = File.ReadAllText(readmePath);
+            string instructions = ExtractMarkdownSection(markdown, "Instructions");
+            string controls = ExtractMarkdownSection(markdown, "Keyboard Shortcuts and Controls");
+
+            List<string> parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(instructions))
+                parts.Add($"### Instructions{Environment.NewLine}{instructions}");
+            if (!string.IsNullOrWhiteSpace(controls))
+                parts.Add($"### Keyboard Shortcuts and Controls{Environment.NewLine}{controls}");
+
+            if (parts.Count > 0)
+                return RenderBasicMarkdownToText(string.Join($"{Environment.NewLine}{Environment.NewLine}", parts));
+        }
+        catch
+        {
+            // Ignore README parsing failures and fall back to a short message.
+        }
+
+        return "Unable to read README sections. Open README for instructions and shortcuts.";
+    }
+    private static string RenderBasicMarkdownToText(string markdown)
+    {
+        if (string.IsNullOrWhiteSpace(markdown))
+            return string.Empty;
+
+        StringBuilder builder = new StringBuilder();
+        string[] lines = markdown.Replace("\r\n", "\n").Split('\n');
+        foreach (string rawLine in lines)
+        {
+            string line = rawLine.TrimEnd();
+            string trimmed = line.TrimStart();
+
+            if (trimmed.Length == 0)
+            {
+                builder.AppendLine();
+                continue;
+            }
+
+            Match headingMatch = Regex.Match(trimmed, @"^(?<level>#{1,6})\s+(?<title>.+)$");
+            if (headingMatch.Success)
+            {
+                string heading = DecodeInlineMarkdown(headingMatch.Groups["title"].Value).Trim();
+                int underlineLength = Math.Clamp(heading.Length, 3, 60);
+                builder.AppendLine();
+                builder.AppendLine(heading);
+                builder.AppendLine(new string('-', underlineLength));
+                continue;
+            }
+
+            if (trimmed.StartsWith("- ", StringComparison.Ordinal) || trimmed.StartsWith("* ", StringComparison.Ordinal))
+            {
+                builder.Append("- ");
+                builder.AppendLine(DecodeInlineMarkdown(trimmed.Substring(2)).Trim());
+                continue;
+            }
+
+            Match numberedMatch = Regex.Match(trimmed, @"^(?<num>\d+)\.\s+(?<text>.+)$");
+            if (numberedMatch.Success)
+            {
+                builder.Append(numberedMatch.Groups["num"].Value);
+                builder.Append(". ");
+                builder.AppendLine(DecodeInlineMarkdown(numberedMatch.Groups["text"].Value).Trim());
+                continue;
+            }
+
+            builder.AppendLine(DecodeInlineMarkdown(trimmed));
+        }
+
+        return builder.ToString().Trim();
+    }
+
+    private static string DecodeInlineMarkdown(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        string output = text;
+
+        // [label](url) -> label (url)
+        output = Regex.Replace(output, @"\[(?<label>[^\]]+)\]\((?<url>[^)]+)\)", "${label} (${url})");
+        // `code` -> code
+        output = Regex.Replace(output, @"`([^`]+)`", "$1");
+        // **bold** / __bold__ -> bold
+        output = Regex.Replace(output, @"\*\*(.+?)\*\*", "$1");
+        output = Regex.Replace(output, @"__(.+?)__", "$1");
+        // *italic* / _italic_ -> italic
+        output = Regex.Replace(output, @"\*(.+?)\*", "$1");
+        output = Regex.Replace(output, @"_(.+?)_", "$1");
+
+        return output;
+    }
+
+    private static string? FindReadmePath()
+    {
+        string baseDir = AppContext.BaseDirectory;
+        string[] candidates =
+        {
+            Path.Combine(baseDir, "README.md"),
+            Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "README.md")),
+            Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "README.md"))
+        };
+
+        foreach (string candidate in candidates)
+        {
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private static string ExtractMarkdownSection(string markdown, string sectionTitle)
+    {
+        string[] lines = markdown.Replace("\r\n", "\n").Split('\n');
+        StringBuilder builder = new StringBuilder();
+        bool inSection = false;
+        int sectionLevel = 0;
+
+        foreach (string rawLine in lines)
+        {
+            string line = rawLine.TrimEnd();
+            string trimmed = line.TrimStart();
+            if (trimmed.StartsWith('#'))
+            {
+                int level = 0;
+                while (level < trimmed.Length && trimmed[level] == '#')
+                    level++;
+
+                string title = trimmed.Substring(level).Trim();
+                if (!inSection)
+                {
+                    if (string.Equals(title, sectionTitle, StringComparison.OrdinalIgnoreCase))
+                    {
+                        inSection = true;
+                        sectionLevel = level;
+                    }
+                    continue;
+                }
+
+                if (level <= sectionLevel)
+                    break;
+            }
+
+            if (!inSection)
+                continue;
+
+            builder.AppendLine(line);
+        }
+
+        return builder.ToString().Trim();
     }
 
     private void SetWindowIcon()
@@ -142,7 +337,7 @@ public partial class MainWindow : Window
 
     private async Task InitializeAsync()
     {
-        if (IsTestMode())
+        if (IsDevMode())
         {
             SetupModlistBox();
             ApplyStyle(manager.LoadStyle());
@@ -207,9 +402,9 @@ public partial class MainWindow : Window
         SetupModManagerWatcher();
     }
 
-    private static bool IsTestMode()
+    private static bool IsDevMode()
     {
-        string? value = Environment.GetEnvironmentVariable("MODHEARTH_TEST_MODE");
+        string? value = Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE");
         return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
@@ -315,10 +510,19 @@ public partial class MainWindow : Window
     private void BuildModViewModels()
     {
         modViewMap.Clear();
+        string modsFolderPath = manager.GetConfig()?.ModsPath ?? string.Empty;
+        string vanillaFolderPath = manager.GetVanillaModsPath();
         foreach (DFHMod dfm in manager.modPool)
         {
             ModReference modref = manager.GetModRef(dfm.ToString());
             ModRefViewModel vm = new ModRefViewModel(modref);
+            (bool isVanillaMod, bool isLocalMod, bool isSteamMod) = ModSourceClassifier.Classify(
+                modref,
+                modsFolderPath,
+                vanillaFolderPath);
+            vm.IsVanillaModSource = isVanillaMod;
+            vm.IsLocalModSource = isLocalMod;
+            vm.IsSteamModSource = isSteamMod;
             vm.RefreshStyle();
             modViewMap[dfm.ToString()] = vm;
         }
@@ -326,6 +530,7 @@ public partial class MainWindow : Window
 
     private void RefreshModlistPanels()
     {
+        RebuildPanelCollectionsFromManager();
         UpdateCachedIndicators();
         UpdateProblemIndicators();
         UpdateDuplicateWarningIndicators();
@@ -333,27 +538,23 @@ public partial class MainWindow : Window
         ApplySearchFilter();
     }
 
-    private void RestoreSelections(IEnumerable<DFHMod> inactive, IEnumerable<DFHMod> active)
+    private void RebuildPanelCollectionsFromManager()
     {
-        leftModlist.SelectedItems?.Clear();
-        rightModlist.SelectedItems?.Clear();
+        List<ModRefViewModel> newInactive = manager.disabledMods
+            .OrderBy(m => manager.GetRefFromDFHMod(m).name ?? string.Empty)
+            .Select(m => modViewMap.TryGetValue(m.ToString(), out ModRefViewModel? vm) ? vm : null)
+            .Where(vm => vm != null)
+            .Cast<ModRefViewModel>()
+            .ToList();
 
-        foreach (DFHMod mod in inactive)
-        {
-            ModRefViewModel? vm = inactiveMods.FirstOrDefault(m => m.DfMod == mod);
-            if (vm != null)
-                leftModlist.SelectedItems?.Add(vm);
-        }
+        List<ModRefViewModel> newActive = manager.enabledMods
+            .Select(m => modViewMap.TryGetValue(m.ToString(), out ModRefViewModel? vm) ? vm : null)
+            .Where(vm => vm != null)
+            .Cast<ModRefViewModel>()
+            .ToList();
 
-        foreach (DFHMod mod in active)
-        {
-            ModRefViewModel? vm = activeMods.FirstOrDefault(m => m.DfMod == mod);
-            if (vm != null)
-                rightModlist.SelectedItems?.Add(vm);
-        }
-
-        modListController.UpdateSelectionState(leftModlist);
-        modListController.UpdateSelectionState(rightModlist);
+        ReplaceCollection(inactiveMods, newInactive);
+        ReplaceCollection(activeMods, newActive);
     }
 
     private void SelectModsInList(bool destinationLeft, IEnumerable<DFHMod> mods)
@@ -486,7 +687,7 @@ public partial class MainWindow : Window
                 ? "errorIcon.svg"
                 : "warningIcon.svg";
 
-        warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri($"avares://ModHearth/resources/{iconName}")
+        warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
             ?? warningIssuesIcon.Source;
     }
 
@@ -519,90 +720,212 @@ public partial class MainWindow : Window
 
     private void ApplySearchFilter()
     {
-        string leftFilter = (leftSearchBox.Text ?? string.Empty).Trim().ToLowerInvariant();
-        string rightFilter = (rightSearchBox.Text ?? string.Empty).Trim().ToLowerInvariant();
+        string leftFilter = leftSearchBar.Text.Trim();
+        string rightFilter = rightSearchBar.Text.Trim();
+        TempSearchLog($"ApplySearchFilter start left='{TrimForLog(leftFilter)}' right='{TrimForLog(rightFilter)}' leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+        bool ensureVisible = ensureSearchResultVisibleOnNextFilter;
 
-        List<DFHMod> selectedInactive = leftModlist.SelectedItems?
-            .Cast<ModRefViewModel>()
-            .Select(m => m.DfMod)
-            .ToList() ?? new List<DFHMod>();
-        List<DFHMod> selectedActive = rightModlist.SelectedItems?
-            .Cast<ModRefViewModel>()
-            .Select(m => m.DfMod)
-            .ToList() ?? new List<DFHMod>();
+        isApplyingSearchFilter = true;
+        try
+        {
+            ApplyFilterFlags(
+                inactiveMods,
+                manager.disabledMods.OrderBy(m => manager.GetRefFromDFHMod(m).name ?? string.Empty),
+                leftFilter,
+                leftSearchBar.HideFiltered,
+                leftModlist);
+            ApplyFilterFlags(
+                activeMods,
+                manager.enabledMods,
+                rightFilter,
+                rightSearchBar.HideFiltered,
+                rightModlist);
+        }
+        finally
+        {
+            isApplyingSearchFilter = false;
+        }
 
-        RebuildFilteredList(
-            inactiveMods,
-            manager.disabledMods.OrderBy(m => manager.GetRefFromDFHMod(m).name ?? string.Empty),
-            leftFilter,
-            hideFilteredLeft);
+        if (ensureVisible)
+        {
+            EnsureFirstVisibleSearchResultInView(leftModlist, inactiveMods, leftFilter, leftSearchBar.HideFiltered);
+            EnsureFirstVisibleSearchResultInView(rightModlist, activeMods, rightFilter, rightSearchBar.HideFiltered);
+            ensureSearchResultVisibleOnNextFilter = false;
+            TempSearchLog("ApplySearchFilter ensureSearchResultVisibleOnNextFilter consumed");
+        }
 
-        RebuildFilteredList(
-            activeMods,
-            manager.enabledMods,
-            rightFilter,
-            hideFilteredRight);
-
-        RestoreSelections(selectedInactive, selectedActive);
+        TempSearchLog("ApplySearchFilter end");
+        TempLogVisualFilterState("ApplySearchFilter");
     }
 
-    private void RebuildFilteredList(
-        ObservableCollection<ModRefViewModel> target,
-        IEnumerable<DFHMod> mods,
-        string filter,
-        bool hideFiltered)
+    private void OnSearchInputChanged(object? sender, EventArgs e)
     {
-        target.Clear();
-        foreach (DFHMod mod in mods)
+        if (suppressSearchInputEvents)
+        {
+            TempSearchLog($"OnSearchInputChanged suppressed source={DescribeSearchSender(sender)}");
+            return;
+        }
+
+        TempSearchLog($"OnSearchInputChanged source={DescribeSearchSender(sender)} left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}'");
+
+        ScheduleSearchFilter();
+    }
+
+    private void OnHideFilteredChanged(object? sender, EventArgs e)
+    {
+        if (suppressSearchInputEvents)
+        {
+            TempSearchLog($"OnHideFilteredChanged suppressed source={DescribeSearchSender(sender)}");
+            return;
+        }
+
+        TempSearchLog($"OnHideFilteredChanged source={DescribeSearchSender(sender)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+
+        if (sender is ModSearchBar searchBar &&
+            searchBar.HideFiltered &&
+            !string.IsNullOrWhiteSpace(searchBar.Text))
+        {
+            ensureSearchResultVisibleOnNextFilter = true;
+            TempSearchLog($"OnHideFilteredChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
+        }
+
+        ApplySearchFilterImmediately();
+    }
+
+    private void ApplyFilterFlags(
+        ObservableCollection<ModRefViewModel> targetCollection,
+        IEnumerable<DFHMod> sourceMods,
+        string filter,
+        bool hideFiltered,
+        ListBox list)
+    {
+        bool hasFilter = !string.IsNullOrWhiteSpace(filter);
+        List<ModRefViewModel> matching = new List<ModRefViewModel>();
+        List<ModRefViewModel> nonMatching = new List<ModRefViewModel>();
+        int total = 0;
+        int visible = 0;
+        int filteredOut = 0;
+        foreach (DFHMod mod in sourceMods)
         {
             if (!modViewMap.TryGetValue(mod.ToString(), out ModRefViewModel? vm) || vm == null)
                 continue;
 
-            bool match = string.IsNullOrEmpty(filter) ||
-                (vm.ModReference.name?.ToLowerInvariant().Contains(filter) ?? false) ||
-                (vm.ModReference.ID?.ToLowerInvariant().Contains(filter) ?? false);
+            total++;
+            bool match = !hasFilter ||
+                (!string.IsNullOrWhiteSpace(vm.ModReference.name) &&
+                 vm.ModReference.name.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(vm.ModReference.ID) &&
+                 vm.ModReference.ID.Contains(filter, StringComparison.OrdinalIgnoreCase));
 
-            vm.IsFilteredOut = !match;
+            vm.IsFilteredOut = hasFilter && !match;
             vm.IsVisible = !hideFiltered || match;
+            if (vm.IsFilteredOut)
+                filteredOut++;
+            if (vm.IsVisible)
+                visible++;
             if (!vm.IsVisible)
                 vm.IsJumpHighlighted = false;
 
-            if (!hideFiltered || match)
-                target.Add(vm);
+            if (match)
+            {
+                matching.Add(vm);
+            }
+            else
+            {
+                nonMatching.Add(vm);
+            }
         }
+
+        List<ModRefViewModel> displayItems;
+        if (!hasFilter)
+        {
+            displayItems = matching;
+        }
+        else if (hideFiltered)
+        {
+            displayItems = matching;
+        }
+        else
+        {
+            // Keep all mods visible while pinning matches to the top.
+            displayItems = new List<ModRefViewModel>(matching.Count + nonMatching.Count);
+            displayItems.AddRange(matching);
+            displayItems.AddRange(nonMatching);
+        }
+
+        ReplaceCollection(targetCollection, displayItems);
+
+        TempSearchLog(
+            $"ApplyFilterFlags list={DescribeList(list)} filter='{TrimForLog(filter)}' hideFiltered={hideFiltered} total={total} visible={visible} filteredOut={filteredOut}");
+
+        DropNonDisplayedSelections(list, displayItems);
     }
 
-    private void ToggleSearchFilterVisibility(bool isLeft)
+    private void DropNonDisplayedSelections(ListBox list, IReadOnlyCollection<ModRefViewModel> displayItems)
     {
-        if (isLeft)
-            hideFilteredLeft = !hideFilteredLeft;
-        else
-            hideFilteredRight = !hideFilteredRight;
+        if (list.SelectedItems == null || list.SelectedItems.Count == 0)
+            return;
 
-        UpdateSearchToggleIcons();
+        HashSet<ModRefViewModel> visibleSet = new HashSet<ModRefViewModel>(displayItems);
+        int before = list.SelectedItems.Count;
+        List<ModRefViewModel> retained = list.SelectedItems
+            .OfType<ModRefViewModel>()
+            .Where(vm => visibleSet.Contains(vm))
+            .ToList();
+
+        if (retained.Count == list.SelectedItems.Count)
+            return;
+
+        list.SelectedItems.Clear();
+        foreach (ModRefViewModel vm in retained)
+            list.SelectedItems.Add(vm);
+
+        modListController.UpdateSelectionState(list);
+        TempSearchLog($"DropNonDisplayedSelections list={DescribeList(list)} before={before} after={retained.Count}");
+    }
+
+    private void ScheduleSearchFilter()
+    {
+        if (searchDebounceTimer == null)
+        {
+            TempSearchLog("ScheduleSearchFilter no-debounce -> immediate");
+            ApplySearchFilter();
+            return;
+        }
+
+        TempSearchLog("ScheduleSearchFilter restart timer");
+        searchDebounceTimer.Stop();
+        searchDebounceTimer.Start();
+    }
+
+    private void ApplySearchFilterImmediately()
+    {
+        TempSearchLog("ApplySearchFilterImmediately");
+        searchDebounceTimer?.Stop();
         ApplySearchFilter();
     }
 
-    private void UpdateSearchToggleIcons()
+    private static void ReplaceCollection(ObservableCollection<ModRefViewModel> target, List<ModRefViewModel> items)
     {
-        UpdateSearchToggleIcon(leftSearchToggleIcon, leftSearchToggleButton, hideFilteredLeft);
-        UpdateSearchToggleIcon(rightSearchToggleIcon, rightSearchToggleButton, hideFilteredRight);
-    }
-
-    private static void UpdateSearchToggleIcon(Image? icon, Button? button, bool isHidden)
-    {
-        if (icon == null)
-            return;
-
-        string iconName = isHidden ? "hideEyeIcon.svg" : "viewEyeIcon.svg";
-        icon.Source = ImageSourceLoader.LoadFromAssetUri($"avares://ModHearth/resources/{iconName}") ?? icon.Source;
-
-        if (button != null)
+        if (target.Count == items.Count)
         {
-            ToolTip.SetTip(button, isHidden
-                ? "Show mismatched mods"
-                : "Hide mismatched mods");
+            bool same = true;
+            for (int i = 0; i < target.Count; i++)
+            {
+                if (!ReferenceEquals(target[i], items[i]))
+                {
+                    same = false;
+                    break;
+                }
+            }
+
+            if (same)
+                return;
         }
+
+        target.Clear();
+        foreach (ModRefViewModel vm in items)
+            target.Add(vm);
     }
 
     private void ApplyStyle(Style style)
@@ -617,7 +940,6 @@ public partial class MainWindow : Window
         IBrush buttonBrush = new SolidColorBrush(style.buttonColor.ToAvaloniaColor());
         IBrush buttonTextBrush = new SolidColorBrush(style.buttonTextColor.ToAvaloniaColor());
         IBrush buttonOutlineBrush = new SolidColorBrush(style.buttonOutlineColor.ToAvaloniaColor());
-        IBrush searchButtonBrush = new SolidColorBrush(style.searchButtonColor.ToAvaloniaColor());
         IBrush warningTextBrush = new SolidColorBrush(style.modRefTextWarningColor.ToAvaloniaColor());
 
         Background = formBrush;
@@ -627,6 +949,7 @@ public partial class MainWindow : Window
         modDescriptionLabel.Foreground = textBrush;
         modVersionLabel.Foreground = textBrush;
         dfhackStatusLabel.Foreground = warningTextBrush;
+        modInfoTopBorder.Background = new SolidColorBrush(style.headerColor.ToAvaloniaColor());
 
         leftModlist.Background = panelBrush;
         rightModlist.Background = panelBrush;
@@ -634,17 +957,8 @@ public partial class MainWindow : Window
         bool isDarkTheme = manager.GetTheme() == 1;
         IBrush inputTextBrush = isDarkTheme ? Brushes.White : Brushes.Black;
 
-        TextBox[] textBoxes =
-        {
-            leftSearchBox,
-            rightSearchBox
-        };
-
-        foreach (TextBox textBox in textBoxes)
-        {
-            textBox.Background = panelBrush;
-            textBox.Foreground = inputTextBrush;
-        }
+        leftSearchBar.ApplyStyle(style);
+        rightSearchBar.ApplyStyle(style);
 
         ComboBox[] comboBoxes =
         {
@@ -671,9 +985,11 @@ public partial class MainWindow : Window
             exportButton,
             autoSortButton,
             sortRulesButton,
+            updateLogButton,
             redoConfigButton,
             warningIssuesButton,
             updateButton,
+
         };
 
         foreach (Button button in buttons)
@@ -684,22 +1000,6 @@ public partial class MainWindow : Window
             button.BorderThickness = new Thickness(1);
         }
 
-        Button[] searchButtons =
-        {
-            leftSearchToggleButton,
-            leftSearchCloseButton,
-            rightSearchToggleButton,
-            rightSearchCloseButton
-        };
-
-        foreach (Button button in searchButtons)
-        {
-            button.Background = searchButtonBrush;
-            button.Foreground = buttonTextBrush;
-            button.BorderBrush = Brushes.Transparent;
-            button.BorderThickness = new Thickness(0);
-        }
-
         foreach (ModRefViewModel vm in modViewMap.Values)
             vm.RefreshStyle();
 
@@ -708,9 +1008,17 @@ public partial class MainWindow : Window
             themeComboBox.SelectedIndex = theme;
 
         RequestedThemeVariant = theme == 0 ? ThemeVariant.Light : ThemeVariant.Dark;
+        WindowThemeManager.ApplyToOpenWindows(style);
     }
     private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (isApplyingSearchFilter)
+        {
+            if (sender is ListBox filteredList)
+                modListController.UpdateSelectionState(filteredList);
+            return;
+        }
+
         if (sender is ListBox list && modListController.HandleSelectionChanged(list))
             return;
 
@@ -724,7 +1032,23 @@ public partial class MainWindow : Window
 
         ModRefViewModel? selected = (sender as ListBox)?.SelectedItem as ModRefViewModel;
         if (selected != null)
+        {
+            TrackSelectedMod(selected);
             ShowModInfo(selected.ModReference);
+        }
+    }
+
+    private void TrackSelectedMod(ModRefViewModel selected)
+    {
+        string id = selected.ModReference.ID?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(id))
+            return;
+
+        if (string.Equals(currentSelectedModId, id, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        previousSelectedModId = currentSelectedModId;
+        currentSelectedModId = id;
     }
 
     private void ModlistDropped(ModListDropContext context)
@@ -753,13 +1077,34 @@ public partial class MainWindow : Window
         if (sender is not ContextMenu menu)
             return;
 
-        if (menu.PlacementTarget is not Control control)
-            return;
+        ContextMenuCoordinator.Activate(menu);
 
-        if (control.DataContext is not ModRefViewModel vm)
+        Control? placementControl = menu.PlacementTarget as Control;
+        ModRefViewModel? vm =
+            placementControl?.DataContext as ModRefViewModel ??
+            menu.DataContext as ModRefViewModel ??
+            menu.Items.OfType<MenuItem>()
+                .Select(item => item.DataContext)
+                .OfType<ModRefViewModel>()
+                .FirstOrDefault() ??
+            rightModlist.SelectedItems?.OfType<ModRefViewModel>().FirstOrDefault() ??
+            leftModlist.SelectedItems?.OfType<ModRefViewModel>().FirstOrDefault();
+        if (vm == null)
             return;
 
         ListBox? list = GetListForMod(vm);
+        if (list == null)
+        {
+            if (rightModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) == true)
+                list = rightModlist;
+            else if (leftModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) == true)
+                list = leftModlist;
+            else if (rightModlist.SelectedItems?.Count > 0)
+                list = rightModlist;
+            else if (leftModlist.SelectedItems?.Count > 0)
+                list = leftModlist;
+        }
+
         if (list != null)
         {
             modListController.TryRestoreContextSelection(list, vm);
@@ -771,33 +1116,13 @@ public partial class MainWindow : Window
             }
         }
 
-        bool canOpenFolder = !string.IsNullOrWhiteSpace(vm.ModReference.path) &&
-                             Directory.Exists(vm.ModReference.path);
-        bool hasSteamId = !string.IsNullOrWhiteSpace(vm.ModReference.steamID) &&
-                          long.TryParse(vm.ModReference.steamID, out _);
-
-        foreach (MenuItem item in menu.Items.OfType<MenuItem>())
-        {
-            if (item.Tag is string tag)
-            {
-                if (tag == "delete-mod")
-                {
-                    int deletableCount = list?.SelectedItems?.Cast<ModRefViewModel>()
-                        .Count(mod => manager.CanDeleteModFromModsFolder(mod.ModReference)) ?? 0;
-                    item.IsEnabled = deletableCount > 0;
-                    item.Header = deletableCount > 1
-                        ? $"Delete Mods ({deletableCount})"
-                        : "Delete Mod";
-                }
-                else if (tag == "open")
-                    item.IsEnabled = canOpenFolder;
-                else if (tag == "open-steam")
-                {
-                    item.IsEnabled = hasSteamId;
-                    item.IsVisible = hasSteamId;
-                }
-            }
-        }
+        List<ModRefViewModel> selected = list?.SelectedItems?.Cast<ModRefViewModel>().ToList()
+            ?? new List<ModRefViewModel>();
+        ModContextMenuState state = ModContextMenuSupport.BuildState(
+            manager,
+            vm.ModReference,
+            selected.Select(item => item.ModReference));
+        ModContextMenuSupport.ApplyState(menu, state);
     }
 
     private async void ModContextDeleteMod(object? sender, RoutedEventArgs e)
@@ -805,30 +1130,39 @@ public partial class MainWindow : Window
         if (!TryGetContextSelection(sender, out List<ModRefViewModel> selection, out _))
             return;
 
-        List<ModRefViewModel> deletable = selection
-            .Where(vm => manager.CanDeleteModFromModsFolder(vm.ModReference))
-            .ToList();
+        await DeleteSelectedModsAsync(selection);
+    }
 
-        if (deletable.Count == 0)
+    private async Task DeleteSelectedModsAsync(List<ModRefViewModel> selection)
+    {
+        if (selection == null || selection.Count == 0)
+            return;
+
+        manager.SplitActionableMods(
+            selection.Select(vm => vm.ModReference),
+            out List<ModReference> localTargets,
+            out _);
+
+        if (localTargets.Count == 0)
         {
             await DialogService.ShowMessageAsync(this, "Selected mods cannot be deleted from the Mods folder.", "Delete Mod");
             return;
         }
 
-        string prompt = deletable.Count == 1
-            ? $"Delete '{deletable[0].DisplayName}' from the Mods folder?"
-            : $"Delete {deletable.Count} mods from the Mods folder?";
+        string? targetAfterDeleteId = previousSelectedModId;
+        if (!string.IsNullOrWhiteSpace(targetAfterDeleteId) &&
+            selection.Any(vm => string.Equals(vm.ModReference.ID, targetAfterDeleteId, StringComparison.OrdinalIgnoreCase)))
+        {
+            targetAfterDeleteId = null;
+        }
+
+        string prompt = ModContextMenuSupport.BuildDeletePrompt(localTargets);
 
         bool confirm = await DialogService.ShowConfirmAsync(this, prompt, "Delete Mod");
         if (!confirm)
             return;
 
-        List<string> failures = new List<string>();
-        foreach (ModRefViewModel vm in deletable)
-        {
-            if (!manager.DeleteModFromModsFolder(vm.ModReference, out string message))
-                failures.Add(message);
-        }
+        List<string> failures = ModContextMenuSupport.DeleteLocalMods(manager, localTargets);
 
         if (failures.Count > 0)
         {
@@ -842,7 +1176,69 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             await DialogService.ShowMessageAsync(this, ex.Message, "Reload failed");
+            return;
         }
+
+        if (!TrySelectModById(targetAfterDeleteId))
+            ShowFallbackInfo();
+    }
+
+    private async void ModContextUnsubscribeSteam(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetContextSelection(sender, out List<ModRefViewModel> selection, out _))
+            return;
+
+        manager.SplitActionableMods(
+            selection.Select(vm => vm.ModReference),
+            out _,
+            out List<ModReference> steamTargets);
+
+        if (steamTargets.Count == 0)
+        {
+            await DialogService.ShowMessageAsync(this, "Selected mods are not Steam Workshop mods.", "Unsubscribe Steam Mod");
+            return;
+        }
+
+        string prompt = ModContextMenuSupport.BuildUnsubscribePrompt(steamTargets);
+
+        bool confirm = await DialogService.ShowConfirmAsync(this, prompt, "Unsubscribe Steam Mod");
+        if (!confirm)
+            return;
+
+        List<string> failures = await Task.Run(() =>
+            ModContextMenuSupport.UnsubscribeSteamMods(manager, steamTargets));
+
+        if (failures.Count > 0)
+            await DialogService.ShowMessageAsync(this, string.Join(Environment.NewLine, failures), "Unsubscribe Steam Mod");
+    }
+
+    private async void ModContextRedownloadSteam(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetContextSelection(sender, out List<ModRefViewModel> selection, out _))
+            return;
+
+        manager.SplitActionableMods(
+            selection.Select(vm => vm.ModReference),
+            out _,
+            out List<ModReference> steamTargets);
+
+        if (steamTargets.Count == 0)
+        {
+            await DialogService.ShowMessageAsync(this, "Selected mods are not Steam Workshop mods.", "Redownload Steam Mod");
+            return;
+        }
+
+        string prompt = ModContextMenuSupport.BuildRedownloadPrompt(steamTargets);
+
+        bool confirm = await DialogService.ShowConfirmAsync(this, prompt, "Redownload Steam Mod");
+        if (!confirm)
+            return;
+
+        List<string> failures = await Task.Run(() =>
+            ModContextMenuSupport.RedownloadSteamMods(manager, steamTargets));
+
+        if (failures.Count > 0)
+            await DialogService.ShowMessageAsync(this, string.Join(Environment.NewLine, failures), "Redownload Steam Mod");
     }
 
     private async void ModContextOpenFolder(object? sender, RoutedEventArgs e)
@@ -850,40 +1246,303 @@ public partial class MainWindow : Window
         if (!TryGetContextSelection(sender, out List<ModRefViewModel> selection, out _))
             return;
 
-        ModRefViewModel vm = selection.First();
-        string path = vm.ModReference.path;
-        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+        await ModContextMenuSupport.OpenFolderAsync(this, selection.First().ModReference);
+    }
+
+    private async void MainWindowKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Handled || e.KeyModifiers != KeyModifiers.None)
+            return;
+
+        if (e.Key == Key.Escape)
         {
-            await DialogService.ShowMessageAsync(this, "Mod folder not found.", "Open Folder");
+            if (HandleEscapeKey(e.Source))
+                e.Handled = true;
             return;
         }
 
+        if (e.Key != Key.Delete || !CanHandleDeleteKeyFromSource(e.Source))
+            return;
+
+        List<ModRefViewModel> selection = GetSelectedModsForDeletion();
+        if (selection.Count == 0)
+            return;
+
+        e.Handled = true;
+        await DeleteSelectedModsAsync(selection);
+    }
+
+    private bool HandleEscapeKey(object? source)
+    {
+        bool handled = false;
+        if ((leftModlist.SelectedItems?.Count ?? 0) > 0 || (rightModlist.SelectedItems?.Count ?? 0) > 0)
+        {
+            ShowFallbackInfo();
+            handled = true;
+        }
+
+        if (leftSearchBar.ClearSearchSelection())
+            handled = true;
+        if (rightSearchBar.ClearSearchSelection())
+            handled = true;
+
+        if (source is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
+        {
+            Focus();
+            handled = true;
+        }
+
+        return handled;
+    }
+
+    private static bool CanHandleDeleteKeyFromSource(object? source)
+    {
+        if (source is not Control control)
+            return true;
+
+        return control.FindAncestorOfType<TextBox>() == null &&
+               control.FindAncestorOfType<ComboBox>() == null;
+    }
+
+    private List<ModRefViewModel> GetSelectedModsForDeletion()
+    {
+        if (rightModlist.SelectedItems != null && rightModlist.SelectedItems.Count > 0)
+            return rightModlist.SelectedItems.OfType<ModRefViewModel>().ToList();
+
+        if (leftModlist.SelectedItems != null && leftModlist.SelectedItems.Count > 0)
+            return leftModlist.SelectedItems.OfType<ModRefViewModel>().ToList();
+
+        return new List<ModRefViewModel>();
+    }
+
+    private bool TrySelectModById(string? modId)
+    {
+        string targetId = modId?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(targetId))
+            return false;
+
+        ModRefViewModel? vm = modViewMap.Values.FirstOrDefault(candidate =>
+            string.Equals(candidate.ModReference.ID, targetId, StringComparison.OrdinalIgnoreCase));
+        if (vm == null)
+            return false;
+
+        ListBox? list = GetListForMod(vm);
+        if (list?.SelectedItems == null)
+            return false;
+
+        leftModlist.SelectedItems?.Clear();
+        rightModlist.SelectedItems?.Clear();
+        list.SelectedItems.Add(vm);
+        modListController.UpdateSelectionState(leftModlist);
+        modListController.UpdateSelectionState(rightModlist);
+        list.ScrollIntoView(vm);
+        TrackSelectedMod(vm);
+        ShowModInfo(vm.ModReference);
+        return true;
+    }
+
+    private void ShowFallbackInfo()
+    {
+        leftModlist.SelectedItems?.Clear();
+        rightModlist.SelectedItems?.Clear();
+        modListController.UpdateSelectionState(leftModlist);
+        modListController.UpdateSelectionState(rightModlist);
+        currentSelectedModId = null;
+        previousSelectedModId = null;
+        SetPreviewImage(LoadFallbackPreview());
+        ShowFallbackHelpText();
+    }
+
+    private ModSelectionSnapshot CaptureSelectionSnapshot()
+    {
+        List<ModSelectionToken> rightTokens = CaptureSelectionTokens(rightModlist);
+        if (rightTokens.Count > 0)
+            return new ModSelectionSnapshot(false, rightTokens, currentSelectedModId, previousSelectedModId);
+
+        List<ModSelectionToken> leftTokens = CaptureSelectionTokens(leftModlist);
+        if (leftTokens.Count > 0)
+            return new ModSelectionSnapshot(true, leftTokens, currentSelectedModId, previousSelectedModId);
+
+        return new ModSelectionSnapshot(null, new List<ModSelectionToken>(), currentSelectedModId, previousSelectedModId);
+    }
+
+    private SearchFilterStateSnapshot CaptureSearchFilterStateSnapshot()
+    {
+        SearchFilterStateSnapshot snapshot = new SearchFilterStateSnapshot(
+            leftSearchBar.Text ?? string.Empty,
+            leftSearchBar.HideFiltered,
+            rightSearchBar.Text ?? string.Empty,
+            rightSearchBar.HideFiltered);
+        TempSearchLog(
+            $"CaptureSearchFilterStateSnapshot left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered}");
+        return snapshot;
+    }
+
+    private void RestoreSearchFilterStateSnapshot(SearchFilterStateSnapshot snapshot)
+    {
+        TempSearchLog(
+            $"RestoreSearchFilterStateSnapshot begin left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered}");
+        suppressSearchInputEvents = true;
+        searchDebounceTimer?.Stop();
         try
         {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true
-            });
+            if (!string.Equals(leftSearchBar.Text, snapshot.LeftText, StringComparison.Ordinal))
+                leftSearchBar.Text = snapshot.LeftText;
+            if (leftSearchBar.HideFiltered != snapshot.LeftHideFiltered)
+                leftSearchBar.HideFiltered = snapshot.LeftHideFiltered;
+
+            if (!string.Equals(rightSearchBar.Text, snapshot.RightText, StringComparison.Ordinal))
+                rightSearchBar.Text = snapshot.RightText;
+            if (rightSearchBar.HideFiltered != snapshot.RightHideFiltered)
+                rightSearchBar.HideFiltered = snapshot.RightHideFiltered;
         }
-        catch (Exception ex)
+        finally
         {
-            await DialogService.ShowMessageAsync(this, ex.Message, "Open Folder");
+            suppressSearchInputEvents = false;
         }
+        TempSearchLog(
+            $"RestoreSearchFilterStateSnapshot end left='{TrimForLog(leftSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} right='{TrimForLog(rightSearchBar.Text)}' rightHide={rightSearchBar.HideFiltered}");
     }
+
+    private static List<ModSelectionToken> CaptureSelectionTokens(ListBox list)
+    {
+        if (list.SelectedItems == null || list.SelectedItems.Count == 0)
+            return new List<ModSelectionToken>();
+
+        List<ModSelectionToken> tokens = new List<ModSelectionToken>();
+        HashSet<string> seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (ModRefViewModel vm in list.SelectedItems.OfType<ModRefViewModel>())
+        {
+            string key = vm.DfMod.ToString();
+            if (string.IsNullOrWhiteSpace(key))
+                continue;
+            if (!seenKeys.Add(key))
+                continue;
+
+            string id = vm.ModReference.ID?.Trim() ?? string.Empty;
+            tokens.Add(new ModSelectionToken(key, id));
+        }
+
+        return tokens;
+    }
+
+    private void RestoreSelectionSnapshot(ModSelectionSnapshot snapshot)
+    {
+        if (snapshot.IsLeftList == null || snapshot.Tokens.Count == 0)
+            return;
+
+        List<ModRefViewModel> leftMatches = ResolveSelectionTokens(inactiveMods, snapshot.Tokens);
+        List<ModRefViewModel> rightMatches = ResolveSelectionTokens(activeMods, snapshot.Tokens);
+        bool preferLeft = snapshot.IsLeftList == true;
+
+        bool useLeft;
+        List<ModRefViewModel> restored;
+        if (preferLeft)
+        {
+            useLeft = leftMatches.Count > 0 || rightMatches.Count == 0;
+            restored = useLeft ? leftMatches : rightMatches;
+        }
+        else
+        {
+            useLeft = !(rightMatches.Count > 0 || leftMatches.Count == 0);
+            restored = useLeft ? leftMatches : rightMatches;
+        }
+
+        ListBox targetList = useLeft ? leftModlist : rightModlist;
+        if (HasActiveHideFilter(targetList))
+            restored = restored.Where(vm => vm.IsVisible).ToList();
+
+        if (restored.Count == 0)
+        {
+            ShowFallbackInfo();
+            return;
+        }
+
+        string targetId = snapshot.CurrentSelectedId?.Trim() ?? string.Empty;
+        ModRefViewModel primary = restored.FirstOrDefault(vm =>
+            string.Equals(vm.ModReference.ID, targetId, StringComparison.OrdinalIgnoreCase)) ?? restored[0];
+
+        leftModlist.SelectedItems?.Clear();
+        rightModlist.SelectedItems?.Clear();
+        targetList.SelectedItems?.Add(primary);
+        foreach (ModRefViewModel vm in restored)
+        {
+            if (!ReferenceEquals(vm, primary))
+                targetList.SelectedItems?.Add(vm);
+        }
+
+        modListController.UpdateSelectionState(leftModlist);
+        modListController.UpdateSelectionState(rightModlist);
+        targetList.ScrollIntoView(primary);
+        currentSelectedModId = primary.ModReference.ID?.Trim();
+        previousSelectedModId = snapshot.PreviousSelectedId;
+        ShowModInfo(primary.ModReference);
+    }
+
+    private bool HasActiveHideFilter(ListBox list)
+    {
+        if (list == leftModlist)
+            return leftSearchBar.HideFiltered && !string.IsNullOrWhiteSpace(leftSearchBar.Text);
+        if (list == rightModlist)
+            return rightSearchBar.HideFiltered && !string.IsNullOrWhiteSpace(rightSearchBar.Text);
+        return false;
+    }
+
+    private static List<ModRefViewModel> ResolveSelectionTokens(
+        IEnumerable<ModRefViewModel> candidates,
+        IReadOnlyList<ModSelectionToken> tokens)
+    {
+        Dictionary<string, ModRefViewModel> byKey = new Dictionary<string, ModRefViewModel>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, ModRefViewModel> byId = new Dictionary<string, ModRefViewModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (ModRefViewModel vm in candidates)
+        {
+            string key = vm.DfMod.ToString();
+            if (!string.IsNullOrWhiteSpace(key) && !byKey.ContainsKey(key))
+                byKey[key] = vm;
+
+            string id = vm.ModReference.ID?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(id) && !byId.ContainsKey(id))
+                byId[id] = vm;
+        }
+
+        List<ModRefViewModel> restored = new List<ModRefViewModel>();
+        HashSet<ModRefViewModel> seen = new HashSet<ModRefViewModel>();
+        foreach (ModSelectionToken token in tokens)
+        {
+            ModRefViewModel? vm = null;
+            if (!string.IsNullOrWhiteSpace(token.DfModKey))
+                byKey.TryGetValue(token.DfModKey, out vm);
+
+            if (vm == null && !string.IsNullOrWhiteSpace(token.ModId))
+                byId.TryGetValue(token.ModId, out vm);
+
+            if (vm == null || !seen.Add(vm))
+                continue;
+
+            restored.Add(vm);
+        }
+
+        return restored;
+    }
+
+    private readonly record struct ModSelectionToken(string DfModKey, string ModId);
+    private readonly record struct ModSelectionSnapshot(
+        bool? IsLeftList,
+        List<ModSelectionToken> Tokens,
+        string? CurrentSelectedId,
+        string? PreviousSelectedId);
+    private readonly record struct SearchFilterStateSnapshot(
+        string LeftText,
+        bool LeftHideFiltered,
+        string RightText,
+        bool RightHideFiltered);
 
     private async void ModContextCopyId(object? sender, RoutedEventArgs e)
     {
         if (!TryGetContextSelection(sender, out List<ModRefViewModel> selection, out _))
             return;
 
-        string? id = selection.First().ModReference.ID;
-        if (string.IsNullOrWhiteSpace(id))
-            return;
-
-        IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard != null)
-            await clipboard.SetTextAsync(id);
+        await ModContextMenuSupport.CopyModIdAsync(this, selection.First().ModReference);
     }
 
     private async void ModContextOpenSteam(object? sender, RoutedEventArgs e)
@@ -891,26 +1550,7 @@ public partial class MainWindow : Window
         if (!TryGetContextSelection(sender, out List<ModRefViewModel> selection, out _))
             return;
 
-        string? steamId = selection.First().ModReference.steamID;
-        if (string.IsNullOrWhiteSpace(steamId) || !long.TryParse(steamId, out _))
-        {
-            await DialogService.ShowMessageAsync(this, "Steam ID not available for this mod.", "Open Steam Page");
-            return;
-        }
-
-        string url = $"https://steamcommunity.com/sharedfiles/filedetails/?id={steamId}";
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            await DialogService.ShowMessageAsync(this, ex.Message, "Open Steam Page");
-        }
+        await ModContextMenuSupport.OpenSteamPageAsync(this, selection.First().ModReference);
     }
 
     private bool TryGetContextSelection(object? sender, out List<ModRefViewModel> selection, out bool isLeft)
@@ -986,7 +1626,7 @@ public partial class MainWindow : Window
 
     private IImage LoadFallbackPreview()
     {
-        IImage? fallback = ImageSourceLoader.LoadFromAssetUri("avares://ModHearth/resources/43G6tag.png");
+        IImage? fallback = ImageSourceLoader.LoadFromAssetUri("43G6tag.png");
         if (fallback != null)
             return fallback;
 
@@ -1054,7 +1694,7 @@ public partial class MainWindow : Window
     {
         HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
         List<ModReference> modRefs = new();
-        foreach (DFHMod mod in manager.enabledMods)
+        foreach (DFHMod mod in manager.modPool)
         {
             ModReference modref = manager.GetRefFromDFHMod(mod);
             if (modref == null)
@@ -1066,16 +1706,26 @@ public partial class MainWindow : Window
                 modRefs.Add(modref);
         }
 
-        SortRulesWindow dialog = new SortRulesWindow(manager.GetSortRules(), modRefs)
+        SortRulesWindow dialog = new SortRulesWindow(
+            manager.GetSortRules(),
+            modRefs,
+            manager.GetConfig()?.ModsPath,
+            manager.GetVanillaModsPath(),
+            rules => manager.SetSortRules(rules))
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
 
-        List<ModSortRule>? result = await dialog.ShowDialog<List<ModSortRule>?>(this);
-        if (result == null)
-            return;
+        await dialog.ShowDialog(this);
+    }
 
-        manager.SetSortRules(result);
+    private void OpenModUpdateLog()
+    {
+        ModUpdateLogWindow dialog = new ModUpdateLogWindow(manager)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        _ = dialog.ShowDialog(this);
     }
 
     private void AutoSort()
@@ -1142,23 +1792,46 @@ public partial class MainWindow : Window
     {
         if (changesMade)
         {
-            bool confirm = await DialogService.ShowConfirmAsync(this,
-                $"You have unsaved changes to '{manager.SelectedModlist.name}'. Reloading will discard them. Continue?",
-                "Reload modlists");
-            if (!confirm)
+            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+                this,
+                manager.SelectedModlist.name,
+                "reload modpacks");
+            if (choice == UnsavedChangesChoice.Cancel)
                 return;
+
+            if (choice == UnsavedChangesChoice.Save)
+                await SaveCurrentModpackAsync();
+            else
+                SetAndMarkChanges(false);
         }
 
         ReloadModpacksFromDisk();
     }
 
+    private void ReloadButtonPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(reloadButton).Properties.IsRightButtonPressed)
+            return;
+
+        e.Handled = true;
+        EnsureReloadOptionsFlyout();
+        LoadAutoReloadMenuFromConfig();
+        reloadOptionsFlyout?.ShowAt(reloadButton);
+    }
+
     private void ReloadModpacksFromDisk()
     {
+        TempSearchLog("ReloadModpacksFromDisk begin");
+        searchDebounceTimer?.Stop();
+        ModSelectionSnapshot selectionSnapshot = CaptureSelectionSnapshot();
+        SearchFilterStateSnapshot filterStateSnapshot = CaptureSearchFilterStateSnapshot();
+        ensureSearchResultVisibleOnNextFilter = true;
+        TempSearchLog("ReloadModpacksFromDisk scheduled ensure-visible on next filter");
         string? preferredName = manager.modpacks.Count > 0
             ? manager.SelectedModlist?.name
             : null;
 
-        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Refreshing modlists from disk.");
+        TempSearchLog("Refreshing modlists from disk.");
         try
         {
             manager.Initialize(preferredName);
@@ -1192,12 +1865,218 @@ public partial class MainWindow : Window
 
         modifyingComboBox = false;
 
+        TempSearchLog("ReloadModpacksFromDisk restoring snapshot + refresh");
+        RestoreSearchFilterStateSnapshot(filterStateSnapshot);
         manager.RefreshInstalledCacheModIds();
         RefreshModlistPanels();
         SetAndMarkChanges(false);
+        RestoreSelectionSnapshot(selectionSnapshot);
+        ApplySearchFilterImmediately();
+        TempSearchLog("ReloadModpacksFromDisk end");
 
         if (!string.IsNullOrWhiteSpace(manager.LastMissingModsMessage))
             _ = DialogService.ShowMessageAsync(this, manager.LastMissingModsMessage, "Missing Mods");
+    }
+
+    private void InitializeAutoReloadTimer()
+    {
+        autoReloadTimer = new DispatcherTimer();
+        autoReloadTimer.Tick += AutoReloadTimerTick;
+        int configured = NormalizeAutoReloadIntervalSeconds(manager.GetAutoReloadIntervalSeconds());
+        if (configured != manager.GetAutoReloadIntervalSeconds())
+            manager.SetAutoReloadIntervalSeconds(configured);
+        ConfigureAutoReloadTimer(configured);
+    }
+
+    private void AutoReloadTimerTick(object? sender, EventArgs e)
+    {
+        if (changesMade || manager.IsSavingModpacks || modifyingComboBox)
+            return;
+
+        ReloadModpacksFromDisk();
+    }
+
+    private void EnsureReloadOptionsFlyout()
+    {
+        if (reloadOptionsFlyout != null)
+            return;
+
+        autoReloadEnabledCheckBox = new CheckBox
+        {
+            Content = "Enable Auto-Reload",
+            IsChecked = false
+        };
+        autoReloadEnabledCheckBox.IsCheckedChanged += AutoReloadEnabledChanged;
+
+        autoReloadSecondsTextBox = new TextBox
+        {
+            Width = 90,
+            Watermark = "seconds"
+        };
+        autoReloadSecondsTextBox.TextInput += AutoReloadSecondsTextInput;
+        autoReloadSecondsTextBox.TextChanged += AutoReloadSecondsTextChanged;
+        autoReloadSecondsTextBox.LostFocus += AutoReloadSecondsLostFocus;
+
+        TextBlock label = new TextBlock
+        {
+            Text = $"Every (seconds):",
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+        };
+
+        StackPanel secondsRow = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 8
+        };
+        secondsRow.Children.Add(label);
+        secondsRow.Children.Add(autoReloadSecondsTextBox);
+
+        StackPanel panel = new StackPanel
+        {
+            Margin = new Thickness(10),
+            Spacing = 8,
+            MinWidth = 220
+        };
+        panel.Children.Add(autoReloadEnabledCheckBox);
+        panel.Children.Add(secondsRow);
+
+        reloadOptionsFlyout = new Flyout
+        {
+            Placement = PlacementMode.Bottom,
+            Content = panel
+        };
+    }
+
+    private void AutoReloadSecondsTextInput(object? sender, TextInputEventArgs e)
+    {
+        string text = e.Text ?? string.Empty;
+        if (text.All(char.IsDigit))
+            return;
+        e.Handled = true;
+    }
+
+    private void LoadAutoReloadMenuFromConfig()
+    {
+        if (autoReloadEnabledCheckBox == null || autoReloadSecondsTextBox == null)
+            return;
+
+        int configured = NormalizeAutoReloadIntervalSeconds(manager.GetAutoReloadIntervalSeconds());
+        if (configured != manager.GetAutoReloadIntervalSeconds())
+            manager.SetAutoReloadIntervalSeconds(configured);
+
+        bool enabled = configured >= 0;
+        suppressAutoReloadUiEvents = true;
+        autoReloadEnabledCheckBox.IsChecked = enabled;
+        autoReloadSecondsTextBox.Text = enabled ? configured.ToString() : MinimumAutoReloadSeconds.ToString();
+        suppressAutoReloadUiEvents = false;
+        UpdateAutoReloadInputState();
+    }
+
+    private void UpdateAutoReloadInputState()
+    {
+        if (autoReloadEnabledCheckBox == null || autoReloadSecondsTextBox == null)
+            return;
+
+        bool enabled = autoReloadEnabledCheckBox.IsChecked == true;
+        autoReloadSecondsTextBox.IsEnabled = enabled;
+        autoReloadSecondsTextBox.Opacity = enabled ? 1.0 : 0.6;
+    }
+
+    private void AutoReloadEnabledChanged(object? sender, RoutedEventArgs e)
+    {
+        if (autoReloadEnabledCheckBox == null || autoReloadSecondsTextBox == null)
+            return;
+
+        UpdateAutoReloadInputState();
+        if (suppressAutoReloadUiEvents)
+            return;
+
+        bool enabled = autoReloadEnabledCheckBox.IsChecked == true;
+        if (!enabled)
+        {
+            manager.SetAutoReloadIntervalSeconds(-1);
+            ConfigureAutoReloadTimer(-1);
+            return;
+        }
+
+        int seconds = ParseAutoReloadSeconds(autoReloadSecondsTextBox.Text);
+        ApplyAutoReloadInterval(seconds, normalizeText: true);
+    }
+
+    private void AutoReloadSecondsTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (suppressAutoReloadUiEvents || autoReloadEnabledCheckBox?.IsChecked != true || autoReloadSecondsTextBox == null)
+            return;
+
+        if (!int.TryParse(autoReloadSecondsTextBox.Text, out int parsed))
+            return;
+        if (parsed < MinimumAutoReloadSeconds)
+            return;
+
+        ApplyAutoReloadInterval(parsed, normalizeText: false);
+    }
+
+    private void AutoReloadSecondsLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (suppressAutoReloadUiEvents || autoReloadEnabledCheckBox?.IsChecked != true || autoReloadSecondsTextBox == null)
+            return;
+
+        int seconds = ParseAutoReloadSeconds(autoReloadSecondsTextBox.Text);
+        ApplyAutoReloadInterval(seconds, normalizeText: true);
+    }
+
+    private void ApplyAutoReloadInterval(int seconds, bool normalizeText)
+    {
+        if (autoReloadSecondsTextBox == null)
+            return;
+
+        int normalized = NormalizeAutoReloadIntervalSeconds(seconds);
+        manager.SetAutoReloadIntervalSeconds(normalized);
+        ConfigureAutoReloadTimer(normalized);
+
+        if (!normalizeText)
+            return;
+
+        string normalizedText = normalized.ToString();
+        if (string.Equals(autoReloadSecondsTextBox.Text, normalizedText, StringComparison.Ordinal))
+            return;
+
+        suppressAutoReloadUiEvents = true;
+        autoReloadSecondsTextBox.Text = normalizedText;
+        suppressAutoReloadUiEvents = false;
+    }
+
+    private void ConfigureAutoReloadTimer(int configValue)
+    {
+        if (autoReloadTimer == null)
+            return;
+
+        if (configValue > 0)
+        {
+            autoReloadTimer.Interval = TimeSpan.FromSeconds(configValue);
+            autoReloadTimer.Start();
+            return;
+        }
+
+        autoReloadTimer.Stop();
+    }
+
+    private static int ParseAutoReloadSeconds(string? text)
+    {
+        if (!int.TryParse(text, out int parsed))
+            return MinimumAutoReloadSeconds;
+        if (parsed < MinimumAutoReloadSeconds)
+            return MinimumAutoReloadSeconds;
+        return parsed;
+    }
+
+    private static int NormalizeAutoReloadIntervalSeconds(int value)
+    {
+        if (value < 0)
+            return -1;
+        if (value < MinimumAutoReloadSeconds)
+            return MinimumAutoReloadSeconds;
+        return value;
     }
 
     private void UpdateDfHackStatus()
@@ -1428,6 +2307,8 @@ public partial class MainWindow : Window
 
     private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        ContextMenuCoordinator.DismissActive();
+
         if (!HasJumpHighlights())
             return;
 
@@ -1493,31 +2374,59 @@ public partial class MainWindow : Window
 
     private async Task HandleModpackChangeWithUnsavedAsync()
     {
-        bool save = await DialogService.ShowConfirmAsync(this,
-            $"Do you want to save changes to '{manager.SelectedModlist.name}'?",
-            "Save changes");
+        UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+            this,
+            manager.SelectedModlist.name,
+            "switch modpacks");
 
-        if (save)
-        {
+        if (choice == UnsavedChangesChoice.Save)
             await SaveCurrentModpackAsync();
-        }
+        else if (choice == UnsavedChangesChoice.ExitWithoutSaving)
+            SetAndMarkChanges(false);
         else
         {
-            bool discard = await DialogService.ShowConfirmAsync(this,
-                "Discard changes and switch modpack?",
-                "Discard changes");
-            if (!discard)
-            {
-                modifyingComboBox = true;
-                modpackComboBox.SelectedIndex = lastIndex;
-                modifyingComboBox = false;
-                return;
-            }
-            SetAndMarkChanges(false);
+            modifyingComboBox = true;
+            modpackComboBox.SelectedIndex = lastIndex;
+            modifyingComboBox = false;
+            return;
         }
 
         SetAndRefreshModpack(modpackComboBox.SelectedIndex);
         lastIndex = modpackComboBox.SelectedIndex;
+    }
+
+    private async void MainWindowClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (bypassUnsavedClosePrompt || !changesMade)
+            return;
+
+        e.Cancel = true;
+        if (unsavedClosePromptInFlight)
+            return;
+
+        unsavedClosePromptInFlight = true;
+        try
+        {
+            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+                this,
+                manager.SelectedModlist.name,
+                "exit");
+            if (choice == UnsavedChangesChoice.Cancel)
+                return;
+
+            if (choice == UnsavedChangesChoice.Save)
+                await SaveCurrentModpackAsync();
+            else
+                SetAndMarkChanges(false);
+
+            bypassUnsavedClosePrompt = true;
+            Close();
+        }
+        finally
+        {
+            bypassUnsavedClosePrompt = false;
+            unsavedClosePromptInFlight = false;
+        }
     }
 
     private void SetAndRefreshModpack(int index)
@@ -1662,5 +2571,91 @@ public partial class MainWindow : Window
             updateInProgress = false;
             updateButton.IsEnabled = true;
         }
+    }
+
+    private static void TempSearchLog(string message)
+    {
+        if (!IsDevMode())
+            return;
+
+        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [TEMP][SearchFlow] {message}");
+    }
+
+    private string DescribeSearchSender(object? sender)
+    {
+        if (ReferenceEquals(sender, leftSearchBar))
+            return "leftSearchBar";
+        if (ReferenceEquals(sender, rightSearchBar))
+            return "rightSearchBar";
+        return sender?.GetType().Name ?? "<null>";
+    }
+
+    private string DescribeList(ListBox list)
+    {
+        if (ReferenceEquals(list, leftModlist))
+            return "leftModlist";
+        if (ReferenceEquals(list, rightModlist))
+            return "rightModlist";
+        return list.Name ?? "<unnamedList>";
+    }
+
+    private static string TrimForLog(string? value)
+    {
+        string text = value ?? string.Empty;
+        text = text.Replace("\r", "\\r").Replace("\n", "\\n");
+        return text.Length <= 80 ? text : text[..80] + "...";
+    }
+
+    private void EnsureFirstVisibleSearchResultInView(
+        ListBox list,
+        IEnumerable<ModRefViewModel> source,
+        string filter,
+        bool hideFiltered)
+    {
+        if (!hideFiltered || string.IsNullOrWhiteSpace(filter))
+            return;
+
+        ModRefViewModel? firstVisible = source.FirstOrDefault(vm => vm.IsVisible);
+        if (firstVisible == null)
+            return;
+
+        list.ScrollIntoView(firstVisible);
+        TempSearchLog(
+            $"EnsureFirstVisibleSearchResultInView list={DescribeList(list)} targetId='{TrimForLog(firstVisible.ModReference.ID)}'");
+    }
+
+    private void TempLogVisualFilterState(string phase)
+    {
+        if (!IsDevMode())
+            return;
+
+        TempLogListVisualState(phase, leftModlist, inactiveMods, leftSearchBar.Text, leftSearchBar.HideFiltered);
+        TempLogListVisualState(phase, rightModlist, activeMods, rightSearchBar.Text, rightSearchBar.HideFiltered);
+    }
+
+    private void TempLogListVisualState(
+        string phase,
+        ListBox list,
+        IEnumerable<ModRefViewModel> source,
+        string filter,
+        bool hideFiltered)
+    {
+        int total = 0;
+        int vmVisible = 0;
+        foreach (ModRefViewModel vm in source)
+        {
+            total++;
+            if (vm.IsVisible)
+                vmVisible++;
+        }
+
+        List<ListBoxItem> realizedItems = list.GetVisualDescendants().OfType<ListBoxItem>().ToList();
+        int realizedTotal = realizedItems.Count;
+        int realizedVisible = realizedItems.Count(item => item.IsVisible);
+        int realizedHidden = realizedTotal - realizedVisible;
+
+        TempSearchLog(
+            $"VisualState phase={phase} list={DescribeList(list)} filter='{TrimForLog(filter)}' hideFiltered={hideFiltered} " +
+            $"vmVisible={vmVisible}/{total} realizedVisible={realizedVisible}/{realizedTotal} realizedHidden={realizedHidden}");
     }
 }

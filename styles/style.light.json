@@ -1,5 +1,5 @@
 {
-  "modRefColor": {
+  "backgroundColor": {
     "R": 211,
     "G": 211,
     "B": 211,
@@ -65,6 +65,12 @@
     "B": 0,
     "A": 255
   },
+  "headerColor": {
+    "R": 225,
+    "G": 230,
+    "B": 235,
+    "A": 255
+  },
   "buttonColor": {
     "R": 255,
     "G": 255,
@@ -83,10 +89,28 @@
     "B": 0,
     "A": 255
   },
+  "searchBorderColor": {
+    "R": 0,
+    "G": 0,
+    "B": 0,
+    "A": 255
+  },
   "searchButtonColor": {
     "R": 255,
     "G": 255,
     "B": 255,
+    "A": 255
+  },
+  "searchButtonHoverColor": {
+    "R": 245,
+    "G": 245,
+    "B": 245,
+    "A": 255
+  },
+  "searchButtonPressedColor": {
+    "R": 230,
+    "G": 230,
+    "B": 230,
     "A": 255
   }
 }

@@ -14,19 +14,18 @@ namespace ModHearth
             return duplicateWarningGroups;
         }
 
-        private static bool IsVanillaBaseMod(ModReference modref)
+        private bool IsVanillaBaseMod(ModReference modref)
         {
             if (modref == null || string.IsNullOrWhiteSpace(modref.path))
                 return false;
 
-            string normalized = modref.path.Replace('\\', '/').ToLowerInvariant();
-            if (normalized.Contains("/data/vanilla/"))
-                return true;
-
-            if (normalized.Contains("/installed_mods/"))
+            string vanillaRoot = GetVanillaModsPath();
+            if (string.IsNullOrWhiteSpace(vanillaRoot) || !Directory.Exists(vanillaRoot))
                 return false;
 
-            return modref.ID.StartsWith("vanilla_", StringComparison.OrdinalIgnoreCase);
+            string modPath = Path.GetFullPath(modref.path);
+            string fullVanillaRoot = Path.GetFullPath(vanillaRoot);
+            return IsPathUnderRoot(modPath, fullVanillaRoot);
         }
 
         private static bool ContainsModId(IEnumerable<string> values, string id)

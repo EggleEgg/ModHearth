@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="480"
+   height="649.75555"
+   viewBox="0 0 12 16.243889"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="folderIcon.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.35664698"
+     inkscape:cx="259.36011"
+     inkscape:cy="250.94843"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+  <title
+     id="title1">ic_fluent_folder_open_vertical_20_filled</title>
+  <desc
+     id="desc1">Created with Sketch.</desc>
+  <g
+     id="🔍-System-Icons"
+     stroke="none"
+     stroke-width="1"
+     fill="none"
+     fill-rule="evenodd"
+     transform="translate(-4,-2)">
+    <g
+       id="ic_fluent_folder_open_vertical_20_filled"
+       fill="#212121"
+       fill-rule="nonzero">
+      <path
+         d="m 4.1369,2.87306 5.9068,2.29708 c 0.532154,0.2069723 0.896705,0.6959375 0.949641,1.2564996 L 11,6.56815 V 18.1574 c -0.274971,0.09797 -0.581975,0.117184 -0.887391,0.03453 L 9.96019,18.142 5.60032,16.4603 C 4.6927341,16.110276 4.0759607,15.268538 4.0065395,14.309002 L 4,14.1278 V 3.5 C 4,3.3321425 4.0275737,3.1707256 4.078435,3.0200272 Z M 14.5,2 c 0.779671,0 1.420446,0.5948855 1.493133,1.3555395 L 16,3.5 v 3.87689 c 0,0.081767 -0.0067,0.1633244 -0.01994,0.2438644 L 15.9552,7.7407 15,11.5616 V 14.5 c 0,0.779671 -0.594912,1.420446 -1.355544,1.493133 L 13.5,16 H 12 V 6.56815 C 12,5.5977594 11.43928,4.7210524 10.572205,4.3097121 L 10.4061,4.23813 4.93446,2.11027 C 5.0653575,2.056945 5.20548,2.0215806 5.3517689,2.0072312 L 5.5,2 Z"
+         id="🎨-Color" />
+    </g>
+  </g>
+</svg>

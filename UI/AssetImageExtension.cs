@@ -33,29 +33,32 @@ public sealed class AssetImageExtension : MarkupExtension
 
 internal static class ImageSourceLoader
 {
+    private const string DefaultResourcesBaseUri = "avares://ModHearth/resources/";
+
     public static IImage? LoadFromAssetUri(string assetUri)
     {
-        if (string.IsNullOrWhiteSpace(assetUri))
+        string normalizedAssetUri = NormalizeAssetUri(assetUri);
+        if (string.IsNullOrWhiteSpace(normalizedAssetUri))
             return null;
 
         try
         {
-            if (IsSvgPath(assetUri))
+            if (IsSvgPath(normalizedAssetUri))
             {
-                IImage? svgImage = LoadSvgImage(assetUri);
+                IImage? svgImage = LoadSvgImage(normalizedAssetUri);
                 if (svgImage != null)
                     return svgImage;
 
-                string pngFallback = ReplaceExtension(assetUri, ".png");
-                return LoadBitmapFromAsset(pngFallback);
+                string pngFallback = ReplaceExtension(normalizedAssetUri, ".png");
+                return LoadBitmap(pngFallback);
             }
 
-            string svgCandidate = ReplaceExtension(assetUri, ".svg");
+            string svgCandidate = ReplaceExtension(normalizedAssetUri, ".svg");
             IImage? svgCandidateImage = LoadSvgImage(svgCandidate);
             if (svgCandidateImage != null)
                 return svgCandidateImage;
 
-            return LoadBitmapFromAsset(assetUri);
+            return LoadBitmap(normalizedAssetUri);
         }
         catch
         {
@@ -87,8 +90,29 @@ internal static class ImageSourceLoader
         }
     }
 
+    public static string NormalizeAssetUri(string assetUri)
+    {
+        if (string.IsNullOrWhiteSpace(assetUri))
+            return string.Empty;
+
+        string normalized = assetUri.Trim();
+        if (normalized.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+            return EnsureSvgExtensionIfMissing(normalized);
+
+        if (Uri.TryCreate(normalized, UriKind.Absolute, out _))
+            return normalized;
+
+        normalized = normalized.Replace('\\', '/').TrimStart('/');
+        const string resourcesPrefix = "resources/";
+        if (normalized.StartsWith(resourcesPrefix, StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring(resourcesPrefix.Length);
+
+        normalized = EnsureSvgExtensionIfMissing(normalized);
+        return DefaultResourcesBaseUri + normalized;
+    }
+
     private static bool IsSvgPath(string path)
-        => path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
+        => RemoveQueryAndFragment(path).EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
 
     private static IImage? LoadSvgImage(string uriText)
     {
@@ -118,21 +142,36 @@ internal static class ImageSourceLoader
         return null;
     }
 
-    private static IImage? LoadBitmapFromAsset(string assetUri)
+    private static IImage? LoadBitmap(string assetUri)
     {
         if (string.IsNullOrWhiteSpace(assetUri))
             return null;
 
         try
         {
-            Uri uri = new Uri(assetUri, UriKind.Absolute);
-            using Stream stream = AssetLoader.Open(uri);
-            return new Bitmap(stream);
+            if (assetUri.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+            {
+                Uri uri = new Uri(assetUri, UriKind.Absolute);
+                using Stream stream = AssetLoader.Open(uri);
+                return new Bitmap(stream);
+            }
+
+            if (Uri.TryCreate(assetUri, UriKind.Absolute, out Uri? absoluteUri) &&
+                absoluteUri.IsFile &&
+                File.Exists(absoluteUri.LocalPath))
+            {
+                return new Bitmap(absoluteUri.LocalPath);
+            }
+
+            if (File.Exists(assetUri))
+                return new Bitmap(assetUri);
         }
         catch
         {
-            return null;
+            // Ignore bitmap load failures.
         }
+
+        return null;
     }
 
     private static string ReplaceExtension(string pathOrUri, string newExtension)
@@ -140,11 +179,43 @@ internal static class ImageSourceLoader
         if (string.IsNullOrWhiteSpace(pathOrUri))
             return pathOrUri;
 
-        int dotIndex = pathOrUri.LastIndexOf('.');
-        if (dotIndex < 0)
-            return pathOrUri + newExtension;
+        string queryAndFragment = string.Empty;
+        int queryIndex = pathOrUri.IndexOfAny(new[] { '?', '#' });
+        string basePart = pathOrUri;
+        if (queryIndex >= 0)
+        {
+            basePart = pathOrUri.Substring(0, queryIndex);
+            queryAndFragment = pathOrUri.Substring(queryIndex);
+        }
 
-        return pathOrUri.Substring(0, dotIndex) + newExtension;
+        int dotIndex = basePart.LastIndexOf('.');
+        if (dotIndex < 0)
+            return basePart + newExtension + queryAndFragment;
+
+        return basePart.Substring(0, dotIndex) + newExtension + queryAndFragment;
+    }
+
+    private static string EnsureSvgExtensionIfMissing(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+
+        if (!string.IsNullOrWhiteSpace(Path.GetExtension(RemoveQueryAndFragment(value))))
+            return value;
+
+        return value + ".svg";
+    }
+
+    private static string RemoveQueryAndFragment(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+
+        int index = value.IndexOfAny(new[] { '?', '#' });
+        if (index < 0)
+            return value;
+
+        return value.Substring(0, index);
     }
 
     private static IImage? RenderSvgFile(string path)

@@ -14,13 +14,13 @@ public class AppStartupTests
     [Fact]
     public async Task App_Starts_WithoutFatalErrors()
     {
-        string? previousTestMode = Environment.GetEnvironmentVariable("MODHEARTH_TEST_MODE");
+        string? previousDevMode = Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE");
         string? previousSmokeMode = Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST");
         string? previousSmokeWindowMode = Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW");
 
         try
         {
-            Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", "1");
+            Environment.SetEnvironmentVariable("MODHEARTH_DEVMODE", "1");
             Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST", "1");
             Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW", "1");
 
@@ -37,7 +37,7 @@ public class AppStartupTests
             };
             startInfo.ArgumentList.Add(appPath);
             startInfo.ArgumentList.Add("--smoke-test-window");
-            startInfo.Environment["MODHEARTH_TEST_MODE"] = "1";
+            startInfo.Environment["MODHEARTH_DEVMODE"] = "1";
             startInfo.Environment["MODHEARTH_SMOKE_TEST"] = "1";
             startInfo.Environment["MODHEARTH_SMOKE_TEST_WINDOW"] = "1";
 
@@ -74,7 +74,7 @@ public class AppStartupTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("MODHEARTH_TEST_MODE", previousTestMode);
+            Environment.SetEnvironmentVariable("MODHEARTH_DEVMODE", previousDevMode);
             Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST", previousSmokeMode);
             Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW", previousSmokeWindowMode);
         }

@@ -12,7 +12,14 @@ using System.Threading.Tasks;
 
 namespace ModHearth.UI;
 
-public sealed record ModListDropContext(ListBox DestinationList, ListBox? SourceList, List<ModRefViewModel> Items, int InsertIndex);
+public sealed record ModListDropContext(
+    ListBox DestinationList,
+    ListBox? SourceList,
+    List<ModRefViewModel> Items,
+    int InsertIndex,
+    bool DropAfter,
+    bool GapDrop,
+    KeyModifiers Modifiers);
 
 public sealed class ModListDragDropController
 {
@@ -34,13 +41,7 @@ public sealed class ModListDragDropController
     private List<ModRefViewModel>? dragHighlightedItems;
     private Cursor? dragCursor;
     private Cursor? previousCursor;
-
-    private bool suppressSelectionHandling;
-    private bool suppressSelectionForScrollbar;
-    private List<ModRefViewModel>? suppressSelectionSnapshot;
-    private ListBox? suppressSelectionList;
-    private List<ModRefViewModel>? contextSelectionSnapshot;
-    private ListBox? contextSelectionList;
+    private readonly ListSelectionController<ModRefViewModel> selectionController = new();
 
     public event Action<ModListDropContext>? Dropped;
 
@@ -65,7 +66,7 @@ public sealed class ModListDragDropController
 
         list.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, true);
         list.AddHandler(InputElement.PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel, true);
-        list.AddHandler(InputElement.PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Tunnel, true);
+        selectionController.RegisterList(list);
 
         if (allowDrop)
         {
@@ -78,72 +79,35 @@ public sealed class ModListDragDropController
 
     public bool HandleSelectionChanged(ListBox list)
     {
-        if (suppressSelectionHandling)
-            return true;
-
-        return TryRestoreScrollbarSelection(list);
+        return selectionController.HandleSelectionChanged(list);
     }
 
     public void UpdateSelectionState(ListBox list)
     {
-        if (list.ItemsSource is not IEnumerable<ModRefViewModel> items)
-            return;
-
-        IEnumerable<ModRefViewModel> selectedItems = list.SelectedItems?.Cast<ModRefViewModel>()
-            ?? Enumerable.Empty<ModRefViewModel>();
-        HashSet<ModRefViewModel> selected = new HashSet<ModRefViewModel>(selectedItems);
-        foreach (ModRefViewModel vm in items)
-            vm.IsSelected = selected.Contains(vm);
+        selectionController.UpdateSelectionState(list);
     }
 
     public void RestoreListSelection(ListBox list, IEnumerable<ModRefViewModel> selection)
     {
-        if (list.SelectedItems == null)
-            return;
-
-        suppressSelectionHandling = true;
-        list.SelectedItems.Clear();
-        foreach (ModRefViewModel vm in selection)
-            list.SelectedItems.Add(vm);
-        UpdateSelectionState(list);
-        suppressSelectionHandling = false;
+        selectionController.RestoreListSelection(list, selection);
     }
 
     public bool TryRestoreContextSelection(ListBox list, ModRefViewModel vm)
     {
-        bool restored = false;
-        if (contextSelectionSnapshot != null &&
-            contextSelectionList == list &&
-            contextSelectionSnapshot.Contains(vm))
-        {
-            RestoreListSelection(list, contextSelectionSnapshot);
-            restored = true;
-        }
-
-        contextSelectionSnapshot = null;
-        contextSelectionList = null;
-        return restored;
+        return selectionController.TryRestoreContextSelection(list, vm);
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         ResetDragState();
         ClearDragHighlight();
-        suppressSelectionForScrollbar = false;
-        suppressSelectionList = null;
-        suppressSelectionSnapshot = null;
 
         if (sender is not ListBox list)
             return;
 
         PointerPoint point = e.GetCurrentPoint(list);
-        CaptureContextSelectionSnapshot(list, point);
-
         if (IsPointerOverScrollBar(list, point.Position))
-        {
-            CaptureScrollbarSelectionSnapshot(list, point);
             return;
-        }
 
         if (!point.Properties.IsLeftButtonPressed)
             return;
@@ -215,16 +179,6 @@ public sealed class ModListDragDropController
         }
     }
 
-    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        if (!suppressSelectionForScrollbar)
-            return;
-
-        suppressSelectionForScrollbar = false;
-        suppressSelectionList = null;
-        suppressSelectionSnapshot = null;
-    }
-
     private void OnDragOver(object? sender, DragEventArgs e)
     {
         if (sender is not ListBox list)
@@ -253,7 +207,8 @@ public sealed class ModListDragDropController
         ClearDropHighlights();
         ClearDragHighlight();
         Point pos = e.GetPosition(list);
-        int index = GetInsertIndex(list, pos);
+        (int targetIndex, bool after, bool gapDrop) = GetDropTarget(list, pos);
+        int index = after && targetIndex < list.ItemCount ? targetIndex + 1 : targetIndex;
 
         string? payload = e.DataTransfer.TryGetValue(DragDataFormat);
         if (string.IsNullOrWhiteSpace(payload))
@@ -275,7 +230,7 @@ public sealed class ModListDragDropController
             return;
         }
 
-        Dropped?.Invoke(new ModListDropContext(list, dragSourceList, selected, index));
+        Dropped?.Invoke(new ModListDropContext(list, dragSourceList, selected, index, after, gapDrop, e.KeyModifiers));
         ResetDragState();
     }
 
@@ -312,7 +267,7 @@ public sealed class ModListDragDropController
         if (list.ItemCount == 0)
             return;
 
-        (int index, bool after) = GetDropTarget(list, position);
+        (int index, bool after, _) = GetDropTarget(list, position);
         if (list.ItemsSource is not IEnumerable<ModRefViewModel> items)
             return;
 
@@ -400,55 +355,6 @@ public sealed class ModListDragDropController
         return control.FindAncestorOfType<ScrollBar>() != null;
     }
 
-    private void CaptureScrollbarSelectionSnapshot(ListBox list, PointerPoint point)
-    {
-        if (!point.Properties.IsLeftButtonPressed)
-            return;
-
-        suppressSelectionForScrollbar = true;
-        suppressSelectionList = list;
-        suppressSelectionSnapshot = list.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-    }
-
-    private bool TryRestoreScrollbarSelection(ListBox list)
-    {
-        if (!suppressSelectionForScrollbar || suppressSelectionList != list)
-            return false;
-
-        suppressSelectionForScrollbar = false;
-        suppressSelectionList = null;
-
-        if (suppressSelectionSnapshot != null)
-        {
-            RestoreListSelection(list, suppressSelectionSnapshot);
-        }
-
-        suppressSelectionSnapshot = null;
-        return true;
-    }
-
-    private void CaptureContextSelectionSnapshot(ListBox list, PointerPoint point)
-    {
-        contextSelectionSnapshot = null;
-        contextSelectionList = null;
-
-        if (!point.Properties.IsRightButtonPressed)
-            return;
-
-        ModRefViewModel? hit = GetItemAtPoint(list, point.Position);
-        if (hit == null)
-            return;
-
-        List<ModRefViewModel> selected = list.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-        if (selected.Count > 1 && selected.Contains(hit))
-        {
-            contextSelectionSnapshot = selected;
-            contextSelectionList = list;
-        }
-    }
-
     private static List<ModRefViewModel> OrderSelectionByList(ListBox list, IEnumerable<ModRefViewModel> selection)
     {
         HashSet<ModRefViewModel> selectedSet = new HashSet<ModRefViewModel>(selection);
@@ -458,8 +364,13 @@ public sealed class ModListDragDropController
         return selection.ToList();
     }
 
-    private static (int index, bool after) GetDropTarget(ListBox list, Point point)
+    private static (int index, bool after, bool gapDrop) GetDropTarget(ListBox list, Point point)
     {
+        Control? lastContainer = null;
+        double lastTop = 0;
+        double lastBottom = 0;
+        double lastHeight = 0;
+
         for (int i = 0; i < list.ItemCount; i++)
         {
             if (list.ContainerFromIndex(i) is not Control container)
@@ -469,20 +380,38 @@ public sealed class ModListDragDropController
             if (topLeft == null)
                 continue;
 
-            double mid = topLeft.Value.Y + container.Bounds.Height / 2;
+            double top = topLeft.Value.Y;
+            double height = container.Bounds.Height;
+            double bottom = top + height;
+
+            lastContainer = container;
+            lastTop = top;
+            lastBottom = bottom;
+            lastHeight = height;
+
+            double mid = top + height / 2;
             if (point.Y <= mid)
-                return (i, false);
+                return (i, false, IsGapDrop(point.Y, top, bottom, height, after: false));
+
+            if (point.Y <= bottom)
+                return (i, true, IsGapDrop(point.Y, top, bottom, height, after: true));
         }
 
-        return (list.ItemCount, true);
+        if (lastContainer != null)
+            return (list.ItemCount, true, IsGapDrop(point.Y, lastTop, lastBottom, lastHeight, after: true));
+
+        return (list.ItemCount, true, false);
     }
 
-    private static int GetInsertIndex(ListBox list, Point point)
+    private static bool IsGapDrop(double y, double top, double bottom, double height, bool after)
     {
-        (int index, bool after) = GetDropTarget(list, point);
-        if (after && index < list.ItemCount)
-            return index + 1;
-        return index;
+        if (height <= 0)
+            return false;
+
+        double gapZone = Math.Max(0, height * 0.02);
+        if (after)
+            return (bottom - y) <= gapZone;
+        return (y - top) <= gapZone;
     }
 
     private void ResetDragState()

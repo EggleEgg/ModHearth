@@ -83,7 +83,7 @@ local function set_available_mods(viewscreen, loaded, get_fields)
     for _, v in ipairs(unused) do
         local success = copy_mod_entry(viewscreen, "available", "base_available", v.id, v.version, get_fields)
         if not success then
-            dfhack.printerr("[ModHearth] Failed to show " .. v.id .. " in available list")
+            dfhack.printerr("[ReloadManager] Failed to show " .. v.id .. " in available list")
         end
     end
 end
@@ -123,7 +123,7 @@ end
 local scr = dfhack.gui.getCurViewscreen(true)
 while scr do
     if has_mod_manager_focus(scr) then
-        dfhack.println("[ModHearth] Reloading mod manager screen.")
+        dfhack.println("[ReloadManager] Reloading mod manager screen.")
         dfhack.screen.dismiss(scr)
         modman.ModmanageScreen {}:show()
         return
@@ -137,13 +137,11 @@ local modlist_entry = get_default_modlist()
 local mod_screen = get_viewscreen and get_viewscreen() or nil
 
 if mod_screen and modlist_entry and modlist_entry.modlist then
-    dfhack.println("[ModHearth] Applying default modlist to Mods screen.")
+    dfhack.println("[ReloadManager] Applying default modlist to mods screen.")
     local failures = apply_modlist_to_screen(mod_screen, modlist_entry.modlist, get_fields)
     if #failures > 0 then
-        dfhack.println("[ModHearth] Failed mods: " .. table.concat(failures, ", "))
+        dfhack.println("[ReloadManager] Failed mods: " .. table.concat(failures, ", "))
         for _, v in ipairs(failures) do
         end
     end
-else
-    dfhack.println("[ModHearth] No reload performed.")
 end

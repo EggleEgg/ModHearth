@@ -3,6 +3,8 @@ bin/
 obj/
 **/bin/
 **/obj/
+/.external.zip
+/.external
 
 # .NET build artifacts
 *.pdb

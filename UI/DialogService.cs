@@ -6,6 +6,13 @@ using System.Threading.Tasks;
 
 namespace ModHearth.UI;
 
+public enum UnsavedChangesChoice
+{
+    Save,
+    ExitWithoutSaving,
+    Cancel
+}
+
 public static class DialogService
 {
     public static async Task ShowMessageAsync(Window owner, string message, string title)
@@ -17,6 +24,33 @@ public static class DialogService
     {
         MessageDialogResult result = await MessageDialog.ShowAsync(owner, message, title, MessageDialogButtons.YesNo);
         return result == MessageDialogResult.Yes;
+    }
+
+    public static async Task<UnsavedChangesChoice> ShowUnsavedChangesPromptAsync(
+        Window owner,
+        string? subjectName,
+        string actionName)
+    {
+        string scopedSubject = string.IsNullOrWhiteSpace(subjectName)
+            ? "this item"
+            : $"'{subjectName}'";
+        string message = $"You have unsaved changes in {scopedSubject}. Are you sure you want to {actionName} without saving?";
+
+        MessageDialogResult result = await MessageDialog.ShowAsync(
+            owner,
+            message,
+            "Unsaved changes",
+            MessageDialogButtons.YesNoCancel,
+            yesText: "Save",
+            noText: "Exit without saving",
+            cancelText: "Cancel");
+
+        return result switch
+        {
+            MessageDialogResult.Yes => UnsavedChangesChoice.Save,
+            MessageDialogResult.No => UnsavedChangesChoice.ExitWithoutSaving,
+            _ => UnsavedChangesChoice.Cancel
+        };
     }
 
     public static Task<string?> ShowInputAsync(Window owner, string prompt, string title, string defaultValue)

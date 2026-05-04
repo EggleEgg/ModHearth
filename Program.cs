@@ -12,15 +12,20 @@ internal static class Program
         RuntimeBootstrap.Initialize();
         try
         {
+            bool isDevMode = HasArg(args, "--devmode")
+                || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE"));
+            if (isDevMode)
+                Environment.SetEnvironmentVariable("MODHEARTH_DEVMODE", "1");
+
             bool isSmokeTestWindow = HasArg(args, "--smoke-test-window")
-                || string.Equals(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW"), "1", StringComparison.OrdinalIgnoreCase);
+                || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW"));
             bool isSmokeTest = HasArg(args, "--smoke-test")
-                || string.Equals(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST"), "1", StringComparison.OrdinalIgnoreCase);
+                || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST"));
 
             if (isSmokeTestWindow)
             {
                 Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW", "1");
-                string[] filteredArgs = StripArgs(args, "--smoke-test-window", "--smoke-test");
+                string[] filteredArgs = StripArgs(args, "--smoke-test-window", "--smoke-test", "--devmode");
                 BuildAvaloniaApp().StartWithClassicDesktopLifetime(filteredArgs);
                 return;
             }
@@ -31,7 +36,8 @@ internal static class Program
                 return;
             }
 
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            string[] normalArgs = StripArgs(args, "--devmode");
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(normalArgs);
         }
         catch (Exception ex)
         {
@@ -51,6 +57,10 @@ internal static class Program
 
     private static bool HasArg(string[] args, string value)
         => args.Any(arg => string.Equals(arg, value, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsEnabled(string? value)
+        => string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
     private static string[] StripArgs(string[] args, params string[] toRemove)
         => args.Where(arg => !toRemove.Any(remove => string.Equals(arg, remove, StringComparison.OrdinalIgnoreCase)))

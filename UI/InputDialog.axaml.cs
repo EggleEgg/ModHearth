@@ -9,6 +9,7 @@ public partial class InputDialog : Window
     public InputDialog()
     {
         InitializeComponent();
+        WindowThemeManager.Register(this);
 
         OkButton.Click += (_, _) => Close(InputBox.Text);
         CancelButton.Click += (_, _) => Close(null);

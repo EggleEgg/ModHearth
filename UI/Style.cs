@@ -65,7 +65,7 @@ namespace ModHearth.UI
             .ToArray();
 
         // Colors.
-        public SimpleColor modRefColor { get; set; } = null!;
+        public SimpleColor backgroundColor { get; set; } = null!;
         public SimpleColor modRefHighlightColor { get; set; } = null!;
         public SimpleColor modRefJumpHighlightColor { get; set; } = null!;
         public SimpleColor modRefCacheBarColor { get; set; } = null!;
@@ -76,10 +76,14 @@ namespace ModHearth.UI
         public SimpleColor modRefTextFilteredColor { get; set; } = null!;
         public SimpleColor formColor { get; set; } = null!;
         public SimpleColor textColor { get; set; } = null!;
+        public SimpleColor headerColor { get; set; } = null!;
         public SimpleColor buttonColor { get; set; } = null!;
         public SimpleColor buttonTextColor { get; set; } = null!;
         public SimpleColor buttonOutlineColor { get; set; } = null!;
+        public SimpleColor searchBorderColor { get; set; } = null!;
         public SimpleColor searchButtonColor { get; set; } = null!;
+        public SimpleColor searchButtonHoverColor { get; set; } = null!;
+        public SimpleColor searchButtonPressedColor { get; set; } = null!;
 
         // Default style.
         public Style()

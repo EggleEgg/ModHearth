@@ -1,11 +1,12 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia;
 using Avalonia.Media;
 
 namespace ModHearth.UI;
 
-public class ModRefViewModel : INotifyPropertyChanged
+public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 {
     private readonly ModReference modref;
     private bool isProblem;
@@ -16,8 +17,13 @@ public class ModRefViewModel : INotifyPropertyChanged
     private bool isSelected;
     private bool isJumpHighlighted;
     private bool isDragging;
+    private bool isVanillaModSource;
+    private bool isLocalModSource;
+    private bool isSteamModSource;
     private bool showDropAbove;
     private bool showDropBelow;
+    private ReferenceOverlayKind referenceOverlay;
+    private Thickness ruleGapMargin = new Thickness(0);
     private string? problemTooltip;
     private string? duplicateWarningTooltip;
 
@@ -146,6 +152,42 @@ public class ModRefViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool IsLocalModSource
+    {
+        get => isLocalModSource;
+        set
+        {
+            if (isLocalModSource == value)
+                return;
+            isLocalModSource = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsVanillaModSource
+    {
+        get => isVanillaModSource;
+        set
+        {
+            if (isVanillaModSource == value)
+                return;
+            isVanillaModSource = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsSteamModSource
+    {
+        get => isSteamModSource;
+        set
+        {
+            if (isSteamModSource == value)
+                return;
+            isSteamModSource = value;
+            OnPropertyChanged();
+        }
+    }
+
     public bool ShowDropAbove
     {
         get => showDropAbove;
@@ -166,6 +208,19 @@ public class ModRefViewModel : INotifyPropertyChanged
             if (showDropBelow == value)
                 return;
             showDropBelow = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public ReferenceOverlayKind ReferenceOverlay
+    {
+        get => referenceOverlay;
+        set
+        {
+            if (referenceOverlay == value)
+                return;
+            referenceOverlay = value;
+            RefreshBackground();
             OnPropertyChanged();
         }
     }
@@ -214,6 +269,18 @@ public class ModRefViewModel : INotifyPropertyChanged
             if (Equals(dropHighlightBrush, value))
                 return;
             dropHighlightBrush = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public Thickness RuleGapMargin
+    {
+        get => ruleGapMargin;
+        set
+        {
+            if (ruleGapMargin == value)
+                return;
+            ruleGapMargin = value;
             OnPropertyChanged();
         }
     }
@@ -278,22 +345,33 @@ public class ModRefViewModel : INotifyPropertyChanged
     public void RefreshBackground()
     {
         Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
-        Color baseColor = style.modRefColor.ToAvaloniaColor();
+        Color baseColor = style.backgroundColor.ToAvaloniaColor();
         if (IsDragging)
         {
             BackgroundBrush = new SolidColorBrush(LightenColor(baseColor, 0.35f));
             return;
         }
 
-        Color? overlay = null;
-        if (IsJumpHighlighted)
-            overlay = style.modRefJumpHighlightColor.ToAvaloniaColor();
-        else if (IsSelected)
-            overlay = style.modRefHighlightColor.ToAvaloniaColor();
+        Color? referenceOverlayColor = ReferenceOverlay switch
+        {
+            ReferenceOverlayKind.AboveSelection => style.modRefCacheBarColor.ToAvaloniaColor(),
+            ReferenceOverlayKind.BelowSelection => style.modRefJumpHighlightColor.ToAvaloniaColor(),
+            _ => null
+        };
 
-        Color blended = overlay.HasValue
-            ? BlendColor(baseColor, overlay.Value)
+        Color blended = referenceOverlayColor.HasValue
+            ? BlendColor(baseColor, referenceOverlayColor.Value)
             : baseColor;
+
+        Color? selectionOverlay = null;
+        if (IsJumpHighlighted)
+            selectionOverlay = style.modRefJumpHighlightColor.ToAvaloniaColor();
+        else if (IsSelected)
+            selectionOverlay = style.modRefHighlightColor.ToAvaloniaColor();
+
+        if (selectionOverlay.HasValue)
+            blended = BlendColor(blended, selectionOverlay.Value);
+
         BackgroundBrush = new SolidColorBrush(blended);
     }
 
@@ -301,12 +379,13 @@ public class ModRefViewModel : INotifyPropertyChanged
     {
         Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
         Color color;
-        if (IsProblem)
+        // During search mismatch rendering, filtered style must win over issue/warning overlays.
+        if (IsFilteredOut)
+            color = style.modRefTextFilteredColor.ToAvaloniaColor();
+        else if (IsProblem)
             color = style.modRefTextBadColor.ToAvaloniaColor();
         else if (IsDuplicateWarning)
             color = style.modRefTextWarningColor.ToAvaloniaColor();
-        else if (IsFilteredOut)
-            color = style.modRefTextFilteredColor.ToAvaloniaColor();
         else
             color = style.modRefTextColor.ToAvaloniaColor();
 
@@ -345,5 +424,12 @@ public class ModRefViewModel : INotifyPropertyChanged
     private void OnPropertyChanged([CallerMemberName] string? name = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    public enum ReferenceOverlayKind
+    {
+        None,
+        AboveSelection,
+        BelowSelection
     }
 }

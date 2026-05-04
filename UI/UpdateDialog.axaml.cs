@@ -12,6 +12,7 @@ public partial class UpdateDialog : Window
     public UpdateDialog()
     {
         InitializeComponent();
+        WindowThemeManager.Register(this);
     }
 
     public static async Task<GitHubRelease?> ShowAsync(

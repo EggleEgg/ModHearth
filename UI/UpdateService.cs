@@ -311,7 +311,6 @@ internal static class UpdateService
             string sourceDirTrimmed = Path.TrimEndingDirectorySeparator(sourceDir);
             string destinationDirTrimmed = Path.TrimEndingDirectorySeparator(destinationDir);
             string exePath = ResolveUpdatedExecutablePath(destinationDirTrimmed);
-            string exeArgs = ResolveUpdatedExecutableArgs(destinationDirTrimmed, exePath);
 
             StringBuilder script = new StringBuilder();
             script.AppendLine("@echo off");
@@ -320,7 +319,6 @@ internal static class UpdateService
             script.AppendLine($"set \"SRC={sourceDirTrimmed}\"");
             script.AppendLine($"set \"DEST={destinationDirTrimmed}\"");
             script.AppendLine($"set \"EXE={exePath}\"");
-            script.AppendLine($"set \"EXE_ARGS={exeArgs}\"");
             script.AppendLine("set \"LOG=%DEST%\\logs\\updatelog.txt\"");
             script.AppendLine("if not exist \"%DEST%\\logs\" mkdir \"%DEST%\\logs\"");
             script.AppendLine("echo [%date% %time%] ModHearth updater started>>\"%LOG%\"");
@@ -334,9 +332,11 @@ internal static class UpdateService
             script.AppendLine("robocopy \"%SRC%\" \"%DEST%\" /E /COPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XF config.json >>\"%LOG%\" 2>&1");
             if (!string.IsNullOrWhiteSpace(configBackup))
                 script.AppendLine($"copy /Y \"{configBackup}\" \"%DEST%\\config.json\" >>\"%LOG%\" 2>&1");
-            script.AppendLine("if not \"%EXE%\"==\"\" (");
+            script.AppendLine("if exist \"%EXE%\" (");
             script.AppendLine("  echo [%date% %time%] Restarting ModHearth>>\"%LOG%\"");
-            script.AppendLine("  start \"\" \"%EXE%\" %EXE_ARGS%");
+            script.AppendLine("  start \"\" \"%EXE%\"");
+            script.AppendLine(") else (");
+            script.AppendLine("  echo [%date% %time%] Restart skipped, executable not found at %EXE%>>\"%LOG%\"");
             script.AppendLine(")");
             script.AppendLine("echo [%date% %time%] ModHearth updater finished>>\"%LOG%\"");
 
@@ -365,13 +365,13 @@ internal static class UpdateService
         {
             string scriptPath = Path.Combine(Path.GetTempPath(), $"modhearth_update_{Guid.NewGuid():N}.sh");
             string exePath = ResolveUpdatedExecutablePath(destinationDir);
-            string exeArgs = ResolveUpdatedExecutableArgs(destinationDir, exePath);
 
             StringBuilder script = new StringBuilder();
             script.AppendLine("#!/bin/sh");
             script.AppendLine($"PID={pid}");
             script.AppendLine($"SRC=\"{sourceDir}\"");
             script.AppendLine($"DEST=\"{destinationDir}\"");
+            script.AppendLine($"EXE=\"{exePath}\"");
             if (!string.IsNullOrWhiteSpace(configBackup))
                 script.AppendLine($"CONFIG_BACKUP=\"{configBackup}\"");
             script.AppendLine("LOG=\"$DEST/logs/updatelog.txt\"");
@@ -382,14 +382,12 @@ internal static class UpdateService
             script.AppendLine("cp -a \"$SRC/.\" \"$DEST/\" >> \"$LOG\" 2>&1");
             if (!string.IsNullOrWhiteSpace(configBackup))
                 script.AppendLine("cp \"$CONFIG_BACKUP\" \"$DEST/config.json\" >> \"$LOG\" 2>&1");
-            if (!string.IsNullOrWhiteSpace(exePath))
-            {
-                script.AppendLine($"if [ -f \"{exePath}\" ]; then chmod +x \"{exePath}\"; fi");
-                if (string.IsNullOrWhiteSpace(exeArgs))
-                    script.AppendLine($"\"{exePath}\" &");
-                else
-                    script.AppendLine($"{exePath} {exeArgs} &");
-            }
+            script.AppendLine("if [ -f \"$EXE\" ]; then");
+            script.AppendLine("  chmod +x \"$EXE\"");
+            script.AppendLine("  \"$EXE\" &");
+            script.AppendLine("else");
+            script.AppendLine("  echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Restart skipped, executable not found at $EXE\" >> \"$LOG\"");
+            script.AppendLine("fi");
             script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater finished\" >> \"$LOG\"");
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
@@ -412,35 +410,9 @@ internal static class UpdateService
     private static string ResolveUpdatedExecutablePath(string destinationDir)
     {
         if (OperatingSystem.IsWindows())
-        {
-            string exe = Path.Combine(destinationDir, "ModHearth.exe");
-            if (File.Exists(exe))
-                return exe;
-        }
-        else
-        {
-            string bin = Path.Combine(destinationDir, "ModHearth");
-            if (File.Exists(bin))
-                return bin;
-        }
+            return Path.Combine(destinationDir, "ModHearth.exe");
 
-        string dll = Path.Combine(destinationDir, "ModHearth.dll");
-        if (File.Exists(dll))
-            return "dotnet";
-
-        return string.Empty;
-    }
-
-    private static string ResolveUpdatedExecutableArgs(string destinationDir, string exePath)
-    {
-        if (!string.Equals(exePath, "dotnet", StringComparison.OrdinalIgnoreCase))
-            return string.Empty;
-
-        string dll = Path.Combine(destinationDir, "ModHearth.dll");
-        if (File.Exists(dll))
-            return $"\"{dll}\"";
-
-        return string.Empty;
+        return Path.Combine(destinationDir, "ModHearth");
     }
 
     private static HttpClient CreateUpdateHttpClient()

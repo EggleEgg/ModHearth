@@ -1,0 +1,145 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:ModHearth.UI"
+        x:Class="ModHearth.UI.ModUpdateLogWindow"
+        Title="Mod Update Log"
+        Width="980"
+        Height="560"
+        MinWidth="820"
+        MinHeight="480">
+  <Window.DataTemplates>
+    <DataTemplate DataType="ui:ModUpdateLogItemViewModel">
+      <Border Padding="4,2" Background="{Binding BackgroundBrush}">
+        <Border.ContextMenu>
+          <ContextMenu Opened="ModContextMenuOpened">
+            <MenuItem Header="Delete local mod" Tag="delete-mod" Click="ModContextDeleteMod" />
+            <MenuItem Header="Unsubscribe from steam mod" Tag="unsubscribe-steam" IsVisible="False"
+              Click="ModContextUnsubscribeSteam" />
+            <MenuItem Header="Redownload steam mod" Tag="redownload-steam" IsVisible="False"
+              Click="ModContextRedownloadSteam" />
+            <Separator />
+            <MenuItem Header="Open Folder" Tag="open" Click="ModContextOpenFolder" />
+            <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False" Click="ModContextOpenSteam" />
+            <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
+          </ContextMenu>
+        </Border.ContextMenu>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{Binding DateColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="{Binding ModColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="{Binding TypeColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="{Binding StateColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="{Binding ActiveColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition Width="{Binding PathColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Text="{Binding DateText}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="2" Text="{Binding ModName}" Foreground="{Binding RowBrush}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Grid.Column="4" Text="{Binding SourceType}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="6" Text="{Binding StateText}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="8" Text="{Binding ActiveText}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="10" Text="{Binding Path}" Foreground="{Binding RowBrush}" TextTrimming="CharacterEllipsis" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <Grid Margin="12" RowDefinitions="Auto,*">
+    <Border x:Name="headerBorder" Margin="0,0,0,6" Padding="4,4">
+      <Grid ColumnSpacing="6"
+        Background="{Binding BackgroundColorBrush, RelativeSource={RelativeSource AncestorType=Window}}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="{Binding DateColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="{Binding ModColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="{Binding TypeColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="{Binding StateColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="{Binding ActiveColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+          <ColumnDefinition Width="6" />
+          <ColumnDefinition Width="{Binding PathColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+        </Grid.ColumnDefinitions>
+
+        <Button Tag="Date" Click="SortHeaderClicked" Background="{Binding Background, ElementName=headerBorder}" BorderThickness="0"
+          Padding="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="Date" FontWeight="Bold" />
+            <TextBlock x:Name="dateSortArrow" IsVisible="False" />
+          </StackPanel>
+        </Button>
+
+        <GridSplitter Grid.Column="1" Width="6" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+          Background="Transparent" ShowsPreview="True" />
+
+        <Button Grid.Column="2" Tag="Mod" Click="SortHeaderClicked" Background="{Binding Background, ElementName=headerBorder}" BorderThickness="0"
+          Padding="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="Mod" FontWeight="Bold" />
+            <TextBlock x:Name="modSortArrow" IsVisible="False" />
+          </StackPanel>
+        </Button>
+
+        <GridSplitter Grid.Column="3" Width="6" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+          Background="Transparent" ShowsPreview="True" />
+
+        <Button Grid.Column="4" Tag="Type" Click="SortHeaderClicked" Background="{Binding Background, ElementName=headerBorder}" BorderThickness="0"
+          Padding="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="Type" FontWeight="Bold" />
+            <TextBlock x:Name="typeSortArrow" IsVisible="False" />
+          </StackPanel>
+        </Button>
+
+        <GridSplitter Grid.Column="5" Width="6" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+          Background="Transparent" ShowsPreview="True" />
+
+        <Button Grid.Column="6" Tag="State" Click="SortHeaderClicked" Background="{Binding Background, ElementName=headerBorder}" BorderThickness="0"
+          Padding="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="State" FontWeight="Bold" />
+            <TextBlock x:Name="stateSortArrow" IsVisible="False" />
+          </StackPanel>
+        </Button>
+
+        <GridSplitter Grid.Column="7" Width="6" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+          Background="Transparent" ShowsPreview="True" />
+
+        <Button Grid.Column="8" Tag="Active" Click="SortHeaderClicked" Background="{Binding Background, ElementName=headerBorder}" BorderThickness="0"
+          Padding="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="Active" FontWeight="Bold" />
+            <TextBlock x:Name="activeSortArrow" IsVisible="False" />
+          </StackPanel>
+        </Button>
+
+        <GridSplitter Grid.Column="9" Width="6" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext"
+          Background="Transparent" ShowsPreview="True" />
+
+        <Button Grid.Column="10" Tag="Path" Click="SortHeaderClicked" Background="{Binding Background, ElementName=headerBorder}" BorderThickness="0"
+          Padding="0" HorizontalContentAlignment="Left" HorizontalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="Path" FontWeight="Bold" />
+            <TextBlock x:Name="pathSortArrow" IsVisible="False" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+
+    <ListBox x:Name="logList" Grid.Row="1" SelectionMode="Multiple">
+      <ListBox.ItemContainerTheme>
+        <ControlTheme TargetType="ListBoxItem">
+          <Setter Property="Padding" Value="0" />
+          <Setter Property="Margin" Value="0" />
+          <Setter Property="Background" Value="Transparent" />
+          <Setter Property="BorderThickness" Value="0" />
+        </ControlTheme>
+      </ListBox.ItemContainerTheme>
+    </ListBox>
+  </Grid>
+</Window>

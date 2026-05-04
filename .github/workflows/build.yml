@@ -100,7 +100,53 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Publish
-        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }} /p:MoveOutputDlls=false
+        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:UseAppHost=true /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }} /p:MoveOutputDlls=false
+      - name: Prune non-target runtimes (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          $publishDir = "bin\Release\net8.0\${{ matrix.rid }}\publish"
+          $runtimesDir = Join-Path $publishDir "runtimes"
+          if (Test-Path $runtimesDir) {
+            $removePatterns = @("linux*", "osx*", "maccatalyst*", "android*", "ios*", "tvos*", "browser*")
+            foreach ($pattern in $removePatterns) {
+              Get-ChildItem -Path $runtimesDir -Directory -Filter $pattern -ErrorAction SilentlyContinue |
+                Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+          $nativeDir = Join-Path $publishDir "native"
+          if (Test-Path $nativeDir) {
+            Get-ChildItem -Path $nativeDir -File -Include *.so, *.dylib -ErrorAction SilentlyContinue |
+              Remove-Item -Force -ErrorAction SilentlyContinue
+          }
+      - name: Prune non-target runtimes (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          publish_dir="bin/Release/net8.0/${{ matrix.rid }}/publish"
+          runtimes_dir="$publish_dir/runtimes"
+          if [ -d "$runtimes_dir" ]; then
+            case "${{ matrix.rid }}" in
+              linux-*)
+                remove_patterns=(win* osx* maccatalyst* android* ios* tvos* browser*)
+                ;;
+              osx-*)
+                remove_patterns=(win* linux* android* ios* tvos* browser*)
+                ;;
+              *)
+                remove_patterns=()
+                ;;
+            esac
+            for pattern in "${remove_patterns[@]}"; do
+              rm -rf "$runtimes_dir"/$pattern
+            done
+          fi
+
+          native_dir="$publish_dir/native"
+          if [ -d "$native_dir" ]; then
+            case "${{ matrix.rid }}" in
+              linux-*) find "$native_dir" -maxdepth 1 -type f -name "*.dylib" -delete ;;
+              osx-*) find "$native_dir" -maxdepth 1 -type f -name "*.so" -delete ;;
+            esac
+          fi
       - name: Verify publish output (Windows)
         if: matrix.os == 'windows-latest'
         run: |

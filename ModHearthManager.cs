@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
 
@@ -46,6 +47,9 @@ namespace ModHearth
 
         // Should this be in lightmode?
         public int theme { get; set; }
+
+        // Auto-reload interval for modlists in seconds. -1 means disabled by checkbox.
+        public int AutoReloadIntervalSeconds { get; set; } = -1;
 
     }
 
@@ -166,9 +170,10 @@ namespace ModHearth
         private static readonly string modSortRulesPath = Path.Combine(baseDir, "modsort_rules.json");
         private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
+        private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DuplicateWarningRegex = new("^Duplicate Object:\\s*(?<object>.+?);\\s*Offending mods are\\s*(?<mods>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private const string VanillaModIdPrefix = "vanilla_";
+        private const string DwarfFortressSteamAppId = "975370";
 
         // Mod problem tracker.
         public List<ModProblem> modproblems = new();
@@ -181,6 +186,10 @@ namespace ModHearth
         private List<HashSet<string>> duplicateWarningGroups = new();
         private string? lastLoggedErrorLogPath;
         private bool lastLoggedErrorLogExists;
+        private readonly object modManagerReloadGate = new();
+        private CancellationTokenSource? deferredModManagerReloadCts;
+        private static readonly TimeSpan DeferredModManagerReloadInterval = TimeSpan.FromSeconds(3);
+        private static readonly TimeSpan DeferredModManagerReloadTimeout = TimeSpan.FromMinutes(5);
 
         public ModHearthManager()
         {
@@ -203,6 +212,8 @@ namespace ModHearth
             Console.WriteLine();
             Console.WriteLine($"Found {modrefMap.Count} mods and {modpacks.Count} modlists");
             Console.WriteLine();
+
+            ModUpdateLogger.RecordChanges(modrefMap.Values, enabledMods, GetSteamWorkshopAcfPaths());
         }
 
 
@@ -296,13 +307,17 @@ namespace ModHearth
         {
             if (config == null || string.IsNullOrWhiteSpace(config.InstalledModsPath))
                 return GetDefaultInstalledModsPath();
+
+            if (IsInstalledModsUnderGameFolder(config.InstalledModsPath, config.DFFolderPath))
+                return GetDefaultInstalledModsPath();
+
             return config.InstalledModsPath;
         }
 
-        private string? GetVanillaModsPath()
+        public string GetVanillaModsPath()
         {
             if (string.IsNullOrWhiteSpace(config?.DFFolderPath))
-                return null;
+                return string.Empty;
 
             return Path.Combine(config.DFFolderPath, "data", "vanilla");
         }
@@ -334,8 +349,10 @@ namespace ModHearth
                 return false;
             if (string.IsNullOrWhiteSpace(config.ModsPath))
                 return false;
-            string modPath = Path.GetFullPath(modref.path);
-            string modsPath = Path.GetFullPath(config.ModsPath);
+            string modPath = NormalizeFileSystemPath(modref.path);
+            string modsPath = NormalizeFileSystemPath(config.ModsPath);
+            if (string.IsNullOrWhiteSpace(modPath) || string.IsNullOrWhiteSpace(modsPath))
+                return false;
             if (!IsPathUnderRoot(modPath, modsPath))
                 return false;
             return Directory.Exists(modPath);
@@ -355,7 +372,12 @@ namespace ModHearth
                 return false;
             }
 
-            string modPath = Path.GetFullPath(modref.path);
+            string modPath = NormalizeFileSystemPath(modref.path);
+            if (string.IsNullOrWhiteSpace(modPath))
+            {
+                message = "Mod path is invalid.";
+                return false;
+            }
             try
             {
                 Directory.Delete(modPath, true);
@@ -372,7 +394,7 @@ namespace ModHearth
             disabledMods.Remove(dfm);
             modrefMap.Remove(modref.DFHackCompatibleString());
             FindModlistProblems();
-            ReloadDFHackModManagerScreen();
+            RequestModManagerReload();
 
             message = $"Deleted {modPath}";
             return true;
@@ -383,12 +405,15 @@ namespace ModHearth
             string normalizedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             string normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             normalizedRoot += Path.DirectorySeparatorChar;
-            return normalizedPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+            StringComparison comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return normalizedPath.StartsWith(normalizedRoot, comparison);
         }
 
         private string GetDefaultInstalledModsPath()
         {
-            foreach (string candidate in GetInstalledModsPathCandidates(config?.DFFolderPath))
+            foreach (string candidate in GetInstalledModsPathCandidates())
             {
                 if (!string.IsNullOrWhiteSpace(candidate))
                     return candidate;
@@ -417,7 +442,7 @@ namespace ModHearth
 
             if (string.IsNullOrWhiteSpace(config.InstalledModsPath))
             {
-                string? installedMods = TryFindInstalledModsPath(config.DFFolderPath);
+                string? installedMods = TryFindInstalledModsPath();
                 if (!string.IsNullOrWhiteSpace(installedMods))
                 {
                     config.InstalledModsPath = installedMods;
@@ -467,28 +492,42 @@ namespace ModHearth
         {
             HashSet<string> libraries = new HashSet<string>(
                 OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            List<string> candidateRoots = GetSteamRootCandidates()
+                .Where(root => !string.IsNullOrWhiteSpace(root))
+                .ToList();
 
-            foreach (string root in GetSteamRootCandidates())
+            LogAdvancedSteam($"Steam root candidates ({candidateRoots.Count}): {FormatPathListForLog(candidateRoots)}");
+
+            foreach (string root in candidateRoots)
             {
                 if (string.IsNullOrWhiteSpace(root))
                     continue;
 
-                if (!Directory.Exists(root))
+                string normalizedRoot = NormalizeFileSystemPath(root);
+                if (string.IsNullOrWhiteSpace(normalizedRoot))
                     continue;
 
-                if (Directory.Exists(Path.Combine(root, "steamapps")))
-                    libraries.Add(root);
+                if (!Directory.Exists(normalizedRoot))
+                    continue;
 
-                foreach (string library in ReadSteamLibraryFolders(root))
+                if (Directory.Exists(Path.Combine(normalizedRoot, "steamapps")))
+                    libraries.Add(normalizedRoot);
+
+                foreach (string library in ReadSteamLibraryFolders(normalizedRoot))
                 {
                     if (string.IsNullOrWhiteSpace(library))
                         continue;
 
-                    if (Directory.Exists(Path.Combine(library, "steamapps")))
-                        libraries.Add(library);
+                    string normalizedLibrary = NormalizeFileSystemPath(library);
+                    if (string.IsNullOrWhiteSpace(normalizedLibrary))
+                        continue;
+
+                    if (Directory.Exists(Path.Combine(normalizedLibrary, "steamapps")))
+                        libraries.Add(normalizedLibrary);
                 }
             }
 
+            LogAdvancedSteam($"Steam library roots discovered ({libraries.Count}): {FormatPathListForLog(libraries)}");
             return libraries;
         }
 
@@ -516,6 +555,8 @@ namespace ModHearth
                 yield return Path.Combine(home, ".steam", "steam");
                 yield return Path.Combine(home, ".steam", "root");
                 yield return Path.Combine(home, ".local", "share", "Steam");
+                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam");
+                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam");
             }
         }
 
@@ -572,7 +613,10 @@ namespace ModHearth
 
             string vdfPath = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
             if (!File.Exists(vdfPath))
+            {
+                LogAdvancedSteam($"Steam library file missing: {vdfPath}");
                 return libraries;
+            }
 
             try
             {
@@ -587,11 +631,13 @@ namespace ModHearth
                         libraries.Add(normalized);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Ignore errors when reading Steam library folders.
+                LogAdvancedSteam($"Failed reading Steam library file '{vdfPath}': {ex.Message}");
             }
 
+            LogAdvancedSteam($"Parsed Steam libraries from '{vdfPath}' ({libraries.Count}): {FormatPathListForLog(libraries)}");
             return libraries;
         }
 
@@ -619,8 +665,85 @@ namespace ModHearth
         {
             string normalized = path.Trim();
             if (OperatingSystem.IsWindows())
-                normalized = normalized.Replace("\\\\", "\\");
+                normalized = normalized.Replace("\\\\", "\\").Replace('/', '\\');
+            else
+                normalized = normalized.Replace('\\', '/');
+
+            return NormalizeFileSystemPath(normalized);
+        }
+
+        private static string NormalizeFileSystemPath(string path)
+        {
+            string normalized = path?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(normalized))
+                return string.Empty;
+
+            if (OperatingSystem.IsWindows())
+                normalized = normalized.Replace('/', '\\');
+            else
+                normalized = normalized.Replace('\\', '/');
+
+            try
+            {
+                normalized = Path.GetFullPath(normalized);
+            }
+            catch
+            {
+                // Ignore normalization failures and keep the original path.
+            }
+
             return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+
+        private static bool IsAdvancedSteamLoggingEnabled()
+        {
+            string? value = Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE");
+            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void LogAdvancedSteam(string message)
+        {
+            if (!IsAdvancedSteamLoggingEnabled())
+                return;
+
+            SteamConnectionLogger.Log($"[DIAG] {message}");
+        }
+
+        private static string FormatPathListForLog(IEnumerable<string> paths, int maxItems = 24)
+        {
+            if (paths == null)
+                return "(none)";
+
+            List<string> list = paths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => NormalizeFileSystemPath(path))
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+                .ToList();
+
+            if (list.Count == 0)
+                return "(none)";
+
+            if (list.Count <= maxItems)
+                return string.Join(" | ", list);
+
+            IEnumerable<string> shown = list.Take(maxItems);
+            return $"{string.Join(" | ", shown)} | ... (+{list.Count - maxItems} more)";
+        }
+
+        private static bool TryExtractSteamWorkshopItemIdFromPath(string? path, out string steamItemId)
+        {
+            steamItemId = string.Empty;
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            string normalizedPath = path.Replace('\\', '/');
+            Match pathMatch = SteamWorkshopPathRegex.Match(normalizedPath);
+            if (!pathMatch.Success)
+                return false;
+
+            return TryParsePositiveSteamId(pathMatch.Groups["id"].Value, out steamItemId);
         }
 
         private static bool IsLikelyDwarfFortressFolder(string path)
@@ -650,9 +773,108 @@ namespace ModHearth
             return false;
         }
 
-        private string? TryFindInstalledModsPath(string? dfFolderPath)
+        private IEnumerable<string> EnumerateSteamAppsRoots()
         {
-            foreach (string candidate in GetInstalledModsPathCandidates(dfFolderPath))
+            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            HashSet<string> steamAppsRoots = new HashSet<string>(comparer);
+
+            foreach (string libraryRoot in EnumerateSteamLibraryRoots())
+            {
+                if (string.IsNullOrWhiteSpace(libraryRoot))
+                    continue;
+
+                string steamAppsRoot = NormalizeFileSystemPath(Path.Combine(libraryRoot, "steamapps"));
+                if (string.IsNullOrWhiteSpace(steamAppsRoot))
+                    continue;
+
+                if (!Directory.Exists(steamAppsRoot))
+                    continue;
+
+                steamAppsRoots.Add(steamAppsRoot);
+            }
+
+            LogAdvancedSteam($"SteamApps roots ({steamAppsRoots.Count}): {FormatPathListForLog(steamAppsRoots)}");
+            return steamAppsRoots;
+        }
+
+        public IEnumerable<string> GetSteamWorkshopContentPaths()
+        {
+            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            HashSet<string> paths = new HashSet<string>(comparer);
+            List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
+            LogAdvancedSteam($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
+            foreach (string steamAppsRoot in steamAppsRoots)
+            {
+                string candidate = NormalizeFileSystemPath(
+                    Path.Combine(steamAppsRoot, "workshop", "content", DwarfFortressSteamAppId));
+                if (string.IsNullOrWhiteSpace(candidate))
+                    continue;
+
+                if (Directory.Exists(candidate))
+                {
+                    paths.Add(candidate);
+                    LogAdvancedSteam($"Workshop content path found: {candidate}");
+                }
+                else
+                {
+                    LogAdvancedSteam($"Workshop content path missing: {candidate}");
+                }
+            }
+
+            LogAdvancedSteam($"Workshop content paths discovered ({paths.Count}): {FormatPathListForLog(paths)}");
+            return paths;
+        }
+
+        public IEnumerable<string> GetSteamWorkshopAcfPaths()
+        {
+            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            HashSet<string> paths = new HashSet<string>(comparer);
+            List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
+
+            SteamConnectionLogger.Log(
+                $"Steam workshop scan started for app {DwarfFortressSteamAppId}. Library roots discovered: {steamAppsRoots.Count}.");
+
+            foreach (string steamAppsRoot in steamAppsRoots)
+            {
+                if (string.IsNullOrWhiteSpace(steamAppsRoot))
+                    continue;
+
+                string primaryCandidate = Path.Combine(steamAppsRoot, $"appworkshop_{DwarfFortressSteamAppId}.acf");
+                if (File.Exists(primaryCandidate))
+                    paths.Add(NormalizeFileSystemPath(primaryCandidate));
+
+                string workshopCandidate = Path.Combine(steamAppsRoot, "workshop", $"appworkshop_{DwarfFortressSteamAppId}.acf");
+                if (File.Exists(workshopCandidate))
+                    paths.Add(NormalizeFileSystemPath(workshopCandidate));
+            }
+
+            if (paths.Count == 0)
+            {
+                SteamConnectionLogger.Log("Steam workshop scan completed: no workshop ACF files found.");
+            }
+            else
+            {
+                SteamConnectionLogger.Log($"Steam workshop scan completed: found {paths.Count} workshop ACF file(s).");
+                foreach (string path in paths.OrderBy(path => path, comparer))
+                    SteamConnectionLogger.Log($"Steam workshop ACF: {path}");
+            }
+
+            LogAdvancedSteam($"Workshop ACF paths resolved ({paths.Count}): {FormatPathListForLog(paths)}");
+            return paths;
+        }
+
+        private string? TryFindInstalledModsPath()
+        {
+            foreach (string candidate in GetInstalledModsPathCandidates())
+            {
+                if (string.IsNullOrWhiteSpace(candidate))
+                    continue;
+
+                if (Directory.Exists(candidate))
+                    return candidate;
+            }
+
+            foreach (string candidate in GetLinuxProtonInstalledModsPathCandidates())
             {
                 if (string.IsNullOrWhiteSpace(candidate))
                     continue;
@@ -664,13 +886,50 @@ namespace ModHearth
             return string.Empty;
         }
 
-        private static IEnumerable<string> GetInstalledModsPathCandidates(string? dfFolderPath)
+        private static IEnumerable<string> GetInstalledModsPathCandidates()
         {
-            if (!string.IsNullOrWhiteSpace(dfFolderPath))
-                yield return Path.Combine(dfFolderPath, "data", "installed_mods");
-
             foreach (string basePath in GetAppDataBasePaths())
+            {
+                yield return Path.Combine(basePath, "Dwarf Fortress", "data", "installed_mods");
                 yield return Path.Combine(basePath, "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
+            }
+        }
+
+        private IEnumerable<string> GetLinuxProtonInstalledModsPathCandidates()
+        {
+            if (!OperatingSystem.IsLinux())
+                yield break;
+
+            foreach (string libraryRoot in EnumerateSteamLibraryRoots())
+            {
+                if (string.IsNullOrWhiteSpace(libraryRoot))
+                    continue;
+
+                string compatRoot = Path.Combine(libraryRoot, "steamapps", "compatdata", DwarfFortressSteamAppId, "pfx",
+                    "drive_c", "users", "steamuser", "AppData");
+
+                yield return Path.Combine(compatRoot, "Local", "Dwarf Fortress", "data", "installed_mods");
+                yield return Path.Combine(compatRoot, "Local", "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
+                yield return Path.Combine(compatRoot, "Roaming", "Dwarf Fortress", "data", "installed_mods");
+                yield return Path.Combine(compatRoot, "Roaming", "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
+            }
+        }
+
+        private static bool IsInstalledModsUnderGameFolder(string installedModsPath, string? dfFolderPath)
+        {
+            if (string.IsNullOrWhiteSpace(installedModsPath) || string.IsNullOrWhiteSpace(dfFolderPath))
+                return false;
+
+            try
+            {
+                string installedFull = Path.GetFullPath(installedModsPath);
+                string dfFull = Path.GetFullPath(dfFolderPath);
+                return IsPathUnderRoot(installedFull, dfFull);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static IEnumerable<string> GetAppDataBasePaths()
@@ -766,12 +1025,9 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                     continue;
 
-                foreach (string dir in Directory.EnumerateDirectories(root))
+                foreach (string dir in EnumerateModDirectoriesWithInfo(root))
                 {
                     string infoPath = Path.Combine(dir, "info.txt");
-                    if (!File.Exists(infoPath))
-                        continue;
-
                     try
                     {
                         string info = File.ReadAllText(infoPath);
@@ -798,6 +1054,7 @@ namespace ModHearth
             if (!DwarfFortressRunning())
             {
                 Console.WriteLine("DF not running. Falling back to filesystem scan.");
+                LogAdvancedSteam("DF process not detected. Using filesystem mod scan.");
                 FindAllModsFromDisk();
                 return;
             }
@@ -817,9 +1074,12 @@ namespace ModHearth
             catch (UserActionRequiredException)
             {
                 Console.WriteLine("DF not on world creation screen. Falling back to filesystem scan.");
+                LogAdvancedSteam("DFHack memory query unavailable (not on world creation screen). Using filesystem mod scan.");
                 FindAllModsFromDisk();
                 return;
             }
+
+            LogAdvancedSteam($"DFHack memory mod entries received: {modData.Count}.");
             Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
 
             foreach (Dictionary<string, string> modDataEntry in modData)
@@ -840,6 +1100,7 @@ namespace ModHearth
         {
             modrefMap = new Dictionary<string, ModReference>();
             modPool = new HashSet<DFHMod>();
+            bool diagnosticsEnabled = IsAdvancedSteamLoggingEnabled();
 
             Console.WriteLine("Finding all mods (filesystem)...");
 
@@ -848,12 +1109,13 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                     continue;
 
-                foreach (string dir in Directory.EnumerateDirectories(root))
+                int candidateCount = 0;
+                int addedCount = 0;
+                int duplicateCount = 0;
+                foreach (string dir in EnumerateModDirectoriesWithInfo(root))
                 {
+                    candidateCount++;
                     string infoPath = Path.Combine(dir, "info.txt");
-                    if (!File.Exists(infoPath))
-                        continue;
-
                     Dictionary<string, string> modData = BuildModMemoryDataFromInfo(infoPath, dir, out bool missingVersion);
                     if (!modData.TryGetValue("id", out string? id) || string.IsNullOrWhiteSpace(id))
                         continue;
@@ -865,19 +1127,57 @@ namespace ModHearth
 
                     string key = modRef.DFHackCompatibleString();
                     if (modrefMap.ContainsKey(key))
+                    {
+                        duplicateCount++;
                         continue;
+                    }
 
                     Console.WriteLine($"   Mod found + registered: {modRef.name}.");
                     modrefMap.Add(key, modRef);
                     modPool.Add(modRef.ToDFHMod());
+                    addedCount++;
+                }
+
+                if (diagnosticsEnabled)
+                {
+                    LogAdvancedSteam(
+                        $"Disk mod scan root='{NormalizeFileSystemPath(root)}' candidates={candidateCount}, added={addedCount}, duplicates={duplicateCount}, total_registered={modrefMap.Count}.");
                 }
             }
+
+            if (diagnosticsEnabled)
+                LogAdvancedSteam($"Disk mod scan completed. Total registered mods={modrefMap.Count}.");
         }
 
         private IEnumerable<string> EnumerateModRoots()
         {
+            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            HashSet<string> seen = new HashSet<string>(comparer);
+            List<string> resolvedRoots = new List<string>();
+
+            IEnumerable<string> configuredRoots = EnumerateConfiguredModRoots();
+            foreach (string root in configuredRoots)
+            {
+                string normalizedRoot = NormalizeFileSystemPath(root);
+                if (string.IsNullOrWhiteSpace(normalizedRoot))
+                    continue;
+
+                if (seen.Add(normalizedRoot))
+                    resolvedRoots.Add(normalizedRoot);
+            }
+
+            LogAdvancedSteam($"Effective mod roots ({resolvedRoots.Count}): {FormatPathListForLog(resolvedRoots)}");
+            foreach (string root in resolvedRoots)
+                yield return root;
+        }
+
+        private IEnumerable<string> EnumerateConfiguredModRoots()
+        {
             if (!string.IsNullOrWhiteSpace(config?.ModsPath))
                 yield return config.ModsPath;
+
+            foreach (string workshopPath in GetSteamWorkshopContentPaths())
+                yield return workshopPath;
 
             string installedModsPath = GetInstalledModsPath();
             if (!string.IsNullOrWhiteSpace(installedModsPath))
@@ -888,6 +1188,36 @@ namespace ModHearth
                 string? vanillaPath = GetVanillaModsPath();
                 if (!string.IsNullOrWhiteSpace(vanillaPath))
                     yield return vanillaPath;
+            }
+        }
+
+        private static IEnumerable<string> EnumerateModDirectoriesWithInfo(string root)
+        {
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+                yield break;
+
+            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            HashSet<string> seen = new HashSet<string>(comparer);
+
+            foreach (string candidate in Directory.EnumerateDirectories(root))
+            {
+                string infoPath = Path.Combine(candidate, "info.txt");
+                if (File.Exists(infoPath))
+                {
+                    if (seen.Add(candidate))
+                        yield return candidate;
+                    continue;
+                }
+
+                foreach (string nested in Directory.EnumerateDirectories(candidate))
+                {
+                    string nestedInfoPath = Path.Combine(nested, "info.txt");
+                    if (!File.Exists(nestedInfoPath))
+                        continue;
+
+                    if (seen.Add(nested))
+                        yield return nested;
+                }
             }
         }
 
@@ -919,6 +1249,16 @@ namespace ModHearth
             string earliestCompatibleDisplayed = GetInfoTag(tags, "EARLIEST_COMPATIBLE_DISPLAYED_VERSION") ??
                                                 GetInfoTag(tags, "EARLIEST_COMPATIBLE_VERSION") ??
                                                 displayedVersion;
+            string steamFileId = (GetInfoTag(tags, "STEAM_FILE_ID") ?? string.Empty).Trim();
+            if (!TryParsePositiveSteamId(steamFileId, out string normalizedSteamFileId))
+            {
+                if (TryExtractSteamWorkshopItemIdFromPath(modPath, out string steamItemIdFromPath))
+                    steamFileId = steamItemIdFromPath;
+            }
+            else
+            {
+                steamFileId = normalizedSteamFileId;
+            }
 
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -930,7 +1270,7 @@ namespace ModHearth
                 ["author"] = author,
                 ["name"] = name,
                 ["description"] = description,
-                ["steam_file_id"] = GetInfoTag(tags, "STEAM_FILE_ID") ?? string.Empty,
+                ["steam_file_id"] = steamFileId,
                 ["steam_title"] = GetInfoTag(tags, "STEAM_TITLE") ?? string.Empty,
                 ["steam_description"] = GetInfoTag(tags, "STEAM_DESCRIPTION") ?? string.Empty,
                 ["src_dir"] = modPath
@@ -970,20 +1310,14 @@ namespace ModHearth
         {
             Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            string installedModsPath = Path.Combine(config.DFFolderPath, "data", "installed_mods");
-            List<string> roots = new List<string> { config.ModsPath, installedModsPath };
-
-            foreach (string root in roots)
+            foreach (string root in EnumerateModRoots())
             {
                 if (!Directory.Exists(root))
                     continue;
 
-                foreach (string dir in Directory.EnumerateDirectories(root))
+                foreach (string dir in EnumerateModDirectoriesWithInfo(root))
                 {
                     string infoPath = Path.Combine(dir, "info.txt");
-                    if (!File.Exists(infoPath))
-                        continue;
-
                     try
                     {
                         string info = File.ReadAllText(infoPath);
@@ -992,7 +1326,10 @@ namespace ModHearth
                         {
                             string id = idMatch.Groups[1].Value.Trim();
                             if (!string.IsNullOrEmpty(id))
-                                map[id] = dir;
+                            {
+                                if (!map.ContainsKey(id))
+                                    map[id] = dir;
+                            }
                         }
                     }
                     catch
@@ -1002,13 +1339,25 @@ namespace ModHearth
                 }
             }
 
+            LogAdvancedSteam($"Mod ID path map entries: {map.Count}.");
             return map;
         }
 
         private string ResolveModPath(Dictionary<string, string> modDataEntry, Dictionary<string, string> modIdPathMap)
         {
-            string rawSrcDir = modDataEntry["src_dir"];
-            string fullPath = Path.Combine(config.DFFolderPath, rawSrcDir);
+            string rawSrcDir = modDataEntry.TryGetValue("src_dir", out string? srcDirValue)
+                ? srcDirValue ?? string.Empty
+                : string.Empty;
+            if (string.IsNullOrWhiteSpace(rawSrcDir))
+                return string.Empty;
+
+            // Already absolute and valid.
+            if (Directory.Exists(rawSrcDir))
+                return Path.GetFullPath(rawSrcDir);
+
+            string fullPath = string.IsNullOrWhiteSpace(config?.DFFolderPath)
+                ? rawSrcDir
+                : Path.Combine(config.DFFolderPath, rawSrcDir);
 
             if (Directory.Exists(fullPath))
                 return fullPath;
@@ -1017,14 +1366,15 @@ namespace ModHearth
             string rawFolderName = Path.GetFileName(rawSrcDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             if (!string.IsNullOrEmpty(rawFolderName))
             {
-                string candidate = Path.Combine(config.ModsPath, rawFolderName);
-                if (Directory.Exists(candidate))
-                    return candidate;
+                foreach (string root in EnumerateModRoots())
+                {
+                    if (string.IsNullOrWhiteSpace(root))
+                        continue;
 
-                string installedModsPath = Path.Combine(config.DFFolderPath, "data", "installed_mods");
-                candidate = Path.Combine(installedModsPath, rawFolderName);
-                if (Directory.Exists(candidate))
-                    return candidate;
+                    string candidate = Path.Combine(root, rawFolderName);
+                    if (Directory.Exists(candidate))
+                        return candidate;
+                }
             }
 
             // Fall back to ID-based lookup.
@@ -1034,6 +1384,15 @@ namespace ModHearth
                 !string.IsNullOrWhiteSpace(mappedPath))
             {
                 return mappedPath;
+            }
+
+            if (IsAdvancedSteamLoggingEnabled())
+            {
+                string modId = modDataEntry.TryGetValue("id", out string? unresolvedId)
+                    ? (unresolvedId ?? string.Empty)
+                    : string.Empty;
+                LogAdvancedSteam(
+                    $"ResolveModPath fallback unresolved. id='{modId}', raw_src='{rawSrcDir}', resolved='{NormalizeFileSystemPath(fullPath)}'.");
             }
 
             return fullPath;
@@ -1202,21 +1561,35 @@ namespace ModHearth
                 IsSavingModpacks = false;
             }
 
-            ReloadDFHackModManagerScreen();
+            RequestModManagerReload();
         }
 
-        private void ReloadDFHackModManagerScreen()
+        private void RequestModManagerReload()
+        {
+            const int initialChecks = 1;
+            bool reloaded = ReloadDFHackModManagerScreen();
+            if (reloaded)
+            {
+                Console.WriteLine("[ModHearth] Mod manager reload applied after 1 check.");
+                CancelDeferredModManagerReload();
+                return;
+            }
+
+            ScheduleDeferredModManagerReload(initialChecks);
+        }
+
+        private bool ReloadDFHackModManagerScreen()
         {
             if (!DwarfFortressRunning())
-                return;
+                return false;
 
             string dfhackRunPath = GetDfhackRunPath();
             if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
-                return;
+                return false;
 
             string luaPath = Path.Combine(AppContext.BaseDirectory, "lua", "ReloadModManager.lua");
             if (!File.Exists(luaPath))
-                return;
+                return false;
 
             ProcessStartInfo processStartInfo = new ProcessStartInfo
             {
@@ -1240,10 +1613,100 @@ namespace ModHearth
                     Console.WriteLine(output.TrimEnd());
                 if (!string.IsNullOrWhiteSpace(error))
                     Console.WriteLine(error.TrimEnd());
+
+                bool applied = !string.IsNullOrWhiteSpace(output) &&
+                    (output.Contains("[ModHearth] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
+                     output.Contains("[ModHearth] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase) ||
+                     output.Contains("[ReloadManager] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
+                     output.Contains("[ReloadManager] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase));
+                return applied;
             }
             catch
             {
                 // Ignore reload failures to avoid disrupting saving.
+                return false;
+            }
+        }
+
+        private void ScheduleDeferredModManagerReload(int initialChecks)
+        {
+            if (!DwarfFortressRunning())
+                return;
+
+            CancellationTokenSource cts = new CancellationTokenSource();
+            lock (modManagerReloadGate)
+            {
+                deferredModManagerReloadCts?.Cancel();
+                deferredModManagerReloadCts?.Dispose();
+                deferredModManagerReloadCts = cts;
+            }
+
+            Console.WriteLine("[ModHearth] Mod manager reload deferred; waiting for moddable screen.");
+            _ = Task.Run(() => DeferredModManagerReloadWorkerAsync(cts, initialChecks));
+        }
+
+        private void CancelDeferredModManagerReload()
+        {
+            lock (modManagerReloadGate)
+            {
+                deferredModManagerReloadCts?.Cancel();
+                deferredModManagerReloadCts?.Dispose();
+                deferredModManagerReloadCts = null;
+            }
+        }
+
+        private async Task DeferredModManagerReloadWorkerAsync(CancellationTokenSource cts, int initialChecks)
+        {
+            DateTime deadline = DateTime.UtcNow + DeferredModManagerReloadTimeout;
+            int checksPerformed = Math.Max(initialChecks, 0);
+            bool applied = false;
+            try
+            {
+                while (!cts.IsCancellationRequested && DateTime.UtcNow < deadline)
+                {
+                    try
+                    {
+                        await Task.Delay(DeferredModManagerReloadInterval, cts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+
+                    if (cts.IsCancellationRequested)
+                        break;
+
+                    checksPerformed++;
+                    if (ReloadDFHackModManagerScreen())
+                    {
+                        applied = true;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                if (applied)
+                {
+                    Console.WriteLine($"[ModHearth] Deferred mod manager reload applied after {checksPerformed} checks.");
+                }
+                else if (!cts.IsCancellationRequested && DateTime.UtcNow >= deadline)
+                {
+                    Console.WriteLine($"[ModHearth] Deferred mod manager reload timed out after {checksPerformed} checks.");
+                }
+
+                lock (modManagerReloadGate)
+                {
+                    if (ReferenceEquals(deferredModManagerReloadCts, cts))
+                    {
+                        deferredModManagerReloadCts.Dispose();
+                        deferredModManagerReloadCts = null;
+                    }
+                    else
+                    {
+                        cts.Dispose();
+                    }
+                }
             }
         }
 
@@ -1684,7 +2147,7 @@ namespace ModHearth
             return true;
         }
 
-        // Generate a vanilla modlist by selecting mods with the vanilla ID prefix.
+        // Generate a vanilla modlist by selecting mods physically located under data/vanilla.
         public List<DFHMod> GenerateVanillaModlist()
         {
             string? vanillaPath = GetVanillaModsPath();
@@ -1695,20 +2158,12 @@ namespace ModHearth
             List<ModReference> vanillaRefs = new List<ModReference>();
             foreach (ModReference modref in modrefMap.Values)
             {
-                if (string.IsNullOrWhiteSpace(modref.ID))
-                    continue;
-                if (!modref.ID.StartsWith(VanillaModIdPrefix, StringComparison.OrdinalIgnoreCase))
+                if (!hasVanillaPath || string.IsNullOrWhiteSpace(modref.path))
                     continue;
 
-                if (hasVanillaPath)
-                {
-                    if (string.IsNullOrWhiteSpace(modref.path))
-                        continue;
-
-                    string modPath = Path.GetFullPath(modref.path);
-                    if (!IsPathUnderRoot(modPath, vanillaPath!))
-                        continue;
-                }
+                string modPath = Path.GetFullPath(modref.path);
+                if (!IsPathUnderRoot(modPath, vanillaPath!))
+                    continue;
 
                 vanillaRefs.Add(modref);
             }
@@ -1737,6 +2192,21 @@ namespace ModHearth
         public void SetTheme(int theme)
         {
             config.theme = theme;
+            SaveConfigFile();
+        }
+
+        public int GetAutoReloadIntervalSeconds()
+        {
+            if (config == null)
+                return -1;
+            return config.AutoReloadIntervalSeconds;
+        }
+
+        public void SetAutoReloadIntervalSeconds(int seconds)
+        {
+            if (config == null)
+                config = new ModHearthConfig();
+            config.AutoReloadIntervalSeconds = seconds;
             SaveConfigFile();
         }
 

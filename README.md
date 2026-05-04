@@ -25,8 +25,11 @@ Information on the four buttons from left to right:
 
 ### Keyboard Shortcuts and Controls
 - Shift + click top to bottom to select multiple mods.
-- Ctrl+Z triggers the undo button.
-- Ctrl+Y re‑applies the last undone modlist.
+- Ctrl + click toggles individual mods in a multi-selection.
+- Ctrl+Z triggers undo.
+- Ctrl+Y re‑applies the last undone change.
+- Delete selects the previously selected mod.
+- Backspace removes the selected mods.
 
 ## Contributor Information
 
