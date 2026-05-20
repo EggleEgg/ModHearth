@@ -3,6 +3,7 @@ name: Build & Release
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -97,6 +98,8 @@ jobs:
       - name: Test (Windows/macOS)
         if: matrix.os != 'ubuntu-latest'
         run: dotnet test ModHearth.sln -c Release --no-build --no-restore
+      - name: Build publish runtime target
+        run: dotnet build ModHearth.csproj -c Release -r ${{ matrix.rid }} --no-restore /p:MoveOutputDlls=false
       - name: Publish
         run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:UseAppHost=true /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }} /p:MoveOutputDlls=false --no-build --no-restore
       - name: Prune + verify + package (Windows)
