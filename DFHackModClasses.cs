@@ -16,6 +16,7 @@ namespace ModHearth
     {
         public string id { get; set; }
         public int version { get; set; }
+        private static readonly StringComparer IdComparer = StringComparer.OrdinalIgnoreCase;
 
         // For display and hash function.
         public override string ToString()
@@ -29,7 +30,8 @@ namespace ModHearth
             if (ReferenceEquals(lhs, rhs)) return true;
             if (ReferenceEquals(lhs, null)) return false;
             if (ReferenceEquals(rhs, null)) return false;
-            return lhs.ToString() == rhs.ToString();
+            return lhs.version == rhs.version &&
+                   IdComparer.Equals(lhs.id, rhs.id);
         }
         public static bool operator !=(DFHMod lhs, DFHMod rhs)
         {
@@ -39,7 +41,7 @@ namespace ModHearth
         // Simple hash code generation using tostring.
         public override int GetHashCode()
         {
-            return ToString().GetHashCode();
+            return HashCode.Combine(IdComparer.GetHashCode(id ?? string.Empty), version);
         }
 
         // Just use ==.

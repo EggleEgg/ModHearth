@@ -115,7 +115,28 @@ namespace ModHearth
             }
 
             HashSet<string> enabledIds = new HashSet<string>(enabledRefs.Select(m => m.ID), StringComparer.OrdinalIgnoreCase);
-            Queue<ModReference> queue = new Queue<ModReference>(enabledRefs);
+            foreach (ModSortRule rule in sortRules)
+            {
+                if (rule == null)
+                    continue;
+
+                string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(requiredId))
+                    continue;
+                if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
+                    continue;
+
+                enabledIds.Add(requiredRef.ID);
+            }
+
+            Queue<ModReference> queue = new Queue<ModReference>();
+            foreach (string enabledId in enabledIds)
+            {
+                if (!idMap.TryGetValue(enabledId, out ModReference? enabledRef) || enabledRef == null)
+                    continue;
+                queue.Enqueue(enabledRef);
+            }
+
             while (queue.Count > 0)
             {
                 ModReference current = queue.Dequeue();

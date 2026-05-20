@@ -189,7 +189,7 @@
           </Button>
           <Button x:Name="reloadButton" Grid.Column="3" Height="42" Padding="0"
             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-            ToolTip.Tip="Reload modlists from disk. Right click to autoreload">
+            ToolTip.Tip="Reload local/steam workshop modlists and mods. Right click to autoreload">
             <Image Source="{ui:AssetImage reloadIcon}" />
           </Button>
         </Grid>

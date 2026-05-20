@@ -87,8 +87,8 @@ namespace ModHearth
             conflicts_with = new List<string>();
 
             // In theory info file is always present, but handle missing files gracefully.
-            string modInfoPath = Path.Combine(path, "info.txt");
-            if (File.Exists(modInfoPath))
+            string? modInfoPath = ResolveInfoPath(path);
+            if (!string.IsNullOrWhiteSpace(modInfoPath))
             {
                 string modInfo = File.ReadAllText(modInfoPath);
 
@@ -122,7 +122,8 @@ namespace ModHearth
             }
             else
             {
-                Console.WriteLine($"   Warning: info.txt missing for mod '{name}' at '{modInfoPath}'. Skipping dependency parsing.");
+                string expected = Path.Combine(path, "info.txt");
+                Console.WriteLine($"   Warning: info.txt missing for mod '{name}' at '{expected}'. Skipping dependency parsing.");
             }
 
             // Set problematic based on if this mod has extra needs.
@@ -144,6 +145,27 @@ namespace ModHearth
         {
             DFHMod temp = ToDFHMod();
             return temp.ToString();
+        }
+
+        private static string? ResolveInfoPath(string modPath)
+        {
+            if (string.IsNullOrWhiteSpace(modPath) || !Directory.Exists(modPath))
+                return null;
+
+            string infoPath = Path.Combine(modPath, "info.txt");
+            if (File.Exists(infoPath))
+                return infoPath;
+
+            try
+            {
+                return Directory.EnumerateFiles(modPath)
+                    .FirstOrDefault(file =>
+                        string.Equals(Path.GetFileName(file), "info.txt", StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

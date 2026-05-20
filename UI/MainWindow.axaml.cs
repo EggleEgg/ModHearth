@@ -337,47 +337,51 @@ public partial class MainWindow : Window
 
     private async Task InitializeAsync()
     {
-        if (IsDevMode())
-        {
-            SetupModlistBox();
-            ApplyStyle(manager.LoadStyle());
-            BuildModViewModels();
-            RefreshModlistPanels();
-            clearInstalledModsButton.IsEnabled = Directory.Exists(manager.GetInstalledModsPath());
-            modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
-            SetChangesMade(false);
-            return;
-        }
+        bool isDevMode = IsDevMode();
 
-        bool configReady = await EnsureConfigAsync();
-        if (!configReady)
+        if (!isDevMode)
         {
-            Close();
-            return;
-        }
-
-        while (true)
-        {
-            try
+            bool configReady = await EnsureConfigAsync();
+            if (!configReady)
             {
-                manager.Initialize();
-                UpdateDfHackStatus();
-                break;
+                Close();
+                return;
             }
-            catch (UserActionRequiredException ex)
+
+            while (true)
             {
-                bool retry = await DialogService.ShowConfirmAsync(this, ex.Message, "Dwarf Fortress required");
-                if (!retry)
+                try
                 {
+                    manager.Initialize();
+                    UpdateDfHackStatus();
+                    break;
+                }
+                catch (UserActionRequiredException ex)
+                {
+                    bool retry = await DialogService.ShowConfirmAsync(this, ex.Message, "Dwarf Fortress required");
+                    if (!retry)
+                    {
+                        Close();
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await DialogService.ShowMessageAsync(this, ex.Message, "Initialization failed");
                     Close();
                     return;
                 }
             }
+        }
+        else
+        {
+            try
+            {
+                manager.Initialize();
+            }
             catch (Exception ex)
             {
-                await DialogService.ShowMessageAsync(this, ex.Message, "Initialization failed");
-                Close();
-                return;
+                Console.WriteLine($"[DEV] Initialization failed in dev mode: {ex}");
             }
         }
 
@@ -399,7 +403,8 @@ public partial class MainWindow : Window
         modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
         UpdateDfHackStatus();
         SetChangesMade(false);
-        SetupModManagerWatcher();
+        if (!isDevMode)
+            SetupModManagerWatcher();
     }
 
     private static bool IsDevMode()
@@ -510,7 +515,7 @@ public partial class MainWindow : Window
     private void BuildModViewModels()
     {
         modViewMap.Clear();
-        string modsFolderPath = manager.GetConfig()?.ModsPath ?? string.Empty;
+        string modsFolderPath = manager.GetModsPath();
         string vanillaFolderPath = manager.GetVanillaModsPath();
         foreach (DFHMod dfm in manager.modPool)
         {
@@ -1610,18 +1615,41 @@ public partial class MainWindow : Window
         modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
 
         IImage? previewImage = null;
-        string previewSvgPath = Path.Combine(modref.path, "preview.svg");
-        if (File.Exists(previewSvgPath))
+        string? previewSvgPath = ResolveFilePathCaseInsensitive(modref.path, "preview.svg");
+        if (!string.IsNullOrWhiteSpace(previewSvgPath))
             previewImage = ImageSourceLoader.LoadFromFilePath(previewSvgPath);
 
         if (previewImage == null)
         {
-            string previewPath = Path.Combine(modref.path, "preview.png");
-            if (File.Exists(previewPath))
+            string? previewPath = ResolveFilePathCaseInsensitive(modref.path, "preview.png");
+            if (!string.IsNullOrWhiteSpace(previewPath))
                 previewImage = ImageSourceLoader.LoadFromFilePath(previewPath);
         }
 
         SetPreviewImage(previewImage ?? LoadFallbackPreview());
+    }
+
+    private static string? ResolveFilePathCaseInsensitive(string directory, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName))
+            return null;
+        if (!Directory.Exists(directory))
+            return null;
+
+        string exactPath = Path.Combine(directory, fileName);
+        if (File.Exists(exactPath))
+            return exactPath;
+
+        try
+        {
+            return Directory.EnumerateFiles(directory)
+                .FirstOrDefault(file =>
+                    string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private IImage LoadFallbackPreview()
@@ -1729,7 +1757,7 @@ public partial class MainWindow : Window
         SortRulesWindow dialog = new SortRulesWindow(
             manager.GetSortRules(),
             modRefs,
-            manager.GetConfig()?.ModsPath,
+            manager.GetModsPath(),
             manager.GetVanillaModsPath(),
             rules => manager.SetSortRules(rules))
         {

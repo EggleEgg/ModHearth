@@ -15,7 +15,7 @@
         ToolTip.Tip="{Binding HoverTooltip}">
         <Border.ContextMenu>
           <ContextMenu Opened="SortRuleContextMenuOpened">
-            <MenuItem Header="Add required mod (load before this)" Tag="add-required-root" />
+            <MenuItem Header="Add required mod" Tag="add-required-root" />
           </ContextMenu>
         </Border.ContextMenu>
         <Grid>

@@ -8,36 +8,8 @@ permissions:
   contents: write
 
 jobs:
-  build-test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-      - name: Test (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb
-          echo "Running UI tests under Xvfb (required for Skia smoke test)."
-          if ! xvfb-run -a dotnet test -c Release; then
-            echo "Tests failed. This can include the Skia native smoke test on Linux."
-            exit 1
-          fi
-      - name: Test (Windows/macOS)
-        if: matrix.os != 'ubuntu-latest'
-        run: dotnet test -c Release
-
   compute-version:
     runs-on: ubuntu-latest
-    needs: build-test
-    if: ${{ needs.build-test.result == 'success' }}
     outputs:
       build_number: ${{ steps.compute.outputs.build_number }}
     steps:
@@ -76,7 +48,7 @@ jobs:
               handle.write(f"build_number={build}\n")
           PY
 
-  publish:
+  build-test-publish:
     runs-on: ${{ matrix.os }}
     needs: compute-version
     if: ${{ needs.compute-version.result == 'success' }}
@@ -99,87 +71,38 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/*.props
+            **/*.targets
+      - name: Restore
+        run: dotnet restore ModHearth.sln
+      - name: Build
+        run: dotnet build ModHearth.sln -c Release --no-restore
+      - name: Test (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+          echo "Running UI tests under Xvfb (required for Skia smoke test)."
+          if ! xvfb-run -a dotnet test ModHearth.sln -c Release --no-build --no-restore; then
+            echo "Tests failed. This can include the Skia native smoke test on Linux."
+            exit 1
+          fi
+      - name: Test (Windows/macOS)
+        if: matrix.os != 'ubuntu-latest'
+        run: dotnet test ModHearth.sln -c Release --no-build --no-restore
       - name: Publish
-        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:UseAppHost=true /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }} /p:MoveOutputDlls=false
-      - name: Prune non-target runtimes (Windows)
+        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:UseAppHost=true /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }} /p:MoveOutputDlls=false --no-build --no-restore
+      - name: Prune + verify + package (Windows)
         if: matrix.os == 'windows-latest'
-        run: |
-          $publishDir = "bin\Release\net8.0\${{ matrix.rid }}\publish"
-          $runtimesDir = Join-Path $publishDir "runtimes"
-          if (Test-Path $runtimesDir) {
-            $removePatterns = @("linux*", "osx*", "maccatalyst*", "android*", "ios*", "tvos*", "browser*")
-            foreach ($pattern in $removePatterns) {
-              Get-ChildItem -Path $runtimesDir -Directory -Filter $pattern -ErrorAction SilentlyContinue |
-                Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-            }
-          }
-          $nativeDir = Join-Path $publishDir "native"
-          if (Test-Path $nativeDir) {
-            Get-ChildItem -Path $nativeDir -File -Include *.so, *.dylib -ErrorAction SilentlyContinue |
-              Remove-Item -Force -ErrorAction SilentlyContinue
-          }
-      - name: Prune non-target runtimes (Unix)
+        run: ./.github/scripts/prune-package.ps1 -Rid "${{ matrix.rid }}" -Ext "${{ matrix.ext }}"
+      - name: Prune + verify + package (Unix)
         if: matrix.os != 'windows-latest'
-        run: |
-          publish_dir="bin/Release/net8.0/${{ matrix.rid }}/publish"
-          runtimes_dir="$publish_dir/runtimes"
-          if [ -d "$runtimes_dir" ]; then
-            case "${{ matrix.rid }}" in
-              linux-*)
-                remove_patterns=(win* osx* maccatalyst* android* ios* tvos* browser*)
-                ;;
-              osx-*)
-                remove_patterns=(win* linux* android* ios* tvos* browser*)
-                ;;
-              *)
-                remove_patterns=()
-                ;;
-            esac
-            for pattern in "${remove_patterns[@]}"; do
-              rm -rf "$runtimes_dir"/$pattern
-            done
-          fi
-
-          native_dir="$publish_dir/native"
-          if [ -d "$native_dir" ]; then
-            case "${{ matrix.rid }}" in
-              linux-*) find "$native_dir" -maxdepth 1 -type f -name "*.dylib" -delete ;;
-              osx-*) find "$native_dir" -maxdepth 1 -type f -name "*.so" -delete ;;
-            esac
-          fi
-      - name: Verify publish output (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          $publishDir = "bin\Release\net8.0\${{ matrix.rid }}\publish"
-          if (-not (Test-Path $publishDir)) { throw "Publish directory not found: $publishDir" }
-          $items = Get-ChildItem -Path $publishDir -Force
-          if ($items.Count -eq 0) { throw "Publish directory is empty: $publishDir" }
-          Get-ChildItem -Path $publishDir -Force | Format-Table -AutoSize
-      - name: Verify publish output (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          publish_dir="bin/Release/net8.0/${{ matrix.rid }}/publish"
-          if [ ! -d "$publish_dir" ]; then
-            echo "Publish directory not found: $publish_dir"
-            exit 1
-          fi
-          if [ -z "$(ls -A "$publish_dir")" ]; then
-            echo "Publish directory is empty: $publish_dir"
-            exit 1
-          fi
-          ls -la "$publish_dir"
-      - name: Package (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          New-Item -ItemType Directory -Path dist -Force | Out-Null
-          $publishDir = "bin\Release\net8.0\${{ matrix.rid }}\publish"
-          Compress-Archive -Path "$publishDir\*" -DestinationPath "dist\ModHearth-${{ matrix.rid }}.${{ matrix.ext }}" -Force
-      - name: Package (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          mkdir -p dist
-          publish_dir="bin/Release/net8.0/${{ matrix.rid }}/publish"
-          tar -czf "dist/ModHearth-${{ matrix.rid }}.${{ matrix.ext }}" -C "$publish_dir" .
+        run: bash ./.github/scripts/prune-package.sh "${{ matrix.rid }}" "${{ matrix.ext }}"
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -188,8 +111,8 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [build-test, compute-version, publish]
-    if: ${{ needs.build-test.result == 'success' && needs.publish.result == 'success' && needs.compute-version.result == 'success' }}
+    needs: [build-test-publish, compute-version]
+    if: ${{ needs.build-test-publish.result == 'success' && needs.compute-version.result == 'success' }}
     steps:
       - name: Normalize build tag
         id: release_tag
@@ -225,21 +148,17 @@ jobs:
 
   release-status:
     runs-on: ubuntu-latest
-    needs: [build-test, compute-version, publish, release]
+    needs: [build-test-publish, compute-version, release]
     if: ${{ always() }}
     steps:
       - name: Report release status
         run: |
-          if [ "${{ needs.build-test.result }}" != "success" ]; then
-            echo "Release skipped because tests failed."
+          if [ "${{ needs.build-test-publish.result }}" != "success" ]; then
+            echo "Release skipped because test/publish job failed."
             exit 0
           fi
           if [ "${{ needs.compute-version.result }}" != "success" ]; then
             echo "Release skipped because build number could not be computed."
-            exit 0
-          fi
-          if [ "${{ needs.publish.result }}" != "success" ]; then
-            echo "Release skipped because publish failed."
             exit 0
           fi
           if [ "${{ needs.release.result }}" != "success" ]; then

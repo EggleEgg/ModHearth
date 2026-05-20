@@ -28,8 +28,11 @@ public partial class SortRulesWindow : Window
     private readonly HashSet<RuleGap> initialRuleGaps = new(RuleGapComparer.Instance);
     private readonly HashSet<RuleEdge> explicitRequiredRules = new(RuleEdgeComparer.Instance);
     private readonly HashSet<RuleEdge> initialExplicitRequiredRules = new(RuleEdgeComparer.Instance);
+    private readonly HashSet<string> explicitRequiredIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> initialExplicitRequiredIds = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<RuleGap> redoRuleGaps = new(RuleGapComparer.Instance);
     private HashSet<RuleEdge> redoExplicitRequiredRules = new(RuleEdgeComparer.Instance);
+    private HashSet<string> redoExplicitRequiredIds = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly ModListDragDropController modListController;
     private readonly UndoRedoKeyHandler undoRedoHandler;
@@ -209,7 +212,7 @@ public partial class SortRulesWindow : Window
             UpdateRuleReferenceOverlay();
         }
 
-        ConfigureAddRequiredSubmenu(menu, contextVm);
+        ConfigureAddRequiredSubmenu(menu);
     }
 
     private ModRefViewModel? ResolveContextMenuMod(ContextMenu menu)
@@ -225,7 +228,7 @@ public partial class SortRulesWindow : Window
                modTreeList.SelectedItems?.OfType<ModRefViewModel>().FirstOrDefault();
     }
 
-    private void ConfigureAddRequiredSubmenu(ContextMenu menu, ModRefViewModel targetVm)
+    private void ConfigureAddRequiredSubmenu(ContextMenu menu)
     {
         MenuItem? addRequiredRoot = menu.Items
             .OfType<MenuItem>()
@@ -233,13 +236,11 @@ public partial class SortRulesWindow : Window
         if (addRequiredRoot == null)
             return;
 
-        string targetId = targetVm.ModReference.ID?.Trim() ?? string.Empty;
         List<MenuItem> items = modIdMap.Values
             .Where(candidate =>
             {
                 string id = candidate.ModReference.ID?.Trim() ?? string.Empty;
-                return !string.IsNullOrWhiteSpace(id) &&
-                       !string.Equals(id, targetId, StringComparison.OrdinalIgnoreCase);
+                return !string.IsNullOrWhiteSpace(id);
             })
             .OrderBy(candidate => candidate.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(candidate => candidate.ModReference.ID, StringComparer.OrdinalIgnoreCase)
@@ -249,7 +250,7 @@ public partial class SortRulesWindow : Window
                 MenuItem item = new MenuItem
                 {
                     Header = $"{candidate.DisplayName} ({requiredId})",
-                    Tag = new RequiredMenuPayload(targetId, requiredId)
+                    Tag = new RequiredMenuPayload(requiredId)
                 };
                 item.Click += AddRequiredMenuItemClick;
                 return item;
@@ -281,48 +282,31 @@ public partial class SortRulesWindow : Window
         if (menuItem.Tag is not RequiredMenuPayload payload)
             return;
 
-        if (!modIdMap.TryGetValue(payload.TargetId, out ModRefViewModel? targetVm) || targetVm == null)
-            return;
-        if (!modIdMap.TryGetValue(payload.RequiredId, out ModRefViewModel? requiredVm) || requiredVm == null)
+        if (!modIdMap.TryGetValue(payload.RequiresId, out ModRefViewModel? requiredVm) || requiredVm == null)
             return;
 
-        AddRequiredRule(targetVm, requiredVm);
+        AddRequiredRule(requiredVm);
     }
 
-    private void AddRequiredRule(ModRefViewModel targetVm, ModRefViewModel requiredVm)
+    private void AddRequiredRule(ModRefViewModel requiredVm)
     {
-        string targetId = targetVm.ModReference.ID?.Trim() ?? string.Empty;
         string requiredId = requiredVm.ModReference.ID?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(targetId) || string.IsNullOrWhiteSpace(requiredId))
-            return;
-        if (string.Equals(targetId, requiredId, StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(requiredId))
             return;
 
-        EnsureModPresentInRuleList(targetVm);
-
-        int targetIndex = ruleMods.IndexOf(targetVm);
-        EnsureModPresentInRuleList(requiredVm, targetIndex < 0 ? null : targetIndex);
-
-        RuleEdge requiredEdge = CreateEdge(requiredId, targetId);
-        if (!IsValidEdge(requiredEdge))
-            return;
-
-        explicitRequiredRules.Add(requiredEdge);
-
-        int requiredIndex = ruleMods.IndexOf(requiredVm);
-        targetIndex = ruleMods.IndexOf(targetVm);
-        if (requiredIndex >= 0 && targetIndex == requiredIndex + 1)
-            SetGapBetween(requiredId, targetId, addGap: false);
+        EnsureModPresentInRuleList(requiredVm);
+        explicitRequiredIds.Add(requiredId);
 
         modTreeList.SelectedItems?.Clear();
         rulesList.SelectedItems?.Clear();
-        rulesList.SelectedItems?.Add(targetVm);
-        rulesList.ScrollIntoView(targetVm);
+        rulesList.SelectedItems?.Add(requiredVm);
+        rulesList.ScrollIntoView(requiredVm);
         modListController.UpdateSelectionState(modTreeList);
         modListController.UpdateSelectionState(rulesList);
 
         NormalizeGaps();
         NormalizeExplicitRules();
+        NormalizeExplicitRequiredIds();
         MarkChanged();
         RefreshRuleState(true);
     }
@@ -508,7 +492,10 @@ public partial class SortRulesWindow : Window
     private void RefreshRuleState(bool rulesChanged)
     {
         if (rulesChanged)
+        {
             NormalizeExplicitRules();
+            NormalizeExplicitRequiredIds();
+        }
         UpdateRuleReferenceOverlay();
         UpdateRuleGapVisuals();
         if (rulesChanged)
@@ -540,7 +527,7 @@ public partial class SortRulesWindow : Window
 
         IBrush gapBrush = GetGapLineBrush();
         List<PreviewRuleToken> tokens = BuildPreviewTokens(gapBrush);
-        int totalRules = tokens.Count(token => token.Edge != null);
+        int totalRules = tokens.Count(token => token.Edge != null || !string.IsNullOrWhiteSpace(token.RequiresId));
         if (totalRules == 0)
         {
             ruleJsonLines.Add("[]");
@@ -552,27 +539,37 @@ public partial class SortRulesWindow : Window
         int remainingRules = totalRules;
         foreach (PreviewRuleToken token in tokens)
         {
-            if (token.Edge == null)
+            if (token.Edge == null && string.IsNullOrWhiteSpace(token.RequiresId))
             {
                 ruleJsonLines.Add(new RuleGapMarker(token.MarkerBrush ?? gapBrush));
                 continue;
             }
 
-            string beforeId = token.Edge.Value.BeforeId;
-            string afterId = token.Edge.Value.AfterId;
-
             remainingRules--;
             bool isLast = remainingRules == 0;
 
             ruleJsonLines.Add("  {");
-            int beforeIndex = ruleJsonLines.Count;
-            ruleJsonLines.Add($"    \"BeforeId\": {JsonSerializer.Serialize(beforeId)},");
-            int afterIndex = ruleJsonLines.Count;
-            ruleJsonLines.Add($"    \"AfterId\": {JsonSerializer.Serialize(afterId)}");
-            ruleJsonLines.Add(isLast ? "  }" : "  },");
+            if (token.Edge != null)
+            {
+                string beforeId = token.Edge.Value.BeforeId;
+                string afterId = token.Edge.Value.AfterId;
+                int beforeIndex = ruleJsonLines.Count;
+                ruleJsonLines.Add($"    \"BeforeId\": {JsonSerializer.Serialize(beforeId)},");
+                int afterIndex = ruleJsonLines.Count;
+                ruleJsonLines.Add($"    \"AfterId\": {JsonSerializer.Serialize(afterId)}");
 
-            RegisterRuleLine(beforeId, beforeIndex, isBefore: true);
-            RegisterRuleLine(afterId, afterIndex, isBefore: false);
+                RegisterRuleLine(beforeId, beforeIndex, RuleLineType.Before);
+                RegisterRuleLine(afterId, afterIndex, RuleLineType.After);
+            }
+            else
+            {
+                string requiresId = token.RequiresId.Trim();
+                int requiresIndex = ruleJsonLines.Count;
+                ruleJsonLines.Add($"    \"RequiresId\": {JsonSerializer.Serialize(requiresId)}");
+                RegisterRuleLine(requiresId, requiresIndex, RuleLineType.Requires);
+            }
+
+            ruleJsonLines.Add(isLast ? "  }" : "  },");
         }
         ruleJsonLines.Add("]");
 
@@ -625,6 +622,19 @@ public partial class SortRulesWindow : Window
             if (tokens.Count > 0)
                 tokens.Add(PreviewRuleToken.Marker(gapBrush));
             tokens.AddRange(extraEdges.Select(PreviewRuleToken.EdgeToken));
+        }
+
+        List<string> requiredIds = explicitRequiredIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Where(ruleIds.Contains)
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (requiredIds.Count > 0)
+        {
+            if (tokens.Count > 0)
+                tokens.Add(PreviewRuleToken.Marker(gapBrush));
+            tokens.AddRange(requiredIds.Select(PreviewRuleToken.RequiresToken));
         }
 
         return tokens;
@@ -735,7 +745,7 @@ public partial class SortRulesWindow : Window
                !string.Equals(gap.BeforeId, gap.AfterId, StringComparison.OrdinalIgnoreCase);
     }
 
-    private void RegisterRuleLine(string? id, int index, bool isBefore)
+    private void RegisterRuleLine(string? id, int index, RuleLineType lineType)
     {
         string trimmed = id?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(trimmed))
@@ -747,15 +757,19 @@ public partial class SortRulesWindow : Window
             ruleLineIndices[trimmed] = indices;
         }
 
-        if (isBefore)
+        if (lineType == RuleLineType.Before)
         {
             if (indices.BeforeIndex == null)
                 indices.BeforeIndex = index;
         }
-        else
+        else if (lineType == RuleLineType.After)
         {
             if (indices.AfterIndex == null)
                 indices.AfterIndex = index;
+        }
+        else if (indices.RequiresIndex == null)
+        {
+            indices.RequiresIndex = index;
         }
     }
 
@@ -834,6 +848,11 @@ public partial class SortRulesWindow : Window
         {
             index = preferAfter ? indices.BeforeIndex : indices.AfterIndex;
             usedAfter = !preferAfter;
+        }
+        if (index == null)
+        {
+            index = indices.RequiresIndex;
+            usedAfter = false;
         }
 
         if (index == null || index.Value < 0 || index.Value >= ruleJsonLines.Count)
@@ -928,6 +947,7 @@ public partial class SortRulesWindow : Window
                 continue;
             AddPlaceholderIfMissing(rule.BeforeId);
             AddPlaceholderIfMissing(rule.AfterId);
+            AddPlaceholderIfMissing(rule.RequiresId);
         }
 
         List<ModRefViewModel> sorted = modIdMap.Values
@@ -963,12 +983,20 @@ public partial class SortRulesWindow : Window
         explicitRequiredRules.Clear();
         initialExplicitRequiredRules.Clear();
         redoExplicitRequiredRules.Clear();
+        explicitRequiredIds.Clear();
+        initialExplicitRequiredIds.Clear();
+        redoExplicitRequiredIds.Clear();
 
         HashSet<RuleEdge> explicitRules = new HashSet<RuleEdge>(RuleEdgeComparer.Instance);
         foreach (ModSortRule rule in existingRules ?? Array.Empty<ModSortRule>())
         {
             if (rule == null)
                 continue;
+
+            string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(requiredId))
+                explicitRequiredIds.Add(requiredId);
+
             RuleEdge edge = CreateEdge(rule.BeforeId, rule.AfterId);
             if (!IsValidEdge(edge))
                 continue;
@@ -989,11 +1017,14 @@ public partial class SortRulesWindow : Window
 
         NormalizeGaps();
         NormalizeExplicitRules();
+        NormalizeExplicitRequiredIds();
 
         foreach (RuleGap gap in ruleGaps)
             initialRuleGaps.Add(gap);
         foreach (RuleEdge edge in explicitRequiredRules)
             initialExplicitRequiredRules.Add(edge);
+        foreach (string requiredId in explicitRequiredIds)
+            initialExplicitRequiredIds.Add(requiredId);
     }
 
     private void AddPlaceholderIfMissing(string? id)
@@ -1040,6 +1071,11 @@ public partial class SortRulesWindow : Window
         {
             if (rule == null)
                 continue;
+
+            string requires = rule.RequiresId?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(requires) && candidates.Contains(requires))
+                ids.Add(requires);
+
             string before = rule.BeforeId?.Trim() ?? string.Empty;
             string after = rule.AfterId?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(before) || string.IsNullOrWhiteSpace(after))
@@ -1296,7 +1332,22 @@ public partial class SortRulesWindow : Window
             candidates.Add(new RuleCandidate(edge, 2, order++));
         }
 
-        return ResolveConflicts(candidates);
+        List<ModSortRule> resolved = ResolveConflicts(candidates);
+
+        foreach (string requiredId in explicitRequiredIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!ruleIds.Contains(requiredId))
+                continue;
+
+            resolved.Add(new ModSortRule
+            {
+                RequiresId = requiredId
+            });
+        }
+
+        return resolved;
     }
 
     private Task UndoChangesAsync()
@@ -1313,6 +1364,7 @@ public partial class SortRulesWindow : Window
         redoRuleOrder = GetRuleOrder();
         redoRuleGaps = new HashSet<RuleGap>(ruleGaps, RuleGapComparer.Instance);
         redoExplicitRequiredRules = new HashSet<RuleEdge>(explicitRequiredRules, RuleEdgeComparer.Instance);
+        redoExplicitRequiredIds = new HashSet<string>(explicitRequiredIds, StringComparer.OrdinalIgnoreCase);
         redoAvailable = true;
 
         isRedoing = true;
@@ -1323,8 +1375,12 @@ public partial class SortRulesWindow : Window
         explicitRequiredRules.Clear();
         foreach (RuleEdge edge in initialExplicitRequiredRules)
             explicitRequiredRules.Add(edge);
+        explicitRequiredIds.Clear();
+        foreach (string requiredId in initialExplicitRequiredIds)
+            explicitRequiredIds.Add(requiredId);
         NormalizeGaps();
         NormalizeExplicitRules();
+        NormalizeExplicitRequiredIds();
         isRedoing = false;
 
         changesMade = false;
@@ -1344,13 +1400,18 @@ public partial class SortRulesWindow : Window
         explicitRequiredRules.Clear();
         foreach (RuleEdge edge in redoExplicitRequiredRules)
             explicitRequiredRules.Add(edge);
+        explicitRequiredIds.Clear();
+        foreach (string requiredId in redoExplicitRequiredIds)
+            explicitRequiredIds.Add(requiredId);
         NormalizeGaps();
         NormalizeExplicitRules();
+        NormalizeExplicitRequiredIds();
         isRedoing = false;
 
         redoAvailable = false;
         redoRuleOrder.Clear();
         redoExplicitRequiredRules.Clear();
+        redoExplicitRequiredIds.Clear();
         changesMade = true;
         RefreshRuleState(true);
     }
@@ -1405,6 +1466,10 @@ public partial class SortRulesWindow : Window
         foreach (RuleEdge edge in explicitRequiredRules)
             initialExplicitRequiredRules.Add(edge);
 
+        initialExplicitRequiredIds.Clear();
+        foreach (string requiredId in explicitRequiredIds)
+            initialExplicitRequiredIds.Add(requiredId);
+
         changesMade = false;
         ClearRedo();
     }
@@ -1422,6 +1487,7 @@ public partial class SortRulesWindow : Window
         redoRuleOrder.Clear();
         redoRuleGaps.Clear();
         redoExplicitRequiredRules.Clear();
+        redoExplicitRequiredIds.Clear();
     }
 
     private static ModRefViewModel? GetItemAtPoint(ListBox list, Point point)
@@ -1552,6 +1618,29 @@ public partial class SortRulesWindow : Window
             explicitRequiredRules.Add(edge);
     }
 
+    private void NormalizeExplicitRequiredIds()
+    {
+        HashSet<string> ruleIds = new HashSet<string>(
+            ruleMods.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
+                .Where(id => !string.IsNullOrWhiteSpace(id)),
+            StringComparer.OrdinalIgnoreCase);
+
+        HashSet<string> normalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string requiredId in explicitRequiredIds)
+        {
+            string id = requiredId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+            if (!ruleIds.Contains(id))
+                continue;
+            normalized.Add(id);
+        }
+
+        explicitRequiredIds.Clear();
+        foreach (string id in normalized)
+            explicitRequiredIds.Add(id);
+    }
+
     private static RuleEdge CreateEdge(string? beforeId, string? afterId)
     {
         string before = beforeId?.Trim() ?? string.Empty;
@@ -1579,13 +1668,22 @@ public partial class SortRulesWindow : Window
     {
         public int? BeforeIndex { get; set; }
         public int? AfterIndex { get; set; }
+        public int? RequiresIndex { get; set; }
     }
 
-    private readonly record struct RequiredMenuPayload(string TargetId, string RequiredId);
-    private readonly record struct PreviewRuleToken(RuleEdge? Edge, IBrush? MarkerBrush)
+    private readonly record struct RequiredMenuPayload(string RequiresId);
+    private enum RuleLineType
     {
-        public static PreviewRuleToken EdgeToken(RuleEdge edge) => new(edge, null);
-        public static PreviewRuleToken Marker(IBrush markerBrush) => new(null, markerBrush);
+        Before,
+        After,
+        Requires
+    }
+
+    private readonly record struct PreviewRuleToken(RuleEdge? Edge, string RequiresId, IBrush? MarkerBrush)
+    {
+        public static PreviewRuleToken EdgeToken(RuleEdge edge) => new(edge, string.Empty, null);
+        public static PreviewRuleToken RequiresToken(string requiresId) => new(null, requiresId, null);
+        public static PreviewRuleToken Marker(IBrush markerBrush) => new(null, string.Empty, markerBrush);
     }
     private readonly record struct RuleEdge(string BeforeId, string AfterId);
     private readonly record struct RuleCandidate(RuleEdge Edge, int Priority, int Order);

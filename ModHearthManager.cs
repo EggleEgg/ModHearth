@@ -26,6 +26,9 @@ namespace ModHearth
         // Optional override for the DF base folder (used when a folder is selected instead of an executable).
         public string DFFolderPathOverride { get; set; } = string.Empty;
 
+        // Optional override for the mods folder path (used when filesystem casing differs).
+        public string ModsPathOverride { get; set; } = string.Empty;
+
         public string DFFolderPath
         {
             get
@@ -38,9 +41,17 @@ namespace ModHearth
             }
         }
 
-        public string ModsPath => string.IsNullOrWhiteSpace(DFFolderPath)
-            ? string.Empty
-            : Path.Combine(DFFolderPath, "Mods");
+        public string ModsPath
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(ModsPathOverride))
+                    return ModsPathOverride;
+                if (string.IsNullOrWhiteSpace(DFFolderPath))
+                    return string.Empty;
+                return Path.Combine(DFFolderPath, "Mods");
+            }
+        }
 
         // Path to installed mods cache.
         public string InstalledModsPath { get; set; } = string.Empty;
@@ -92,7 +103,6 @@ namespace ModHearth
 
     public enum UserActionRequired
     {
-        StartDwarfFortress,
         OpenWorldCreationScreen
     }
 
@@ -240,7 +250,8 @@ namespace ModHearth
             if (rules == null)
                 return normalized;
 
-            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> seenEdges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> seenRequires = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (ModSortRule rule in rules)
             {
                 if (rule == null)
@@ -248,20 +259,36 @@ namespace ModHearth
 
                 string before = rule.BeforeId?.Trim() ?? string.Empty;
                 string after = rule.AfterId?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(before) || string.IsNullOrWhiteSpace(after))
-                    continue;
-                if (string.Equals(before, after, StringComparison.OrdinalIgnoreCase))
+                string requires = rule.RequiresId?.Trim() ?? string.Empty;
+
+                bool hasEdge = !string.IsNullOrWhiteSpace(before) &&
+                               !string.IsNullOrWhiteSpace(after) &&
+                               !string.Equals(before, after, StringComparison.OrdinalIgnoreCase);
+                bool hasRequires = !string.IsNullOrWhiteSpace(requires);
+
+                if (!hasEdge && !hasRequires)
                     continue;
 
-                string key = $"{before}>>{after}";
-                if (!seen.Add(key))
-                    continue;
-
-                normalized.Add(new ModSortRule
+                if (hasEdge)
                 {
-                    BeforeId = before,
-                    AfterId = after
-                });
+                    string edgeKey = $"{before}>>{after}";
+                    if (seenEdges.Add(edgeKey))
+                    {
+                        normalized.Add(new ModSortRule
+                        {
+                            BeforeId = before,
+                            AfterId = after
+                        });
+                    }
+                }
+
+                if (hasRequires && seenRequires.Add(requires))
+                {
+                    normalized.Add(new ModSortRule
+                    {
+                        RequiresId = requires
+                    });
+                }
             }
 
             return normalized;
@@ -303,6 +330,32 @@ namespace ModHearth
             }
         }
 
+        public string GetModsPath()
+        {
+            if (config == null || string.IsNullOrWhiteSpace(config.ModsPath))
+                return string.Empty;
+
+            string configuredPath = NormalizeFileSystemPath(config.ModsPath);
+            string? resolved = ResolveExistingDirectoryPath(configuredPath);
+            if (string.IsNullOrWhiteSpace(resolved) &&
+                !string.IsNullOrWhiteSpace(config.ModsPathOverride) &&
+                !string.IsNullOrWhiteSpace(config.DFFolderPath))
+            {
+                string fallback = Path.Combine(config.DFFolderPath, "Mods");
+                resolved = ResolveExistingDirectoryPath(fallback);
+            }
+            if (string.IsNullOrWhiteSpace(resolved))
+                return configuredPath;
+
+            if (!string.Equals(config.ModsPathOverride, resolved, GetFileSystemPathComparison()))
+            {
+                config.ModsPathOverride = resolved;
+                SaveConfigFile();
+            }
+
+            return resolved;
+        }
+
         public string GetInstalledModsPath()
         {
             if (config == null || string.IsNullOrWhiteSpace(config.InstalledModsPath))
@@ -311,7 +364,18 @@ namespace ModHearth
             if (IsInstalledModsUnderGameFolder(config.InstalledModsPath, config.DFFolderPath))
                 return GetDefaultInstalledModsPath();
 
-            return config.InstalledModsPath;
+            string normalizedConfigured = NormalizeFileSystemPath(config.InstalledModsPath);
+            string? resolved = ResolveExistingDirectoryPath(normalizedConfigured);
+            if (string.IsNullOrWhiteSpace(resolved))
+                return normalizedConfigured;
+
+            if (!string.Equals(config.InstalledModsPath, resolved, GetFileSystemPathComparison()))
+            {
+                config.InstalledModsPath = resolved;
+                SaveConfigFile();
+            }
+
+            return resolved;
         }
 
         public string GetVanillaModsPath()
@@ -347,10 +411,11 @@ namespace ModHearth
         {
             if (modref == null || string.IsNullOrWhiteSpace(modref.path) || config == null)
                 return false;
-            if (string.IsNullOrWhiteSpace(config.ModsPath))
+            string modsPath = GetModsPath();
+            if (string.IsNullOrWhiteSpace(modsPath))
                 return false;
             string modPath = NormalizeFileSystemPath(modref.path);
-            string modsPath = NormalizeFileSystemPath(config.ModsPath);
+            modsPath = NormalizeFileSystemPath(modsPath);
             if (string.IsNullOrWhiteSpace(modPath) || string.IsNullOrWhiteSpace(modsPath))
                 return false;
             if (!IsPathUnderRoot(modPath, modsPath))
@@ -428,6 +493,7 @@ namespace ModHearth
                 config = new ModHearthConfig();
 
             bool updated = false;
+            StringComparison pathComparison = GetFileSystemPathComparison();
 
             if (string.IsNullOrWhiteSpace(config.DFFolderPath))
             {
@@ -436,6 +502,16 @@ namespace ModHearth
                 {
                     config.DFFolderPathOverride = dfFolder;
                     config.DFEXEPath = string.Empty;
+                    updated = true;
+                }
+            }
+            else
+            {
+                string? resolvedDfFolder = ResolveExistingDirectoryPath(config.DFFolderPath);
+                if (!string.IsNullOrWhiteSpace(resolvedDfFolder) &&
+                    !string.Equals(config.DFFolderPath, resolvedDfFolder, pathComparison))
+                {
+                    config.DFFolderPathOverride = resolvedDfFolder;
                     updated = true;
                 }
             }
@@ -448,6 +524,30 @@ namespace ModHearth
                     config.InstalledModsPath = installedMods;
                     updated = true;
                 }
+            }
+            else
+            {
+                string? resolvedInstalledMods = ResolveExistingDirectoryPath(config.InstalledModsPath);
+                if (!string.IsNullOrWhiteSpace(resolvedInstalledMods) &&
+                    !string.Equals(config.InstalledModsPath, resolvedInstalledMods, pathComparison))
+                {
+                    config.InstalledModsPath = resolvedInstalledMods;
+                    updated = true;
+                }
+            }
+
+            string? resolvedModsPath = ResolveExistingDirectoryPath(config.ModsPath);
+            if (string.IsNullOrWhiteSpace(resolvedModsPath) &&
+                !string.IsNullOrWhiteSpace(config.ModsPathOverride) &&
+                !string.IsNullOrWhiteSpace(config.DFFolderPath))
+            {
+                resolvedModsPath = ResolveExistingDirectoryPath(Path.Combine(config.DFFolderPath, "Mods"));
+            }
+            if (!string.IsNullOrWhiteSpace(resolvedModsPath) &&
+                !string.Equals(config.ModsPathOverride, resolvedModsPath, pathComparison))
+            {
+                config.ModsPathOverride = resolvedModsPath;
+                updated = true;
             }
 
             if (updated)
@@ -472,15 +572,16 @@ namespace ModHearth
 
         private static string? ResolveDwarfFortressFolderCandidate(string candidate)
         {
-            if (string.IsNullOrWhiteSpace(candidate) || !Directory.Exists(candidate))
+            string? resolvedCandidate = ResolveExistingDirectoryPath(candidate);
+            if (string.IsNullOrWhiteSpace(resolvedCandidate))
                 return string.Empty;
 
-            if (IsLikelyDwarfFortressFolder(candidate))
-                return candidate;
+            if (IsLikelyDwarfFortressFolder(resolvedCandidate))
+                return resolvedCandidate;
 
             if (OperatingSystem.IsMacOS())
             {
-                string appResources = Path.Combine(candidate, "Dwarf Fortress.app", "Contents", "Resources");
+                string appResources = Path.Combine(resolvedCandidate, "Dwarf Fortress.app", "Contents", "Resources");
                 if (IsLikelyDwarfFortressFolder(appResources))
                     return appResources;
             }
@@ -695,6 +796,124 @@ namespace ModHearth
             return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
+        private static StringComparison GetFileSystemPathComparison()
+            => OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+        private static string? ResolveExistingDirectoryPath(string path)
+            => ResolveExistingPath(path, expectDirectory: true);
+
+        private static string? ResolveExistingPath(string path, bool expectDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return null;
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(path);
+            }
+            catch
+            {
+                return null;
+            }
+
+            if (expectDirectory)
+            {
+                if (Directory.Exists(fullPath))
+                    return NormalizeFileSystemPath(fullPath);
+            }
+            else
+            {
+                if (File.Exists(fullPath))
+                    return NormalizeFileSystemPath(fullPath);
+            }
+
+            string root = Path.GetPathRoot(fullPath) ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+                return null;
+
+            string remainder = fullPath.Substring(root.Length);
+            string[] segments = remainder.Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+            {
+                if (expectDirectory && Directory.Exists(root))
+                    return NormalizeFileSystemPath(root);
+                return null;
+            }
+
+            string current = root;
+            for (int i = 0; i < segments.Length; i++)
+            {
+                bool isLast = i == segments.Length - 1;
+                bool expectDirectorySegment = !isLast || expectDirectory;
+                string? next = ResolveChildPathSegment(current, segments[i], expectDirectorySegment);
+                if (string.IsNullOrWhiteSpace(next))
+                    return null;
+                current = next;
+            }
+
+            if (expectDirectory)
+                return Directory.Exists(current) ? NormalizeFileSystemPath(current) : null;
+            return File.Exists(current) ? NormalizeFileSystemPath(current) : null;
+        }
+
+        private static string? ResolveChildPathSegment(string parent, string name, bool expectDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(parent) || string.IsNullOrWhiteSpace(name) || !Directory.Exists(parent))
+                return null;
+
+            string candidate = Path.Combine(parent, name);
+            if (expectDirectory)
+            {
+                if (Directory.Exists(candidate))
+                    return candidate;
+            }
+            else
+            {
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+
+            try
+            {
+                IEnumerable<string> entries = expectDirectory
+                    ? Directory.EnumerateDirectories(parent)
+                    : Directory.EnumerateFiles(parent);
+                return entries.FirstOrDefault(entry =>
+                    string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string? ResolveInfoFilePath(string modDirectory)
+        {
+            string? resolvedDirectory = ResolveExistingDirectoryPath(modDirectory);
+            if (string.IsNullOrWhiteSpace(resolvedDirectory))
+                return null;
+
+            string exactInfoPath = Path.Combine(resolvedDirectory, "info.txt");
+            if (File.Exists(exactInfoPath))
+                return exactInfoPath;
+
+            try
+            {
+                return Directory.EnumerateFiles(resolvedDirectory)
+                    .FirstOrDefault(file =>
+                        string.Equals(Path.GetFileName(file), "info.txt", StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         private static bool IsAdvancedSteamLoggingEnabled()
         {
             string? value = Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE");
@@ -870,8 +1089,9 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(candidate))
                     continue;
 
-                if (Directory.Exists(candidate))
-                    return candidate;
+                string? resolved = ResolveExistingDirectoryPath(candidate);
+                if (!string.IsNullOrWhiteSpace(resolved))
+                    return resolved;
             }
 
             foreach (string candidate in GetLinuxProtonInstalledModsPathCandidates())
@@ -879,8 +1099,9 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(candidate))
                     continue;
 
-                if (Directory.Exists(candidate))
-                    return candidate;
+                string? resolved = ResolveExistingDirectoryPath(candidate);
+                if (!string.IsNullOrWhiteSpace(resolved))
+                    return resolved;
             }
 
             return string.Empty;
@@ -1011,13 +1232,13 @@ namespace ModHearth
 
             string installedModsPath = GetInstalledModsPath();
             if (!string.IsNullOrWhiteSpace(installedModsPath))
-                roots.Add(installedModsPath);
+                roots.Add(ResolveExistingDirectoryPath(installedModsPath) ?? installedModsPath);
 
             if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
             {
                 string? vanillaPath = GetVanillaModsPath();
                 if (!string.IsNullOrWhiteSpace(vanillaPath))
-                    roots.Add(vanillaPath);
+                    roots.Add(ResolveExistingDirectoryPath(vanillaPath) ?? vanillaPath);
             }
 
             foreach (string root in roots)
@@ -1027,7 +1248,9 @@ namespace ModHearth
 
                 foreach (string dir in EnumerateModDirectoriesWithInfo(root))
                 {
-                    string infoPath = Path.Combine(dir, "info.txt");
+                    string? infoPath = ResolveInfoFilePath(dir);
+                    if (string.IsNullOrWhiteSpace(infoPath))
+                        continue;
                     try
                     {
                         string info = File.ReadAllText(infoPath);
@@ -1060,7 +1283,7 @@ namespace ModHearth
             }
 
             // Initialize relevant variables.
-            modrefMap = new Dictionary<string, ModReference>();
+            modrefMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
             modPool = new HashSet<DFHMod>();
 
             // Get all mod folders.
@@ -1098,7 +1321,7 @@ namespace ModHearth
 
         private void FindAllModsFromDisk()
         {
-            modrefMap = new Dictionary<string, ModReference>();
+            modrefMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
             modPool = new HashSet<DFHMod>();
             bool diagnosticsEnabled = IsAdvancedSteamLoggingEnabled();
 
@@ -1115,7 +1338,9 @@ namespace ModHearth
                 foreach (string dir in EnumerateModDirectoriesWithInfo(root))
                 {
                     candidateCount++;
-                    string infoPath = Path.Combine(dir, "info.txt");
+                    string? infoPath = ResolveInfoFilePath(dir);
+                    if (string.IsNullOrWhiteSpace(infoPath))
+                        continue;
                     Dictionary<string, string> modData = BuildModMemoryDataFromInfo(infoPath, dir, out bool missingVersion);
                     if (!modData.TryGetValue("id", out string? id) || string.IsNullOrWhiteSpace(id))
                         continue;
@@ -1173,8 +1398,9 @@ namespace ModHearth
 
         private IEnumerable<string> EnumerateConfiguredModRoots()
         {
-            if (!string.IsNullOrWhiteSpace(config?.ModsPath))
-                yield return config.ModsPath;
+            string modsPath = GetModsPath();
+            if (!string.IsNullOrWhiteSpace(modsPath))
+                yield return modsPath;
 
             foreach (string workshopPath in GetSteamWorkshopContentPaths())
                 yield return workshopPath;
@@ -1185,7 +1411,8 @@ namespace ModHearth
 
             if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
             {
-                string? vanillaPath = GetVanillaModsPath();
+                string vanillaRoot = GetVanillaModsPath();
+                string? vanillaPath = ResolveExistingDirectoryPath(vanillaRoot) ?? vanillaRoot;
                 if (!string.IsNullOrWhiteSpace(vanillaPath))
                     yield return vanillaPath;
             }
@@ -1201,8 +1428,7 @@ namespace ModHearth
 
             foreach (string candidate in Directory.EnumerateDirectories(root))
             {
-                string infoPath = Path.Combine(candidate, "info.txt");
-                if (File.Exists(infoPath))
+                if (!string.IsNullOrWhiteSpace(ResolveInfoFilePath(candidate)))
                 {
                     if (seen.Add(candidate))
                         yield return candidate;
@@ -1211,8 +1437,7 @@ namespace ModHearth
 
                 foreach (string nested in Directory.EnumerateDirectories(candidate))
                 {
-                    string nestedInfoPath = Path.Combine(nested, "info.txt");
-                    if (!File.Exists(nestedInfoPath))
+                    if (string.IsNullOrWhiteSpace(ResolveInfoFilePath(nested)))
                         continue;
 
                     if (seen.Add(nested))
@@ -1317,7 +1542,9 @@ namespace ModHearth
 
                 foreach (string dir in EnumerateModDirectoriesWithInfo(root))
                 {
-                    string infoPath = Path.Combine(dir, "info.txt");
+                    string? infoPath = ResolveInfoFilePath(dir);
+                    if (string.IsNullOrWhiteSpace(infoPath))
+                        continue;
                     try
                     {
                         string info = File.ReadAllText(infoPath);
@@ -1352,15 +1579,17 @@ namespace ModHearth
                 return string.Empty;
 
             // Already absolute and valid.
-            if (Directory.Exists(rawSrcDir))
-                return Path.GetFullPath(rawSrcDir);
+            string? resolvedRawSrcDir = ResolveExistingDirectoryPath(rawSrcDir);
+            if (!string.IsNullOrWhiteSpace(resolvedRawSrcDir))
+                return resolvedRawSrcDir;
 
             string fullPath = string.IsNullOrWhiteSpace(config?.DFFolderPath)
                 ? rawSrcDir
                 : Path.Combine(config.DFFolderPath, rawSrcDir);
 
-            if (Directory.Exists(fullPath))
-                return fullPath;
+            string? resolvedFullPath = ResolveExistingDirectoryPath(fullPath);
+            if (!string.IsNullOrWhiteSpace(resolvedFullPath))
+                return resolvedFullPath;
 
             // Try matching the folder name in known roots.
             string rawFolderName = Path.GetFileName(rawSrcDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -1372,8 +1601,9 @@ namespace ModHearth
                         continue;
 
                     string candidate = Path.Combine(root, rawFolderName);
-                    if (Directory.Exists(candidate))
-                        return candidate;
+                    string? resolvedCandidate = ResolveExistingDirectoryPath(candidate);
+                    if (!string.IsNullOrWhiteSpace(resolvedCandidate))
+                        return resolvedCandidate;
                 }
             }
 
@@ -1383,6 +1613,9 @@ namespace ModHearth
                 modIdPathMap.TryGetValue(id, out string? mappedPath) &&
                 !string.IsNullOrWhiteSpace(mappedPath))
             {
+                string? resolvedMappedPath = ResolveExistingDirectoryPath(mappedPath);
+                if (!string.IsNullOrWhiteSpace(resolvedMappedPath))
+                    return resolvedMappedPath;
                 return mappedPath;
             }
 
@@ -1395,7 +1628,7 @@ namespace ModHearth
                     $"ResolveModPath fallback unresolved. id='{modId}', raw_src='{rawSrcDir}', resolved='{NormalizeFileSystemPath(fullPath)}'.");
             }
 
-            return fullPath;
+            return NormalizeFileSystemPath(fullPath);
         }
 
         // Output a dictionary, that given a modID gets the true version.
@@ -1733,60 +1966,6 @@ namespace ModHearth
             }
         }
 
-        // Move a mod from one place to another. Has four cases, depending on source and destination.
-        public void MoveMod(ModReference mod, int newIndex, bool sourceLeft, bool destinationLeft)
-        {
-            // Convert mod to DFHMod.
-            DFHMod dfm = mod.ToDFHMod();
-            Console.WriteLine($"Mod '{dfm.id}' moved from " + (sourceLeft ? "dis" : "en") + "abled to " + (destinationLeft ? "dis" : "en") + "abled.");
-
-            if (sourceLeft && destinationLeft)
-            {
-                // Do nothing since the order of disabled mods doesn't matter.
-                return;
-            }
-            else if (!sourceLeft && !destinationLeft)
-            {
-                // Get the old index of the mod
-                int oldIndex = enabledMods.IndexOf(dfm);
-
-                // If the mod is removed from the old index, and it would shift the whole list down, account for that.
-                if (oldIndex < newIndex)
-                    newIndex--;
-
-                if (oldIndex < 0)
-                {
-                    Console.WriteLine("Clicking too fast, attempted to disable same mod twice.");
-                    return;
-                }
-
-                // Remove from old index and insert at the new index (or add if at end of list).
-                enabledMods.RemoveAt(oldIndex);
-                if (newIndex == enabledMods.Count)
-                    enabledMods.Add(dfm);
-                else
-                    enabledMods.Insert(newIndex, dfm);
-            }
-            else if (!sourceLeft && destinationLeft)
-            {
-                // Remove the mod from enabled list, and toss into disabled list (order doesn't matter).
-                enabledMods.Remove(dfm);
-                disabledMods.Add(dfm);
-            }
-            else if (sourceLeft && !destinationLeft)
-            {
-                // Insert/add from disabled to enabled.
-                disabledMods.Remove(dfm);
-                if (newIndex == enabledMods.Count)
-                    enabledMods.Add(dfm);
-                else
-                    enabledMods.Insert(newIndex, dfm);
-            }
-
-            // Refind mod problems since mod order changed.
-            FindModlistProblems();
-        }
-
         public void MoveMods(List<DFHMod> mods, int newIndex, bool sourceLeft, bool destinationLeft)
         {
             if (mods == null || mods.Count == 0)
@@ -1865,13 +2044,13 @@ namespace ModHearth
             modproblems = new List<ModProblem>();
 
             // Set up a hashset of scanned mods and unscanned mods, for determining load order.
-            HashSet<string> scannedModIDs = new HashSet<string>();
-            HashSet<string> unscannedModIDs = new HashSet<string>();
+            HashSet<string> scannedModIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> unscannedModIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             // Add all enabled mod IDs to unscanned.
             foreach (DFHMod dfm in enabledMods)
             {
-                unscannedModIDs.Add(dfm.id.ToLower());
+                unscannedModIDs.Add(dfm.id);
             }
 
             // Loop through enabled mods, doing a mock load.
@@ -1884,19 +2063,19 @@ namespace ModHearth
                 if (currentMod.problematic)
                 {
                     foreach (string beforeID in currentMod.require_before_me)
-                        if (!scannedModIDs.Contains(beforeID.ToLower()))
+                        if (!scannedModIDs.Contains(beforeID))
                         {
                             modproblems.Add(new ModProblem(currentDFM.id, beforeID, ModProblem.ProblemType.MissingBefore));
                             //Console.WriteLine("Problem found: missing before mod with ID: " + beforeID + " mod needing is: " + currentDFM.id);
                         }
                     foreach (string afterID in currentMod.require_after_me)
-                        if (!unscannedModIDs.Contains(afterID.ToLower()))
+                        if (!unscannedModIDs.Contains(afterID))
                         {
                             modproblems.Add(new ModProblem(currentDFM.id, afterID, ModProblem.ProblemType.MissingAfter));
                             //Console.WriteLine("Problem found: missing after mod with ID: " + afterID + " mod needing is: " + currentDFM.id);
                         }
                     foreach (string conflictID in currentMod.conflicts_with)
-                        if (scannedModIDs.Contains(conflictID.ToLower()) || unscannedModIDs.Contains(conflictID.ToLower()))
+                        if (scannedModIDs.Contains(conflictID) || unscannedModIDs.Contains(conflictID))
                         {
                             modproblems.Add(new ModProblem(currentDFM.id, conflictID, ModProblem.ProblemType.ConflictPresent));
                             //Console.WriteLine("Problem found: conflict present mod with ID: " + conflictID + " mod needing is: " + currentDFM.id);
@@ -1904,8 +2083,8 @@ namespace ModHearth
                 }
 
                 // Move to scanned.
-                scannedModIDs.Add(currentDFM.id.ToLower());
-                unscannedModIDs.Remove(currentDFM.id.ToLower());
+                scannedModIDs.Add(currentDFM.id);
+                unscannedModIDs.Remove(currentDFM.id);
             }
         }
 
@@ -2234,7 +2413,8 @@ namespace ModHearth
                 issues.Add(new ConfigIssue(ConfigIssueType.MissingDwarfFortressPath, $"Dwarf Fortress folder not found: {config.DFFolderPath}"));
             }
 
-            if (string.IsNullOrWhiteSpace(config.InstalledModsPath) || !Directory.Exists(config.InstalledModsPath))
+            string installedModsPath = GetInstalledModsPath();
+            if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
             {
                 issues.Add(new ConfigIssue(ConfigIssueType.MissingInstalledModsPath, "Installed mods path is not set or missing."));
             }
@@ -2248,6 +2428,7 @@ namespace ModHearth
                 config = new ModHearthConfig();
             config.DFEXEPath = path;
             config.DFFolderPathOverride = string.Empty;
+            config.ModsPathOverride = string.Empty;
             SaveConfigFile();
         }
 
@@ -2258,6 +2439,7 @@ namespace ModHearth
             config.DFFolderPathOverride = path;
             if (!string.IsNullOrWhiteSpace(path))
                 config.DFEXEPath = string.Empty;
+            config.ModsPathOverride = string.Empty;
             SaveConfigFile();
         }
 
@@ -2265,7 +2447,7 @@ namespace ModHearth
         {
             if (config == null)
                 config = new ModHearthConfig();
-            config.InstalledModsPath = path;
+            config.InstalledModsPath = ResolveExistingDirectoryPath(path) ?? path;
             SaveConfigFile();
         }
 
