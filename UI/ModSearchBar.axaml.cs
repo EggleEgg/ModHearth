@@ -1,11 +1,19 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using System;
 using System.Collections.Generic;
 
 namespace ModHearth.UI;
+
+public enum SearchFilterMode
+{
+    Name,
+    Id,
+    SteamFileId
+}
 
 public partial class ModSearchBar : UserControl
 {
@@ -23,10 +31,15 @@ public partial class ModSearchBar : UserControl
 
     public static readonly StyledProperty<bool> HideFilteredProperty =
         AvaloniaProperty.Register<ModSearchBar, bool>(nameof(HideFiltered));
+    public static readonly StyledProperty<SearchFilterMode> SearchModeProperty =
+        AvaloniaProperty.Register<ModSearchBar, SearchFilterMode>(nameof(SearchMode), SearchFilterMode.Name);
 
     public event EventHandler? SearchTextChanged;
     public event EventHandler? HideFilteredToggled;
+    public event EventHandler? SearchModeChanged;
     private readonly Dictionary<Button, SearchButtonState> searchButtonStates = new();
+    private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = new();
+    private Flyout? searchModeFlyout;
 
     public ModSearchBar()
     {
@@ -34,13 +47,18 @@ public partial class ModSearchBar : UserControl
 
         SearchBox.TextChanged += (_, _) =>
         {
-            TempSearchLog($"TextChanged text='{SearchBox.Text ?? string.Empty}' hideFiltered={HideFiltered}");
+            TempSearchLog($"TextChanged text='{SearchBox.Text ?? string.Empty}' hideFiltered={HideFiltered} mode={SearchModeToLogLabel(SearchMode)}");
             SearchTextChanged?.Invoke(this, EventArgs.Empty);
+        };
+        SearchModeButton.Click += (_, _) =>
+        {
+            EnsureSearchModeFlyout();
+            searchModeFlyout?.ShowAt(SearchModeButton);
         };
         ToggleButton.Click += (_, _) =>
         {
             HideFiltered = !HideFiltered;
-            TempSearchLog($"ToggleClicked hideFiltered={HideFiltered}");
+            TempSearchLog($"ToggleClicked hideFiltered={HideFiltered} mode={SearchModeToLogLabel(SearchMode)}");
             HideFilteredToggled?.Invoke(this, EventArgs.Empty);
         };
         ClearButton.Click += (_, _) =>
@@ -55,10 +73,21 @@ public partial class ModSearchBar : UserControl
                 SearchBox.Watermark = Watermark;
             else if (args.Property == HideFilteredProperty)
                 UpdateToggleIcon();
+            else if (args.Property == SearchModeProperty)
+            {
+                UpdateSearchModeOptionLabels();
+                UpdateSearchModeIcon();
+                UpdateSearchModeButtonTooltip();
+                TempSearchLog($"SearchModeChanged mode={SearchModeToLogLabel(SearchMode)}");
+                SearchModeChanged?.Invoke(this, EventArgs.Empty);
+            }
         };
         SearchBox.Watermark = Watermark;
         UpdateToggleIcon();
+        UpdateSearchModeIcon();
+        UpdateSearchModeButtonTooltip();
 
+        InitializeSearchButtonState(SearchModeButton);
         InitializeSearchButtonState(ToggleButton);
         InitializeSearchButtonState(ClearButton);
     }
@@ -79,6 +108,12 @@ public partial class ModSearchBar : UserControl
     {
         get => GetValue(HideFilteredProperty);
         set => SetValue(HideFilteredProperty, value);
+    }
+
+    public SearchFilterMode SearchMode
+    {
+        get => GetValue(SearchModeProperty);
+        set => SetValue(SearchModeProperty, value);
     }
 
     public bool ClearSearchSelection()
@@ -109,6 +144,7 @@ public partial class ModSearchBar : UserControl
 
         Button[] buttons =
         {
+            SearchModeButton,
             ToggleButton,
             ClearButton
         };
@@ -199,6 +235,103 @@ public partial class ModSearchBar : UserControl
         ToolTip.SetTip(ToggleButton, HideFiltered
             ? "Show mismatched mods"
             : "Hide mismatched mods");
+    }
+
+    private void EnsureSearchModeFlyout()
+    {
+        if (searchModeFlyout != null)
+            return;
+
+        StackPanel panel = new StackPanel
+        {
+            Margin = new Thickness(8),
+            Spacing = 4,
+            MinWidth = 160
+        };
+
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name, "Search by name"));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id, "Search by mod id"));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId, "Search by steam file id"));
+        UpdateSearchModeOptionLabels();
+
+        searchModeFlyout = new Flyout
+        {
+            Placement = PlacementMode.Bottom,
+            Content = panel
+        };
+    }
+
+    private Button CreateSearchModeOptionButton(SearchFilterMode mode, string label)
+    {
+        Button button = new Button
+        {
+            Content = label,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            Padding = new Thickness(8, 4)
+        };
+
+        button.Click += (_, _) =>
+        {
+            SearchMode = mode;
+            searchModeFlyout?.Hide();
+        };
+        searchModeOptionButtons[mode] = button;
+
+        return button;
+    }
+
+    private void UpdateSearchModeOptionLabels()
+    {
+        foreach ((SearchFilterMode mode, Button button) in searchModeOptionButtons)
+        {
+            string marker = SearchMode == mode ? "[x]" : "[ ]";
+            button.Content = $"{marker} {GetSearchModeLabel(mode)}";
+        }
+    }
+
+    private void UpdateSearchModeButtonTooltip()
+    {
+        ToolTip.SetTip(SearchModeButton, $"{GetSearchModeLabel(SearchMode)} (click to change)");
+    }
+
+    private void UpdateSearchModeIcon()
+    {
+        string iconName = GetSearchModeIconName(SearchMode);
+        SearchModeIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
+            ?? SearchModeIcon.Source;
+    }
+
+    private static string GetSearchModeIconName(SearchFilterMode mode)
+    {
+        return mode switch
+        {
+            SearchFilterMode.Name => "alphabetIcon.svg",
+            SearchFilterMode.Id => "idCardIcon.svg",
+            SearchFilterMode.SteamFileId => "steamIdIcon.svg",
+            _ => "alphabetIcon.svg"
+        };
+    }
+
+    private static string GetSearchModeLabel(SearchFilterMode mode)
+    {
+        return mode switch
+        {
+            SearchFilterMode.Name => "Search by name",
+            SearchFilterMode.Id => "Search by mod id",
+            SearchFilterMode.SteamFileId => "Search by steam file id",
+            _ => "Search by name"
+        };
+    }
+
+    private static string SearchModeToLogLabel(SearchFilterMode mode)
+    {
+        return mode switch
+        {
+            SearchFilterMode.Name => "name",
+            SearchFilterMode.Id => "id",
+            SearchFilterMode.SteamFileId => "steam_file_id",
+            _ => "name"
+        };
     }
 
     private static void TempSearchLog(string message)

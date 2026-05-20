@@ -117,6 +117,8 @@ public partial class MainWindow : Window
         rightSearchBar.SearchTextChanged += OnSearchInputChanged;
         leftSearchBar.HideFilteredToggled += OnHideFilteredChanged;
         rightSearchBar.HideFilteredToggled += OnHideFilteredChanged;
+        leftSearchBar.SearchModeChanged += OnSearchModeChanged;
+        rightSearchBar.SearchModeChanged += OnSearchModeChanged;
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
@@ -732,7 +734,11 @@ public partial class MainWindow : Window
     {
         string leftFilter = leftSearchBar.Text.Trim();
         string rightFilter = rightSearchBar.Text.Trim();
-        TempSearchLog($"ApplySearchFilter start left='{TrimForLog(leftFilter)}' right='{TrimForLog(rightFilter)}' leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+        SearchFilterMode leftMode = leftSearchBar.SearchMode;
+        SearchFilterMode rightMode = rightSearchBar.SearchMode;
+        TempSearchLog(
+            $"ApplySearchFilter start left='{TrimForLog(leftFilter)}' leftMode={DescribeSearchMode(leftMode)} " +
+            $"right='{TrimForLog(rightFilter)}' rightMode={DescribeSearchMode(rightMode)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
         bool ensureVisible = ensureSearchResultVisibleOnNextFilter;
 
         isApplyingSearchFilter = true;
@@ -742,12 +748,14 @@ public partial class MainWindow : Window
                 inactiveMods,
                 manager.disabledMods.OrderBy(m => manager.GetRefFromDFHMod(m).name ?? string.Empty),
                 leftFilter,
+                leftMode,
                 leftSearchBar.HideFiltered,
                 leftModlist);
             ApplyFilterFlags(
                 activeMods,
                 manager.enabledMods,
                 rightFilter,
+                rightMode,
                 rightSearchBar.HideFiltered,
                 rightModlist);
         }
@@ -802,10 +810,34 @@ public partial class MainWindow : Window
         ApplySearchFilterImmediately();
     }
 
+    private void OnSearchModeChanged(object? sender, EventArgs e)
+    {
+        if (suppressSearchInputEvents)
+        {
+            TempSearchLog($"OnSearchModeChanged suppressed source={DescribeSearchSender(sender)}");
+            return;
+        }
+
+        TempSearchLog(
+            $"OnSearchModeChanged source={DescribeSearchSender(sender)} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
+            $"rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
+
+        if (sender is ModSearchBar searchBar &&
+            searchBar.HideFiltered &&
+            !string.IsNullOrWhiteSpace(searchBar.Text))
+        {
+            ensureSearchResultVisibleOnNextFilter = true;
+            TempSearchLog($"OnSearchModeChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
+        }
+
+        ApplySearchFilterImmediately();
+    }
+
     private void ApplyFilterFlags(
         ObservableCollection<ModRefViewModel> targetCollection,
         IEnumerable<DFHMod> sourceMods,
         string filter,
+        SearchFilterMode searchMode,
         bool hideFiltered,
         ListBox list)
     {
@@ -820,11 +852,7 @@ public partial class MainWindow : Window
                 continue;
 
             total++;
-            bool match = !hasFilter ||
-                (!string.IsNullOrWhiteSpace(vm.ModReference.name) &&
-                 vm.ModReference.name.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrWhiteSpace(vm.ModReference.ID) &&
-                 vm.ModReference.ID.Contains(filter, StringComparison.OrdinalIgnoreCase));
+            bool match = !hasFilter || MatchesSearchFilter(vm, filter, searchMode);
 
             vm.IsFilteredOut = hasFilter && !match;
             vm.IsVisible = !hideFiltered || match;
@@ -847,9 +875,26 @@ public partial class MainWindow : Window
         ReplaceCollection(targetCollection, displayItems);
 
         TempSearchLog(
-            $"ApplyFilterFlags list={DescribeList(list)} filter='{TrimForLog(filter)}' hideFiltered={hideFiltered} total={total} visible={visible} filteredOut={filteredOut}");
+            $"ApplyFilterFlags list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={DescribeSearchMode(searchMode)} hideFiltered={hideFiltered} total={total} visible={visible} filteredOut={filteredOut}");
 
         DropNonDisplayedSelections(list, displayItems);
+    }
+
+    private static bool MatchesSearchFilter(ModRefViewModel vm, string filter, SearchFilterMode mode)
+    {
+        if (vm == null || string.IsNullOrWhiteSpace(filter))
+            return true;
+
+        string? candidate = mode switch
+        {
+            SearchFilterMode.Name => vm.ModReference.name,
+            SearchFilterMode.Id => vm.ModReference.ID,
+            SearchFilterMode.SteamFileId => vm.ModReference.steamID,
+            _ => vm.ModReference.name
+        };
+
+        return !string.IsNullOrWhiteSpace(candidate) &&
+            candidate.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 
     private void DropNonDisplayedSelections(ListBox list, IReadOnlyCollection<ModRefViewModel> displayItems)
@@ -1362,17 +1407,21 @@ public partial class MainWindow : Window
         SearchFilterStateSnapshot snapshot = new SearchFilterStateSnapshot(
             leftSearchBar.Text ?? string.Empty,
             leftSearchBar.HideFiltered,
+            leftSearchBar.SearchMode,
             rightSearchBar.Text ?? string.Empty,
-            rightSearchBar.HideFiltered);
+            rightSearchBar.HideFiltered,
+            rightSearchBar.SearchMode);
         TempSearchLog(
-            $"CaptureSearchFilterStateSnapshot left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered}");
+            $"CaptureSearchFilterStateSnapshot left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
+            $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
         return snapshot;
     }
 
     private void RestoreSearchFilterStateSnapshot(SearchFilterStateSnapshot snapshot)
     {
         TempSearchLog(
-            $"RestoreSearchFilterStateSnapshot begin left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered}");
+            $"RestoreSearchFilterStateSnapshot begin left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
+            $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
         suppressSearchInputEvents = true;
         searchDebounceTimer?.Stop();
         try
@@ -1381,18 +1430,23 @@ public partial class MainWindow : Window
                 leftSearchBar.Text = snapshot.LeftText;
             if (leftSearchBar.HideFiltered != snapshot.LeftHideFiltered)
                 leftSearchBar.HideFiltered = snapshot.LeftHideFiltered;
+            if (leftSearchBar.SearchMode != snapshot.LeftMode)
+                leftSearchBar.SearchMode = snapshot.LeftMode;
 
             if (!string.Equals(rightSearchBar.Text, snapshot.RightText, StringComparison.Ordinal))
                 rightSearchBar.Text = snapshot.RightText;
             if (rightSearchBar.HideFiltered != snapshot.RightHideFiltered)
                 rightSearchBar.HideFiltered = snapshot.RightHideFiltered;
+            if (rightSearchBar.SearchMode != snapshot.RightMode)
+                rightSearchBar.SearchMode = snapshot.RightMode;
         }
         finally
         {
             suppressSearchInputEvents = false;
         }
         TempSearchLog(
-            $"RestoreSearchFilterStateSnapshot end left='{TrimForLog(leftSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} right='{TrimForLog(rightSearchBar.Text)}' rightHide={rightSearchBar.HideFiltered}");
+            $"RestoreSearchFilterStateSnapshot end left='{TrimForLog(leftSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
+            $"right='{TrimForLog(rightSearchBar.Text)}' rightHide={rightSearchBar.HideFiltered} rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
     }
 
     private static List<ModSelectionToken> CaptureSelectionTokens(ListBox list)
@@ -1525,8 +1579,10 @@ public partial class MainWindow : Window
     private readonly record struct SearchFilterStateSnapshot(
         string LeftText,
         bool LeftHideFiltered,
+        SearchFilterMode LeftMode,
         string RightText,
-        bool RightHideFiltered);
+        bool RightHideFiltered,
+        SearchFilterMode RightMode);
 
     private async void ModContextCopyId(object? sender, RoutedEventArgs e)
     {
@@ -2658,6 +2714,17 @@ public partial class MainWindow : Window
         return text.Length <= 80 ? text : text[..80] + "...";
     }
 
+    private static string DescribeSearchMode(SearchFilterMode mode)
+    {
+        return mode switch
+        {
+            SearchFilterMode.Name => "name",
+            SearchFilterMode.Id => "id",
+            SearchFilterMode.SteamFileId => "steam_file_id",
+            _ => "name"
+        };
+    }
+
     private void EnsureFirstVisibleSearchResultInView(
         ListBox list,
         IEnumerable<ModRefViewModel> source,
@@ -2681,8 +2748,8 @@ public partial class MainWindow : Window
         if (!IsDevMode())
             return;
 
-        TempLogListVisualState(phase, leftModlist, inactiveMods, leftSearchBar.Text, leftSearchBar.HideFiltered);
-        TempLogListVisualState(phase, rightModlist, activeMods, rightSearchBar.Text, rightSearchBar.HideFiltered);
+        TempLogListVisualState(phase, leftModlist, inactiveMods, leftSearchBar.Text, leftSearchBar.SearchMode, leftSearchBar.HideFiltered);
+        TempLogListVisualState(phase, rightModlist, activeMods, rightSearchBar.Text, rightSearchBar.SearchMode, rightSearchBar.HideFiltered);
     }
 
     private void TempLogListVisualState(
@@ -2690,6 +2757,7 @@ public partial class MainWindow : Window
         ListBox list,
         IEnumerable<ModRefViewModel> source,
         string filter,
+        SearchFilterMode mode,
         bool hideFiltered)
     {
         int total = 0;
@@ -2707,7 +2775,7 @@ public partial class MainWindow : Window
         int realizedHidden = realizedTotal - realizedVisible;
 
         TempSearchLog(
-            $"VisualState phase={phase} list={DescribeList(list)} filter='{TrimForLog(filter)}' hideFiltered={hideFiltered} " +
+            $"VisualState phase={phase} list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={DescribeSearchMode(mode)} hideFiltered={hideFiltered} " +
             $"vmVisible={vmVisible}/{total} realizedVisible={realizedVisible}/{realizedTotal} realizedHidden={realizedHidden}");
     }
 }
