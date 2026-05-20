@@ -47,6 +47,7 @@ public partial class MainWindow : Window
 
     private DispatcherTimer? modManagerReloadTimer;
     private FileSystemWatcher? modManagerWatcher;
+    private DispatcherTimer? dfHackStatusTimer;
     private DispatcherTimer? autoReloadTimer;
     private DispatcherTimer? searchDebounceTimer;
     private Flyout? reloadOptionsFlyout;
@@ -59,6 +60,7 @@ public partial class MainWindow : Window
     private bool bypassUnsavedClosePrompt;
     private bool unsavedClosePromptInFlight;
     private const int MinimumAutoReloadSeconds = 3;
+    private static readonly TimeSpan DfHackStatusRefreshInterval = TimeSpan.FromSeconds(3);
 
     private IImage? currentPreview;
     private bool updateInProgress;
@@ -146,12 +148,14 @@ public partial class MainWindow : Window
         {
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();
+            dfHackStatusTimer?.Stop();
             autoReloadTimer?.Stop();
             searchDebounceTimer?.Stop();
             if (currentPreview is IDisposable disposable)
                 disposable.Dispose();
         };
 
+        InitializeDfHackStatusTimer();
         InitializeAutoReloadTimer();
     }
 
@@ -402,6 +406,7 @@ public partial class MainWindow : Window
         clearInstalledModsButton.IsEnabled = Directory.Exists(manager.GetInstalledModsPath());
         modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
         UpdateDfHackStatus();
+        StartDfHackStatusTimer();
         SetChangesMade(false);
         if (!isDevMode)
             SetupModManagerWatcher();
@@ -805,8 +810,7 @@ public partial class MainWindow : Window
         ListBox list)
     {
         bool hasFilter = !string.IsNullOrWhiteSpace(filter);
-        List<ModRefViewModel> matching = new List<ModRefViewModel>();
-        List<ModRefViewModel> nonMatching = new List<ModRefViewModel>();
+        List<ModRefViewModel> ordered = new List<ModRefViewModel>();
         int total = 0;
         int visible = 0;
         int filteredOut = 0;
@@ -831,32 +835,14 @@ public partial class MainWindow : Window
             if (!vm.IsVisible)
                 vm.IsJumpHighlighted = false;
 
-            if (match)
-            {
-                matching.Add(vm);
-            }
-            else
-            {
-                nonMatching.Add(vm);
-            }
+            ordered.Add(vm);
         }
 
-        List<ModRefViewModel> displayItems;
-        if (!hasFilter)
-        {
-            displayItems = matching;
-        }
-        else if (hideFiltered)
-        {
-            displayItems = matching;
-        }
-        else
-        {
-            // Keep all mods visible while pinning matches to the top.
-            displayItems = new List<ModRefViewModel>(matching.Count + nonMatching.Count);
-            displayItems.AddRange(matching);
-            displayItems.AddRange(nonMatching);
-        }
+        // Preserve source/default modlist order in all modes.
+        // When hideFiltered is enabled, only matching items stay visible.
+        List<ModRefViewModel> displayItems = hideFiltered
+            ? ordered.Where(vm => vm.IsVisible).ToList()
+            : ordered;
 
         ReplaceCollection(targetCollection, displayItems);
 
@@ -1934,6 +1920,24 @@ public partial class MainWindow : Window
         if (configured != manager.GetAutoReloadIntervalSeconds())
             manager.SetAutoReloadIntervalSeconds(configured);
         ConfigureAutoReloadTimer(configured);
+    }
+
+    private void InitializeDfHackStatusTimer()
+    {
+        dfHackStatusTimer = new DispatcherTimer
+        {
+            Interval = DfHackStatusRefreshInterval
+        };
+        dfHackStatusTimer.Tick += (_, _) => UpdateDfHackStatus();
+    }
+
+    private void StartDfHackStatusTimer()
+    {
+        if (dfHackStatusTimer == null)
+            return;
+
+        dfHackStatusTimer.Stop();
+        dfHackStatusTimer.Start();
     }
 
     private void AutoReloadTimerTick(object? sender, EventArgs e)

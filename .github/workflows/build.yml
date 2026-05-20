@@ -78,6 +78,8 @@ jobs:
             **/*.targets
       - name: Restore
         run: dotnet restore ModHearth.sln
+      - name: Restore publish runtime assets
+        run: dotnet restore ModHearth.csproj -r ${{ matrix.rid }}
       - name: Build
         run: dotnet build ModHearth.sln -c Release --no-restore
       - name: Test (Linux)
