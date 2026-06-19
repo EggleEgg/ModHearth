@@ -2,7 +2,7 @@
 This is a modified mod manager for the steam version of Dwarf Fortress, made to interact with both DFHack and steam workshop mods. Yes this was vibe coded with the assistance of codex and claude, because I have 0 idea how c# and lua work. Yes you have absolutely the right to kill me and spit on my grave for this.
 
 
-![alt text](ModHearth.png)
+![ModHearth ui](ModHearth.png)
 
 
 ## User Information:
@@ -10,7 +10,7 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 ### Requirements:
 - Dwarf Fortress steam version
 - Windows, macOS, or Linux
-- DFHack Installed
+- DFHack is optional but recommended. Install DFHack for in-game mod manager reloading.
 - Game has been launched at least once
 - [.NET 8 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) installed
 
@@ -22,7 +22,7 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 
 ### Instructions
 Information on the four buttons from left to right:
-- Save button: saves the current modlist to file, and reloads the game's mod screen.
+- Save button: saves the current modlist to file. With DFHack installed, it also reloads the game's mod screen.
 - Undo button: undoes changes made to the current modlist. Can only undo mod order/enable/disable changes, not renaming or deletion.
 - Trash can: clears installed mods cache. Right click to open the installed mods folder.
 - Reload button: restarts ModHearth. Right click for autoreload settings.
@@ -39,9 +39,9 @@ Information on the four buttons from left to right:
 ## Contributor Information
 
 ### General Functionality
-This tool works by pulling mods from the dwarf fortress mods folder, and pulling modpacks from the dfhack config mod-manager.json.
-ModReferences are generated from found mod folders, while modpacks are generated from the dfhack config.
-Loading modpacks into the game is done via altering mod-manager.json and using dfhacks normal mod management once the game loads.
+This tool works by pulling mods from the dwarf fortress mods folder, and pulling modpacks from either the DFHack config (mod-manager.json) or ModHearth's local fallback (modpacks.local.json).
+ModReferences are generated from found mod folders, while modpacks are generated from the active modpack file.
+With DFHack installed, loading modpacks into the game is done via altering mod-manager.json and using DFHack's normal mod management once the game loads. Without DFHack, ModHearth still saves and manages modpacks locally, but in-game reloading is unavailable.
 
 ### Term Definitions
 #### DFHMod
@@ -54,4 +54,4 @@ Can easily be converted to a DFHMod.
 
 #### DFHModPack
 An object representing a modpack matching how DFHack handles them. Only has a name, a bool default, and a list of DFHMods.
-DFHack stores a list of these in a json file, which it loads into the game. 
+DFHack stores a list of these in a json file, which it loads into the game. ModHearth's local fallback file uses the same format. 

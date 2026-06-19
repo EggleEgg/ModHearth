@@ -119,13 +119,29 @@ namespace ModHearth
 
     public partial class ModHearthManager
     {
+        public enum ModpackStorageBackend
+        {
+            DFHackConfig,
+            LocalFallback
+        }
+
+        public readonly record struct ModpackSaveResult(
+            ModpackStorageBackend Backend,
+            string Path,
+            bool LiveReloadApplied,
+            bool LiveReloadDeferred,
+            string LiveReloadMessage)
+        {
+            public bool UsesFallbackStorage => Backend == ModpackStorageBackend.LocalFallback;
+        }
+
         public static string GetBuildVersionString()
         {
             string? buildNumber = Environment.GetEnvironmentVariable("MODHEARTH_BUILD_NUMBER");
             if (!string.IsNullOrWhiteSpace(buildNumber))
                 return buildNumber;
 
-            string? infoVersion = Assembly.GetExecutingAssembly()
+            string? infoVersion = (Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly())
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
             if (!string.IsNullOrWhiteSpace(infoVersion))
             {
@@ -136,7 +152,7 @@ namespace ModHearth
                     return infoVersion;
             }
 
-            return " none";
+            return "none";
         }
 
         // Maps strings to ModReferences. The keys match DFHMods.ToString() perfectly. Given a value V, V.ToDFHMod.ToString() returns it's key.
@@ -178,6 +194,7 @@ namespace ModHearth
         private static readonly string styleLightPath = Path.Combine(baseDir, "styles", "style.light.json");
         private static readonly string styleDarkPath = Path.Combine(baseDir, "styles", "style.dark.json");
         private static readonly string modSortRulesPath = Path.Combine(baseDir, "modsort_rules.json");
+        private static readonly string localFallbackModpacksPath = Path.Combine(baseDir, "modpacks.local.json");
         private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
         private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -198,6 +215,8 @@ namespace ModHearth
         private bool lastLoggedErrorLogExists;
         private readonly object modManagerReloadGate = new();
         private CancellationTokenSource? deferredModManagerReloadCts;
+        private ModpackStorageBackend activeModpackBackend = ModpackStorageBackend.LocalFallback;
+        private string activeModpackPath = localFallbackModpacksPath;
         private static readonly TimeSpan DeferredModManagerReloadInterval = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan DeferredModManagerReloadTimeout = TimeSpan.FromMinutes(5);
 
@@ -401,10 +420,85 @@ namespace ModHearth
             return Path.Combine(config.DFFolderPath, "dfhack-config", "mod-manager.json");
         }
 
+        public ModpackStorageBackend ActiveModpackBackend => activeModpackBackend;
+
+        public string GetActiveModpackPath() => activeModpackPath;
+
+        public string GetLocalFallbackModpacksPath() => localFallbackModpacksPath;
+
         public bool HasDfhack()
         {
             string dfhackRunPath = GetDfhackRunPath();
             return !string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath);
+        }
+
+        private void ResolveActiveModpackStorage()
+        {
+            string dfhackPath = GetModManagerConfigPath();
+            if (HasDfhack() && !string.IsNullOrWhiteSpace(dfhackPath))
+            {
+                SetActiveModpackStorage(ModpackStorageBackend.DFHackConfig, dfhackPath);
+                return;
+            }
+
+            SetActiveModpackStorage(ModpackStorageBackend.LocalFallback, localFallbackModpacksPath);
+        }
+
+        private void SetActiveModpackStorage(ModpackStorageBackend backend, string path)
+        {
+            activeModpackBackend = backend;
+            activeModpackPath = string.IsNullOrWhiteSpace(path)
+                ? localFallbackModpacksPath
+                : path;
+
+            if (backend == ModpackStorageBackend.LocalFallback)
+                CancelDeferredModManagerReload();
+        }
+
+        private bool TryReadModpackFile(string path, out List<DFHModpack> loadedModpacks, out string error)
+        {
+            loadedModpacks = new List<DFHModpack>();
+            error = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                error = "Modpack file missing.";
+                return false;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(path);
+                List<DFHModpack>? parsed = JsonSerializer.Deserialize<List<DFHModpack>>(json);
+                if (parsed == null)
+                {
+                    error = "Modpack file could not be parsed.";
+                    return false;
+                }
+
+                loadedModpacks = parsed
+                    .Where(modpack => modpack != null)
+                    .ToList();
+                foreach (DFHModpack modpack in loadedModpacks)
+                {
+                    modpack.name ??= "Unnamed";
+                    modpack.modlist ??= new List<DFHMod>();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                loadedModpacks = new List<DFHModpack>();
+                return false;
+            }
+        }
+
+        private List<DFHModpack> CreateDefaultModpacks()
+        {
+            DFHModpack newPack = new DFHModpack(true, GenerateVanillaModlist(), "Default");
+            return new List<DFHModpack> { newPack };
         }
 
         public bool CanDeleteModFromModsFolder(ModReference modref)
@@ -459,7 +553,7 @@ namespace ModHearth
             disabledMods.Remove(dfm);
             modrefMap.Remove(modref.DFHackCompatibleString());
             FindModlistProblems();
-            RequestModManagerReload();
+            TryRequestModManagerReload(out _, out _);
 
             message = $"Deleted {modPath}";
             return true;
@@ -1301,6 +1395,13 @@ namespace ModHearth
                 FindAllModsFromDisk();
                 return;
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DFHack memory query failed. Falling back to filesystem scan: {ex.Message}");
+                LogAdvancedSteam($"DFHack memory query failed. Using filesystem mod scan. Error: {ex.Message}");
+                FindAllModsFromDisk();
+                return;
+            }
 
             LogAdvancedSteam($"DFHack memory mod entries received: {modData.Count}.");
             Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
@@ -1764,51 +1865,122 @@ namespace ModHearth
             return false;
         }
 
-        // Alter the current modpack with enabledMods and save modpack list to dfhack file.
-        public void SaveCurrentModpack()
+        // Alter the current modpack with enabledMods and save modpack list.
+        public ModpackSaveResult SaveCurrentModpack()
         {
             SelectedModlist.modlist = new List<DFHMod>(enabledMods);
 
-            SaveAllModpacks();
+            return SaveAllModpacks();
         }
 
-        // Save the DFHModpack list to file.
-        public void SaveAllModpacks()
+        // Save the DFHModpack list to the active backend file.
+        public ModpackSaveResult SaveAllModpacks()
+            => SaveAllModpacks(requestLiveReload: true);
+
+        private ModpackSaveResult SaveAllModpacks(bool requestLiveReload)
         {
             Console.WriteLine("Modlists saved.");
 
-            // Get the path, serialize with right options, and write to file.
-            string dfHackModlistPath = GetModManagerConfigPath();
-            JsonSerializerOptions options = new JsonSerializerOptions
+            ResolveActiveModpackStorage();
+            ModpackStorageBackend backend = activeModpackBackend;
+            string path = activeModpackPath;
+
+            try
             {
-                WriteIndented = true // Enable pretty formatting
-            };
-            string modlistJson = JsonSerializer.Serialize(modpacks, options);
+                WriteModpackFile(path, modpacks);
+            }
+            catch (Exception ex) when (backend == ModpackStorageBackend.DFHackConfig)
+            {
+                Console.WriteLine($"Failed to save DFHack modlist file: {ex.Message}. Falling back to local modpacks.");
+                SetActiveModpackStorage(ModpackStorageBackend.LocalFallback, localFallbackModpacksPath);
+                backend = activeModpackBackend;
+                path = activeModpackPath;
+                WriteModpackFile(path, modpacks);
+            }
+
+            bool liveReloadApplied = false;
+            bool liveReloadDeferred = false;
+            string liveReloadMessage = string.Empty;
+
+            if (requestLiveReload)
+            {
+                liveReloadApplied = TryRequestModManagerReload(out liveReloadDeferred, out liveReloadMessage);
+            }
+
+            return new ModpackSaveResult(
+                backend,
+                path,
+                liveReloadApplied,
+                liveReloadDeferred,
+                liveReloadMessage);
+        }
+
+        private void WriteModpackFile(string path, List<DFHModpack> modpacksToWrite)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new InvalidOperationException("Modpack path is not set.");
+
+            string? directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
+                Directory.CreateDirectory(directory);
+
+            string modlistJson = JsonSerializer.Serialize(modpacksToWrite, GetModpackJsonOptions());
             IsSavingModpacks = true;
             try
             {
-                File.WriteAllText(dfHackModlistPath, modlistJson);
+                File.WriteAllText(path, modlistJson);
             }
             finally
             {
                 IsSavingModpacks = false;
             }
-
-            RequestModManagerReload();
         }
 
-        private void RequestModManagerReload()
+        private static JsonSerializerOptions GetModpackJsonOptions()
         {
+            return new JsonSerializerOptions
+            {
+                WriteIndented = true
+            };
+        }
+
+        private bool TryRequestModManagerReload(out bool deferred, out string message)
+        {
+            deferred = false;
+            message = string.Empty;
+
+            if (activeModpackBackend != ModpackStorageBackend.DFHackConfig)
+            {
+                message = "Saved locally. In-game apply requires DFHack.";
+                return false;
+            }
+
+            if (!HasDfhack())
+            {
+                message = "DFHack not found. In-game apply skipped.";
+                return false;
+            }
+
+            if (!DwarfFortressRunning())
+            {
+                message = "Dwarf Fortress is not running. In-game apply skipped.";
+                return false;
+            }
+
             const int initialChecks = 1;
             bool reloaded = ReloadDFHackModManagerScreen();
             if (reloaded)
             {
                 Console.WriteLine("[ModHearth] Mod manager reload applied after 1 check.");
                 CancelDeferredModManagerReload();
-                return;
+                message = "Modpack saved and applied to the DFHack mod manager.";
+                return true;
             }
 
             ScheduleDeferredModManagerReload(initialChecks);
+            deferred = true;
+            message = "Modpack saved. In-game apply is waiting for the mod manager screen.";
+            return false;
         }
 
         private bool ReloadDFHackModManagerScreen()
@@ -2220,22 +2392,30 @@ namespace ModHearth
 
         private bool FindModpacks(string? preferredModlistName)
         {
-            // Get paths and read file.
-            string dfHackModpackPath = GetModManagerConfigPath();
-            if (string.IsNullOrWhiteSpace(dfHackModpackPath) || !File.Exists(dfHackModpackPath))
-            {
-                Console.WriteLine("Modlist file missing.");
-                modpacks = new List<DFHModpack>();
-                return false;
-            }
+            ResolveActiveModpackStorage();
 
-            string dfHackModpackJson = File.ReadAllText(dfHackModpackPath);
-            List<DFHModpack>? loadedModpacks = JsonSerializer.Deserialize<List<DFHModpack>>(dfHackModpackJson);
-            if (loadedModpacks == null)
+            bool shouldPersistActiveFile = false;
+            bool loadedFromActive = TryReadModpackFile(activeModpackPath, out List<DFHModpack> loadedModpacks, out string loadError);
+            if (!loadedFromActive)
             {
-                Console.WriteLine("Modlist file borked.");
-                modpacks = new List<DFHModpack>();
-                return false;
+                Console.WriteLine($"Active modlist file unavailable: {loadError} Path: {activeModpackPath}");
+                string alternatePath = activeModpackBackend == ModpackStorageBackend.DFHackConfig
+                    ? localFallbackModpacksPath
+                    : GetModManagerConfigPath();
+
+                if (!string.IsNullOrWhiteSpace(alternatePath) &&
+                    TryReadModpackFile(alternatePath, out List<DFHModpack> alternateModpacks, out _))
+                {
+                    Console.WriteLine($"Loaded modlists from alternate file: {alternatePath}");
+                    loadedModpacks = alternateModpacks;
+                    shouldPersistActiveFile = true;
+                }
+                else
+                {
+                    Console.WriteLine("Modlist file missing or invalid. Creating a default modlist.");
+                    loadedModpacks = CreateDefaultModpacks();
+                    shouldPersistActiveFile = true;
+                }
             }
 
             modpacks = new List<DFHModpack>(loadedModpacks);
@@ -2307,20 +2487,20 @@ namespace ModHearth
                 {
                     SetSelectedModpack(0);
                     modpacks[0].@default = true;
-                    SaveAllModpacks();
+                    shouldPersistActiveFile = true;
                 }
             }
 
             // Create default modpack if none present.
             if (modpacks.Count == 0)
             {
-                DFHModpack newPack = new DFHModpack(true, new List<DFHMod>(), "Default");
-                // Generate default modpack from vanilla mods.
-                newPack.modlist = GenerateVanillaModlist();
-                modpacks.Add(newPack);
+                modpacks = CreateDefaultModpacks();
                 SetSelectedModpack(0);
-                SaveAllModpacks();
+                shouldPersistActiveFile = true;
             }
+
+            if (shouldPersistActiveFile)
+                SaveAllModpacks(requestLiveReload: false);
 
             LastMissingModsMessage = modMissing ? missingMessage : string.Empty;
             return true;

@@ -336,16 +336,9 @@ public partial class ModSearchBar : UserControl
 
     private static void TempSearchLog(string message)
     {
-        if (!IsDevModeEnabled())
+        if (!DevMode.IsEnabled)
             return;
 
         Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [TEMP][ModSearchBar] {message}");
-    }
-
-    private static bool IsDevModeEnabled()
-    {
-        string? value = Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE");
-        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 }

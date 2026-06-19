@@ -12,11 +12,13 @@ internal static class Program
         RuntimeBootstrap.Initialize();
         try
         {
+            // For debugging features with extra logs
             bool isDevMode = HasArg(args, "--devmode")
                 || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE"));
             if (isDevMode)
                 Environment.SetEnvironmentVariable("MODHEARTH_DEVMODE", "1");
 
+            // For testing graphics libraries in github actions
             bool isSmokeTestWindow = HasArg(args, "--smoke-test-window")
                 || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW"));
             bool isSmokeTest = HasArg(args, "--smoke-test")

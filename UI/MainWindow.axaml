@@ -60,7 +60,6 @@
               FontWeight="Normal"
               TextDecorations="{Binding TextDecorations}"
               MinWidth="0"
-              MaxWidth="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
               Margin="4,0,0,0"
               VerticalAlignment="Center" />
           </Grid>
@@ -117,10 +116,9 @@
                 <Image Source="{ui:AssetImage updateIcon}"
                   Stretch="Uniform" />
               </Button>
-              <TextBlock x:Name="modVersionLabel" FontSize="12" VerticalAlignment="Center" />
+              <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
             </StackPanel>
             <TextBlock x:Name="dfhackStatusLabel" Grid.Row="1" Grid.Column="1" FontSize="11"
-              Margin="0,5,0,0"
               HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="False" />
           </Grid>
         </Grid>
@@ -135,12 +133,12 @@
           HorizontalAlignment="Center" VerticalAlignment="Center" />
 
         <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1" Grid.Column="0" Margin="0,0,10,0"
-          Watermark="Search" Height="30" />
+          Watermark="Search" Height="28" />
         <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1" Grid.Column="1" Margin="0,0,10,0"
-          Watermark="Search" Height="30" />
+          Watermark="Search" Height="28" />
 
         <ListBox x:Name="leftModlist" Grid.Row="2" Grid.Column="0" SelectionMode="Multiple"
-          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+          AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
           Margin="0,6,12,0">
           <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem">
@@ -154,7 +152,7 @@
           </ListBox.ItemContainerTheme>
         </ListBox>
         <ListBox x:Name="rightModlist" Grid.Row="2" Grid.Column="1" SelectionMode="Multiple"
-          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+          AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
           Margin="0,6,12,0">
           <ListBox.ItemContainerTheme>
             <ControlTheme TargetType="ListBoxItem">

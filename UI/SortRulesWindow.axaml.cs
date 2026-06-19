@@ -19,6 +19,7 @@ public partial class SortRulesWindow : Window
 {
     private readonly ObservableCollection<ModRefViewModel> availableMods = new();
     private readonly ObservableCollection<ModRefViewModel> ruleMods = new();
+    private readonly List<ModRefViewModel> masterRuleList = new();
     private readonly ObservableCollection<object> ruleJsonLines = new();
 
     private readonly Dictionary<string, ModRefViewModel> modKeyMap = new(StringComparer.OrdinalIgnoreCase);
@@ -88,7 +89,7 @@ public partial class SortRulesWindow : Window
 
         modListController = new ModListDragDropController(
             this,
-            () => availableMods.Concat(ruleMods),
+            () => modIdMap.Values,
             key => modKeyMap.TryGetValue(key, out ModRefViewModel? vm) ? vm : null,
             vm => vm.DfMod.ToString());
         modListController.RegisterList(modTreeList, allowReorder: false);
@@ -112,8 +113,6 @@ public partial class SortRulesWindow : Window
         };
         modTreeSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
         rulesSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
-        modTreeSearchBar.HideFilteredToggled += (_, _) => ApplySearchFilterImmediately();
-        rulesSearchBar.HideFilteredToggled += (_, _) => ApplySearchFilterImmediately();
         saveButton.Click += (_, _) => SaveRules();
         KeyDown += SortRulesWindowKeyDown;
         Closing += SortRulesWindowClosing;
@@ -424,6 +423,9 @@ public partial class SortRulesWindow : Window
 
     private void MoveToRuleMods(List<ModRefViewModel> items, int insertIndex)
     {
+        // Map insert index from filtered ruleMods to masterRuleList
+        int masterIdx = MapFilteredToMasterIndex(ruleMods, masterRuleList, insertIndex);
+
         List<ModRefViewModel> unique = Deduplicate(items);
         if (unique.Count == 0)
             return;
@@ -431,9 +433,9 @@ public partial class SortRulesWindow : Window
         foreach (ModRefViewModel vm in unique)
             availableMods.Remove(vm);
 
-        int clamped = Math.Max(0, Math.Min(insertIndex, ruleMods.Count));
+        int clamped = Math.Max(0, Math.Min(masterIdx, masterRuleList.Count));
         for (int i = 0; i < unique.Count; i++)
-            ruleMods.Insert(clamped + i, unique[i]);
+            masterRuleList.Insert(clamped + i, unique[i]);
 
         ApplySearchFilter();
     }
@@ -445,28 +447,26 @@ public partial class SortRulesWindow : Window
             return;
 
         foreach (ModRefViewModel vm in unique)
-            ruleMods.Remove(vm);
+            masterRuleList.Remove(vm);
 
-        List<ModRefViewModel> available = availableMods.Concat(unique)
-            .Distinct()
-            .OrderBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        ResetCollection(availableMods, available);
         ApplySearchFilter();
     }
 
     private void ReorderRuleMods(List<ModRefViewModel> items, int insertIndex)
     {
+        // Map insert index from filtered ruleMods to masterRuleList
+        int masterIdx = MapFilteredToMasterIndex(ruleMods, masterRuleList, insertIndex);
+
         HashSet<ModRefViewModel> selectedSet = new HashSet<ModRefViewModel>(items);
-        List<ModRefViewModel> selectedInOrder = ruleMods.Where(m => selectedSet.Contains(m)).ToList();
+        List<ModRefViewModel> selectedInOrder = masterRuleList.Where(m => selectedSet.Contains(m)).ToList();
         if (selectedInOrder.Count == 0)
             return;
 
-        int clampedIndex = Math.Max(0, Math.Min(insertIndex, ruleMods.Count));
-        int selectedBefore = ruleMods.Take(clampedIndex).Count(m => selectedSet.Contains(m));
+        int clampedIndex = Math.Max(0, Math.Min(masterIdx, masterRuleList.Count));
+        int selectedBefore = masterRuleList.Take(clampedIndex).Count(m => selectedSet.Contains(m));
         int targetIndex = clampedIndex - selectedBefore;
 
-        List<ModRefViewModel> remaining = ruleMods.Where(m => !selectedSet.Contains(m)).ToList();
+        List<ModRefViewModel> remaining = masterRuleList.Where(m => !selectedSet.Contains(m)).ToList();
         targetIndex = Math.Max(0, Math.Min(targetIndex, remaining.Count));
 
         List<ModRefViewModel> newList = new List<ModRefViewModel>();
@@ -474,7 +474,8 @@ public partial class SortRulesWindow : Window
         newList.AddRange(selectedInOrder);
         newList.AddRange(remaining.Skip(targetIndex));
 
-        ResetCollection(ruleMods, newList);
+        masterRuleList.Clear();
+        masterRuleList.AddRange(newList);
     }
 
     private void SelectItemsInList(ListBox list, IEnumerable<ModRefViewModel> items)
@@ -502,21 +503,22 @@ public partial class SortRulesWindow : Window
             UpdateRulesJsonPreview();
     }
 
+
     private void UpdateRuleGapVisuals()
     {
-        foreach (ModRefViewModel vm in availableMods)
+        foreach (ModRefViewModel vm in modIdMap.Values)
             vm.RuleGapMargin = new Thickness(0);
 
-        for (int i = 0; i < ruleMods.Count; i++)
+        for (int i = 0; i < masterRuleList.Count; i++)
         {
             bool hasGapAbove = i > 0 &&
-                               HasGapBetween(ruleMods[i - 1].ModReference.ID, ruleMods[i].ModReference.ID);
-            bool hasGapBelow = i < ruleMods.Count - 1 &&
-                               HasGapBetween(ruleMods[i].ModReference.ID, ruleMods[i + 1].ModReference.ID);
+                               HasGapBetween(masterRuleList[i - 1].ModReference.ID, masterRuleList[i].ModReference.ID);
+            bool hasGapBelow = i < masterRuleList.Count - 1 &&
+                               HasGapBetween(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
 
-            double top = hasGapAbove ? 10 : 0;
-            double bottom = hasGapBelow ? 10 : 0;
-            ruleMods[i].RuleGapMargin = new Thickness(0, top, 0, bottom);
+            double top = hasGapAbove ? 12 : 0;
+            double bottom = hasGapBelow ? 12 : 0;
+            masterRuleList[i].RuleGapMargin = new Thickness(0, top, 0, bottom);
         }
     }
 
@@ -588,14 +590,14 @@ public partial class SortRulesWindow : Window
         List<PreviewRuleToken> tokens = new List<PreviewRuleToken>();
         HashSet<RuleEdge> adjacencyEdges = new HashSet<RuleEdge>(RuleEdgeComparer.Instance);
         HashSet<string> ruleIds = new HashSet<string>(
-            ruleMods.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
+            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
                 .Where(id => !string.IsNullOrWhiteSpace(id)),
             StringComparer.OrdinalIgnoreCase);
 
-        int pairCount = Math.Max(0, ruleMods.Count - 1);
+        int pairCount = Math.Max(0, masterRuleList.Count - 1);
         for (int i = 0; i < pairCount; i++)
         {
-            RuleEdge edge = CreateEdge(ruleMods[i].ModReference.ID, ruleMods[i + 1].ModReference.ID);
+            RuleEdge edge = CreateEdge(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
             if (!IsValidEdge(edge))
                 continue;
 
@@ -645,18 +647,18 @@ public partial class SortRulesWindow : Window
         if (context.DestinationList != rulesList)
             return;
 
-        List<ModRefViewModel> inserted = context.Items.Where(ruleMods.Contains).ToList();
+        List<ModRefViewModel> inserted = context.Items.Where(masterRuleList.Contains).ToList();
         if (inserted.Count == 0)
         {
             NormalizeGaps();
             return;
         }
 
-        int minIndex = ruleMods.Count;
+        int minIndex = masterRuleList.Count;
         int maxIndex = -1;
         foreach (ModRefViewModel vm in inserted)
         {
-            int index = ruleMods.IndexOf(vm);
+            int index = masterRuleList.IndexOf(vm);
             if (index < 0)
                 continue;
             if (index < minIndex)
@@ -674,16 +676,16 @@ public partial class SortRulesWindow : Window
         int aboveIndex = minIndex - 1;
         if (aboveIndex >= 0)
         {
-            ModRefViewModel before = ruleMods[aboveIndex];
-            ModRefViewModel after = ruleMods[minIndex];
+            ModRefViewModel before = masterRuleList[aboveIndex];
+            ModRefViewModel after = masterRuleList[minIndex];
             SetGapBetween(before.ModReference.ID, after.ModReference.ID, addGap);
         }
 
         int belowIndex = maxIndex + 1;
-        if (belowIndex < ruleMods.Count)
+        if (belowIndex < masterRuleList.Count)
         {
-            ModRefViewModel before = ruleMods[maxIndex];
-            ModRefViewModel after = ruleMods[belowIndex];
+            ModRefViewModel before = masterRuleList[maxIndex];
+            ModRefViewModel after = masterRuleList[belowIndex];
             SetGapBetween(before.ModReference.ID, after.ModReference.ID, addGap);
         }
 
@@ -692,16 +694,16 @@ public partial class SortRulesWindow : Window
 
     private void NormalizeGaps()
     {
-        if (ruleMods.Count < 2)
+        if (masterRuleList.Count < 2)
         {
             ruleGaps.Clear();
             return;
         }
 
         HashSet<RuleGap> valid = new HashSet<RuleGap>(RuleGapComparer.Instance);
-        for (int i = 0; i < ruleMods.Count - 1; i++)
+        for (int i = 0; i < masterRuleList.Count - 1; i++)
         {
-            RuleGap gap = CreateGap(ruleMods[i].ModReference.ID, ruleMods[i + 1].ModReference.ID);
+            RuleGap gap = CreateGap(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
             if (!IsValidGap(gap))
                 continue;
             if (ruleGaps.Contains(gap))
@@ -950,25 +952,19 @@ public partial class SortRulesWindow : Window
             AddPlaceholderIfMissing(rule.RequiresId);
         }
 
-        List<ModRefViewModel> sorted = modIdMap.Values
-            .OrderBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        ResetCollection(availableMods, sorted);
-
+        masterRuleList.Clear();
         List<string> orderedRuleIds = BuildRuleOrder(existingRules, modIdMap.Keys);
         foreach (string id in orderedRuleIds)
         {
-            if (!modIdMap.TryGetValue(id, out ModRefViewModel? vm))
-                continue;
-            if (availableMods.Contains(vm))
-            {
-                availableMods.Remove(vm);
-                ruleMods.Add(vm);
-            }
+            if (modIdMap.TryGetValue(id, out ModRefViewModel? vm))
+                masterRuleList.Add(vm);
         }
 
+        ReplaceCollection(availableMods, GetMasterAvailable().ToList());
+        ReplaceCollection(ruleMods, masterRuleList);
+
         initialRuleOrder.Clear();
-        initialRuleOrder.AddRange(ruleMods
+        initialRuleOrder.AddRange(masterRuleList
             .Select(vm => vm.ModReference.ID)
             .Where(id => !string.IsNullOrWhiteSpace(id)));
 
@@ -1003,9 +999,9 @@ public partial class SortRulesWindow : Window
             explicitRules.Add(edge);
         }
 
-        for (int i = 0; i < ruleMods.Count - 1; i++)
+        for (int i = 0; i < masterRuleList.Count - 1; i++)
         {
-            RuleEdge edge = CreateEdge(ruleMods[i].ModReference.ID, ruleMods[i + 1].ModReference.ID);
+            RuleEdge edge = CreateEdge(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
             if (!IsValidEdge(edge))
                 continue;
             if (!explicitRules.Contains(edge))
@@ -1147,70 +1143,106 @@ public partial class SortRulesWindow : Window
         return ordered;
     }
 
+    private IEnumerable<ModRefViewModel> GetMasterAvailable()
+    {
+        HashSet<ModRefViewModel> inRules = new HashSet<ModRefViewModel>(masterRuleList);
+        return modIdMap.Values
+            .Where(vm => !inRules.Contains(vm))
+            .OrderBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static int MapFilteredToMasterIndex(
+        IList<ModRefViewModel> filtered,
+        IList<ModRefViewModel> master,
+        int filteredIndex)
+    {
+        if (filteredIndex <= 0) return 0;
+        if (filteredIndex >= filtered.Count)
+        {
+            ModRefViewModel last = filtered[^1];
+            return master.IndexOf(last) + 1;
+        }
+        return master.IndexOf(filtered[filteredIndex]);
+    }
+
     private void ApplySearchFilter()
     {
-        ApplySearchFilter(availableMods, modTreeSearchBar.Text, modTreeSearchBar.HideFiltered);
-        ApplySearchFilter(ruleMods, rulesSearchBar.Text, rulesSearchBar.HideFiltered);
-        DropHiddenSelections(modTreeList);
-        DropHiddenSelections(rulesList);
+        ApplyFilterFlags(
+             availableMods,
+             GetMasterAvailable(),
+             modTreeSearchBar.Text,
+             modTreeSearchBar.SearchMode,
+             modTreeSearchBar.HideFiltered,
+             modTreeList);
+        ApplyFilterFlags(
+            ruleMods,
+            masterRuleList,
+            rulesSearchBar.Text,
+            rulesSearchBar.SearchMode,
+            rulesSearchBar.HideFiltered,
+            rulesList);
     }
 
     private void ScheduleSearchFilter()
     {
+        if (modIdMap.Count > 10)
+        {
+            TempSearchLog("ScheduleSearchFilter no-debounce -> immediate");
+            ApplySearchFilter();
+            return;
+        }
+
         searchDebounceTimer.Stop();
         searchDebounceTimer.Start();
     }
 
     private void ApplySearchFilterImmediately()
     {
+        TempSearchLog("ApplySearchFilterImmediately (stopping timer)");
         searchDebounceTimer.Stop();
         ApplySearchFilter();
     }
 
-    private static void ApplySearchFilter(
-        IEnumerable<ModRefViewModel> mods,
+    private void ApplyFilterFlags(
+        ObservableCollection<ModRefViewModel> targetCollection,
+        IEnumerable<ModRefViewModel> source,
         string filter,
-        bool hideFiltered)
+        SearchFilterMode searchMode,
+        bool hideFiltered,
+        ListBox list)
     {
         string trimmed = filter?.Trim() ?? string.Empty;
         bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
+        List<ModRefViewModel> ordered = new List<ModRefViewModel>();
 
-        foreach (ModRefViewModel vm in mods)
+        foreach (ModRefViewModel vm in source)
         {
-            bool matches = true;
-            if (hasFilter)
-            {
-                string name = vm.DisplayName ?? string.Empty;
-                string id = vm.ModReference.ID ?? string.Empty;
-                matches = name.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
-                          id.Contains(trimmed, StringComparison.OrdinalIgnoreCase);
-            }
-
-            vm.IsVisible = !hideFiltered || matches;
-            vm.IsFilteredOut = hasFilter && !matches;
+            bool match = !hasFilter || vm.MatchesFilter(trimmed, searchMode);
+            vm.IsFilteredOut = hasFilter && !match;
+            vm.IsVisible = !hideFiltered || match;
+            ordered.Add(vm);
         }
+
+        List<ModRefViewModel> displayItems = hideFiltered
+            ? ordered.Where(vm => vm.IsVisible).ToList()
+            : ordered;
+
+        ReplaceCollection(targetCollection, displayItems);
+        DropNonDisplayedSelections(list, displayItems);
     }
 
-    private void DropHiddenSelections(ListBox list)
+    private void DropNonDisplayedSelections(ListBox list, IReadOnlyCollection<ModRefViewModel> displayItems)
     {
         if (list.SelectedItems == null || list.SelectedItems.Count == 0)
             return;
 
-        List<ModRefViewModel> visibleSelected = list.SelectedItems
-            .OfType<ModRefViewModel>()
-            .Where(vm => vm.IsVisible)
-            .ToList();
-
-        if (visibleSelected.Count == list.SelectedItems.Count)
-            return;
+        HashSet<ModRefViewModel> visibleSet = new HashSet<ModRefViewModel>(displayItems);
+        List<ModRefViewModel> retained = list.SelectedItems.OfType<ModRefViewModel>().Where(visibleSet.Contains).ToList();
+        if (retained.Count == list.SelectedItems.Count) return;
 
         list.SelectedItems.Clear();
-        foreach (ModRefViewModel vm in visibleSelected)
-            list.SelectedItems.Add(vm);
-
+        foreach (ModRefViewModel vm in retained) list.SelectedItems.Add(vm);
         modListController.UpdateSelectionState(list);
-        if (list == rulesList)
-            UpdateRuleReferenceOverlay();
     }
 
     private void ApplySearchBarStyles()
@@ -1300,7 +1332,7 @@ public partial class SortRulesWindow : Window
     private List<ModSortRule> BuildCurrentRules()
     {
         HashSet<string> ruleIds = new HashSet<string>(
-            ruleMods.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
+            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
                 .Where(id => !string.IsNullOrWhiteSpace(id)),
             StringComparer.OrdinalIgnoreCase);
 
@@ -1418,8 +1450,8 @@ public partial class SortRulesWindow : Window
 
     private void SetRuleOrder(IEnumerable<string> orderedIds)
     {
+        masterRuleList.Clear();
         HashSet<ModRefViewModel> used = new HashSet<ModRefViewModel>();
-        List<ModRefViewModel> newRules = new List<ModRefViewModel>();
         foreach (string id in orderedIds)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -1428,16 +1460,9 @@ public partial class SortRulesWindow : Window
                 continue;
             if (!used.Add(vm))
                 continue;
-            newRules.Add(vm);
+            masterRuleList.Add(vm);
         }
 
-        List<ModRefViewModel> newAvailable = modIdMap.Values
-            .Where(vm => !used.Contains(vm))
-            .OrderBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        ResetCollection(ruleMods, newRules);
-        ResetCollection(availableMods, newAvailable);
         ApplySearchFilter();
         modTreeList.SelectedItems?.Clear();
         rulesList.SelectedItems?.Clear();
@@ -1447,7 +1472,7 @@ public partial class SortRulesWindow : Window
 
     private List<string> GetRuleOrder()
     {
-        return ruleMods
+        return masterRuleList
             .Select(vm => vm.ModReference.ID)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .ToList();
@@ -1599,7 +1624,7 @@ public partial class SortRulesWindow : Window
     private void NormalizeExplicitRules()
     {
         HashSet<string> ruleIds = new HashSet<string>(
-            ruleMods.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
+            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
                 .Where(id => !string.IsNullOrWhiteSpace(id)),
             StringComparer.OrdinalIgnoreCase);
 
@@ -1621,7 +1646,7 @@ public partial class SortRulesWindow : Window
     private void NormalizeExplicitRequiredIds()
     {
         HashSet<string> ruleIds = new HashSet<string>(
-            ruleMods.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
+            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
                 .Where(id => !string.IsNullOrWhiteSpace(id)),
             StringComparer.OrdinalIgnoreCase);
 
@@ -1726,14 +1751,24 @@ public partial class SortRulesWindow : Window
         }
     }
 
-    private static void ResetCollection(ObservableCollection<ModRefViewModel> target, List<ModRefViewModel> items)
+    private static void ReplaceCollection(ObservableCollection<ModRefViewModel> target, List<ModRefViewModel> items)
     {
-        if (target.SequenceEqual(items))
-            return;
+        if (target.Count == items.Count)
+        {
+            bool same = true;
+            for (int i = 0; i < target.Count; i++)
+            {
+                if (!ReferenceEquals(target[i], items[i]))
+                {
+                    same = false;
+                    break;
+                }
+            }
+            if (same) return;
+        }
 
         target.Clear();
-        foreach (ModRefViewModel vm in items)
-            target.Add(vm);
+        foreach (ModRefViewModel vm in items) target.Add(vm);
     }
 
     private static List<ModRefViewModel> Deduplicate(IEnumerable<ModRefViewModel> items)
@@ -1746,5 +1781,12 @@ public partial class SortRulesWindow : Window
                 unique.Add(vm);
         }
         return unique;
+    }
+    private static void TempSearchLog(string message)
+    {
+        if (!DevMode.IsEnabled)
+            return;
+
+        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [TEMP][SearchFlow] {message}");
     }
 }

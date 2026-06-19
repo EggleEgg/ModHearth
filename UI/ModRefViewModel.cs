@@ -400,6 +400,23 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         DropHighlightBrush = new SolidColorBrush(style.modRefHighlightColor.ToAvaloniaColor());
     }
 
+    public bool MatchesFilter(string filter, SearchFilterMode mode)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+            return true;
+
+        string? candidate = mode switch
+        {
+            SearchFilterMode.Name => modref.name,
+            SearchFilterMode.Id => modref.ID,
+            SearchFilterMode.SteamFileId => modref.steamID,
+            _ => modref.name
+        };
+
+        return !string.IsNullOrWhiteSpace(candidate) &&
+               candidate.Contains(filter, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static Color BlendColor(Color baseColor, Color overlay)
     {
         if (overlay.A >= 255)

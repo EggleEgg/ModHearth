@@ -34,6 +34,7 @@ public partial class MainWindow : Window
 
     private ModHearthManager manager;
     private bool changesMade;
+    private bool isBatchSelecting;
     private bool changesMarked;
     private bool redoAvailable;
     private bool isRedoing;
@@ -59,6 +60,8 @@ public partial class MainWindow : Window
     private bool ensureSearchResultVisibleOnNextFilter;
     private bool bypassUnsavedClosePrompt;
     private bool unsavedClosePromptInFlight;
+    private string transientStatusNotice = string.Empty;
+    private DateTime transientStatusNoticeUntilUtc;
     private const int MinimumAutoReloadSeconds = 3;
     private static readonly TimeSpan DfHackStatusRefreshInterval = TimeSpan.FromSeconds(3);
 
@@ -165,6 +168,7 @@ public partial class MainWindow : Window
     {
         modTitleLabel.Text = "Welcome to ModHearth!";
         modDescriptionLabel.Text = $"{BuildHelpTextFromReadme()}{Environment.NewLine}";
+        buildVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
     }
 
     private static string BuildHelpTextFromReadme()
@@ -343,9 +347,7 @@ public partial class MainWindow : Window
 
     private async Task InitializeAsync()
     {
-        bool isDevMode = IsDevMode();
-
-        if (!isDevMode)
+        if (!DevMode.IsEnabled)
         {
             bool configReady = await EnsureConfigAsync();
             if (!configReady)
@@ -406,21 +408,13 @@ public partial class MainWindow : Window
         BuildModViewModels();
         RefreshModlistPanels();
         clearInstalledModsButton.IsEnabled = Directory.Exists(manager.GetInstalledModsPath());
-        modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
+        buildVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
         UpdateDfHackStatus();
         StartDfHackStatusTimer();
         SetChangesMade(false);
-        if (!isDevMode)
-            SetupModManagerWatcher();
+        if (!DevMode.IsEnabled)
+            ResetModManagerWatcher();
     }
-
-    private static bool IsDevMode()
-    {
-        string? value = Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE");
-        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
-    }
-
     private async Task<bool> EnsureConfigAsync()
     {
         while (true)
@@ -573,16 +567,35 @@ public partial class MainWindow : Window
     {
         ListBox list = destinationLeft ? leftModlist : rightModlist;
         ObservableCollection<ModRefViewModel> source = destinationLeft ? inactiveMods : activeMods;
-        list.SelectedItems?.Clear();
 
-        foreach (DFHMod mod in mods)
+        List<ModRefViewModel> toSelect = mods
+            .Select(mod => source.FirstOrDefault(m => m.DfMod == mod))
+            .Where(vm => vm != null)
+            .Cast<ModRefViewModel>()
+            .ToList();
+
+        isBatchSelecting = true;
+        try
         {
-            ModRefViewModel? vm = source.FirstOrDefault(m => m.DfMod == mod);
-            if (vm != null)
+            list.SelectedItems?.Clear();
+            foreach (ModRefViewModel vm in toSelect)
                 list.SelectedItems?.Add(vm);
+        }
+        finally
+        {
+            isBatchSelecting = false;
         }
 
         modListController.UpdateSelectionState(list);
+
+        // Single scroll + info update after all items are selected
+        ModRefViewModel? primary = toSelect.FirstOrDefault();
+        if (primary != null)
+        {
+            list.ScrollIntoView(primary);
+            TrackSelectedMod(primary);
+            ShowModInfo(primary.ModReference);
+        }
     }
 
     private void UpdateCachedIndicators()
@@ -852,7 +865,7 @@ public partial class MainWindow : Window
                 continue;
 
             total++;
-            bool match = !hasFilter || MatchesSearchFilter(vm, filter, searchMode);
+            bool match = !hasFilter || vm.MatchesFilter(filter, searchMode);
 
             vm.IsFilteredOut = hasFilter && !match;
             vm.IsVisible = !hideFiltered || match;
@@ -878,23 +891,6 @@ public partial class MainWindow : Window
             $"ApplyFilterFlags list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={DescribeSearchMode(searchMode)} hideFiltered={hideFiltered} total={total} visible={visible} filteredOut={filteredOut}");
 
         DropNonDisplayedSelections(list, displayItems);
-    }
-
-    private static bool MatchesSearchFilter(ModRefViewModel vm, string filter, SearchFilterMode mode)
-    {
-        if (vm == null || string.IsNullOrWhiteSpace(filter))
-            return true;
-
-        string? candidate = mode switch
-        {
-            SearchFilterMode.Name => vm.ModReference.name,
-            SearchFilterMode.Id => vm.ModReference.ID,
-            SearchFilterMode.SteamFileId => vm.ModReference.steamID,
-            _ => vm.ModReference.name
-        };
-
-        return !string.IsNullOrWhiteSpace(candidate) &&
-            candidate.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 
     private void DropNonDisplayedSelections(ListBox list, IReadOnlyCollection<ModRefViewModel> displayItems)
@@ -983,7 +979,7 @@ public partial class MainWindow : Window
         rightHeaderLabel.Foreground = textBrush;
         modTitleLabel.Foreground = textBrush;
         modDescriptionLabel.Foreground = textBrush;
-        modVersionLabel.Foreground = textBrush;
+        buildVersionLabel.Foreground = textBrush;
         dfhackStatusLabel.Foreground = warningTextBrush;
         modInfoTopBorder.Background = new SolidColorBrush(style.headerColor.ToAvaloniaColor());
 
@@ -1048,7 +1044,7 @@ public partial class MainWindow : Window
     }
     private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (isApplyingSearchFilter)
+        if (isApplyingSearchFilter || isBatchSelecting)
         {
             if (sender is ListBox filteredList)
                 modListController.UpdateSelectionState(filteredList);
@@ -1654,7 +1650,6 @@ public partial class MainWindow : Window
     {
         modTitleLabel.Text = modref.name ?? string.Empty;
         modDescriptionLabel.Text = modref.description ?? string.Empty;
-        modVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
 
         IImage? previewImage = null;
         string? previewSvgPath = ResolveFilePathCaseInsensitive(modref.path, "preview.svg");
@@ -1735,9 +1730,22 @@ public partial class MainWindow : Window
 
     private async Task SaveCurrentModpackAsync()
     {
-        manager.SaveCurrentModpack();
+        ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
         SetAndMarkChanges(false);
+        ShowModpackSaveNotice(result);
         await Task.CompletedTask;
+    }
+
+    private void ShowModpackSaveNotice(ModHearthManager.ModpackSaveResult result)
+    {
+        if (!DevMode.IsEnabled)
+            ResetModManagerWatcher();
+
+        if (string.IsNullOrWhiteSpace(result.LiveReloadMessage))
+            return;
+
+        if (result.UsesFallbackStorage || !result.LiveReloadApplied)
+            ShowTransientStatusNotice(result.LiveReloadMessage);
     }
 
     private async Task UndoChangesAsync()
@@ -1927,6 +1935,8 @@ public partial class MainWindow : Window
             manager.Initialize(preferredName);
             BuildModViewModels();
             UpdateDfHackStatus();
+            if (!DevMode.IsEnabled)
+                ResetModManagerWatcher();
         }
         catch (UserActionRequiredException ex)
         {
@@ -2192,21 +2202,59 @@ public partial class MainWindow : Window
         if (dfhackStatusLabel == null)
             return;
 
+        if (TryShowTransientStatusNotice())
+            return;
+
         bool dfRunning = manager.DwarfFortressRunning();
         bool hasDfhack = manager.HasDfhack();
 
-        if (dfRunning && hasDfhack)
+        if (dfRunning && hasDfhack && manager.ActiveModpackBackend == ModHearthManager.ModpackStorageBackend.DFHackConfig)
         {
             dfhackStatusLabel.IsVisible = false;
             dfhackStatusLabel.Text = string.Empty;
             return;
         }
 
-        dfhackStatusLabel.Text = dfRunning
-            ? "DFHack not found"
-            : "Dwarf Fortress not running";
+        if (!hasDfhack)
+            dfhackStatusLabel.Text = "DFHack not found";
+        else if (!dfRunning)
+            dfhackStatusLabel.Text = "Dwarf Fortress not running";
+        string dfStatus = dfRunning ? "Dwarf Fortress running" : "Dwarf Fortress not running";
+        string dfhStatus = hasDfhack ? "DFHack found" : "DFHack not found";
+
+        if (!hasDfhack || !dfRunning)
+        {
+            dfhackStatusLabel.Text = $"{dfStatus}, {dfhStatus}";
+        }
+        else
+            dfhackStatusLabel.Text = "Using local modpacks; DFHack file unavailable";
+
         dfhackStatusLabel.IsVisible = true;
     }
+
+    private void ShowTransientStatusNotice(string message)
+    {
+        transientStatusNotice = message;
+        transientStatusNoticeUntilUtc = DateTime.UtcNow.AddSeconds(6);
+        TryShowTransientStatusNotice();
+    }
+
+    private bool TryShowTransientStatusNotice()
+    {
+        if (string.IsNullOrWhiteSpace(transientStatusNotice))
+            return false;
+
+        if (DateTime.UtcNow >= transientStatusNoticeUntilUtc)
+        {
+            transientStatusNotice = string.Empty;
+            return false;
+        }
+
+        dfhackStatusLabel.Text = transientStatusNotice;
+        dfhackStatusLabel.IsVisible = true;
+        return true;
+    }
+
     private async Task CreateNewModpackAsync()
     {
         string? newName = await DialogService.ShowInputAsync(this,
@@ -2226,7 +2274,8 @@ public partial class MainWindow : Window
         modifyingComboBox = true;
 
         manager.modpacks.Add(newList);
-        manager.SaveAllModpacks();
+        ModHearthManager.ModpackSaveResult saveResult = manager.SaveAllModpacks();
+        ShowModpackSaveNotice(saveResult);
 
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();
         modpackComboBox.SelectedIndex = manager.modpacks.Count - 1;
@@ -2254,7 +2303,8 @@ public partial class MainWindow : Window
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();
         modpackComboBox.SelectedIndex = manager.selectedModlistIndex;
 
-        manager.SaveCurrentModpack();
+        ModHearthManager.ModpackSaveResult saveResult = manager.SaveCurrentModpack();
+        ShowModpackSaveNotice(saveResult);
         SetAndMarkChanges(false);
 
         modifyingComboBox = false;
@@ -2280,7 +2330,8 @@ public partial class MainWindow : Window
 
         int removeIndex = manager.selectedModlistIndex;
         manager.modpacks.RemoveAt(removeIndex);
-        manager.SaveAllModpacks();
+        ModHearthManager.ModpackSaveResult saveResult = manager.SaveAllModpacks();
+        ShowModpackSaveNotice(saveResult);
 
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();
         manager.SetSelectedModpack(0);
@@ -2601,9 +2652,18 @@ public partial class MainWindow : Window
             UnmarkChanges(lastIndex);
     }
 
+    private void ResetModManagerWatcher()
+    {
+        modManagerWatcher?.Dispose();
+        modManagerWatcher = null;
+        modManagerReloadTimer?.Stop();
+        modManagerReloadTimer = null;
+        SetupModManagerWatcher();
+    }
+
     private void SetupModManagerWatcher()
     {
-        string modManagerPath = manager.GetModManagerConfigPath();
+        string modManagerPath = manager.GetActiveModpackPath();
         if (string.IsNullOrWhiteSpace(modManagerPath))
             return;
 
@@ -2683,7 +2743,7 @@ public partial class MainWindow : Window
 
     private static void TempSearchLog(string message)
     {
-        if (!IsDevMode())
+        if (!DevMode.IsEnabled)
             return;
 
         Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [TEMP][SearchFlow] {message}");
@@ -2745,7 +2805,7 @@ public partial class MainWindow : Window
 
     private void TempLogVisualFilterState(string phase)
     {
-        if (!IsDevMode())
+        if (!DevMode.IsEnabled)
             return;
 
         TempLogListVisualState(phase, leftModlist, inactiveMods, leftSearchBar.Text, leftSearchBar.SearchMode, leftSearchBar.HideFiltered);

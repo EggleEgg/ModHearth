@@ -91,7 +91,8 @@
 
     <Grid Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" RowDefinitions="Auto,*">
       <TextBlock Text="Mod Tree" FontWeight="Bold" />
-      <ListBox x:Name="modTreeList" Grid.Row="1" SelectionMode="Multiple" Margin="0,6,0,0">
+      <ListBox x:Name="modTreeList" Grid.Row="1" SelectionMode="Multiple" Margin="0,6,0,0"
+        AutoScrollToSelectedItem="False">
         <ListBox.ItemContainerTheme>
           <ControlTheme TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0" />
@@ -107,7 +108,7 @@
     <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,*">
       <TextBlock Text="Rules List" FontWeight="Bold" />
       <ListBox x:Name="rulesList" Grid.Row="1" SelectionMode="Multiple" Margin="0,6,0,0"
-        Padding="0,0,0,120">
+        Padding="0,0,0,120" AutoScrollToSelectedItem="False">
         <ListBox.ItemContainerTheme>
           <ControlTheme TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0" />

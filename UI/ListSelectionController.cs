@@ -37,13 +37,23 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
 
     public void UpdateSelectionState(ListBox list)
     {
-        if (list.ItemsSource is not IEnumerable<T> items)
+        TempSearchLog($"UpdateSelectionState START for list={list.Name ?? "<unnamed>"}");
+        if (list == null || list.ItemsSource is not IEnumerable<T> items)
             return;
 
-        IEnumerable<T> selectedItems = list.SelectedItems?.Cast<T>() ?? Enumerable.Empty<T>();
-        HashSet<T> selected = new HashSet<T>(selectedItems);
+        // Capture current selection in a hashset for O(1) lookup
+        HashSet<T> selected = list.SelectedItems?.Cast<T>().ToHashSet() ?? new HashSet<T>();
+
+        // Only update property if it actually changed to minimize NotifyPropertyChanged spam.
+        // This is critical to preventing layout churn during bulk updates.
         foreach (T item in items)
-            item.IsSelected = selected.Contains(item);
+        {
+            bool isCurrentlySelected = selected.Contains(item);
+            if (item.IsSelected != isCurrentlySelected)
+                item.IsSelected = isCurrentlySelected;
+        }
+
+        TempSearchLog($"UpdateSelectionState END for list={list.Name ?? "<unnamed>"}");
     }
 
     public void RestoreListSelection(ListBox list, IEnumerable<T> selection)
@@ -210,5 +220,12 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         }
 
         return false;
+    }
+    private static void TempSearchLog(string message)
+    {
+        if (!DevMode.IsEnabled)
+            return;
+
+        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [TEMP][ModListDragDropController] {message}");
     }
 }

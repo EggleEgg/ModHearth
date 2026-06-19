@@ -5,35 +5,13 @@ namespace ModHearth.UI;
 
 internal static class UpdateLogger
 {
-    private static readonly object gate = new();
-
-    public static void Log(string message)
+    private static readonly Logger logger = new Logger(string.Empty, line =>
     {
-        Write("INFO", message);
-    }
+        string logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+        Directory.CreateDirectory(logDir);
+        File.AppendAllText(Path.Combine(logDir, "updatelog.txt"), line + Environment.NewLine);
+    });
 
-    public static void LogError(string message)
-    {
-        Write("ERROR", message);
-    }
-
-    private static void Write(string level, string message)
-    {
-        try
-        {
-            lock (gate)
-            {
-                string baseDir = AppContext.BaseDirectory;
-                string logDir = Path.Combine(baseDir, "logs");
-                Directory.CreateDirectory(logDir);
-                string logPath = Path.Combine(logDir, "updatelog.txt");
-                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                File.AppendAllText(logPath, $"[{timestamp}] {level}: {message}{Environment.NewLine}");
-            }
-        }
-        catch
-        {
-            // Ignore logging failures.
-        }
-    }
+    public static void Log(string message) => logger.Log(message);
+    public static void LogError(string message) => logger.LogError(message);
 }
