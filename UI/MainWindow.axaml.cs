@@ -981,7 +981,7 @@ public partial class MainWindow : Window
         modDescriptionLabel.Foreground = textBrush;
         buildVersionLabel.Foreground = textBrush;
         dfhackStatusLabel.Foreground = warningTextBrush;
-        modInfoTopBorder.Background = new SolidColorBrush(style.headerColor.ToAvaloniaColor());
+        modInfoTopBorder.Background = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
 
         leftModlist.Background = panelBrush;
         rightModlist.Background = panelBrush;
@@ -1809,6 +1809,7 @@ public partial class MainWindow : Window
             modRefs,
             manager.GetModsPath(),
             manager.GetVanillaModsPath(),
+            manager.GetSortRulesPath(),
             rules => manager.SetSortRules(rules))
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner

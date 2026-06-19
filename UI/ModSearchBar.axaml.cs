@@ -50,19 +50,22 @@ public partial class ModSearchBar : UserControl
             TempSearchLog($"TextChanged text='{SearchBox.Text ?? string.Empty}' hideFiltered={HideFiltered} mode={SearchModeToLogLabel(SearchMode)}");
             SearchTextChanged?.Invoke(this, EventArgs.Empty);
         };
-        SearchModeButton.Click += (_, _) =>
+        SearchModeButton.Click += (s, e) =>
         {
+            e.Handled = true;
             EnsureSearchModeFlyout();
             searchModeFlyout?.ShowAt(SearchModeButton);
         };
-        ToggleButton.Click += (_, _) =>
+        ToggleButton.Click += (s, e) =>
         {
+            e.Handled = true;
             HideFiltered = !HideFiltered;
             TempSearchLog($"ToggleClicked hideFiltered={HideFiltered} mode={SearchModeToLogLabel(SearchMode)}");
             HideFilteredToggled?.Invoke(this, EventArgs.Empty);
         };
-        ClearButton.Click += (_, _) =>
+        ClearButton.Click += (s, e) =>
         {
+            e.Handled = true;
             TempSearchLog("ClearClicked");
             SearchBox.Text = string.Empty;
         };
@@ -306,7 +309,7 @@ public partial class ModSearchBar : UserControl
         return mode switch
         {
             SearchFilterMode.Name => "alphabetIcon.svg",
-            SearchFilterMode.Id => "idCardIcon.svg",
+            SearchFilterMode.Id => "idButtonIcon.svg",
             SearchFilterMode.SteamFileId => "steamIdIcon.svg",
             _ => "alphabetIcon.svg"
         };

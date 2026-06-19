@@ -86,7 +86,8 @@
       <ui:ModSearchBar x:Name="modTreeSearchBar" Watermark="Search mods" Height="28" />
       <ui:ModSearchBar x:Name="rulesSearchBar" Grid.Column="1" Watermark="Search rules" Height="28" />
       <Button x:Name="saveButton" Grid.Column="2" Content="Save" Width="100" Height="28"
-        HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+        ToolTip.Tip="Save changes. Right click to open rules file." />
     </Grid>
 
     <Grid Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" RowDefinitions="Auto,*">

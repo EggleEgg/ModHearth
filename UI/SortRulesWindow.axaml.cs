@@ -9,6 +9,7 @@ using Avalonia.VisualTree;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ public partial class SortRulesWindow : Window
     private readonly UndoRedoKeyHandler undoRedoHandler;
     private readonly string modsFolderPath;
     private readonly string vanillaFolderPath;
+    private readonly string rulesFilePath;
     private readonly Action<List<ModSortRule>>? onSave;
     private readonly DispatcherTimer searchDebounceTimer;
 
@@ -54,17 +56,17 @@ public partial class SortRulesWindow : Window
     private bool lastJumpWasAfter;
 
     public SortRulesWindow()
-        : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, null)
+        : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null)
     {
     }
 
     public SortRulesWindow(IEnumerable<ModSortRule> existingRules)
-        : this(existingRules, Array.Empty<ModReference>(), string.Empty, string.Empty, null)
+        : this(existingRules, Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null)
     {
     }
 
     public SortRulesWindow(IEnumerable<ModSortRule> existingRules, IEnumerable<ModReference> modRefs)
-        : this(existingRules, modRefs, string.Empty, string.Empty, null)
+        : this(existingRules, modRefs, string.Empty, string.Empty, string.Empty, null)
     {
     }
 
@@ -73,12 +75,14 @@ public partial class SortRulesWindow : Window
         IEnumerable<ModReference> modRefs,
         string? modsFolderPath,
         string? vanillaFolderPath,
+        string? rulesFilePath,
         Action<List<ModSortRule>>? onSave = null)
     {
         InitializeComponent();
         WindowThemeManager.Register(this);
         this.modsFolderPath = modsFolderPath ?? string.Empty;
         this.vanillaFolderPath = vanillaFolderPath ?? string.Empty;
+        this.rulesFilePath = rulesFilePath ?? string.Empty;
         this.onSave = onSave;
 
         BuildViewModels(existingRules ?? Array.Empty<ModSortRule>(), modRefs ?? Array.Empty<ModReference>());
@@ -98,6 +102,8 @@ public partial class SortRulesWindow : Window
 
         modTreeList.SelectionChanged += ModlistSelectionChanged;
         rulesList.SelectionChanged += ModlistSelectionChanged;
+        modTreeList.DoubleTapped += (_, _) => MoveSelectedBetweenLists(sourceModTree: true);
+        rulesList.DoubleTapped += (_, _) => MoveSelectedBetweenLists(sourceModTree: false);
         rulesList.AddHandler(InputElement.PointerPressedEvent, RulesListPointerPressed, RoutingStrategies.Bubble, true);
 
         modTreeSearchBar.HideFiltered = true;
@@ -114,6 +120,7 @@ public partial class SortRulesWindow : Window
         modTreeSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
         rulesSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
         saveButton.Click += (_, _) => SaveRules();
+        saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Bubble, true);
         KeyDown += SortRulesWindowKeyDown;
         Closing += SortRulesWindowClosing;
 
@@ -235,7 +242,7 @@ public partial class SortRulesWindow : Window
         if (addRequiredRoot == null)
             return;
 
-        List<MenuItem> items = modIdMap.Values
+        List<MenuItem> allModItems = modIdMap.Values
             .Where(candidate =>
             {
                 string id = candidate.ModReference.ID?.Trim() ?? string.Empty;
@@ -256,7 +263,35 @@ public partial class SortRulesWindow : Window
             })
             .ToList();
 
-        if (items.Count == 0)
+        ModSearchBar searchBar = new ModSearchBar
+        {
+            Watermark = "Filter mods...",
+            Height = 28,
+            HideFiltered = true
+        };
+
+        searchBar.SearchTextChanged += (sender, e) =>
+        {
+            string filter = searchBar.Text.Trim();
+            foreach (MenuItem item in allModItems)
+            {
+                // This is a bit hacky, but accessing the DisplayName from the Tag is not direct, but the Header is a string.
+                item.IsVisible = string.IsNullOrWhiteSpace(filter) || item.Header?.ToString()?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
+            }
+        };
+
+        MenuItem searchMenuItem = new MenuItem
+        {
+            Header = searchBar,
+            StaysOpenOnClick = true,
+            Focusable = false // Try to prevent the MenuItem from trying to gain focus
+        };
+        // Remove hover effects if possible? This is tricky without style access.
+        
+        List<object> items = new List<object> { searchMenuItem };
+        items.AddRange(allModItems);
+
+        if (allModItems.Count == 0)
         {
             addRequiredRoot.ItemsSource = new[]
             {
@@ -312,14 +347,13 @@ public partial class SortRulesWindow : Window
 
     private void EnsureModPresentInRuleList(ModRefViewModel vm, int? preferredIndex = null)
     {
-        if (ruleMods.Contains(vm))
+        if (masterRuleList.Contains(vm))
             return;
 
-        availableMods.Remove(vm);
         int index = preferredIndex.HasValue
-            ? Math.Max(0, Math.Min(preferredIndex.Value, ruleMods.Count))
-            : ruleMods.Count;
-        ruleMods.Insert(index, vm);
+            ? Math.Max(0, Math.Min(preferredIndex.Value, masterRuleList.Count))
+            : masterRuleList.Count;
+        masterRuleList.Insert(index, vm);
         ApplySearchFilter();
     }
 
@@ -374,6 +408,32 @@ public partial class SortRulesWindow : Window
             ruleMods[i].ReferenceOverlay = ModRefViewModel.ReferenceOverlayKind.AboveSelection;
         for (int i = lastSelected + 1; i <= segmentEnd; i++)
             ruleMods[i].ReferenceOverlay = ModRefViewModel.ReferenceOverlayKind.BelowSelection;
+    }
+
+    private void MoveSelectedBetweenLists(bool sourceModTree)
+    {
+        ListBox source = sourceModTree ? modTreeList : rulesList;
+        if (source.SelectedItems == null || source.SelectedItems.Count == 0)
+            return;
+
+        List<ModRefViewModel> selected = source.SelectedItems.Cast<ModRefViewModel>().ToList();
+        if (selected.Count == 0)
+            return;
+
+        if (sourceModTree)
+        {
+            MoveToRuleMods(selected, ruleMods.Count);
+            MarkChanged();
+            SelectItemsInList(rulesList, selected);
+            RefreshRuleState(true);
+            return;
+        }
+
+        MoveToAvailableMods(selected);
+        NormalizeGaps();
+        MarkChanged();
+        SelectItemsInList(modTreeList, selected);
+        RefreshRuleState(true);
     }
 
     private void HandleDrop(ModListDropContext context)
@@ -1069,7 +1129,7 @@ public partial class SortRulesWindow : Window
                 continue;
 
             string requires = rule.RequiresId?.Trim() ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(requires) && candidates.Contains(requires))
+            if (!string.IsNullOrWhiteSpace(requires))
                 ids.Add(requires);
 
             string before = rule.BeforeId?.Trim() ?? string.Empty;
@@ -1782,6 +1842,34 @@ public partial class SortRulesWindow : Window
         }
         return unique;
     }
+
+    private void SaveButtonPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(saveButton).Properties.IsRightButtonPressed)
+            return;
+
+        e.Handled = true;
+        OpenRulesFile();
+    }
+
+    private void OpenRulesFile()
+    {
+        if (string.IsNullOrWhiteSpace(rulesFilePath) || !File.Exists(rulesFilePath))
+            return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = rulesFilePath,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception)
+        {
+        }
+    }
+
     private static void TempSearchLog(string message)
     {
         if (!DevMode.IsEnabled)

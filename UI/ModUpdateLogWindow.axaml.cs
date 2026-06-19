@@ -524,8 +524,7 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
         if (headerBorder == null)
             return;
 
-        headerBorder.Background = new SolidColorBrush(style.headerColor.ToAvaloniaColor());
-        BackgroundColorBrush = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
+        BackgroundColorBrush = headerBorder.Background = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)

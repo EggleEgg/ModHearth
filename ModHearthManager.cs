@@ -256,6 +256,7 @@ namespace ModHearth
         {
             return sortRules;
         }
+        public string GetSortRulesPath() => modSortRulesPath;
 
         public void SetSortRules(IEnumerable<ModSortRule> rules)
         {
@@ -2500,7 +2501,16 @@ namespace ModHearth
             }
 
             if (shouldPersistActiveFile)
-                SaveAllModpacks(requestLiveReload: false);
+            {
+                try
+                {
+                    SaveAllModpacks(requestLiveReload: false);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to persist modlists after load: {ex.Message}");
+                }
+            }
 
             LastMissingModsMessage = modMissing ? missingMessage : string.Empty;
             return true;

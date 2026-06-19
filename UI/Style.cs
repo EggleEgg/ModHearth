@@ -76,7 +76,6 @@ namespace ModHearth.UI
         public SimpleColor modRefTextFilteredColor { get; set; } = null!;
         public SimpleColor formColor { get; set; } = null!;
         public SimpleColor textColor { get; set; } = null!;
-        public SimpleColor headerColor { get; set; } = null!;
         public SimpleColor buttonColor { get; set; } = null!;
         public SimpleColor buttonTextColor { get; set; } = null!;
         public SimpleColor buttonOutlineColor { get; set; } = null!;
