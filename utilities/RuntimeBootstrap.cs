@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
 namespace ModHearth;
@@ -21,6 +22,14 @@ internal static class RuntimeBootstrap
         AppLogging.RegisterUnhandledExceptionHandlers();
         SetupNativeLibrarySearchPaths();
         SetupDllFolderResolver();
+    }
+
+    public static void HideConsole()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            NativeMethods.HideConsoleWindow();
+        }
     }
 
     private static void SetupNativeLibrarySearchPaths()
@@ -74,5 +83,30 @@ internal static class RuntimeBootstrap
                 return AssemblyLoadContext.Default.LoadFromAssemblyPath(candidate);
             return null;
         };
+    }
+
+    private static class NativeMethods
+    {
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_HIDE = 0;
+
+        public static void HideConsoleWindow()
+        {
+            try
+            {
+                var handle = GetConsoleWindow();
+                if (handle != IntPtr.Zero)
+                    ShowWindow(handle, SW_HIDE);
+            }
+            catch
+            {
+                // Ignore failures to hide console.
+            }
+        }
     }
 }

@@ -30,7 +30,7 @@ internal static class AppLogging
                 string baseDir = AppContext.BaseDirectory;
                 string logDir = Path.Combine(baseDir, "logs");
                 Directory.CreateDirectory(logDir);
-                string logPath = Path.Combine(logDir, "gamelog.txt");
+                string logPath = Path.Combine(logDir, "applog.txt");
                 string errPath = Path.Combine(logDir, "errorlog.txt");
 
                 originalStdOut = Console.Out;

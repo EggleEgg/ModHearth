@@ -5,18 +5,22 @@ using Avalonia.Input;
 using Avalonia.Media;
 using System;
 using System.Collections.Generic;
+using Avalonia.Layout;
+using System.Diagnostics;
 
 namespace ModHearth.UI;
 
 public enum SearchFilterMode
 {
     Name,
+    Regex,
     Id,
     SteamFileId
 }
 
 public partial class ModSearchBar : UserControl
 {
+    private readonly Dictionary<SearchFilterMode, TextBlock> searchModeLabels = new();
     private sealed class SearchButtonState
     {
         public IBrush NormalBrush { get; set; } = Brushes.Transparent;
@@ -47,7 +51,6 @@ public partial class ModSearchBar : UserControl
 
         SearchBox.TextChanged += (_, _) =>
         {
-            TempSearchLog($"TextChanged text='{SearchBox.Text ?? string.Empty}' hideFiltered={HideFiltered} mode={SearchModeToLogLabel(SearchMode)}");
             SearchTextChanged?.Invoke(this, EventArgs.Empty);
         };
         SearchModeButton.Click += (s, e) =>
@@ -60,13 +63,11 @@ public partial class ModSearchBar : UserControl
         {
             e.Handled = true;
             HideFiltered = !HideFiltered;
-            TempSearchLog($"ToggleClicked hideFiltered={HideFiltered} mode={SearchModeToLogLabel(SearchMode)}");
             HideFilteredToggled?.Invoke(this, EventArgs.Empty);
         };
         ClearButton.Click += (s, e) =>
         {
             e.Handled = true;
-            TempSearchLog("ClearClicked");
             SearchBox.Text = string.Empty;
         };
 
@@ -81,7 +82,7 @@ public partial class ModSearchBar : UserControl
                 UpdateSearchModeOptionLabels();
                 UpdateSearchModeIcon();
                 UpdateSearchModeButtonTooltip();
-                TempSearchLog($"SearchModeChanged mode={SearchModeToLogLabel(SearchMode)}");
+                SearchLog($"SearchModeChanged mode={SearchModeToLogLabel(SearchMode)}");
                 SearchModeChanged?.Invoke(this, EventArgs.Empty);
             }
         };
@@ -253,6 +254,7 @@ public partial class ModSearchBar : UserControl
         };
 
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name, "Search by name"));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex, "Search by regex"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id, "Search by mod id"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId, "Search by steam file id"));
         UpdateSearchModeOptionLabels();
@@ -268,27 +270,75 @@ public partial class ModSearchBar : UserControl
     {
         Button button = new Button
         {
-            Content = label,
-            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
-            Padding = new Thickness(8, 4)
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(8, 4),
         };
+
+        TextBlock text = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        searchModeLabels[mode] = text;
+
+        if (mode == SearchFilterMode.Regex)
+        {
+            Grid grid = new Grid();
+
+            Button helpButton = new Button
+            {
+                Content = "?",
+                Width = 18,
+                Height = 18,
+                Padding = new Thickness(0),
+                Margin = new Thickness(120,0,0,0),
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                FontSize = 12,
+                Cursor = new Cursor(StandardCursorType.Hand)
+            };
+
+            ToolTip.SetTip(
+                helpButton,
+                "Click here to view regex documentation");
+
+            helpButton.Click += (_, e) =>
+            {
+                e.Handled = true;
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://www3.ntu.edu.sg/home/ehchua/programming/howto/Regexe.html",
+                    UseShellExecute = true
+                });
+            };
+
+            grid.Children.Add(text);
+            grid.Children.Add(helpButton);
+
+            button.Content = grid;
+        }
+        else
+        {
+            button.Content = text;
+        }
 
         button.Click += (_, _) =>
         {
             SearchMode = mode;
             searchModeFlyout?.Hide();
         };
-        searchModeOptionButtons[mode] = button;
 
+        searchModeOptionButtons[mode] = button;
         return button;
     }
 
     private void UpdateSearchModeOptionLabels()
     {
-        foreach ((SearchFilterMode mode, Button button) in searchModeOptionButtons)
+        foreach ((SearchFilterMode mode, TextBlock label) in searchModeLabels)
         {
             string marker = SearchMode == mode ? "[x]" : "[ ]";
-            button.Content = $"{marker} {GetSearchModeLabel(mode)}";
+            label.Text = $"{marker} {GetSearchModeLabel(mode)}";
         }
     }
 
@@ -309,6 +359,7 @@ public partial class ModSearchBar : UserControl
         return mode switch
         {
             SearchFilterMode.Name => "alphabetIcon.svg",
+            SearchFilterMode.Regex => "regexIcon.svg",
             SearchFilterMode.Id => "idButtonIcon.svg",
             SearchFilterMode.SteamFileId => "steamIdIcon.svg",
             _ => "alphabetIcon.svg"
@@ -320,6 +371,7 @@ public partial class ModSearchBar : UserControl
         return mode switch
         {
             SearchFilterMode.Name => "Search by name",
+            SearchFilterMode.Regex => "Search by regex",
             SearchFilterMode.Id => "Search by mod id",
             SearchFilterMode.SteamFileId => "Search by steam file id",
             _ => "Search by name"
@@ -331,13 +383,14 @@ public partial class ModSearchBar : UserControl
         return mode switch
         {
             SearchFilterMode.Name => "name",
+            SearchFilterMode.Regex => "regex",
             SearchFilterMode.Id => "id",
             SearchFilterMode.SteamFileId => "steam_file_id",
             _ => "name"
         };
     }
 
-    private static void TempSearchLog(string message)
+    private static void SearchLog(string message)
     {
         if (!DevMode.IsEnabled)
             return;

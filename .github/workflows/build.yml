@@ -63,9 +63,10 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             ext: tar.gz
-          - os: macos-latest
-            rid: osx-x64
-            ext: tar.gz
+          # DF is not compatible with MacOs, but it might be in the future
+          # - os: macos-latest
+          # rid: osx-x64
+          # ext: tar.gz
     steps:
       - uses: actions/checkout@v4
       - name: Setup .NET
@@ -95,7 +96,7 @@ jobs:
             echo "Tests failed. This can include the Skia native smoke test on Linux."
             exit 1
           fi
-      - name: Test (Windows/macOS)
+      - name: Test (Windows)
         if: matrix.os != 'ubuntu-latest'
         run: dotnet test ModHearth.sln -c Release --no-build --no-restore
       - name: Build publish runtime target

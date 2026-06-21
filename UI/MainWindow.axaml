@@ -96,7 +96,6 @@
           </Grid.RowDefinitions>
           <TextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold"
             TextWrapping="WrapWithOverflow"
-            MaxWidth="{Binding Bounds.Width, RelativeSource={RelativeSource AncestorType=Border}}"
             VerticalAlignment="Center" MinHeight="42" Margin="2,2,2,5" />
           <Border Grid.Row="1" Background="Transparent" Margin="2">
             <Image x:Name="modPreviewImage" Stretch="Uniform" HorizontalAlignment="Center"

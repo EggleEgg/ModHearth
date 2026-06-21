@@ -21,6 +21,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI;
 
@@ -2208,27 +2209,28 @@ public partial class MainWindow : Window
 
         bool dfRunning = manager.DwarfFortressRunning();
         bool hasDfhack = manager.HasDfhack();
+        bool hasDfhackFiles = manager.HasDfhackFiles();
+        bool dfProcessRunning = manager.IsDwarfFortressProcessRunning();
 
-        if (dfRunning && hasDfhack && manager.ActiveModpackBackend == ModHearthManager.ModpackStorageBackend.DFHackConfig)
-        {
-            dfhackStatusLabel.IsVisible = false;
-            dfhackStatusLabel.Text = string.Empty;
-            return;
-        }
-
-        if (!hasDfhack)
-            dfhackStatusLabel.Text = "DFHack not found";
-        else if (!dfRunning)
-            dfhackStatusLabel.Text = "Dwarf Fortress not running";
         string dfStatus = dfRunning ? "Dwarf Fortress running" : "Dwarf Fortress not running";
         string dfhStatus = hasDfhack ? "DFHack found" : "DFHack not found";
 
-        if (!hasDfhack || !dfRunning)
+        if (dfRunning && hasDfhack && manager.ActiveModpackBackend == ModHearthManager.ModpackStorageBackend.DFHackConfig)
         {
-            dfhackStatusLabel.Text = $"{dfStatus}, {dfhStatus}";
+            dfhackStatusLabel.Text = $"{dfStatus}, {dfhStatus} (Active)";
+        }
+        else if (!hasDfhackFiles || (dfProcessRunning && !dfRunning))
+        {
+            dfhackStatusLabel.Text = "DFHack not found";
+        }
+        else if (!dfRunning)
+        {
+            dfhackStatusLabel.Text = "Dwarf Fortress not running";
         }
         else
-            dfhackStatusLabel.Text = "Using local modpacks; DFHack file unavailable";
+        {
+            dfhackStatusLabel.Text = "DFHack unavailable, modpacks will fail to apply!";
+        }
 
         dfhackStatusLabel.IsVisible = true;
     }
@@ -2770,9 +2772,7 @@ public partial class MainWindow : Window
 
     private static string TrimForLog(string? value)
     {
-        string text = value ?? string.Empty;
-        text = text.Replace("\r", "\\r").Replace("\n", "\\n");
-        return text.Length <= 80 ? text : text[..80] + "...";
+        return StringFormatter.TrimForLog(value);
     }
 
     private static string DescribeSearchMode(SearchFilterMode mode)

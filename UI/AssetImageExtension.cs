@@ -8,7 +8,7 @@ using System;
 using System.IO;
 
 namespace ModHearth.UI;
-
+/**<summary> Nifty tool to shorten uri from svg paths </summary>*/
 public sealed class AssetImageExtension : MarkupExtension
 {
     public AssetImageExtension()

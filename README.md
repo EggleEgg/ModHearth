@@ -9,16 +9,15 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 
 ### Requirements:
 - Dwarf Fortress steam version
-- Windows, macOS, or Linux
-- DFHack is optional but recommended. Install DFHack for in-game mod manager reloading.
-- Game has been launched at least once
+- Windows or Linux
+- DFHack installed [(Steam)](https://store.steampowered.com/app/2346660/DFHack__Dwarf_Fortress_Modding_Engine/)[(Github)](https://github.com/DFHack/dfhack/releases). This is because (being one of many reasons) Dwarf fortress **does not natively support** modlist files or folders, and memory injection is required for such
 - [.NET 8 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) installed
 
 ### Installation Guide
 1. Go to [releases](https://github.com/EggleEgg/ModHearth/releases/) and download the most recent version for your OS
 2. Extract the archive to a suitable location
 3. Run ModHearth (ModHearth.exe on Windows)
-4. Locate the Dwarf Fortress executable (df.exe on Windows, df on Linux, inside the app bundle on macOS)
+4. Locate the Dwarf Fortress executable (df.exe on Windows, df on Linux, inside the app bundle on macOS) if ModHearth fails to fetch it
 
 ### Instructions
 Information on the four buttons from left to right:
@@ -41,7 +40,7 @@ Information on the four buttons from left to right:
 ### General Functionality
 This tool works by pulling mods from the dwarf fortress mods folder, and pulling modpacks from either the DFHack config (mod-manager.json) or ModHearth's local fallback (modpacks.local.json).
 ModReferences are generated from found mod folders, while modpacks are generated from the active modpack file.
-With DFHack installed, loading modpacks into the game is done via altering mod-manager.json and using DFHack's normal mod management once the game loads. Without DFHack, ModHearth still saves and manages modpacks locally, but in-game reloading is unavailable.
+With DFHack installed, loading modpacks into the game is done via altering mod-manager.json and using DFHack's normal mod management once the game loads.
 
 ### Term Definitions
 #### DFHMod

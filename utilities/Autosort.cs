@@ -6,6 +6,13 @@ using System.Text.RegularExpressions;
 
 namespace ModHearth
 {
+    /** <summary> 
+    Uses partial mod string search to find dependency mods order (contains patch, addon, etc).
+    <para>
+    I dont like this approach at all and a full understanding how df handles mod content priority + modders always filling their info.txt properly would be miles better
+    </para></summary>*/
+
+    //TODO consider implementing a community rules database if this ever gets a userbase
     public partial class ModHearthManager
     {
         private IReadOnlyList<HashSet<string>> GetDuplicateWarningGroups()
@@ -396,6 +403,8 @@ namespace ModHearth
             string infoPath = Path.Combine(modref.path, "info.txt");
             if (File.Exists(infoPath))
             {
+                // Hardcoded bullshit from this post comments https://www.reddit.com/r/dwarffortress/comments/13nhfjr/mod_load_order/
+                // it works well enough, but dont do this
                 string info = File.ReadAllText(infoPath);
                 if (info.IndexOf("before vanilla", StringComparison.OrdinalIgnoreCase) >= 0)
                     beforeVanilla = true;

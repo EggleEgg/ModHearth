@@ -45,7 +45,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Paste gamelog.txt and errorlog.txt here.
+      description: Paste applog.txt and errorlog.txt here.
       placeholder: Paste logs here...
     validations:
       required: true

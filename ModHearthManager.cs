@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
+using ModHearth.Utilities;
 
 namespace ModHearth
 {
@@ -61,6 +62,9 @@ namespace ModHearth
 
         // Auto-reload interval for modlists in seconds. -1 means disabled by checkbox.
         public int AutoReloadIntervalSeconds { get; set; } = -1;
+
+        // Hide console logs on startup.
+        public bool showConsole { get; set; } = true;
 
     }
 
@@ -421,7 +425,14 @@ namespace ModHearth
             return Path.Combine(config.DFFolderPath, "dfhack-config", "mod-manager.json");
         }
 
-        public ModpackStorageBackend ActiveModpackBackend => activeModpackBackend;
+        public ModpackStorageBackend ActiveModpackBackend
+        {
+            get
+            {
+                ResolveActiveModpackStorage();
+                return activeModpackBackend;
+            }
+        }
 
         public string GetActiveModpackPath() => activeModpackPath;
 
@@ -430,8 +441,65 @@ namespace ModHearth
         public bool HasDfhack()
         {
             string dfhackRunPath = GetDfhackRunPath();
-            return !string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath);
+            if (!string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath))
+                return true;
+
+            // sometimes steam leaves critical dfhack files like dfhooks.dlls inside the df folder even after uninstalling,
+            // making it near impossible to know whether dfhack works or not before running it
+            if (HasDfhackFiles() && !DwarfFortressRunning())
+                return true;
+
+            return DFHackRpcClient.IsDFHackRunning(config?.DFFolderPath);
         }
+
+        public bool HasDfhackFiles()
+        {
+            string dfhackRunPath = GetDfhackRunPath();
+            bool hasExe = !string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath);
+
+            bool hasDll = false;
+            if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
+            {
+                hasDll = File.Exists(Path.Combine(config.DFFolderPath, "dfhooks.dll"));
+            }
+
+            return hasExe || hasDll;
+        }
+
+        public bool IsDwarfFortressProcessRunning()
+        {
+            HashSet<string> knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "Dwarf Fortress",
+                "df",
+                "dwarfort"
+            };
+
+            foreach (Process process in Process.GetProcesses())
+            {
+                try
+                {
+                    if (knownNames.Contains(process.ProcessName))
+                        return true;
+
+                    if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
+                    {
+                        string? fileName = process.MainModule?.FileName;
+                        if (!string.IsNullOrWhiteSpace(fileName) &&
+                            fileName.StartsWith(config.DFFolderPath, StringComparison.OrdinalIgnoreCase))
+                            return true;
+                    }
+                }
+                catch
+                {
+                    // Ignore processes we cannot inspect.
+                }
+            }
+
+            return false;
+        }
+
+
 
         private void ResolveActiveModpackStorage()
         {
@@ -1009,16 +1077,9 @@ namespace ModHearth
             }
         }
 
-        private static bool IsAdvancedSteamLoggingEnabled()
-        {
-            string? value = Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE");
-            return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
-        }
-
         private static void LogAdvancedSteam(string message)
         {
-            if (!IsAdvancedSteamLoggingEnabled())
+            if (!DevMode.IsEnabled)
                 return;
 
             SteamConnectionLogger.Log($"[DIAG] {message}");
@@ -1036,14 +1097,7 @@ namespace ModHearth
                 .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
                 .ToList();
 
-            if (list.Count == 0)
-                return "(none)";
-
-            if (list.Count <= maxItems)
-                return string.Join(" | ", list);
-
-            IEnumerable<string> shown = list.Take(maxItems);
-            return $"{string.Join(" | ", shown)} | ... (+{list.Count - maxItems} more)";
+            return StringFormatter.FormatListWithMoreIndicator(list, maxItems);
         }
 
         private static bool TryExtractSteamWorkshopItemIdFromPath(string? path, out string steamItemId)
@@ -1425,7 +1479,7 @@ namespace ModHearth
         {
             modrefMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
             modPool = new HashSet<DFHMod>();
-            bool diagnosticsEnabled = IsAdvancedSteamLoggingEnabled();
+            bool diagnosticsEnabled = DevMode.IsEnabled;
 
             Console.WriteLine("Finding all mods (filesystem)...");
 
@@ -1721,7 +1775,7 @@ namespace ModHearth
                 return mappedPath;
             }
 
-            if (IsAdvancedSteamLoggingEnabled())
+            if (DevMode.IsEnabled)
             {
                 string modId = modDataEntry.TryGetValue("id", out string? unresolvedId)
                     ? (unresolvedId ?? string.Empty)
@@ -1774,20 +1828,29 @@ namespace ModHearth
         // Use dfhack-run.exe and lua to get raw mod data.
         private string LoadModMemoryData()
         {
-            string dfhackRunPath = GetDfhackRunPath();
-            if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
-                throw new FileNotFoundException("dfhack-run executable not found.", dfhackRunPath);
-
             // Get path to lua script.
             string luaPath = Path.Combine(AppContext.BaseDirectory, "lua", "GetModMemoryData.lua");
             if (!File.Exists(luaPath))
                 throw new FileNotFoundException("GetModMemoryData.lua not found.", luaPath);
 
+            // Try direct RPC first (faster, avoids spawning processes)
+            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, config?.DFFolderPath, out string rpcError);
+            if (rpcOutput != null)
+            {
+                return rpcOutput;
+            }
+
+            Console.WriteLine($"DFHack RPC failed ({rpcError}). Falling back to dfhack-run process.");
+
+            string dfhackRunPath = GetDfhackRunPath();
+            if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
+                throw new FileNotFoundException("dfhack-run executable not found.", dfhackRunPath);
+
             // Set up dfhack process.
             ProcessStartInfo processStartInfo = new ProcessStartInfo
             {
                 FileName = dfhackRunPath,
-                WorkingDirectory = config.DFFolderPath,
+                WorkingDirectory = config!.DFFolderPath,
                 Arguments = $"lua -f \"{luaPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -1862,6 +1925,10 @@ namespace ModHearth
                     // Ignore processes we cannot inspect.
                 }
             }
+
+            // Supplemental check: Is DFHack RPC listening?
+            if (DFHackRpcClient.IsDFHackRunning(config?.DFFolderPath))
+                return true;
 
             return false;
         }
@@ -1989,18 +2056,35 @@ namespace ModHearth
             if (!DwarfFortressRunning())
                 return false;
 
-            string dfhackRunPath = GetDfhackRunPath();
-            if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
-                return false;
-
             string luaPath = Path.Combine(AppContext.BaseDirectory, "lua", "ReloadModManager.lua");
             if (!File.Exists(luaPath))
+                return false;
+
+            // Try direct RPC first (faster, avoids spawning processes)
+            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, config?.DFFolderPath, out string rpcError);
+            if (rpcOutput != null)
+            {
+                if (!string.IsNullOrWhiteSpace(rpcOutput))
+                    Console.WriteLine(rpcOutput.TrimEnd());
+
+                bool applied = !string.IsNullOrWhiteSpace(rpcOutput) &&
+                    (rpcOutput.Contains("[ModHearth] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
+                     rpcOutput.Contains("[ModHearth] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase) ||
+                     rpcOutput.Contains("[ReloadManager] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
+                     rpcOutput.Contains("[ReloadManager] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase));
+                return applied;
+            }
+
+            Console.WriteLine($"DFHack RPC failed ({rpcError}). Falling back to dfhack-run process.");
+
+            string dfhackRunPath = GetDfhackRunPath();
+            if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
                 return false;
 
             ProcessStartInfo processStartInfo = new ProcessStartInfo
             {
                 FileName = dfhackRunPath,
-                WorkingDirectory = config.DFFolderPath,
+                WorkingDirectory = config!.DFFolderPath,
                 Arguments = $"lua -f \"{luaPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -2681,6 +2765,11 @@ namespace ModHearth
             }
 
             AutoDiscoverConfigPaths();
+
+            if (!config.showConsole && !DevMode.IsEnabled)
+            {
+                RuntimeBootstrap.HideConsole();
+            }
         }
 
         // Save the config to file.

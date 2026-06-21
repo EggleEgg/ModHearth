@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI;
 
@@ -51,9 +52,9 @@ public partial class SortRulesWindow : Window
     private bool bypassUnsavedClosePrompt;
     private bool unsavedClosePromptInFlight;
     private List<string> redoRuleOrder = new();
-
     private string? lastJumpModId;
     private bool lastJumpWasAfter;
+    private int emptyRuleGapSize = 12;
 
     public SortRulesWindow()
         : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null)
@@ -255,7 +256,7 @@ public partial class SortRulesWindow : Window
                 string requiredId = candidate.ModReference.ID?.Trim() ?? string.Empty;
                 MenuItem item = new MenuItem
                 {
-                    Header = $"{candidate.DisplayName} ({requiredId})",
+                    Header = StringFormatter.TruncateForDisplay($"{candidate.DisplayName} ({requiredId})", 50),
                     Tag = new RequiredMenuPayload(requiredId)
                 };
                 item.Click += AddRequiredMenuItemClick;
@@ -576,8 +577,8 @@ public partial class SortRulesWindow : Window
             bool hasGapBelow = i < masterRuleList.Count - 1 &&
                                HasGapBetween(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
 
-            double top = hasGapAbove ? 12 : 0;
-            double bottom = hasGapBelow ? 12 : 0;
+            double top = hasGapAbove ? emptyRuleGapSize : 0;
+            double bottom = hasGapBelow ? emptyRuleGapSize : 0;
             masterRuleList[i].RuleGapMargin = new Thickness(0, top, 0, bottom);
         }
     }
@@ -1254,13 +1255,6 @@ public partial class SortRulesWindow : Window
 
         searchDebounceTimer.Stop();
         searchDebounceTimer.Start();
-    }
-
-    private void ApplySearchFilterImmediately()
-    {
-        TempSearchLog("ApplySearchFilterImmediately (stopping timer)");
-        searchDebounceTimer.Stop();
-        ApplySearchFilter();
     }
 
     private void ApplyFilterFlags(

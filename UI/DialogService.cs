@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace ModHearth.UI;
 
+/** <summary> Generic "are you sure you want to exit without saving?" dialog </summary>*/
 public enum UnsavedChangesChoice
 {
     Save,

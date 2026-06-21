@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
 
@@ -404,6 +405,20 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     {
         if (string.IsNullOrWhiteSpace(filter))
             return true;
+
+        if (mode == SearchFilterMode.Regex)
+        {
+            try
+            {
+                // Treat entire mod info as target for regex to be most flexible
+                string fullTarget = $"{modref.name} {modref.ID} {modref.steamID}";
+                return Regex.IsMatch(fullTarget, filter, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         string? candidate = mode switch
         {
