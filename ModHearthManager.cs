@@ -249,13 +249,6 @@ namespace ModHearth
             ModUpdateLogger.RecordChanges(modrefMap.Values, enabledMods, GetSteamWorkshopAcfPaths());
         }
 
-
-        //??
-        public ModHearthConfig GetConfig()
-        {
-            return config;
-        }
-
         public IReadOnlyList<ModSortRule> GetSortRules()
         {
             return sortRules;
@@ -468,38 +461,22 @@ namespace ModHearth
 
         public bool IsDwarfFortressProcessRunning()
         {
-            HashSet<string> knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "Dwarf Fortress",
-                "df",
-                "dwarfort"
-            };
-
-            foreach (Process process in Process.GetProcesses())
+            string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort" };
+            foreach (string name in candidateNames)
             {
                 try
                 {
-                    if (knownNames.Contains(process.ProcessName))
+                    if (Process.GetProcessesByName(name).Length > 0)
                         return true;
-
-                    if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
-                    {
-                        string? fileName = process.MainModule?.FileName;
-                        if (!string.IsNullOrWhiteSpace(fileName) &&
-                            fileName.StartsWith(config.DFFolderPath, StringComparison.OrdinalIgnoreCase))
-                            return true;
-                    }
                 }
                 catch
                 {
-                    // Ignore processes we cannot inspect.
+                    // Ignore query failures for this candidate name.
                 }
             }
 
             return false;
         }
-
-
 
         private void ResolveActiveModpackStorage()
         {
@@ -1898,37 +1875,19 @@ namespace ModHearth
         // Check if DF is running.
         public bool DwarfFortressRunning()
         {
-            HashSet<string> knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "Dwarf Fortress",
-                "df",
-                "dwarfort"
-            };
-
-            foreach (Process process in Process.GetProcesses())
+            string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort" };
+            foreach (string name in candidateNames)
             {
                 try
                 {
-                    if (knownNames.Contains(process.ProcessName))
+                    if (Process.GetProcessesByName(name).Length > 0)
                         return true;
-
-                    if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
-                    {
-                        string? fileName = process.MainModule?.FileName;
-                        if (!string.IsNullOrWhiteSpace(fileName) &&
-                            fileName.StartsWith(config.DFFolderPath, StringComparison.OrdinalIgnoreCase))
-                            return true;
-                    }
                 }
                 catch
                 {
-                    // Ignore processes we cannot inspect.
+                    // Ignore query failures for this candidate name.
                 }
             }
-
-            // Supplemental check: Is DFHack RPC listening?
-            if (DFHackRpcClient.IsDFHackRunning(config?.DFFolderPath))
-                return true;
 
             return false;
         }
@@ -2468,13 +2427,6 @@ namespace ModHearth
                 aliasMap[key] = modId;
         }
         #region initialization file stuff
-
-        // Find modpacks from dfhack mod-manager config file.
-        public bool ReloadModpacksFromDisk(string? preferredModlistName)
-        {
-            return FindModpacks(preferredModlistName);
-        }
-
         private bool FindModpacks(string? preferredModlistName)
         {
             ResolveActiveModpackStorage();

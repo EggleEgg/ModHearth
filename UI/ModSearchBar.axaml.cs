@@ -290,7 +290,7 @@ public partial class ModSearchBar : UserControl
                 Width = 18,
                 Height = 18,
                 Padding = new Thickness(0),
-                Margin = new Thickness(120,0,0,0),
+                Margin = new Thickness(122, 0, 0, 0),
                 HorizontalContentAlignment = HorizontalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Top,
@@ -298,9 +298,7 @@ public partial class ModSearchBar : UserControl
                 Cursor = new Cursor(StandardCursorType.Hand)
             };
 
-            ToolTip.SetTip(
-                helpButton,
-                "Click here to view regex documentation");
+            ToolTip.SetTip(helpButton, "Click here to view regex documentation");
 
             helpButton.Click += (_, e) =>
             {

@@ -362,7 +362,7 @@ public partial class MainWindow : Window
                 try
                 {
                     manager.Initialize();
-                    UpdateDfHackStatus();
+                    await UpdateDfHackStatusAsync();
                     break;
                 }
                 catch (UserActionRequiredException ex)
@@ -410,7 +410,7 @@ public partial class MainWindow : Window
         RefreshModlistPanels();
         clearInstalledModsButton.IsEnabled = Directory.Exists(manager.GetInstalledModsPath());
         buildVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
-        UpdateDfHackStatus();
+        _ = UpdateDfHackStatusAsync();
         StartDfHackStatusTimer();
         SetChangesMade(false);
         if (!DevMode.IsEnabled)
@@ -1936,7 +1936,7 @@ public partial class MainWindow : Window
         {
             manager.Initialize(preferredName);
             BuildModViewModels();
-            UpdateDfHackStatus();
+            _ = UpdateDfHackStatusAsync();
             if (!DevMode.IsEnabled)
                 ResetModManagerWatcher();
         }
@@ -1996,7 +1996,7 @@ public partial class MainWindow : Window
         {
             Interval = DfHackStatusRefreshInterval
         };
-        dfHackStatusTimer.Tick += (_, _) => UpdateDfHackStatus();
+        dfHackStatusTimer.Tick += async (_, _) => await UpdateDfHackStatusAsync();
     }
 
     private void StartDfHackStatusTimer()
@@ -2006,6 +2006,24 @@ public partial class MainWindow : Window
 
         dfHackStatusTimer.Stop();
         dfHackStatusTimer.Start();
+    }
+
+    private void ApplyDfHackStatusToLabel(bool dfRunning, bool hasDfhack)
+    {
+        if (dfhackStatusLabel == null)
+            return;
+
+        if (dfRunning && hasDfhack)
+        {
+            dfhackStatusLabel.IsVisible = false;
+            dfhackStatusLabel.Text = string.Empty;
+            return;
+        }
+
+        dfhackStatusLabel.Text = dfRunning
+            ? "DFHack not found"
+            : "Dwarf Fortress not running";
+        dfhackStatusLabel.IsVisible = true;
     }
 
     private void AutoReloadTimerTick(object? sender, EventArgs e)
@@ -2199,7 +2217,7 @@ public partial class MainWindow : Window
         return value;
     }
 
-    private void UpdateDfHackStatus()
+    private async Task UpdateDfHackStatusAsync()
     {
         if (dfhackStatusLabel == null)
             return;
@@ -2207,15 +2225,25 @@ public partial class MainWindow : Window
         if (TryShowTransientStatusNotice())
             return;
 
-        bool dfRunning = manager.DwarfFortressRunning();
-        bool hasDfhack = manager.HasDfhack();
-        bool hasDfhackFiles = manager.HasDfhackFiles();
-        bool dfProcessRunning = manager.IsDwarfFortressProcessRunning();
+        // IsDwarfFortressProcessRunning() likely has the same expensive process-enumeration pattern as DwarfFortressRunning() — both
+        // should use GetProcessesByName() rather than GetProcesses() + MainModule.
+        (bool dfRunning, bool hasDfhack, bool hasDfhackFiles, bool dfProcessRunning) =
+            await Task.Run(() => (
+                manager.DwarfFortressRunning(),
+                manager.IsDwarfFortressProcessRunning(),
+                manager.HasDfhack(),
+                manager.HasDfhackFiles()));
+
+        if (dfhackStatusLabel == null)
+            return;
+
+        ApplyDfHackStatusToLabel(dfRunning, hasDfhack);
 
         string dfStatus = dfRunning ? "Dwarf Fortress running" : "Dwarf Fortress not running";
         string dfhStatus = hasDfhack ? "DFHack found" : "DFHack not found";
 
-        if (dfRunning && hasDfhack && manager.ActiveModpackBackend == ModHearthManager.ModpackStorageBackend.DFHackConfig)
+        if (dfRunning && hasDfhack &&
+            manager.ActiveModpackBackend == ModHearthManager.ModpackStorageBackend.DFHackConfig)
         {
             dfhackStatusLabel.Text = $"{dfStatus}, {dfhStatus} (Active)";
         }
