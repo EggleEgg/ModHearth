@@ -29,6 +29,12 @@
     "B": 79,
     "A": 255
   },
+  "modRefPanelColorClear": {
+    "R": 67,
+    "G": 75,
+    "B": 79,
+    "A": 235
+  },
   "modRefTextColor": {
     "R": 247,
     "G": 213,

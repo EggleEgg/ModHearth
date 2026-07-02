@@ -1,0 +1,157 @@
+using Avalonia.Controls;
+using Avalonia.Input;
+using System.Diagnostics;
+
+namespace ModHearth.UI;
+
+public partial class MainWindow
+{
+    private async Task OpenSortRulesAsync()
+    {
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        List<ModReference> modRefs = new();
+        foreach (DFHMod mod in manager.modPool)
+        {
+            ModReference modref = manager.GetRefFromDFHMod(mod);
+            if (modref == null)
+                continue;
+            string id = modref.ID?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+            if (seen.Add(id))
+                modRefs.Add(modref);
+        }
+
+        SortRulesWindow dialog = new SortRulesWindow(
+            manager.GetSortRules(),
+            modRefs,
+            manager.GetModsPath(),
+            manager.GetVanillaModsPath(),
+            manager.GetSortRulesPath(),
+            rules => manager.SetSortRules(rules))
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+
+        await dialog.ShowDialog(this);
+    }
+
+    private void OpenModUpdateLog()
+    {
+        ModUpdateLogWindow dialog = new ModUpdateLogWindow(manager)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        _ = dialog.ShowDialog(this);
+    }
+
+    private void AutoSort()
+    {
+        bool changed = manager.AutoSortEnabledMods();
+        if (changed)
+            SetAndMarkChanges(true);
+        RefreshModlistPanels();
+    }
+
+    private async Task ClearInstalledModsAsync()
+    {
+        string installedModsPath = manager.GetInstalledModsPath();
+        bool confirm = await DialogService.ShowConfirmAsync(this,
+            $"Clear installed mods cache?\n{installedModsPath}",
+            "Clear installed mods");
+        if (!confirm)
+            return;
+
+        bool success = manager.ClearInstalledModsFolder(out string message);
+        await DialogService.ShowMessageAsync(this, message, success ? "Installed mods cleared" : "Clear failed");
+
+        clearInstalledModsButton.IsEnabled = Directory.Exists(installedModsPath);
+        if (success)
+        {
+            manager.RefreshInstalledCacheModIds();
+            RefreshModlistPanels();
+        }
+    }
+
+    private async void ClearInstalledModsPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(clearInstalledModsButton).Properties.IsRightButtonPressed)
+            return;
+
+        e.Handled = true;
+        await RevealInstalledModsFolderAsync();
+    }
+
+    private async Task RevealInstalledModsFolderAsync()
+    {
+        string installedModsPath = manager.GetInstalledModsPath();
+        if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
+        {
+            await DialogService.ShowMessageAsync(this, "Installed mods folder not found.", "Open Folder");
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = installedModsPath,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageAsync(this, ex.Message, "Open Folder");
+        }
+    }
+
+    private async Task RedoConfigAsync()
+    {
+        bool confirm = await DialogService.ShowConfirmAsync(this,
+            "Are you sure you want to reset config file? Application will restart.",
+            "Redo Config");
+        if (!confirm)
+            return;
+
+        ConfigManager.DestroyConfig();
+        RestartApplication();
+    }
+
+    private void RestartApplication()
+    {
+        try
+        {
+            string? exePath = Environment.ProcessPath;
+            if (!string.IsNullOrWhiteSpace(exePath))
+                Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
+        }
+        catch
+        {
+            // Ignore restart failures.
+        }
+
+        Close();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        if (updateInProgress)
+            return;
+
+        updateInProgress = true;
+        updateButton.IsEnabled = false;
+
+        try
+        {
+            string currentBuild = ModHearthManager.GetBuildVersionString().Trim();
+            bool shouldRestart = await UpdateService.TryRunUpdateAsync(this, currentBuild);
+            if (shouldRestart)
+                Close();
+        }
+        finally
+        {
+            updateInProgress = false;
+            updateButton.IsEnabled = true;
+        }
+    }
+}

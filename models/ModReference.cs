@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 
 namespace ModHearth
 {
+    public enum ModSource
+    {
+        Local,
+        Steam
+    }
+
     /// <summary>
     /// Stores all data relevant to a mod.
     /// More comprehensive than DFHMod, but not used in the actual creation of modpacks.
@@ -41,9 +41,12 @@ namespace ModHearth
 
         // Does this mod have mods it needs loaded before it, mods it needs loaded after it, or conflicts.
         public bool problematic;
+        public DateTime? LastModifiedTime { get; set; }
+
+        public ModSource Source { get; private set; }
 
         // #FIXME: pointless constructor.
-        public ModReference(string ID, string numericVersion, string displayedVersion, string earliestCompatibleNumericVersion, string earliestCompatibleDisplayedVersion, string author, string name, string description, string steamName, string steamDescription, string steamID, string path)
+        public ModReference(string ID, string numericVersion, string displayedVersion, string earliestCompatibleNumericVersion, string earliestCompatibleDisplayedVersion, string author, string name, string description, string steamName, string steamDescription, string steamID, string path, ModSource source)
         {
             this.ID = ID;
             this.numericVersion = numericVersion;
@@ -57,6 +60,7 @@ namespace ModHearth
             this.steamDescription = steamDescription;
             this.steamID = steamID;
             this.path = path;
+            this.Source = source;
             problematic = false;
 
             require_before_me = new List<string>();
@@ -80,6 +84,8 @@ namespace ModHearth
             steamID = mmd["steam_file_id"]; // FIXME: dubious
             steamName = mmd["steam_title"];
             steamDescription = mmd["steam_description"];
+
+            Source = string.IsNullOrWhiteSpace(steamID) ? ModSource.Local : ModSource.Steam;
 
             require_before_me = new List<string>();
             require_after_me = new List<string>();

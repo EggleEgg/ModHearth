@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-
-namespace ModHearth
+﻿namespace ModHearth
 {
     /// <summary>
     /// Object matching how dfhack handles mods internally. 

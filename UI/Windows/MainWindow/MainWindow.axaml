@@ -1,0 +1,288 @@
+<Window xmlns="https://github.com/avaloniaui"
+  xmlns:html="clr-namespace:TheArtOfDev.HtmlRenderer.Avalonia;assembly=Avalonia.HtmlRenderer"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="clr-namespace:ModHearth.UI"
+  x:Class="ModHearth.UI.MainWindow"
+  Title="Mod Hearth"
+  Width="1264"
+  Height="828"
+  MinWidth="1020"
+  MinHeight="640">
+  <Window.DataTemplates>
+    <DataTemplate DataType="ui:ModRefViewModel">
+      <Border Background="{Binding BackgroundBrush}" Padding="2,0" MinHeight="20"
+        HorizontalAlignment="Stretch"
+        ToolTip.Tip="{Binding HoverTooltip}">
+        <Border.ContextMenu>
+          <ContextMenu Opened="ModContextMenuOpened">
+            <MenuItem Header="Delete local mod" Tag="delete-mod" Click="ModContextDeleteMod" />
+            <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False"
+              Click="ModContextUnsubscribeSteam" />
+            <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False"
+              Click="ModContextRedownloadSteam" />
+            <Separator />
+            <MenuItem Header="Open Folder" Tag="open" Click="ModContextOpenFolder" />
+            <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False"
+              Click="ModContextOpenSteam" />
+            <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
+          </ContextMenu>
+        </Border.ContextMenu>
+        <Grid>
+          <Grid ColumnDefinitions="Auto,Auto,*">
+            <Border Width="2"
+              Background="{Binding CacheBarBrush}"
+              IsVisible="{Binding IsCached}"
+              ZIndex="2" />
+            <Image Grid.Column="1"
+              Source="{ui:AssetImage dwarfIcon}"
+              IsVisible="{Binding IsVanillaModSource}"
+              Width="14"
+              Height="14"
+              VerticalAlignment="Center"
+              Stretch="Uniform" />
+            <Image Grid.Column="1"
+              Source="{ui:AssetImage folderIcon}"
+              IsVisible="{Binding IsLocalModSource}"
+              Width="14"
+              Height="14"
+              VerticalAlignment="Center"
+              Stretch="Uniform" />
+            <Image Grid.Column="1"
+              Source="{ui:AssetImage steamIcon}"
+              IsVisible="{Binding IsSteamModSource}"
+              Width="14"
+              Height="14"
+              VerticalAlignment="Center"
+              Stretch="Uniform" />
+            <TextBlock Grid.Column="2"
+              Text="{Binding DisplayName}"
+              Foreground="{Binding TextBrush}"
+              TextTrimming="CharacterEllipsis"
+              FontWeight="Normal"
+              TextDecorations="{Binding TextDecorations}"
+              MinWidth="0"
+              Margin="4,0,0,0"
+              VerticalAlignment="Center" />
+          </Grid>
+          <Border Height="2"
+            Background="{Binding DropHighlightBrush}"
+            IsVisible="{Binding ShowDropAbove}"
+            VerticalAlignment="Top" />
+          <Border Height="2"
+            Background="{Binding DropHighlightBrush}"
+            IsVisible="{Binding ShowDropBelow}"
+            VerticalAlignment="Bottom" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <Panel>
+    <Grid Margin="12">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="10*" />
+        <ColumnDefinition Width="11*" />
+        <ColumnDefinition Width="200" />
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+      <Border Grid.Column="0" Margin="3">
+        <Grid>
+          <Grid RowSpacing="1">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold"
+              TextWrapping="WrapWithOverflow"
+              VerticalAlignment="Center" MinHeight="42" Margin="2,2,2,5" />
+            <Border Grid.Row="1" Background="Transparent" Margin="2">
+              <Image x:Name="modPreviewImage" Stretch="Uniform" HorizontalAlignment="Center"
+                VerticalAlignment="Center" MaxWidth="450" MaxHeight="450" Margin="10,0,10,0" />
+            </Border>
+            <html:HtmlPanel x:Name="modDescriptionHtml" Grid.Row="2" Margin="2,12,2,2"
+              ScrollViewer.VerticalScrollBarVisibility="Auto"
+              ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+            <Grid Grid.Row="3" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
+              VerticalAlignment="Center" Margin="0,5,2,0" MinHeight="18" RowSpacing="7">
+              <Border x:Name="modInfoTopBorder" Grid.Row="0" Grid.ColumnSpan="2" Height="2"
+                HorizontalAlignment="Stretch" Margin="2,0,0,0" />
+              <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6"
+                VerticalAlignment="Center">
+                <Button x:Name="updateButton" Width="23" Height="23" Padding="0"
+                  ToolTip.Tip="Check for updates">
+                  <Image Source="{ui:AssetImage updateIcon}"
+                    Stretch="Uniform" />
+                </Button>
+                <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="dfhackStatusLabel" Grid.Row="1" Grid.Column="1" FontSize="11"
+                HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="False" />
+            </Grid>
+          </Grid>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="1" Margin="3">
+        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
+
+          <Grid.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Padding" Value="0,0,3,0" />
+              <Setter Property="Margin" Value="0" />
+              <Setter Property="HorizontalAlignment" Value="Stretch" />
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+              <Setter Property="Background" Value="Transparent" />
+              <Setter Property="BorderThickness" Value="0" />
+              <Setter Property="IsVisible" Value="{Binding IsVisible}" />
+            </Style>
+            <Style Selector="ui|ModSearchBar">
+              <Setter Property="Margin" Value="-2,0,-2,0" />
+            </Style>
+          </Grid.Styles>
+
+          <Grid Grid.Column="0" RowDefinitions="22,30,*">
+            <TextBlock x:Name="leftHeaderLabel" Grid.Row="0"
+              HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+            <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1"
+              Watermark="Search" Height="28" />
+
+            <ListBox x:Name="leftModlist" Grid.Row="2" SelectionMode="Multiple"
+              AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+              Margin="0,6,0,0">
+            </ListBox>
+          </Grid>
+
+          <Grid Grid.Column="1" RowDefinitions="22,30,*">
+            <TextBlock x:Name="rightHeaderLabel" Grid.Row="0"
+              HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+            <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1"
+              Watermark="Search" Height="28" />
+
+            <ListBox x:Name="rightModlist" Grid.Row="2" SelectionMode="Multiple"
+              AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+              Margin="0,6,0,0">
+            </ListBox>
+          </Grid>
+
+          <Grid Grid.Column="2"></Grid>
+
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="2" Margin="0,3,3,3">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" RowSpacing="6">
+          <Grid.Styles>
+            <Style Selector="Button">
+              <Setter Property="HorizontalAlignment" Value="Stretch" />
+              <Setter Property="VerticalAlignment" Value="Stretch" />
+              <Setter Property="HorizontalContentAlignment" Value="Center" />
+              <Setter Property="VerticalContentAlignment" Value="Center" />
+              <Setter Property="MinHeight" Value="0" />
+              <Setter Property="Padding" Value="0" />
+            </Style>
+            <Style Selector="Image">
+              <Setter Property="Stretch" Value="Uniform" />
+            </Style>
+            <Style Selector="Grid">
+              <Setter Property="ColumnSpacing" Value="6" />
+            </Style>
+          </Grid.Styles>
+
+          <Grid ColumnDefinitions="*,*,*,*" Height="42">
+            <Button x:Name="saveButton" Grid.Column="0" ToolTip.Tip="Save the current modlist">
+              <Image Source="{ui:AssetImage saveIcon}" />
+            </Button>
+            <Button x:Name="runDwarfFortressButton" Grid.Column="1" ToolTip.Tip="Run Dwarf Fortress">
+              <Image Source="{ui:AssetImage arrowPlayIcon}" />
+            </Button>
+            <Button x:Name="undoChangesButton" Grid.Column="2" ToolTip.Tip="Undo unsaved changes">
+              <Image Source="{ui:AssetImage undoIcon}" />
+            </Button>
+            <Button x:Name="reloadButton" Grid.Column="3"
+              ToolTip.Tip="Reload local/steam workshop modlists and mods. Right click to autoreload">
+              <Image Source="{ui:AssetImage reloadIcon}" />
+            </Button>
+          </Grid>
+
+          <ComboBox x:Name="modpackComboBox" Grid.Row="2" Height="30" HorizontalAlignment="Stretch" />
+
+          <Grid Grid.Row="3" ColumnDefinitions="*,*,*" Height="28">
+            <Button x:Name="newListButton" Content="New" FontSize="12" />
+            <Button x:Name="renameListButton" Grid.Column="1" Content="Rename" FontSize="12" />
+            <Button x:Name="deleteListButton" Grid.Column="2" Content="Delete" FontSize="12" />
+          </Grid>
+
+          <Grid Grid.Row="4" ColumnDefinitions="*,*" Height="28">
+            <Button x:Name="importButton" Content="Import" FontSize="13" />
+            <Button x:Name="exportButton" Grid.Column="1" Content="Export" FontSize="13" />
+          </Grid>
+
+          <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Height="28">
+            <Button x:Name="autoSortButton" Content="Auto Sort"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            <Button x:Name="sortRulesButton" Grid.Column="1"
+              ToolTip.Tip="Custom sorting rules. These override automatic sorting">
+              <Image Source="{ui:AssetImage gearIcon}" />
+            </Button>
+          </Grid>
+
+          <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Height="28"
+            Margin="0,0,0,6"
+            VerticalAlignment="Bottom">
+            <Button x:Name="updateLogButton" Content="Update log" FontSize="13" />
+            <Button x:Name="clearInstalledModsButton" Grid.Column="1" Width="28"
+              ToolTip.Tip="Clear the installed mods cache. Right click to open the installed_mods folder">
+              <Image Source="{ui:AssetImage trashIcon}" />
+            </Button>
+          </Grid>
+
+          <Grid Grid.Row="7" ColumnDefinitions="Auto,*"
+            Height="62">
+            <Button x:Name="warningIssuesButton" IsVisible="False" IsEnabled="False" Width="62"
+              ToolTip.Tip="Issues detected in mods">
+              <Image x:Name="warningIssuesIcon"
+                Source="{ui:AssetImage errorIcon}" />
+            </Button>
+            <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="10">
+              <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch" />
+              <Button Grid.Row="1" x:Name="redoConfigButton" Content="Redo Config" FontSize="12"
+                HorizontalAlignment="Right" Padding="6,0,6,0" />
+            </Grid>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <Border x:Name="reloadNotificationBorder"
+      HorizontalAlignment="Left"
+      VerticalAlignment="Bottom"
+      Padding="6,5.5,20,5.5"
+      Margin="0,0,0,10"
+      CornerRadius="0,4,4,0"
+      Background="#2D2D30"
+      BorderBrush="#3F3F46"
+      BorderThickness="0,1,1,1"
+      BoxShadow="0 4 12 0 #40000000"
+      IsVisible="False"
+      PointerEntered="ReloadNotification_PointerEntered">
+      <StackPanel Orientation="Horizontal"
+        Spacing="6">
+        <Image Source="{ui:AssetImage infoCircleClearIcon.svg}"
+          Width="16"
+          Height="16"
+          VerticalAlignment="Center" />
+        <TextBlock x:Name="reloadNotificationText"
+          Text="Reload finished"
+          FontSize="12"
+          FontWeight="SemiBold"
+          VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+  </Panel>
+</Window>

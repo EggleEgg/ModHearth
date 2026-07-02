@@ -1,0 +1,76 @@
+<Window xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="clr-namespace:ModHearth.UI"
+  x:Class="ModHearth.UI.ModUpdateLogWindow"
+  Title="Mod Update Log"
+  Width="980"
+  Height="560"
+  MinWidth="820"
+  MinHeight="480">
+  <Window.DataTemplates>
+    <DataTemplate DataType="ui:ModUpdateLogItemViewModel">
+      <Border Padding="4,2" Background="{Binding BackgroundBrush}">
+        <Border.ContextMenu>
+          <ContextMenu Opened="ModContextMenuOpened">
+            <MenuItem Header="Delete local mod" Tag="delete-mod" Click="ModContextDeleteMod" />
+            <MenuItem Header="Unsubscribe from steam mod" Tag="unsubscribe-steam" IsVisible="False"
+              Click="ModContextUnsubscribeSteam" />
+            <MenuItem Header="Redownload steam mod" Tag="redownload-steam" IsVisible="False"
+              Click="ModContextRedownloadSteam" />
+            <Separator />
+            <MenuItem Header="Open Folder" Tag="open" Click="ModContextOpenFolder" />
+            <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False"
+              Click="ModContextOpenSteam" />
+            <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
+          </ContextMenu>
+        </Border.ContextMenu>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition
+              Width="{Binding DateColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition
+              Width="{Binding ModColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition
+              Width="{Binding TypeColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition
+              Width="{Binding StateColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition
+              Width="{Binding ActiveColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+            <ColumnDefinition Width="6" />
+            <ColumnDefinition
+              Width="{Binding PathColumnWidth, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Text="{Binding DateText}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="2" Text="{Binding ModName}" Foreground="{Binding RowBrush}"
+            TextTrimming="CharacterEllipsis" />
+          <TextBlock Grid.Column="4" Text="{Binding SourceType}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="6" Text="{Binding StateText}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="8" Text="{Binding ActiveText}" Foreground="{Binding RowBrush}" />
+          <TextBlock Grid.Column="10" Text="{Binding Path}" Foreground="{Binding RowBrush}"
+            TextTrimming="CharacterEllipsis" />
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </Window.DataTemplates>
+
+  <Grid Margin="12" RowDefinitions="Auto,*">
+
+    <DataGrid x:Name="logList" Grid.Row="1" ItemsSource="{Binding LogItems}"
+      CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
+      IsReadOnly="True" GridLinesVisibility="All">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="150" />
+        <DataGridTextColumn Header="Mod" Binding="{Binding ModName}" Width="200" />
+        <DataGridTextColumn Header="Type" Binding="{Binding SourceType}" Width="100" />
+        <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="100" />
+        <DataGridTextColumn Header="Active" Binding="{Binding ActiveText}" Width="100" />
+        <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="*" />
+      </DataGrid.Columns>
+    </DataGrid>
+
+  </Grid>
+</Window>

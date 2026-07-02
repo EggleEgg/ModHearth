@@ -1,5 +1,3 @@
-using System;
-
 namespace ModHearth
 {
     public sealed class ModSortRule

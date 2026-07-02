@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace ModHearth
@@ -23,16 +19,9 @@ namespace ModHearth
 
         private bool IsVanillaBaseMod(ModReference modref)
         {
-            if (modref == null || string.IsNullOrWhiteSpace(modref.path))
+            if (modref == null)
                 return false;
-
-            string vanillaRoot = GetVanillaModsPath();
-            if (string.IsNullOrWhiteSpace(vanillaRoot) || !Directory.Exists(vanillaRoot))
-                return false;
-
-            string modPath = Path.GetFullPath(modref.path);
-            string fullVanillaRoot = Path.GetFullPath(vanillaRoot);
-            return IsPathUnderRoot(modPath, fullVanillaRoot);
+            return ModSourceClassifier.Classify(modref, GetModsPath(), GetVanillaModsPath()).IsVanilla;
         }
 
         private static bool ContainsModId(IEnumerable<string> values, string id)
@@ -56,11 +45,11 @@ namespace ModHearth
                    ContainsModId(modref.require_ids, other.ID);
         }
 
-        private static bool IsPatchLike(ModReference modref, Dictionary<string, bool> patchCache)
+        private bool IsPatchLike(ModReference modref)
         {
             if (modref == null)
                 return false;
-            if (patchCache.TryGetValue(modref.ID, out bool cached))
+            if (_patchCache.TryGetValue(modref.ID, out bool cached))
                 return cached;
 
             string label = $"{modref.name} {modref.ID}".ToLowerInvariant();
@@ -98,7 +87,7 @@ namespace ModHearth
                 }
             }
 
-            patchCache[modref.ID] = patchLike;
+            _patchCache[modref.ID] = patchLike;
             return patchLike;
         }
 
@@ -167,12 +156,8 @@ namespace ModHearth
                 if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
                     allEnabled.Add(modref);
 
-            Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache =
-                new Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)>(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, bool> patchCache = new(StringComparer.OrdinalIgnoreCase);
-
             List<ModReference> baseOrder = allEnabled
-                .OrderBy(m => GetAutoSortGroup(m, traitCache))
+                .OrderBy(m => GetAutoSortGroup(m))
                 .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
                 .ThenBy(m => m.name ?? m.ID)
                 .ToList();
@@ -267,7 +252,7 @@ namespace ModHearth
                     {
                         if (!idMap.TryGetValue(id, out ModReference? modref) || modref == null)
                             continue;
-                        if (IsPatchLike(modref, patchCache))
+                        if (IsPatchLike(modref))
                             patchIds.Add(id);
                         else
                             baseIds.Add(id);
@@ -367,9 +352,9 @@ namespace ModHearth
             return changed;
         }
 
-        private int GetAutoSortGroup(ModReference modref, Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache)
+        private int GetAutoSortGroup(ModReference modref)
         {
-            var traits = GetModTraits(modref, traitCache);
+            var traits = GetModTraits(modref);
             if (traits.beforeVanilla)
                 return 0;
             if (traits.vanillaEntity)
@@ -386,10 +371,9 @@ namespace ModHearth
         }
 
         private (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla) GetModTraits(
-            ModReference modref,
-            Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> traitCache)
+            ModReference modref)
         {
-            if (traitCache.TryGetValue(modref.ID, out var cached))
+            if (_modTraitCache.TryGetValue(modref.ID, out var cached))
                 return cached;
 
             bool vanillaEntity = false;
@@ -475,7 +459,7 @@ namespace ModHearth
                 newStuff = true;
 
             var result = (vanillaEntity, newEntity, reaction, creature, newStuff, graphics, beforeVanilla);
-            traitCache[modref.ID] = result;
+            _modTraitCache[modref.ID] = result;
             return result;
         }
 

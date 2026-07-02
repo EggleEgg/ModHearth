@@ -1,5 +1,3 @@
-using System;
-
 namespace ModHearth;
 
 internal sealed class Logger
@@ -15,6 +13,7 @@ internal sealed class Logger
     }
 
     public void Log(string message) => Write("INFO", message);
+    public void LogWarning(string message) => Write("WARNING", message);
     public void LogError(string message) => Write("ERROR", message);
 
     private void Write(string level, string message)
@@ -23,10 +22,9 @@ internal sealed class Logger
         {
             lock (gate)
             {
-                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 string formatted = string.IsNullOrEmpty(tag)
-                    ? $"[{timestamp}] {level}: {message}"
-                    : $"[{timestamp}] [{tag}] {level}: {message}";
+                    ? $"{level}: {message}"
+                    : $"[{tag}] {level}: {message}";
                 sink(formatted);
             }
         }

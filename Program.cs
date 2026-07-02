@@ -1,6 +1,5 @@
 using Avalonia;
-using System;
-using System.Linq;
+using ModHearth.Utilities;
 
 namespace ModHearth;
 
@@ -10,10 +9,18 @@ internal static class Program
     public static void Main(string[] args)
     {
         RuntimeBootstrap.Initialize();
+        ConfigManager.AttemptLoadConfig(false);
+
+        if (OperatingSystem.IsLinux() && !ModHearthManager.Config.showConsole)
+        {
+            Console.SetOut(TextWriter.Null);
+            Console.SetError(TextWriter.Null);
+        }
+
         try
         {
             // For debugging features with extra logs
-            bool isDevMode = HasArg(args, "--devmode")
+            bool isDevMode = HasArg(args, "--devmode") || HasArg(args, "--dev")
                 || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE"));
             if (isDevMode)
                 Environment.SetEnvironmentVariable("MODHEARTH_DEVMODE", "1");
@@ -38,7 +45,7 @@ internal static class Program
                 return;
             }
 
-            string[] normalArgs = StripArgs(args, "--devmode");
+            string[] normalArgs = StripArgs(args, "--devmode", "--dev");
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(normalArgs);
         }
         catch (Exception ex)
@@ -49,6 +56,7 @@ internal static class Program
         finally
         {
             AppLogging.Shutdown();
+            SteamManager.Shutdown();
         }
     }
 

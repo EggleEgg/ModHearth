@@ -1,5 +1,3 @@
-using System;
-
 namespace ModHearth;
 
 internal static class DevMode

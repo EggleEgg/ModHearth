@@ -1,13 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 
 namespace ModHearth.Utilities
 {
-    /** <summary> For more information on the source visit https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp </summary>*/
+    // <summary> 
+    // For more information on the source visit https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp 
+    // </summary>
     internal static class DFHackRpcClient
     {
         public static string? ExecuteDFHackCommandViaRpc(string command, List<string> args, string? dfFolderPath, out string error)
@@ -45,7 +44,7 @@ namespace ModHearth.Utilities
                 if (magic != "DFHack!\n" || version != 1)
                 {
                     error = "Invalid handshake reply from DFHack";
-                    if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
+                    Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
                     return null;
                 }
                 if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Handshake successful. Magic: {magic}, Version: {version}");
@@ -90,13 +89,13 @@ namespace ModHearth.Utilities
                     else if (id == -2) // RPC_REPLY_FAIL
                     {
                         error = "DFHack RPC command execution failed";
-                        if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
+                        Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
                         return null;
                     }
                     else
                     {
                         error = $"Unexpected DFHack RPC reply ID: {id}";
-                        if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
+                        Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
                         return null;
                     }
                 }
@@ -106,7 +105,7 @@ namespace ModHearth.Utilities
             catch (Exception ex)
             {
                 error = ex.Message;
-                if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Exception - {ex.Message}");
+                Console.WriteLine($"[DEBUG] DFHackRpcClient: Exception - {ex.Message}");
                 return null;
             }
         }
@@ -292,7 +291,7 @@ namespace ModHearth.Utilities
                     if (doc.RootElement.TryGetProperty("port", out JsonElement portElem) && portElem.ValueKind == JsonValueKind.Number)
                     {
                         int getInt = portElem.GetInt32();
-                        if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Resolved port from {remoteServerJsonPath}: {getInt}");
+                        //if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Resolved port from {remoteServerJsonPath}: {getInt}");
                         return getInt;
                     }
                 }

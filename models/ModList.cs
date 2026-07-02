@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ModHearth
+﻿namespace ModHearth
 {
     //#fix# does this need default? just let dfhack handle it?
     internal class ModList

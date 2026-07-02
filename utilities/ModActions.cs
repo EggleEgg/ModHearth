@@ -1,8 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Collections.Generic;
+using Steamworks;
+using ModHearth.Utilities;
 
 namespace ModHearth
 {
@@ -18,28 +20,13 @@ namespace ModHearth
             if (modref == null)
                 return false;
 
-            if (TryParsePositiveSteamId(modref.steamID, out steamItemId))
+            if (ConfigManager.TryParsePositiveSteamId(modref.steamID, out steamItemId))
                 return true;
 
-            return TryExtractSteamWorkshopItemIdFromPath(modref.path, out steamItemId);
+            return ConfigManager.TryExtractSteamWorkshopItemIdFromPath(modref.path, out steamItemId);
         }
 
-        public bool CanUnsubscribeSteamMod(ModReference modref)
-        {
-            return TryGetSteamWorkshopItemId(modref, out _);
-        }
-
-        public bool IsLocalModSource(ModReference? modref)
-        {
-            if (modref == null)
-                return false;
-
-            (bool _, bool isLocal, bool __) = ModSourceClassifier.Classify(
-                modref,
-                config?.ModsPath,
-                GetVanillaModsPath());
-            return isLocal;
-        }
+        public bool CanUnsubscribeSteamMod(ModReference modref) => TryGetSteamWorkshopItemId(modref, out _);
 
         public void SplitActionableMods(
             IEnumerable<ModReference>? mods,
@@ -60,10 +47,22 @@ namespace ModHearth
                 if (modref == null)
                     continue;
 
-                if (TryAddLocalActionableMod(modref, uniqueLocalKeys, localDeletableMods))
-                    continue;
+                // Include all duplicates in the actionable set
+                string key = modref.DFHackCompatibleString();
+                IEnumerable<ModReference> allVersions = duplicateModRefs.TryGetValue(key, out var list)
+                    ? (IEnumerable<ModReference>)list
+                    : new[] { modref };
 
-                TryAddSteamActionableMod(modref, uniqueSteamIds, steamActionableMods);
+                foreach (ModReference version in allVersions)
+                {
+                    if (TryAddLocalActionableMod(version, uniqueLocalKeys, localDeletableMods))
+                    {
+                        // Note: a single ModReference might technically be both,
+                        // but TryAddLocalActionableMod returning true means we handled it as local.
+                    }
+
+                    TryAddSteamActionableMod(version, uniqueSteamIds, steamActionableMods);
+                }
             }
         }
 
@@ -73,6 +72,7 @@ namespace ModHearth
             if (failures.Count == 0)
             {
                 message = "Unsubscribe request sent to Steam.";
+                SteamConnectionLogger.LogInfo(message);
                 return true;
             }
 
@@ -86,6 +86,7 @@ namespace ModHearth
             if (failures.Count == 0)
             {
                 message = "Redownload request sent to Steam.";
+                SteamConnectionLogger.LogInfo(message);
                 return true;
             }
 
@@ -93,37 +94,117 @@ namespace ModHearth
             return false;
         }
 
+        public void AuditWorkshopManifests()
+        {
+            if (!TryEnsureSteamSession(new List<string>()))
+                return;
+
+            SteamManager.Initialize();
+            SteamWorkshopService steam = new SteamWorkshopService();
+            if (!steam.IsAvailable)
+                return;
+
+            SteamManifestAuditor.Audit(steam);
+        }
+
         public List<string> UnsubscribeSteamMods(IEnumerable<ModReference>? mods)
         {
             List<string> failures = new List<string>();
-            List<string> steamItemIds = ResolveUniqueSteamWorkshopItemIds(mods, failures);
+            Dictionary<string, ModReference> steamModRefs = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
+
+            // Resolve unique Steam item IDs and associated ModReference objects
+            if (mods != null)
+            {
+                foreach (ModReference modref in mods)
+                {
+                    if (modref == null)
+                        continue;
+
+                    if (TryGetSteamWorkshopItemId(modref, out string steamItemId))
+                    {
+                        if (!steamModRefs.ContainsKey(steamItemId))
+                        {
+                            steamModRefs.Add(steamItemId, modref);
+                        }
+                    }
+                    else
+                    {
+                        string modName = modref.name ?? modref.ID ?? "Unknown mod";
+                        failures.Add($"Steam Workshop item ID not available for \'{modName}\'.");
+                    }
+                }
+            }
+
+            List<string> steamItemIds = steamModRefs.Keys.ToList();
             if (steamItemIds.Count == 0)
                 return failures;
 
             if (!TryEnsureSteamSession(failures))
                 return failures;
 
-            SteamConnectionLogger.Log(
-                $"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
+            SteamManager.Initialize();
+            SteamWorkshopService steam = new SteamWorkshopService();
+            if (!steam.IsAvailable)
+            {
+                failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
+                return failures;
+            }
+
+            SteamConnectionLogger.Log($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
             for (int index = 0; index < steamItemIds.Count; index++)
             {
                 string steamItemId = steamItemIds[index];
-                if (!TryRunSteamProtocolAction(
-                        BuildSteamUnsubscribeUri(steamItemId),
-                        steamItemId,
-                        "unsubscribe",
-                        out string message))
+                ModReference modrefToDelete = steamModRefs[steamItemId];
+
+                if (!ulong.TryParse(steamItemId, out ulong workshopId))
                 {
-                    failures.Add(message);
+                    failures.Add($"Invalid workshop id \'{steamItemId}\'.");
+                    continue;
+                }
+
+                if (!steam.Unsubscribe(workshopId))
+                {
+                    failures.Add($"Failed to unsubscribe workshop item {steamItemId}.");
+                }
+                else
+                {
+                    SteamConnectionLogger.LogInfo(
+                        $"Requested Steam API unsubscribe for workshop item {steamItemId}.");
+
+                    // Attempt to delete the mod folder
+                    if (!string.IsNullOrWhiteSpace(modrefToDelete.path) && Directory.Exists(modrefToDelete.path))
+                    {
+                        try
+                        {
+                            Directory.Delete(modrefToDelete.path, true);
+                            SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.path}");
+                        }
+                        catch (Exception ex)
+                        {
+                            failures.Add($"Failed to delete mod folder \'{modrefToDelete.path}\': {ex.Message}");
+                            SteamConnectionLogger.LogError($"Failed to delete mod folder \'{modrefToDelete.path}\': {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        SteamConnectionLogger.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.path}");
+                    }
                 }
 
                 if (index < steamItemIds.Count - 1)
                     Thread.Sleep(SteamActionGap);
             }
 
-            SteamConnectionLogger.Log(
-                $"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+            SteamConnectionLogger.Log($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+
+            if (failures.Count == 0)
+            {
+                // Reload mod manager if all unsubscriptions and deletions were successful
+                TryRequestModManagerReload(out _, out _);
+                OnRequestUIReload();
+            }
+
             return failures;
         }
 
@@ -137,20 +218,34 @@ namespace ModHearth
             if (!TryEnsureSteamSession(failures))
                 return failures;
 
+            SteamManager.Initialize();
+            SteamWorkshopService steam = new SteamWorkshopService();
+            if (!steam.IsAvailable)
+            {
+                failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
+                return failures;
+            }
+
             SteamConnectionLogger.Log(
                 $"Steam resubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
-            // RimSort staging: unsubscribe all -> wait -> subscribe all -> wait -> validate/download.
+            // Staging: unsubscribe all -> wait -> subscribe all -> wait -> download/validate.
             for (int index = 0; index < steamItemIds.Count; index++)
             {
                 string steamItemId = steamItemIds[index];
-                if (!TryRunSteamProtocolAction(
-                        BuildSteamUnsubscribeUri(steamItemId),
-                        steamItemId,
-                        "unsubscribe (resubscribe stage)",
-                        out string message))
+                if (!ulong.TryParse(steamItemId, out ulong workshopId))
                 {
-                    failures.Add(message);
+                    failures.Add($"Invalid workshop id \'{steamItemId}\'.");
+                    continue;
+                }
+
+                if (!steam.Unsubscribe(workshopId))
+                {
+                    failures.Add($"Failed to unsubscribe workshop item {steamItemId} (resubscribe stage).");
+                }
+                else
+                {
+                    SteamConnectionLogger.LogInfo($"Unsubscribed workshop item {steamItemId} (resubscribe stage).");
                 }
 
                 if (index < steamItemIds.Count - 1)
@@ -162,13 +257,18 @@ namespace ModHearth
             for (int index = 0; index < steamItemIds.Count; index++)
             {
                 string steamItemId = steamItemIds[index];
-                if (!TryRunSteamProtocolAction(
-                        BuildSteamSubscribeUri(steamItemId),
-                        steamItemId,
-                        "subscribe (resubscribe stage)",
-                        out string message))
+                if (!ulong.TryParse(steamItemId, out ulong workshopId))
                 {
-                    failures.Add(message);
+                    continue;
+                }
+
+                if (!steam.Subscribe(workshopId))
+                {
+                    failures.Add($"Failed to subscribe workshop item {steamItemId} (resubscribe stage).");
+                }
+                else
+                {
+                    SteamConnectionLogger.LogInfo($"Subscribed to workshop item {steamItemId} (resubscribe stage).");
                 }
 
                 if (index < steamItemIds.Count - 1)
@@ -180,8 +280,19 @@ namespace ModHearth
             for (int index = 0; index < steamItemIds.Count; index++)
             {
                 string steamItemId = steamItemIds[index];
-                if (!TryTriggerSteamValidate(steamItemId, out string message))
-                    failures.Add(message);
+                if (!ulong.TryParse(steamItemId, out ulong workshopId))
+                {
+                    continue;
+                }
+
+                if (!steam.Download(workshopId, highPriority: true))
+                {
+                    failures.Add($"Failed to trigger download/validation for workshop item {steamItemId}.");
+                }
+                else
+                {
+                    SteamConnectionLogger.LogInfo($"Requested Steam download/validation for workshop item {steamItemId}.");
+                }
             }
 
             SteamConnectionLogger.Log(
@@ -206,7 +317,7 @@ namespace ModHearth
                 if (!TryGetSteamWorkshopItemId(modref, out string steamItemId))
                 {
                     string modName = modref.name ?? modref.ID ?? "Unknown mod";
-                    failures.Add($"Steam Workshop item ID not available for '{modName}'.");
+                    failures.Add($"Steam Workshop item ID not available for \'{modName}\'.");
                     continue;
                 }
 
@@ -263,6 +374,7 @@ namespace ModHearth
             if (TryLaunchUri(steamUri, out Exception? steamException))
             {
                 message = $"Requested Steam to {actionLabel} workshop item {steamItemId}.";
+                SteamConnectionLogger.LogInfo(message);
                 return true;
             }
 
@@ -271,10 +383,12 @@ namespace ModHearth
             if (openedFallback)
             {
                 message = $"Failed to {actionLabel} workshop item {steamItemId} via Steam URI ({steamException?.Message ?? "unknown"}). Opened workshop page.";
+                SteamConnectionLogger.LogInfo(message);
                 return false;
             }
 
             message = $"Failed to {actionLabel} workshop item {steamItemId}: {fallbackException?.Message ?? steamException?.Message ?? "unknown error"}";
+            SteamConnectionLogger.LogInfo(message);
             return false;
         }
 
@@ -284,6 +398,7 @@ namespace ModHearth
             if (TryLaunchUri(primaryUri, out _))
             {
                 message = $"Requested Steam validation for workshop item {steamItemId}.";
+                SteamConnectionLogger.LogInfo(message);
                 return true;
             }
 
@@ -291,10 +406,12 @@ namespace ModHearth
             if (TryLaunchUri(fallbackUri, out _))
             {
                 message = $"Requested Steam validation (legacy URI) for workshop item {steamItemId}.";
+                SteamConnectionLogger.LogInfo(message);
                 return true;
             }
 
             message = $"Failed to trigger Steam validation for workshop item {steamItemId}.";
+            SteamConnectionLogger.LogInfo(message);
             return false;
         }
 
@@ -317,19 +434,9 @@ namespace ModHearth
             }
         }
 
-        private static string BuildSteamUnsubscribeUri(string steamItemId)
-        {
-            return $"steam://url/UnsubscribeItem/{DwarfFortressSteamAppId}/{steamItemId}";
-        }
-
-        private static string BuildSteamSubscribeUri(string steamItemId)
-        {
-            return $"steam://url/SubscribeItem/{DwarfFortressSteamAppId}/{steamItemId}";
-        }
-
         private static string BuildSteamValidateUriWithApp(string steamItemId)
         {
-            return $"steam://validate/{DwarfFortressSteamAppId}/{steamItemId}";
+            return $"steam://validate/{ConfigManager.DwarfFortressSteamAppId}/{steamItemId}";
         }
 
         private static string BuildSteamValidateUriLegacy(string steamItemId)
@@ -343,7 +450,11 @@ namespace ModHearth
             List<ModReference> localDeletableMods)
         {
             // Local mods take precedence even if they carry steam metadata.
-            if (!IsLocalModSource(modref) || !CanDeleteModFromModsFolder(modref))
+            (_, bool isLocal, _) = ModSourceClassifier.Classify(
+                modref,
+                ConfigManager.Config.ModsPath,
+                ConfigManager.GetVanillaModsPath());
+            if (!isLocal || !CanDeleteModFromModsFolder(modref))
                 return false;
 
             string localKey = BuildLocalActionKey(modref);
@@ -361,7 +472,11 @@ namespace ModHearth
             HashSet<string> uniqueSteamIds,
             List<ModReference> steamActionableMods)
         {
-            if (!IsSteamModSource(modref))
+            (_, _, bool isSteam) = ModSourceClassifier.Classify(
+                modref,
+                ConfigManager.Config.ModsPath,
+                ConfigManager.GetVanillaModsPath());
+            if (!isSteam)
                 return;
             if (!TryGetSteamWorkshopItemId(modref, out string steamId))
                 return;
@@ -370,18 +485,9 @@ namespace ModHearth
                 steamActionableMods.Add(modref);
         }
 
-        private bool IsSteamModSource(ModReference modref)
-        {
-            (bool _, bool __, bool isSteam) = ModSourceClassifier.Classify(
-                modref,
-                config?.ModsPath,
-                GetVanillaModsPath());
-            return isSteam;
-        }
-
         private static string BuildLocalActionKey(ModReference modref)
         {
-            string localPath = NormalizeFileSystemPath(modref.path ?? string.Empty);
+            string localPath = ConfigManager.NormalizeFileSystemPath(modref.path ?? string.Empty);
             if (!string.IsNullOrWhiteSpace(localPath))
                 return localPath;
 

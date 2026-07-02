@@ -20,7 +20,15 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
     <PackageReference Include="Avalonia.Svg.Skia" Version="11.3.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.116.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.148.0" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.11" />
+    <PackageReference Include="Avalonia.HtmlRenderer" Version="11.3.0" />
+
+    <PackageReference Include="CodeKicker.BBCode" Version="5.0.*">
+      <NoWarn>NU1701</NoWarn>
+    </PackageReference>
+
+    <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -59,6 +67,18 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
+    <None Update="libs\\steam_api64.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
+    <None Update="libs\\libsteam_api.so">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
+    <None Update="libs\\libsteam_api.dylib">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
     <!-- Icon is embedded as AvaloniaResource; no need to copy to output/publish. -->
   </ItemGroup>
 
@@ -83,6 +103,15 @@
       Condition="@(OutputDlls) != ''" />
   </Target>
 
+  <Target Name="EnsureSteamApiDllInRoot" AfterTargets="MoveOutputDlls">
+    <Copy SourceFiles="libs\steam_api64.dll" DestinationFolder="$(OutputPath)"
+      Condition="Exists('libs\steam_api64.dll')" />
+    <Copy SourceFiles="libs\libsteam_api.so" DestinationFolder="$(OutputPath)"
+      Condition="Exists('libs\libsteam_api.so')" />
+    <Copy SourceFiles="libs\libsteam_api.dylib" DestinationFolder="$(OutputPath)"
+      Condition="Exists('libs\libsteam_api.dylib')" />
+  </Target>
+
   <Target Name="MovePublishDlls" AfterTargets="Publish" Condition="'$(SelfContained)' != 'true'">
     <ItemGroup>
       <PublishDlls Include="$(PublishDir)*.dll" Exclude="$(PublishDir)$(AssemblyName).dll" />
@@ -90,6 +119,15 @@
     <MakeDir Directories="$(PublishDir)$(DllOutputFolder)" />
     <Move SourceFiles="@(PublishDlls)" DestinationFolder="$(PublishDir)$(DllOutputFolder)"
       Condition="@(PublishDlls) != ''" />
+  </Target>
+
+  <Target Name="EnsureSteamApiDllInRootPublish" AfterTargets="MovePublishDlls">
+    <Copy SourceFiles="libs\steam_api64.dll" DestinationFolder="$(PublishDir)"
+      Condition="Exists('libs\steam_api64.dll')" />
+    <Copy SourceFiles="libs\libsteam_api.so" DestinationFolder="$(PublishDir)"
+      Condition="Exists('libs\libsteam_api.so')" />
+    <Copy SourceFiles="libs\libsteam_api.dylib" DestinationFolder="$(PublishDir)"
+      Condition="Exists('libs\libsteam_api.dylib')" />
   </Target>
 
   <Target Name="MarkPublishing" BeforeTargets="Publish">

@@ -1,73 +1,11 @@
-using ModHearth.UI;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Reflection;
 using ModHearth.Utilities;
 
 namespace ModHearth
 {
-    /// <summary>
-    /// Config class, to store folder information.
-    /// </summary>
-    [Serializable]
-    public class ModHearthConfig
-    {
-        // Path to DF executable (platform-specific).
-        public string DFEXEPath { get; set; } = string.Empty;
-
-        // Optional override for the DF base folder (used when a folder is selected instead of an executable).
-        public string DFFolderPathOverride { get; set; } = string.Empty;
-
-        // Optional override for the mods folder path (used when filesystem casing differs).
-        public string ModsPathOverride { get; set; } = string.Empty;
-
-        public string DFFolderPath
-        {
-            get
-            {
-                if (!string.IsNullOrWhiteSpace(DFFolderPathOverride))
-                    return DFFolderPathOverride;
-                if (string.IsNullOrWhiteSpace(DFEXEPath))
-                    return string.Empty;
-                return Path.GetDirectoryName(DFEXEPath) ?? string.Empty;
-            }
-        }
-
-        public string ModsPath
-        {
-            get
-            {
-                if (!string.IsNullOrWhiteSpace(ModsPathOverride))
-                    return ModsPathOverride;
-                if (string.IsNullOrWhiteSpace(DFFolderPath))
-                    return string.Empty;
-                return Path.Combine(DFFolderPath, "Mods");
-            }
-        }
-
-        // Path to installed mods cache.
-        public string InstalledModsPath { get; set; } = string.Empty;
-
-        // Should this be in lightmode?
-        public int theme { get; set; }
-
-        // Auto-reload interval for modlists in seconds. -1 means disabled by checkbox.
-        public int AutoReloadIntervalSeconds { get; set; } = -1;
-
-        // Hide console logs on startup.
-        public bool showConsole { get; set; } = true;
-
-    }
-
     [Serializable]
     public struct ModProblem
     {
@@ -78,7 +16,8 @@ namespace ModHearth
         {
             MissingBefore,
             MissingAfter,
-            ConflictPresent
+            ConflictPresent,
+            DuplicateMod
         };
 
         public ProblemType problemType;
@@ -100,6 +39,8 @@ namespace ModHearth
                     return $"Mod '{problemThrowerID}' requires mod '{problemID}' to be loaded after it.";
                 case ProblemType.ConflictPresent:
                     return $"Mod '{problemThrowerID}' is incompatible with mod '{problemID}'.";
+                case ProblemType.DuplicateMod:
+                    return $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}). Please remove one to avoid issues.";
             }
             return "";
         }
@@ -123,6 +64,13 @@ namespace ModHearth
 
     public partial class ModHearthManager
     {
+        public event Action? RequestUIReload;
+
+        private void OnRequestUIReload()
+        {
+            RequestUIReload?.Invoke();
+        }
+
         public enum ModpackStorageBackend
         {
             DFHackConfig,
@@ -171,6 +119,8 @@ namespace ModHearth
         // Get a ModReference given a DFHMod key.
         public ModReference GetRefFromDFHMod(DFHMod dfmod) => modrefMap[dfmod.ToString()];
 
+        public IReadOnlyDictionary<string, List<ModReference>> GetDuplicateModRefs() => duplicateModRefs;
+
         // The sorted list of enabled DFHmods. This list is modified by the form, and when saved it overwrites the list of a ModPack.
         public List<DFHMod> enabledMods = new();
 
@@ -189,25 +139,29 @@ namespace ModHearth
         // The index of the currently selected modpack.
         public int selectedModlistIndex;
 
-        // The file config for this class.
-        private ModHearthConfig config = new();
+        // The file Config for this class.
+        public static ModHearthConfig Config => ConfigManager.Config;
+        public IEnumerable<string> EnumerateModRoots() => ConfigManager.EnumerateModRoots();
+        public string GetModsPath() => ConfigManager.GetModsPath();
+        public string GetInstalledModsPath() => ConfigManager.GetInstalledModsPath();
+        public string GetVanillaModsPath() => ConfigManager.GetVanillaModsPath();
+        public string GetErrorLogPath() => ConfigManager.GetErrorLogPath();
+        public string GetModManagerConfigPath() => ConfigManager.GetModManagerConfigPath();
+        public static string GetDfhackRunPath() => ConfigManager.GetDfhackRunPath();
+        public string NormalizeFileSystemPath(string path) => ConfigManager.NormalizeFileSystemPath(path);
+        public string? ResolveExistingDirectoryPath(string path) => ConfigManager.ResolveExistingDirectoryPath(path);
+        public static string? ResolveInfoFilePath(string modDirectory) => ConfigManager.ResolveInfoFilePath(modDirectory);
 
         // Paths.
         private static readonly string baseDir = AppContext.BaseDirectory;
-        private static readonly string configPath = Path.Combine(baseDir, "config.json");
-        private static readonly string styleLightPath = Path.Combine(baseDir, "styles", "style.light.json");
-        private static readonly string styleDarkPath = Path.Combine(baseDir, "styles", "style.dark.json");
         private static readonly string modSortRulesPath = Path.Combine(baseDir, "modsort_rules.json");
         private static readonly string localFallbackModpacksPath = Path.Combine(baseDir, "modpacks.local.json");
-        private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
-        private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DuplicateWarningRegex = new("^Duplicate Object:\\s*(?<object>.+?);\\s*Offending mods are\\s*(?<mods>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private const string DwarfFortressSteamAppId = "975370";
 
         // Mod problem tracker.
         public List<ModProblem> modproblems = new();
+        private Dictionary<string, List<ModReference>> duplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
         public bool IsSavingModpacks { get; private set; }
         private HashSet<string> installedCacheModIds = new(StringComparer.OrdinalIgnoreCase);
         private List<ModSortRule> sortRules = new();
@@ -219,6 +173,8 @@ namespace ModHearth
         private bool lastLoggedErrorLogExists;
         private readonly object modManagerReloadGate = new();
         private CancellationTokenSource? deferredModManagerReloadCts;
+        private readonly Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> _modTraitCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, bool> _patchCache = new(StringComparer.OrdinalIgnoreCase);
         private ModpackStorageBackend activeModpackBackend = ModpackStorageBackend.LocalFallback;
         private string activeModpackPath = localFallbackModpacksPath;
         private static readonly TimeSpan DeferredModManagerReloadInterval = TimeSpan.FromSeconds(3);
@@ -228,13 +184,24 @@ namespace ModHearth
         {
             Console.WriteLine($"Crafting Hearth v{GetBuildVersionString()}");
 
-            // Get and load config file, fix if needed.
-            AttemptLoadConfig();
+            // Get and load Config file, fix if needed.
+            ConfigManager.AttemptLoadConfigAndDiscover();
             LoadSortRules();
         }
 
         public void Initialize(string? preferredModlistName = null)
         {
+            SteamManager.Initialize();
+
+            try
+            {
+                System.Threading.Tasks.Task.Run(() => AuditWorkshopManifests());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Steam] Error starting background manifest audit: {ex.Message}");
+            }
+
             // Find all mods and add to the lists.
             FindAllModsDFHackLua();
 
@@ -246,7 +213,7 @@ namespace ModHearth
             Console.WriteLine($"Found {modrefMap.Count} mods and {modpacks.Count} modlists");
             Console.WriteLine();
 
-            ModUpdateLogger.RecordChanges(modrefMap.Values, enabledMods, GetSteamWorkshopAcfPaths());
+            ModUpdateLogger.RecordChanges(modrefMap.Values, enabledMods, ConfigManager.GetSteamWorkshopAcfPaths());
         }
 
         public IReadOnlyList<ModSortRule> GetSortRules()
@@ -347,77 +314,6 @@ namespace ModHearth
             }
         }
 
-        public string GetModsPath()
-        {
-            if (config == null || string.IsNullOrWhiteSpace(config.ModsPath))
-                return string.Empty;
-
-            string configuredPath = NormalizeFileSystemPath(config.ModsPath);
-            string? resolved = ResolveExistingDirectoryPath(configuredPath);
-            if (string.IsNullOrWhiteSpace(resolved) &&
-                !string.IsNullOrWhiteSpace(config.ModsPathOverride) &&
-                !string.IsNullOrWhiteSpace(config.DFFolderPath))
-            {
-                string fallback = Path.Combine(config.DFFolderPath, "Mods");
-                resolved = ResolveExistingDirectoryPath(fallback);
-            }
-            if (string.IsNullOrWhiteSpace(resolved))
-                return configuredPath;
-
-            if (!string.Equals(config.ModsPathOverride, resolved, GetFileSystemPathComparison()))
-            {
-                config.ModsPathOverride = resolved;
-                SaveConfigFile();
-            }
-
-            return resolved;
-        }
-
-        public string GetInstalledModsPath()
-        {
-            if (config == null || string.IsNullOrWhiteSpace(config.InstalledModsPath))
-                return GetDefaultInstalledModsPath();
-
-            if (IsInstalledModsUnderGameFolder(config.InstalledModsPath, config.DFFolderPath))
-                return GetDefaultInstalledModsPath();
-
-            string normalizedConfigured = NormalizeFileSystemPath(config.InstalledModsPath);
-            string? resolved = ResolveExistingDirectoryPath(normalizedConfigured);
-            if (string.IsNullOrWhiteSpace(resolved))
-                return normalizedConfigured;
-
-            if (!string.Equals(config.InstalledModsPath, resolved, GetFileSystemPathComparison()))
-            {
-                config.InstalledModsPath = resolved;
-                SaveConfigFile();
-            }
-
-            return resolved;
-        }
-
-        public string GetVanillaModsPath()
-        {
-            if (string.IsNullOrWhiteSpace(config?.DFFolderPath))
-                return string.Empty;
-
-            return Path.Combine(config.DFFolderPath, "data", "vanilla");
-        }
-
-        public string GetErrorLogPath()
-        {
-            if (config == null || string.IsNullOrWhiteSpace(config.DFFolderPath))
-                return Path.Combine(AppContext.BaseDirectory, "errorlog.txt");
-
-            return Path.Combine(config.DFFolderPath, "errorlog.txt");
-        }
-
-        public string GetModManagerConfigPath()
-        {
-            if (config == null || string.IsNullOrWhiteSpace(config.DFFolderPath))
-                return string.Empty;
-            return Path.Combine(config.DFFolderPath, "dfhack-config", "mod-manager.json");
-        }
-
         public ModpackStorageBackend ActiveModpackBackend
         {
             get
@@ -431,32 +327,20 @@ namespace ModHearth
 
         public string GetLocalFallbackModpacksPath() => localFallbackModpacksPath;
 
-        public bool HasDfhack()
+        public bool HasDfhackExecutable()
         {
             string dfhackRunPath = GetDfhackRunPath();
-            if (!string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath))
-                return true;
-
-            // sometimes steam leaves critical dfhack files like dfhooks.dlls inside the df folder even after uninstalling,
-            // making it near impossible to know whether dfhack works or not before running it
-            if (HasDfhackFiles() && !DwarfFortressRunning())
-                return true;
-
-            return DFHackRpcClient.IsDFHackRunning(config?.DFFolderPath);
+            return !string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath);
         }
 
-        public bool HasDfhackFiles()
+        public bool IsDfhackRpcRunning()
         {
-            string dfhackRunPath = GetDfhackRunPath();
-            bool hasExe = !string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath);
+            return DFHackRpcClient.IsDFHackRunning(Config?.DFFolderPath);
+        }
 
-            bool hasDll = false;
-            if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
-            {
-                hasDll = File.Exists(Path.Combine(config.DFFolderPath, "dfhooks.dll"));
-            }
-
-            return hasExe || hasDll;
+        public bool IsDFHackInstalled()
+        {
+            return !string.IsNullOrWhiteSpace(Config?.DFHackFolderPath) && Directory.Exists(Config.DFHackFolderPath);
         }
 
         public bool IsDwarfFortressProcessRunning()
@@ -481,7 +365,7 @@ namespace ModHearth
         private void ResolveActiveModpackStorage()
         {
             string dfhackPath = GetModManagerConfigPath();
-            if (HasDfhack() && !string.IsNullOrWhiteSpace(dfhackPath))
+            if (HasDfhackExecutable() && !string.IsNullOrWhiteSpace(dfhackPath))
             {
                 SetActiveModpackStorage(ModpackStorageBackend.DFHackConfig, dfhackPath);
                 return;
@@ -549,7 +433,7 @@ namespace ModHearth
 
         public bool CanDeleteModFromModsFolder(ModReference modref)
         {
-            if (modref == null || string.IsNullOrWhiteSpace(modref.path) || config == null)
+            if (modref == null || string.IsNullOrWhiteSpace(modref.path) || Config == null)
                 return false;
             string modsPath = GetModsPath();
             if (string.IsNullOrWhiteSpace(modsPath))
@@ -614,685 +498,6 @@ namespace ModHearth
                 ? StringComparison.OrdinalIgnoreCase
                 : StringComparison.Ordinal;
             return normalizedPath.StartsWith(normalizedRoot, comparison);
-        }
-
-        private string GetDefaultInstalledModsPath()
-        {
-            foreach (string candidate in GetInstalledModsPathCandidates())
-            {
-                if (!string.IsNullOrWhiteSpace(candidate))
-                    return candidate;
-            }
-
-            return string.Empty;
-        }
-
-        private void AutoDiscoverConfigPaths()
-        {
-            if (config == null)
-                config = new ModHearthConfig();
-
-            bool updated = false;
-            StringComparison pathComparison = GetFileSystemPathComparison();
-
-            if (string.IsNullOrWhiteSpace(config.DFFolderPath))
-            {
-                string? dfFolder = TryFindSteamDwarfFortressFolder();
-                if (!string.IsNullOrWhiteSpace(dfFolder))
-                {
-                    config.DFFolderPathOverride = dfFolder;
-                    config.DFEXEPath = string.Empty;
-                    updated = true;
-                }
-            }
-            else
-            {
-                string? resolvedDfFolder = ResolveExistingDirectoryPath(config.DFFolderPath);
-                if (!string.IsNullOrWhiteSpace(resolvedDfFolder) &&
-                    !string.Equals(config.DFFolderPath, resolvedDfFolder, pathComparison))
-                {
-                    config.DFFolderPathOverride = resolvedDfFolder;
-                    updated = true;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(config.InstalledModsPath))
-            {
-                string? installedMods = TryFindInstalledModsPath();
-                if (!string.IsNullOrWhiteSpace(installedMods))
-                {
-                    config.InstalledModsPath = installedMods;
-                    updated = true;
-                }
-            }
-            else
-            {
-                string? resolvedInstalledMods = ResolveExistingDirectoryPath(config.InstalledModsPath);
-                if (!string.IsNullOrWhiteSpace(resolvedInstalledMods) &&
-                    !string.Equals(config.InstalledModsPath, resolvedInstalledMods, pathComparison))
-                {
-                    config.InstalledModsPath = resolvedInstalledMods;
-                    updated = true;
-                }
-            }
-
-            string? resolvedModsPath = ResolveExistingDirectoryPath(config.ModsPath);
-            if (string.IsNullOrWhiteSpace(resolvedModsPath) &&
-                !string.IsNullOrWhiteSpace(config.ModsPathOverride) &&
-                !string.IsNullOrWhiteSpace(config.DFFolderPath))
-            {
-                resolvedModsPath = ResolveExistingDirectoryPath(Path.Combine(config.DFFolderPath, "Mods"));
-            }
-            if (!string.IsNullOrWhiteSpace(resolvedModsPath) &&
-                !string.Equals(config.ModsPathOverride, resolvedModsPath, pathComparison))
-            {
-                config.ModsPathOverride = resolvedModsPath;
-                updated = true;
-            }
-
-            if (updated)
-                SaveConfigFile();
-        }
-
-        private string? TryFindSteamDwarfFortressFolder()
-        {
-            foreach (string libraryRoot in EnumerateSteamLibraryRoots())
-            {
-                if (string.IsNullOrWhiteSpace(libraryRoot))
-                    continue;
-
-                string candidate = Path.Combine(libraryRoot, "steamapps", "common", "Dwarf Fortress");
-                string? resolved = ResolveDwarfFortressFolderCandidate(candidate);
-                if (!string.IsNullOrWhiteSpace(resolved))
-                    return resolved;
-            }
-
-            return string.Empty;
-        }
-
-        private static string? ResolveDwarfFortressFolderCandidate(string candidate)
-        {
-            string? resolvedCandidate = ResolveExistingDirectoryPath(candidate);
-            if (string.IsNullOrWhiteSpace(resolvedCandidate))
-                return string.Empty;
-
-            if (IsLikelyDwarfFortressFolder(resolvedCandidate))
-                return resolvedCandidate;
-
-            if (OperatingSystem.IsMacOS())
-            {
-                string appResources = Path.Combine(resolvedCandidate, "Dwarf Fortress.app", "Contents", "Resources");
-                if (IsLikelyDwarfFortressFolder(appResources))
-                    return appResources;
-            }
-
-            return string.Empty;
-        }
-
-        private IEnumerable<string> EnumerateSteamLibraryRoots()
-        {
-            HashSet<string> libraries = new HashSet<string>(
-                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-            List<string> candidateRoots = GetSteamRootCandidates()
-                .Where(root => !string.IsNullOrWhiteSpace(root))
-                .ToList();
-
-            LogAdvancedSteam($"Steam root candidates ({candidateRoots.Count}): {FormatPathListForLog(candidateRoots)}");
-
-            foreach (string root in candidateRoots)
-            {
-                if (string.IsNullOrWhiteSpace(root))
-                    continue;
-
-                string normalizedRoot = NormalizeFileSystemPath(root);
-                if (string.IsNullOrWhiteSpace(normalizedRoot))
-                    continue;
-
-                if (!Directory.Exists(normalizedRoot))
-                    continue;
-
-                if (Directory.Exists(Path.Combine(normalizedRoot, "steamapps")))
-                    libraries.Add(normalizedRoot);
-
-                foreach (string library in ReadSteamLibraryFolders(normalizedRoot))
-                {
-                    if (string.IsNullOrWhiteSpace(library))
-                        continue;
-
-                    string normalizedLibrary = NormalizeFileSystemPath(library);
-                    if (string.IsNullOrWhiteSpace(normalizedLibrary))
-                        continue;
-
-                    if (Directory.Exists(Path.Combine(normalizedLibrary, "steamapps")))
-                        libraries.Add(normalizedLibrary);
-                }
-            }
-
-            LogAdvancedSteam($"Steam library roots discovered ({libraries.Count}): {FormatPathListForLog(libraries)}");
-            return libraries;
-        }
-
-        private static IEnumerable<string> GetSteamRootCandidates()
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                foreach (string candidate in GetWindowsSteamRootCandidates())
-                    yield return candidate;
-                yield break;
-            }
-
-            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (string.IsNullOrWhiteSpace(home))
-                yield break;
-
-            if (OperatingSystem.IsMacOS())
-            {
-                yield return Path.Combine(home, "Library", "Application Support", "Steam");
-                yield break;
-            }
-
-            if (OperatingSystem.IsLinux())
-            {
-                yield return Path.Combine(home, ".steam", "steam");
-                yield return Path.Combine(home, ".steam", "root");
-                yield return Path.Combine(home, ".local", "share", "Steam");
-                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam");
-                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam");
-            }
-        }
-
-        private static IEnumerable<string> GetWindowsSteamRootCandidates()
-        {
-            HashSet<string> candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            string? registryPath = TryGetWindowsSteamPathFromRegistry();
-            if (!string.IsNullOrWhiteSpace(registryPath))
-                candidates.Add(registryPath);
-
-            string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            if (!string.IsNullOrWhiteSpace(programFilesX86))
-                candidates.Add(Path.Combine(programFilesX86, "Steam"));
-
-            string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            if (!string.IsNullOrWhiteSpace(programFiles))
-                candidates.Add(Path.Combine(programFiles, "Steam"));
-
-            string? steamPathEnv = Environment.GetEnvironmentVariable("STEAM_PATH");
-            if (!string.IsNullOrWhiteSpace(steamPathEnv))
-                candidates.Add(steamPathEnv);
-
-            return candidates;
-        }
-
-        private static string? TryGetWindowsSteamPathFromRegistry()
-        {
-            if (!OperatingSystem.IsWindows())
-                return null;
-
-            try
-            {
-                object? value = Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null);
-                if (value is string path && !string.IsNullOrWhiteSpace(path))
-                    return path;
-
-                value = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath", null);
-                if (value is string path64 && !string.IsNullOrWhiteSpace(path64))
-                    return path64;
-            }
-            catch
-            {
-                // Ignore registry lookup failures.
-            }
-
-            return null;
-        }
-
-        private static IEnumerable<string> ReadSteamLibraryFolders(string steamRoot)
-        {
-            HashSet<string> libraries = new HashSet<string>(
-                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-
-            string vdfPath = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
-            if (!File.Exists(vdfPath))
-            {
-                LogAdvancedSteam($"Steam library file missing: {vdfPath}");
-                return libraries;
-            }
-
-            try
-            {
-                foreach (string line in File.ReadLines(vdfPath))
-                {
-                    string? parsed = TryParseSteamLibraryPath(line);
-                    if (string.IsNullOrWhiteSpace(parsed))
-                        continue;
-
-                    string normalized = NormalizeSteamPath(parsed);
-                    if (!string.IsNullOrWhiteSpace(normalized))
-                        libraries.Add(normalized);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Ignore errors when reading Steam library folders.
-                LogAdvancedSteam($"Failed reading Steam library file '{vdfPath}': {ex.Message}");
-            }
-
-            LogAdvancedSteam($"Parsed Steam libraries from '{vdfPath}' ({libraries.Count}): {FormatPathListForLog(libraries)}");
-            return libraries;
-        }
-
-        private static string? TryParseSteamLibraryPath(string line)
-        {
-            if (string.IsNullOrWhiteSpace(line))
-                return null;
-
-            Match match = SteamLibraryPathRegex.Match(line);
-            if (match.Success)
-                return match.Groups["path"].Value;
-
-            match = SteamLibraryLegacyPathRegex.Match(line);
-            if (!match.Success)
-                return null;
-
-            string candidate = match.Groups["path"].Value;
-            if (candidate.Contains("\\") || candidate.Contains("/") || candidate.Contains(":"))
-                return candidate;
-
-            return null;
-        }
-
-        private static string NormalizeSteamPath(string path)
-        {
-            string normalized = path.Trim();
-            if (OperatingSystem.IsWindows())
-                normalized = normalized.Replace("\\\\", "\\").Replace('/', '\\');
-            else
-                normalized = normalized.Replace('\\', '/');
-
-            return NormalizeFileSystemPath(normalized);
-        }
-
-        private static string NormalizeFileSystemPath(string path)
-        {
-            string normalized = path?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(normalized))
-                return string.Empty;
-
-            if (OperatingSystem.IsWindows())
-                normalized = normalized.Replace('/', '\\');
-            else
-                normalized = normalized.Replace('\\', '/');
-
-            try
-            {
-                normalized = Path.GetFullPath(normalized);
-            }
-            catch
-            {
-                // Ignore normalization failures and keep the original path.
-            }
-
-            return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        }
-
-        private static StringComparison GetFileSystemPathComparison()
-            => OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-
-        private static string? ResolveExistingDirectoryPath(string path)
-            => ResolveExistingPath(path, expectDirectory: true);
-
-        private static string? ResolveExistingPath(string path, bool expectDirectory)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return null;
-
-            string fullPath;
-            try
-            {
-                fullPath = Path.GetFullPath(path);
-            }
-            catch
-            {
-                return null;
-            }
-
-            if (expectDirectory)
-            {
-                if (Directory.Exists(fullPath))
-                    return NormalizeFileSystemPath(fullPath);
-            }
-            else
-            {
-                if (File.Exists(fullPath))
-                    return NormalizeFileSystemPath(fullPath);
-            }
-
-            string root = Path.GetPathRoot(fullPath) ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
-                return null;
-
-            string remainder = fullPath.Substring(root.Length);
-            string[] segments = remainder.Split(
-                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
-                StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length == 0)
-            {
-                if (expectDirectory && Directory.Exists(root))
-                    return NormalizeFileSystemPath(root);
-                return null;
-            }
-
-            string current = root;
-            for (int i = 0; i < segments.Length; i++)
-            {
-                bool isLast = i == segments.Length - 1;
-                bool expectDirectorySegment = !isLast || expectDirectory;
-                string? next = ResolveChildPathSegment(current, segments[i], expectDirectorySegment);
-                if (string.IsNullOrWhiteSpace(next))
-                    return null;
-                current = next;
-            }
-
-            if (expectDirectory)
-                return Directory.Exists(current) ? NormalizeFileSystemPath(current) : null;
-            return File.Exists(current) ? NormalizeFileSystemPath(current) : null;
-        }
-
-        private static string? ResolveChildPathSegment(string parent, string name, bool expectDirectory)
-        {
-            if (string.IsNullOrWhiteSpace(parent) || string.IsNullOrWhiteSpace(name) || !Directory.Exists(parent))
-                return null;
-
-            string candidate = Path.Combine(parent, name);
-            if (expectDirectory)
-            {
-                if (Directory.Exists(candidate))
-                    return candidate;
-            }
-            else
-            {
-                if (File.Exists(candidate))
-                    return candidate;
-            }
-
-            try
-            {
-                IEnumerable<string> entries = expectDirectory
-                    ? Directory.EnumerateDirectories(parent)
-                    : Directory.EnumerateFiles(parent);
-                return entries.FirstOrDefault(entry =>
-                    string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static string? ResolveInfoFilePath(string modDirectory)
-        {
-            string? resolvedDirectory = ResolveExistingDirectoryPath(modDirectory);
-            if (string.IsNullOrWhiteSpace(resolvedDirectory))
-                return null;
-
-            string exactInfoPath = Path.Combine(resolvedDirectory, "info.txt");
-            if (File.Exists(exactInfoPath))
-                return exactInfoPath;
-
-            try
-            {
-                return Directory.EnumerateFiles(resolvedDirectory)
-                    .FirstOrDefault(file =>
-                        string.Equals(Path.GetFileName(file), "info.txt", StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static void LogAdvancedSteam(string message)
-        {
-            if (!DevMode.IsEnabled)
-                return;
-
-            SteamConnectionLogger.Log($"[DIAG] {message}");
-        }
-
-        private static string FormatPathListForLog(IEnumerable<string> paths, int maxItems = 24)
-        {
-            if (paths == null)
-                return "(none)";
-
-            List<string> list = paths
-                .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Select(path => NormalizeFileSystemPath(path))
-                .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
-                .ToList();
-
-            return StringFormatter.FormatListWithMoreIndicator(list, maxItems);
-        }
-
-        private static bool TryExtractSteamWorkshopItemIdFromPath(string? path, out string steamItemId)
-        {
-            steamItemId = string.Empty;
-            if (string.IsNullOrWhiteSpace(path))
-                return false;
-
-            string normalizedPath = path.Replace('\\', '/');
-            Match pathMatch = SteamWorkshopPathRegex.Match(normalizedPath);
-            if (!pathMatch.Success)
-                return false;
-
-            return TryParsePositiveSteamId(pathMatch.Groups["id"].Value, out steamItemId);
-        }
-
-        private static bool IsLikelyDwarfFortressFolder(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
-                return false;
-
-            if (Directory.Exists(Path.Combine(path, "data")))
-                return true;
-
-            if (OperatingSystem.IsWindows())
-            {
-                if (File.Exists(Path.Combine(path, "Dwarf Fortress.exe")) || File.Exists(Path.Combine(path, "df.exe")))
-                    return true;
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                if (File.Exists(Path.Combine(path, "df")))
-                    return true;
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                if (Directory.Exists(Path.Combine(path, "Dwarf Fortress.app")))
-                    return true;
-            }
-
-            return false;
-        }
-
-        private IEnumerable<string> EnumerateSteamAppsRoots()
-        {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> steamAppsRoots = new HashSet<string>(comparer);
-
-            foreach (string libraryRoot in EnumerateSteamLibraryRoots())
-            {
-                if (string.IsNullOrWhiteSpace(libraryRoot))
-                    continue;
-
-                string steamAppsRoot = NormalizeFileSystemPath(Path.Combine(libraryRoot, "steamapps"));
-                if (string.IsNullOrWhiteSpace(steamAppsRoot))
-                    continue;
-
-                if (!Directory.Exists(steamAppsRoot))
-                    continue;
-
-                steamAppsRoots.Add(steamAppsRoot);
-            }
-
-            LogAdvancedSteam($"SteamApps roots ({steamAppsRoots.Count}): {FormatPathListForLog(steamAppsRoots)}");
-            return steamAppsRoots;
-        }
-
-        public IEnumerable<string> GetSteamWorkshopContentPaths()
-        {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> paths = new HashSet<string>(comparer);
-            List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
-            LogAdvancedSteam($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
-            foreach (string steamAppsRoot in steamAppsRoots)
-            {
-                string candidate = NormalizeFileSystemPath(
-                    Path.Combine(steamAppsRoot, "workshop", "content", DwarfFortressSteamAppId));
-                if (string.IsNullOrWhiteSpace(candidate))
-                    continue;
-
-                if (Directory.Exists(candidate))
-                {
-                    paths.Add(candidate);
-                    LogAdvancedSteam($"Workshop content path found: {candidate}");
-                }
-                else
-                {
-                    LogAdvancedSteam($"Workshop content path missing: {candidate}");
-                }
-            }
-
-            LogAdvancedSteam($"Workshop content paths discovered ({paths.Count}): {FormatPathListForLog(paths)}");
-            return paths;
-        }
-
-        public IEnumerable<string> GetSteamWorkshopAcfPaths()
-        {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> paths = new HashSet<string>(comparer);
-            List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
-
-            SteamConnectionLogger.Log(
-                $"Steam workshop scan started for app {DwarfFortressSteamAppId}. Library roots discovered: {steamAppsRoots.Count}.");
-
-            foreach (string steamAppsRoot in steamAppsRoots)
-            {
-                if (string.IsNullOrWhiteSpace(steamAppsRoot))
-                    continue;
-
-                string primaryCandidate = Path.Combine(steamAppsRoot, $"appworkshop_{DwarfFortressSteamAppId}.acf");
-                if (File.Exists(primaryCandidate))
-                    paths.Add(NormalizeFileSystemPath(primaryCandidate));
-
-                string workshopCandidate = Path.Combine(steamAppsRoot, "workshop", $"appworkshop_{DwarfFortressSteamAppId}.acf");
-                if (File.Exists(workshopCandidate))
-                    paths.Add(NormalizeFileSystemPath(workshopCandidate));
-            }
-
-            if (paths.Count == 0)
-            {
-                SteamConnectionLogger.Log("Steam workshop scan completed: no workshop ACF files found.");
-            }
-            else
-            {
-                SteamConnectionLogger.Log($"Steam workshop scan completed: found {paths.Count} workshop ACF file(s).");
-                foreach (string path in paths.OrderBy(path => path, comparer))
-                    SteamConnectionLogger.Log($"Steam workshop ACF: {path}");
-            }
-
-            LogAdvancedSteam($"Workshop ACF paths resolved ({paths.Count}): {FormatPathListForLog(paths)}");
-            return paths;
-        }
-
-        private string? TryFindInstalledModsPath()
-        {
-            foreach (string candidate in GetInstalledModsPathCandidates())
-            {
-                if (string.IsNullOrWhiteSpace(candidate))
-                    continue;
-
-                string? resolved = ResolveExistingDirectoryPath(candidate);
-                if (!string.IsNullOrWhiteSpace(resolved))
-                    return resolved;
-            }
-
-            foreach (string candidate in GetLinuxProtonInstalledModsPathCandidates())
-            {
-                if (string.IsNullOrWhiteSpace(candidate))
-                    continue;
-
-                string? resolved = ResolveExistingDirectoryPath(candidate);
-                if (!string.IsNullOrWhiteSpace(resolved))
-                    return resolved;
-            }
-
-            return string.Empty;
-        }
-
-        private static IEnumerable<string> GetInstalledModsPathCandidates()
-        {
-            foreach (string basePath in GetAppDataBasePaths())
-            {
-                yield return Path.Combine(basePath, "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(basePath, "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
-            }
-        }
-
-        private IEnumerable<string> GetLinuxProtonInstalledModsPathCandidates()
-        {
-            if (!OperatingSystem.IsLinux())
-                yield break;
-
-            foreach (string libraryRoot in EnumerateSteamLibraryRoots())
-            {
-                if (string.IsNullOrWhiteSpace(libraryRoot))
-                    continue;
-
-                string compatRoot = Path.Combine(libraryRoot, "steamapps", "compatdata", DwarfFortressSteamAppId, "pfx",
-                    "drive_c", "users", "steamuser", "AppData");
-
-                yield return Path.Combine(compatRoot, "Local", "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(compatRoot, "Local", "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(compatRoot, "Roaming", "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(compatRoot, "Roaming", "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
-            }
-        }
-
-        private static bool IsInstalledModsUnderGameFolder(string installedModsPath, string? dfFolderPath)
-        {
-            if (string.IsNullOrWhiteSpace(installedModsPath) || string.IsNullOrWhiteSpace(dfFolderPath))
-                return false;
-
-            try
-            {
-                string installedFull = Path.GetFullPath(installedModsPath);
-                string dfFull = Path.GetFullPath(dfFolderPath);
-                return IsPathUnderRoot(installedFull, dfFull);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static IEnumerable<string> GetAppDataBasePaths()
-        {
-            HashSet<string> bases = new HashSet<string>(
-                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (!string.IsNullOrWhiteSpace(appData))
-                bases.Add(appData);
-
-            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (!string.IsNullOrWhiteSpace(localAppData))
-                bases.Add(localAppData);
-
-            return bases;
         }
 
         public bool ClearInstalledModsFolder(out string message)
@@ -1360,7 +565,7 @@ namespace ModHearth
             if (!string.IsNullOrWhiteSpace(installedModsPath))
                 roots.Add(ResolveExistingDirectoryPath(installedModsPath) ?? installedModsPath);
 
-            if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
+            if (!string.IsNullOrWhiteSpace(Config?.DFFolderPath))
             {
                 string? vanillaPath = GetVanillaModsPath();
                 if (!string.IsNullOrWhiteSpace(vanillaPath))
@@ -1403,13 +608,13 @@ namespace ModHearth
             if (!DwarfFortressRunning())
             {
                 Console.WriteLine("DF not running. Falling back to filesystem scan.");
-                LogAdvancedSteam("DF process not detected. Using filesystem mod scan.");
                 FindAllModsFromDisk();
                 return;
             }
 
             // Initialize relevant variables.
             modrefMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
+            duplicateModRefs = new Dictionary<string, List<ModReference>>(StringComparer.OrdinalIgnoreCase);
             modPool = new HashSet<DFHMod>();
 
             // Get all mod folders.
@@ -1423,19 +628,17 @@ namespace ModHearth
             catch (UserActionRequiredException)
             {
                 Console.WriteLine("DF not on world creation screen. Falling back to filesystem scan.");
-                LogAdvancedSteam("DFHack memory query unavailable (not on world creation screen). Using filesystem mod scan.");
                 FindAllModsFromDisk();
                 return;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"DFHack memory query failed. Falling back to filesystem scan: {ex.Message}");
-                LogAdvancedSteam($"DFHack memory query failed. Using filesystem mod scan. Error: {ex.Message}");
                 FindAllModsFromDisk();
                 return;
             }
 
-            LogAdvancedSteam($"DFHack memory mod entries received: {modData.Count}.");
+            InfoLogger.Log($"DFHack memory mod entries received: {modData.Count}.");
             Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
 
             foreach (Dictionary<string, string> modDataEntry in modData)
@@ -1445,7 +648,20 @@ namespace ModHearth
 
                 // Mod setup and registry.
                 ModReference modRef = new ModReference(modDataEntry);
+                modRef.LastModifiedTime = GetLatestModifiedTimestamp(modDataEntry["src_dir"]);
                 string key = modRef.DFHackCompatibleString();
+
+                if (modrefMap.ContainsKey(key))
+                {
+                    if (!duplicateModRefs.TryGetValue(key, out var list))
+                    {
+                        list = new List<ModReference> { modrefMap[key] };
+                        duplicateModRefs[key] = list;
+                    }
+                    list.Add(modRef);
+                    continue;
+                }
+
                 Console.WriteLine($"   Mod found + registered: {modRef.name}.");
                 modrefMap.Add(key, modRef);
                 modPool.Add(modRef.ToDFHMod());
@@ -1455,6 +671,7 @@ namespace ModHearth
         private void FindAllModsFromDisk()
         {
             modrefMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
+            duplicateModRefs = new Dictionary<string, List<ModReference>>(StringComparer.OrdinalIgnoreCase);
             modPool = new HashSet<DFHMod>();
             bool diagnosticsEnabled = DevMode.IsEnabled;
 
@@ -1480,13 +697,20 @@ namespace ModHearth
 
                     ModReference modRef = new ModReference(modData)
                     {
-                        MissingVersion = missingVersion
+                        MissingVersion = missingVersion,
+                        LastModifiedTime = GetLatestModifiedTimestamp(dir)
                     };
 
                     string key = modRef.DFHackCompatibleString();
                     if (modrefMap.ContainsKey(key))
                     {
                         duplicateCount++;
+                        if (!duplicateModRefs.TryGetValue(key, out var list))
+                        {
+                            list = new List<ModReference> { modrefMap[key] };
+                            duplicateModRefs[key] = list;
+                        }
+                        list.Add(modRef);
                         continue;
                     }
 
@@ -1498,58 +722,42 @@ namespace ModHearth
 
                 if (diagnosticsEnabled)
                 {
-                    LogAdvancedSteam(
-                        $"Disk mod scan root='{NormalizeFileSystemPath(root)}' candidates={candidateCount}, added={addedCount}, duplicates={duplicateCount}, total_registered={modrefMap.Count}.");
+                    InfoLogger.Log($"Disk mod scan root='{NormalizeFileSystemPath(root)}' candidates={candidateCount}, added={addedCount}, duplicates={duplicateCount}, total_registered={modrefMap.Count}.");
                 }
             }
 
             if (diagnosticsEnabled)
-                LogAdvancedSteam($"Disk mod scan completed. Total registered mods={modrefMap.Count}.");
+                InfoLogger.Log($"Disk mod scan completed. Total registered mods={modrefMap.Count}.");
         }
 
-        private IEnumerable<string> EnumerateModRoots()
+        private static DateTime? GetLatestModifiedTimestamp(string directoryPath)
         {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> seen = new HashSet<string>(comparer);
-            List<string> resolvedRoots = new List<string>();
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+                return null;
 
-            IEnumerable<string> configuredRoots = EnumerateConfiguredModRoots();
-            foreach (string root in configuredRoots)
+            DateTime latestTimestamp = Directory.GetLastWriteTimeUtc(directoryPath);
+
+            try
             {
-                string normalizedRoot = NormalizeFileSystemPath(root);
-                if (string.IsNullOrWhiteSpace(normalizedRoot))
-                    continue;
-
-                if (seen.Add(normalizedRoot))
-                    resolvedRoots.Add(normalizedRoot);
+                foreach (string file in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
+                {
+                    DateTime fileWriteTime = File.GetLastWriteTimeUtc(file);
+                    if (fileWriteTime > latestTimestamp)
+                    {
+                        latestTimestamp = fileWriteTime;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to enumerate files in {directoryPath} for timestamp: {ex.Message}");
+                // Fallback to directory's last write time if file enumeration fails
             }
 
-            LogAdvancedSteam($"Effective mod roots ({resolvedRoots.Count}): {FormatPathListForLog(resolvedRoots)}");
-            foreach (string root in resolvedRoots)
-                yield return root;
+            return latestTimestamp;
         }
 
-        private IEnumerable<string> EnumerateConfiguredModRoots()
-        {
-            string modsPath = GetModsPath();
-            if (!string.IsNullOrWhiteSpace(modsPath))
-                yield return modsPath;
 
-            foreach (string workshopPath in GetSteamWorkshopContentPaths())
-                yield return workshopPath;
-
-            string installedModsPath = GetInstalledModsPath();
-            if (!string.IsNullOrWhiteSpace(installedModsPath))
-                yield return installedModsPath;
-
-            if (!string.IsNullOrWhiteSpace(config?.DFFolderPath))
-            {
-                string vanillaRoot = GetVanillaModsPath();
-                string? vanillaPath = ResolveExistingDirectoryPath(vanillaRoot) ?? vanillaRoot;
-                if (!string.IsNullOrWhiteSpace(vanillaPath))
-                    yield return vanillaPath;
-            }
-        }
 
         private static IEnumerable<string> EnumerateModDirectoriesWithInfo(string root)
         {
@@ -1610,7 +818,7 @@ namespace ModHearth
             string steamFileId = (GetInfoTag(tags, "STEAM_FILE_ID") ?? string.Empty).Trim();
             if (!TryParsePositiveSteamId(steamFileId, out string normalizedSteamFileId))
             {
-                if (TryExtractSteamWorkshopItemIdFromPath(modPath, out string steamItemIdFromPath))
+                if (ConfigManager.TryExtractSteamWorkshopItemIdFromPath(modPath, out string steamItemIdFromPath))
                     steamFileId = steamItemIdFromPath;
             }
             else
@@ -1641,15 +849,94 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(info))
                 return tags;
 
-            foreach (Match match in Regex.Matches(info, @"\[(?<tag>[A-Z0-9_]+):(?<value>[^\]]*)\]", RegexOptions.IgnoreCase))
+            int i = 0;
+            while (i < info.Length)
             {
-                string tag = match.Groups["tag"].Value.Trim();
-                string value = match.Groups["value"].Value.Trim();
-                if (!string.IsNullOrWhiteSpace(tag))
-                    tags[tag] = value;
+                int tagStart = info.IndexOf('[', i);
+                if (tagStart == -1)
+                    break;
+
+                int colonIndex = info.IndexOf(':', tagStart);
+                if (colonIndex != -1 && colonIndex > tagStart + 1)
+                {
+                    bool isValid = true;
+                    for (int k = tagStart + 1; k < colonIndex; k++)
+                    {
+                        char c = info[k];
+                        if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'))
+                        {
+                            isValid = false;
+                            break;
+                        }
+                    }
+
+                    if (isValid)
+                    {
+                        string tag = info.Substring(tagStart + 1, colonIndex - tagStart - 1);
+                        int valueStart = colonIndex + 1;
+                        int depth = 1;
+                        System.Text.StringBuilder valueBuilder = new System.Text.StringBuilder();
+
+                        int j = valueStart;
+                        while (j < info.Length)
+                        {
+                            char c = info[j];
+                            if (c == '[')
+                            {
+                                if (IsNewTagStart(info, j))
+                                {
+                                    break;
+                                }
+                                depth++;
+                                valueBuilder.Append(c);
+                                j++;
+                            }
+                            else if (c == ']')
+                            {
+                                depth--;
+                                if (depth == 0)
+                                {
+                                    j++;
+                                    break;
+                                }
+                                valueBuilder.Append(c);
+                                j++;
+                            }
+                            else
+                            {
+                                valueBuilder.Append(c);
+                                j++;
+                            }
+                        }
+
+                        tags[tag] = valueBuilder.ToString().Trim();
+                        i = j;
+                        continue;
+                    }
+                }
+
+                i = tagStart + 1;
             }
 
             return tags;
+        }
+
+        private static bool IsNewTagStart(string info, int index)
+        {
+            if (index >= info.Length || info[index] != '[')
+                return false;
+
+            int nextColon = info.IndexOf(':', index);
+            if (nextColon == -1 || nextColon <= index + 1)
+                return false;
+
+            for (int k = index + 1; k < nextColon; k++)
+            {
+                char c = info[k];
+                if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'))
+                    return false;
+            }
+            return true;
         }
 
         private static string? GetInfoTag(Dictionary<string, string> tags, string key)
@@ -1699,7 +986,7 @@ namespace ModHearth
                 }
             }
 
-            LogAdvancedSteam($"Mod ID path map entries: {map.Count}.");
+            InfoLogger.Log($"Mod ID path map entries: {map.Count}.");
             return map;
         }
 
@@ -1716,9 +1003,9 @@ namespace ModHearth
             if (!string.IsNullOrWhiteSpace(resolvedRawSrcDir))
                 return resolvedRawSrcDir;
 
-            string fullPath = string.IsNullOrWhiteSpace(config?.DFFolderPath)
+            string fullPath = string.IsNullOrWhiteSpace(Config?.DFFolderPath)
                 ? rawSrcDir
-                : Path.Combine(config.DFFolderPath, rawSrcDir);
+                : Path.Combine(Config.DFFolderPath, rawSrcDir);
 
             string? resolvedFullPath = ResolveExistingDirectoryPath(fullPath);
             if (!string.IsNullOrWhiteSpace(resolvedFullPath))
@@ -1757,8 +1044,7 @@ namespace ModHearth
                 string modId = modDataEntry.TryGetValue("id", out string? unresolvedId)
                     ? (unresolvedId ?? string.Empty)
                     : string.Empty;
-                LogAdvancedSteam(
-                    $"ResolveModPath fallback unresolved. id='{modId}', raw_src='{rawSrcDir}', resolved='{NormalizeFileSystemPath(fullPath)}'.");
+                InfoLogger.Log($"ResolveModPath fallback unresolved. id='{modId}', raw_src='{rawSrcDir}', resolved='{NormalizeFileSystemPath(fullPath)}'.");
             }
 
             return NormalizeFileSystemPath(fullPath);
@@ -1802,7 +1088,7 @@ namespace ModHearth
             return modData;
         }
 
-        // Use dfhack-run.exe and lua to get raw mod data.
+        // Use dfhack-run and lua to get raw mod data.
         private string LoadModMemoryData()
         {
             // Get path to lua script.
@@ -1811,7 +1097,7 @@ namespace ModHearth
                 throw new FileNotFoundException("GetModMemoryData.lua not found.", luaPath);
 
             // Try direct RPC first (faster, avoids spawning processes)
-            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, config?.DFFolderPath, out string rpcError);
+            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, Config?.DFFolderPath, out string rpcError);
             if (rpcOutput != null)
             {
                 return rpcOutput;
@@ -1827,7 +1113,7 @@ namespace ModHearth
             ProcessStartInfo processStartInfo = new ProcessStartInfo
             {
                 FileName = dfhackRunPath,
-                WorkingDirectory = config!.DFFolderPath,
+                WorkingDirectory = Config!.DFFolderPath,
                 Arguments = $"lua -f \"{luaPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -1853,23 +1139,6 @@ namespace ModHearth
                 Console.WriteLine(error.TrimEnd());
 
             return output;
-        }
-
-        private string GetDfhackRunPath()
-        {
-            if (config == null || string.IsNullOrWhiteSpace(config.DFFolderPath))
-                return string.Empty;
-
-            string exeName = OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
-            string candidate = Path.Combine(config.DFFolderPath, exeName);
-            if (File.Exists(candidate))
-                return candidate;
-
-            string altCandidate = Path.Combine(config.DFFolderPath, "hack", exeName);
-            if (File.Exists(altCandidate))
-                return altCandidate;
-
-            return candidate;
         }
 
         // Check if DF is running.
@@ -1971,6 +1240,7 @@ namespace ModHearth
             };
         }
 
+        ///<summary> Only used for local and live modpack saving, not ui or mods</summary>
         private bool TryRequestModManagerReload(out bool deferred, out string message)
         {
             deferred = false;
@@ -1982,9 +1252,9 @@ namespace ModHearth
                 return false;
             }
 
-            if (!HasDfhack())
+            if (!HasDfhackExecutable())
             {
-                message = "DFHack not found. In-game apply skipped.";
+                message = "DFHack not found! In-game apply skipped.";
                 return false;
             }
 
@@ -2020,7 +1290,7 @@ namespace ModHearth
                 return false;
 
             // Try direct RPC first (faster, avoids spawning processes)
-            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, config?.DFFolderPath, out string rpcError);
+            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, Config?.DFFolderPath, out string rpcError);
             if (rpcOutput != null)
             {
                 if (!string.IsNullOrWhiteSpace(rpcOutput))
@@ -2043,7 +1313,7 @@ namespace ModHearth
             ProcessStartInfo processStartInfo = new ProcessStartInfo
             {
                 FileName = dfhackRunPath,
-                WorkingDirectory = config!.DFFolderPath,
+                WorkingDirectory = Config!.DFFolderPath,
                 Arguments = $"lua -f \"{luaPath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -2259,6 +1529,17 @@ namespace ModHearth
             // Set up list of problems to return.
             modproblems = new List<ModProblem>();
 
+            // Check for filesystem duplicate mods (Steam and Local duplicates of same ID and version)
+            // We check the entire pool, as even uninstalled duplicates are problematic.
+            foreach (DFHMod dfm in modPool)
+            {
+                if (duplicateModRefs.TryGetValue(dfm.ToString(), out var duplicates) && duplicates.Count > 1)
+                {
+                    var paths = string.Join(", ", duplicates.Select(m => $"\'{m.path}\'"));
+                    modproblems.Add(new ModProblem(dfm.id, paths, ModProblem.ProblemType.DuplicateMod));
+                }
+            }
+
             // Set up a hashset of scanned mods and unscanned mods, for determining load order.
             HashSet<string> scannedModIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             HashSet<string> unscannedModIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -2317,7 +1598,7 @@ namespace ModHearth
             if (logFound && exists &&
                 (!string.Equals(lastLoggedErrorLogPath, errorLogPath, StringComparison.OrdinalIgnoreCase) || !lastLoggedErrorLogExists))
             {
-                Console.WriteLine($"Error log found: {errorLogPath}");
+                Console.WriteLine($"Dwarf Fortress error log found: {errorLogPath}");
             }
 
             lastLoggedErrorLogPath = errorLogPath;
@@ -2587,232 +1868,22 @@ namespace ModHearth
                 .ToList();
         }
 
-        // Get the theme from config.
-        public int GetTheme()
-        {
-            return config.theme;
-        }
-
-        // Save the theme to config file.
-        public void SetTheme(int theme)
-        {
-            config.theme = theme;
-            SaveConfigFile();
-        }
-
-        public int GetAutoReloadIntervalSeconds()
-        {
-            if (config == null)
-                return -1;
-            return config.AutoReloadIntervalSeconds;
-        }
-
-        public void SetAutoReloadIntervalSeconds(int seconds)
-        {
-            if (config == null)
-                config = new ModHearthConfig();
-            config.AutoReloadIntervalSeconds = seconds;
-            SaveConfigFile();
-        }
-
-
         public enum ConfigIssueType
         {
             MissingDwarfFortressPath,
-            MissingInstalledModsPath
+            MissingInstalledModsPath,
+            MissingDFHackPath
         }
 
         public readonly record struct ConfigIssue(ConfigIssueType IssueType, string Message);
 
         public IReadOnlyList<ConfigIssue> GetConfigIssues()
         {
-            if (config == null)
-                config = new ModHearthConfig();
-
-            List<ConfigIssue> issues = new List<ConfigIssue>();
-            if (string.IsNullOrWhiteSpace(config.DFFolderPath))
-            {
-                issues.Add(new ConfigIssue(ConfigIssueType.MissingDwarfFortressPath, "Dwarf Fortress path is not set."));
-            }
-            else if (!Directory.Exists(config.DFFolderPath))
-            {
-                issues.Add(new ConfigIssue(ConfigIssueType.MissingDwarfFortressPath, $"Dwarf Fortress folder not found: {config.DFFolderPath}"));
-            }
-
-            string installedModsPath = GetInstalledModsPath();
-            if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
-            {
-                issues.Add(new ConfigIssue(ConfigIssueType.MissingInstalledModsPath, "Installed mods path is not set or missing."));
-            }
-
-            return issues;
+            var issues = ConfigManager.GetConfigIssues();
+            return issues.Select(i => new ConfigIssue((ConfigIssueType)i.IssueType, i.Message)).ToList();
         }
 
-        public void SetDwarfFortressExecutablePath(string path)
-        {
-            if (config == null)
-                config = new ModHearthConfig();
-            config.DFEXEPath = path;
-            config.DFFolderPathOverride = string.Empty;
-            config.ModsPathOverride = string.Empty;
-            SaveConfigFile();
-        }
-
-        public void SetDwarfFortressFolderPath(string path)
-        {
-            if (config == null)
-                config = new ModHearthConfig();
-            config.DFFolderPathOverride = path;
-            if (!string.IsNullOrWhiteSpace(path))
-                config.DFEXEPath = string.Empty;
-            config.ModsPathOverride = string.Empty;
-            SaveConfigFile();
-        }
-
-        public void SetInstalledModsPath(string path)
-        {
-            if (config == null)
-                config = new ModHearthConfig();
-            config.InstalledModsPath = ResolveExistingDirectoryPath(path) ?? path;
-            SaveConfigFile();
-        }
-
-        // Destroy the config file, to be remade.
-        public void DestroyConfig()
-        {
-            if (File.Exists(configPath))
-            {
-                File.Delete(configPath);
-            }
-        }
-
-        // Attempt loading config. If broken or failed, create a blank config.
-        public void AttemptLoadConfig()
-        {
-            Console.WriteLine("Attempting config file load.");
-            try
-            {
-                if (File.Exists(configPath))
-                {
-                    Console.WriteLine("Config file found.");
-                    string jsonContent = File.ReadAllText(configPath);
-
-                    // Deserialize the JSON content into an object
-                    ModHearthConfig? loadedConfig = JsonSerializer.Deserialize<ModHearthConfig>(jsonContent);
-                    config = loadedConfig ?? new ModHearthConfig();
-
-                    if (loadedConfig == null)
-                        Console.WriteLine("Config file borked.");
-                }
-                else
-                {
-                    Console.WriteLine("Config file missing.");
-                    config = new ModHearthConfig();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                config = new ModHearthConfig();
-            }
-
-            AutoDiscoverConfigPaths();
-
-            if (!config.showConsole && !DevMode.IsEnabled)
-            {
-                RuntimeBootstrap.HideConsole();
-            }
-        }
-
-        // Save the config to file.
-        public void SaveConfigFile()
-        {
-            Console.WriteLine("Config saved.");
-            JsonSerializerOptions options = new JsonSerializerOptions
-            {
-                WriteIndented = true // Enable pretty formatting
-            };
-            string jsonContent = JsonSerializer.Serialize(config);
-            File.WriteAllText(configPath, jsonContent);
-        }
-
-        // Try to load style file.
-        public Style LoadStyle()
-        {
-            Style style = new Style();
-            int theme = GetTheme();
-            string stylePath = GetStylePathForTheme(theme);
-
-            try
-            {
-                if (!File.Exists(stylePath))
-                    throw new FileNotFoundException("Style file missing.", stylePath);
-
-                Console.WriteLine("Style file found.");
-                if (!TryLoadStyleFromPath(stylePath, out style))
-                    throw new InvalidOperationException($"Style file invalid: {stylePath}");
-            }
-            catch (Exception ex)
-            {
-                string message = $"Style load failed: {ex.Message}\nMissing or invalid style file: {stylePath}";
-                Console.WriteLine(message);
-                throw new InvalidOperationException(message, ex);
-            }
-
-
-            // Set global instance and return.
-            Style.instance = style;
-            return style;
-        }
-
-        // Save the style to file.
-        private void SaveStyle(Style style, string stylePath)
-        {
-            Console.WriteLine("Style saved.");
-            string? styleDir = Path.GetDirectoryName(stylePath);
-            if (!string.IsNullOrWhiteSpace(styleDir) && !Directory.Exists(styleDir))
-            {
-                Directory.CreateDirectory(styleDir);
-            }
-            JsonSerializerOptions options = new JsonSerializerOptions
-            {
-                WriteIndented = true // Enable pretty formatting
-            };
-            string jsonContent = JsonSerializer.Serialize(style, options);
-            File.WriteAllText(stylePath, jsonContent);
-        }
-
-        private string GetStylePathForTheme(int theme)
-        {
-            return theme == 0 ? styleLightPath : styleDarkPath;
-        }
-
-        private bool TryLoadStyleFromPath(string stylePath, out Style style)
-        {
-            style = null!;
-            if (!File.Exists(stylePath))
-                return false;
-
-            try
-            {
-                string jsonContent = File.ReadAllText(stylePath);
-                Style? foundStyle = JsonSerializer.Deserialize<Style>(jsonContent);
-                if (foundStyle == null)
-                    return false;
-                if (!IsStyleComplete(foundStyle))
-                    return false;
-                style = foundStyle;
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-        private static bool IsStyleComplete(Style style)
-        {
-            return style.IsComplete();
-        }
         #endregion
+
     }
 }

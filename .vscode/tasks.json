@@ -14,18 +14,6 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "publish",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "publish",
-                "${workspaceFolder}/ModHearth.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary;ForceNoAlign"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
             "label": "watch",
             "command": "dotnet",
             "type": "process",
@@ -50,13 +38,26 @@
             "dependsOn": "build"
         },
         {
+            "label": "run --dev",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "run",
+                "--project",
+                "${workspaceFolder}/ModHearth.csproj",
+                "--devmode"
+            ],
+            "problemMatcher": "$msCompile",
+            "dependsOn": "build"
+        },
+        {
             "label": "dotnet: clean",
             "command": "powershell",
             "type": "process",
             "args": [
                 "-NoProfile",
                 "-Command",
-                "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Get-ChildItem -Path $dir -Force | Remove-Item -Recurse -Force } }"
+                "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Remove-Item -Path $dir -Recurse -Force } }"
             ]
         }
     ]
