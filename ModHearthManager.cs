@@ -1161,6 +1161,92 @@ namespace ModHearth
             return false;
         }
 
+        // Run Dwarf Fortress executable.
+        public bool RunDwarfFortress(out string message)
+        {
+            message = string.Empty;
+
+            if (DwarfFortressRunning())
+            {
+                message = "Dwarf Fortress is already running.";
+                return false;
+            }
+
+            if (Config == null || string.IsNullOrWhiteSpace(Config.DFFolderPath))
+            {
+                message = "Dwarf Fortress folder path is not configured.";
+                return false;
+            }
+
+            string dfFolderPath = Config.DFFolderPath;
+            if (!Directory.Exists(dfFolderPath))
+            {
+                message = $"Dwarf Fortress folder not found: {dfFolderPath}";
+                return false;
+            }
+
+            string executablePath = string.Empty;
+
+            // Determine the executable path based on the OS
+            if (OperatingSystem.IsWindows())
+            {
+                // Try df.exe first, then Dwarf Fortress.exe
+                string[] possibleExes = { "df.exe", "Dwarf Fortress.exe" };
+                foreach (string exe in possibleExes)
+                {
+                    string candidate = Path.Combine(dfFolderPath, exe);
+                    if (File.Exists(candidate))
+                    {
+                        executablePath = candidate;
+                        break;
+                    }
+                }
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                // On Linux, the executable is typically named 'df'
+                string candidate = Path.Combine(dfFolderPath, "df");
+                if (File.Exists(candidate))
+                {
+                    executablePath = candidate;
+                }
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                // On macOS, it's inside an app bundle
+                string appBundle = Path.Combine(dfFolderPath, "Dwarf Fortress.app", "Contents", "MacOS", "Dwarf Fortress");
+                if (File.Exists(appBundle))
+                {
+                    executablePath = appBundle;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
+            {
+                message = "Dwarf Fortress executable not found in the configured folder.";
+                return false;
+            }
+
+            try
+            {
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = executablePath,
+                    WorkingDirectory = dfFolderPath,
+                    UseShellExecute = true
+                };
+
+                Process.Start(startInfo);
+                message = "Dwarf Fortress launched successfully.";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = $"Failed to launch Dwarf Fortress: {ex.Message}";
+                return false;
+            }
+        }
+
         // Alter the current modpack with enabledMods and save modpack list.
         public ModpackSaveResult SaveCurrentModpack()
         {
