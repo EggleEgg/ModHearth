@@ -412,7 +412,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             try
             {
                 // Treat entire mod info as target for regex to be most flexible
-                string fullTarget = $"{modref.name} {modref.ID} {modref.steamID}";
+                string fullTarget = $"{modref.name} {modref.ID} {modref.steamID} {modref.description}";
                 return Regex.IsMatch(fullTarget, filter, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
             }
             catch

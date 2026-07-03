@@ -1227,6 +1227,54 @@ namespace ModHearth
             }
         }
 
+        public bool IsDwarfFortressFound()
+        {
+            if (Config == null || string.IsNullOrWhiteSpace(Config.DFFolderPath))
+            {
+                return false;
+            }
+
+            string dfFolderPath = Config.DFFolderPath;
+            if (!Directory.Exists(dfFolderPath))
+            {
+                return false;
+            }
+
+            string executablePath = string.Empty;
+
+            if (OperatingSystem.IsWindows())
+            {
+                string[] possibleExes = { "df.exe", "Dwarf Fortress.exe" };
+                foreach (string exe in possibleExes)
+                {
+                    string candidate = Path.Combine(dfFolderPath, exe);
+                    if (File.Exists(candidate))
+                    {
+                        executablePath = candidate;
+                        break;
+                    }
+                }
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                string candidate = Path.Combine(dfFolderPath, "df");
+                if (File.Exists(candidate))
+                {
+                    executablePath = candidate;
+                }
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                string appBundle = Path.Combine(dfFolderPath, "Dwarf Fortress.app", "Contents", "MacOS", "Dwarf Fortress");
+                if (File.Exists(appBundle))
+                {
+                    executablePath = appBundle;
+                }
+            }
+
+            return !string.IsNullOrWhiteSpace(executablePath) && File.Exists(executablePath);
+        }
+
         // Alter the current modpack with enabledMods and save modpack list.
         public ModpackSaveResult SaveCurrentModpack()
         {

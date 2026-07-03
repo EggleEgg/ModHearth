@@ -303,6 +303,7 @@ public partial class ModSearchBar : UserControl
 
         if (mode == SearchFilterMode.Regex)
         {
+            ToolTip.SetTip(text, "Searches by mod title and description");
             Grid grid = new Grid();
 
             Button helpButton = new Button

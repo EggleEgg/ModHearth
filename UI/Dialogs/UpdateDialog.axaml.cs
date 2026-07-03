@@ -42,6 +42,8 @@ public partial class UpdateDialog : Window
     {
         public string Title { get; init; } = string.Empty;
         public string Subtitle { get; init; } = string.Empty;
+        public string Description { get; init; } = string.Empty;
+        public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
         public string ButtonLabel { get; init; } = "Install";
         public bool CanInstall { get; init; } = true;
         public GitHubRelease Release { get; init; } = new GitHubRelease();
@@ -58,6 +60,7 @@ public partial class UpdateDialog : Window
             {
                 Title = title,
                 Subtitle = subtitle,
+                Description = release.Body ?? string.Empty,
                 ButtonLabel = isCurrent ? "Reinstall" : "Install",
                 Release = release
             };

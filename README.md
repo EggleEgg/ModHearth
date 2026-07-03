@@ -11,7 +11,7 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 - Dwarf Fortress steam version
 - Windows or Linux
 - DFHack installed ([Steam](https://store.steampowered.com/app/2346660/DFHack__Dwarf_Fortress_Modding_Engine/)) ([Github](https://github.com/DFHack/dfhack/releases)). This is because (being one of many reasons) Dwarf fortress **does not natively support** modlist files or folders, and memory injection is required for such
-- [.NET 8 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) installed
+- [.NET Runtime 8](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) installed.
 
 ### Installation Guide
 1. Go to [releases](https://github.com/EggleEgg/ModHearth/releases/) and download the most recent version for your OS

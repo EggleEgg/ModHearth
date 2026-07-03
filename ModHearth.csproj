@@ -20,7 +20,8 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
     <PackageReference Include="Avalonia.Svg.Skia" Version="11.3.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.148.0" />
+    <PackageReference Include="SkiaSharp" Version="3.116.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.116.1" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.11" />
     <PackageReference Include="Avalonia.HtmlRenderer" Version="11.3.0" />
 

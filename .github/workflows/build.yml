@@ -135,6 +135,31 @@ jobs:
           name="Build $raw"
           echo "tag=$tag" >> $GITHUB_OUTPUT
           echo "name=$name" >> $GITHUB_OUTPUT
+
+      - name: Get commit message
+        id: get_commit_message
+        run: |
+          commit_message=$(git log -1 --pretty=%B)
+          echo "commit_message=$commit_message" >> $GITHUB_OUTPUT
+
+      - name: Set release body
+        id: set_release_body
+        run: |
+          body_content=""
+          if [[ "${{ steps.get_commit_message.outputs.commit_message }}" == Merge* ]]; then
+            parent_shas=$(git log -1 --pretty=%P)
+            for parent_sha in $parent_shas;
+            do
+              if [ -n "$body_content" ]; then
+                body_content+="\n\n"
+              fi
+              body_content+=$(git log --format=%B -n 1 $parent_sha)
+            done
+          else
+            body_content="${{ steps.get_commit_message.outputs.commit_message }}"
+          fi
+          echo "body=$body_content" >> $GITHUB_OUTPUT
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -147,7 +172,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.release_tag.outputs.tag }}
           release_name: ${{ steps.release_tag.outputs.name }}
-          body: ${{ github.sha }}
+          body: ${{ steps.set_release_body.outputs.body }}
           file: dist/*
           file_glob: true
           overwrite: true

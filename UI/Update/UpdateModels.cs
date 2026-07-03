@@ -15,6 +15,9 @@ public sealed class GitHubRelease
 
     [JsonPropertyName("assets")]
     public List<GitHubAsset>? Assets { get; set; }
+
+    [JsonPropertyName("body")]
+    public string? Body { get; set; }
 }
 
 public sealed class GitHubAsset
@@ -43,6 +46,8 @@ internal static class UpdateHelpers
 
     public static string GetReleaseTitle(GitHubRelease release, int index)
     {
+        if (!string.IsNullOrWhiteSpace(release.Body))
+            return release.Body!;
         if (!string.IsNullOrWhiteSpace(release.Name))
             return release.Name!;
 

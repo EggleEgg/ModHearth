@@ -30,9 +30,10 @@ public partial class MainWindow
         if (TryShowTransientStatusNotice())
             return;
 
-        (bool dfRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
+        (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
             await Task.Run(() => (
                 manager.DwarfFortressRunning(),
+                manager.IsDwarfFortressFound(),
                 manager.HasDfhackExecutable(),
                 manager.IsDfhackRpcRunning(),
                 manager.IsDFHackInstalled()));
@@ -40,12 +41,13 @@ public partial class MainWindow
         if (dfhackStatusLabel == null)
             return;
 
-        ApplyDfHackStatusToLabel(dfRunning, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+        ApplyDfHackStatusToLabel(dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+        ApplyDwarfFortressButtonStatus(dfRunning, dfFound);
     }
 
-    private void ApplyDfHackStatusToLabel(bool dfRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
+    private void ApplyDfHackStatusToLabel(bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
     {
-        var current = (dfRunning, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+        var current = (dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
         bool changed = current != lastDfHackStatus;
         lastDfHackStatus = current;
 
@@ -64,6 +66,14 @@ public partial class MainWindow
             dfhackStatusLabel.Text = dfStatus;
 
         dfhackStatusLabel.IsVisible = true;
+    }
+
+    private void ApplyDwarfFortressButtonStatus(bool dfRunning, bool dfFound)
+    {
+        if (runDwarfFortressButton == null)
+            return;
+
+        runDwarfFortressButton.IsEnabled = !dfRunning && dfFound;
     }
 
     private void ShowTransientStatusNotice(string message)

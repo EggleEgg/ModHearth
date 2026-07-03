@@ -57,7 +57,7 @@ public partial class MainWindow : Window
     private string? currentSelectedModId;
     private string? previousSelectedModId;
     private string? currentDescriptionBBCode;
-    private (bool dfRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) lastDfHackStatus;
+    private (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) lastDfHackStatus;
 
     public MainWindow()
     {
