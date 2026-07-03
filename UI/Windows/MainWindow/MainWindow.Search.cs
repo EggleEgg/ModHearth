@@ -35,7 +35,8 @@ public partial class MainWindow
                 rightFilter,
                 rightMode,
                 rightSearchBar.HideFiltered,
-                rightModlist);
+                rightModlist,
+                preserveSourceOrder: true);
         }
         finally
         {
@@ -116,7 +117,8 @@ public partial class MainWindow
         string filter,
         SearchFilterMode searchMode,
         bool hideFiltered,
-        ListBox list)
+        ListBox list,
+        bool preserveSourceOrder = false)
     {
         string trimmed = filter?.Trim() ?? string.Empty;
         bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
@@ -125,7 +127,8 @@ public partial class MainWindow
             sourceMods.Select(m => modViewMap[m.ToString()]),
             trimmed,
             searchMode,
-            hideFiltered);
+            hideFiltered,
+            preserveSourceOrder);
 
         ReplaceCollection(targetCollection, displayItems);
 
@@ -139,13 +142,15 @@ public partial class MainWindow
         IEnumerable<ModRefViewModel> source,
         string filter,
         SearchFilterMode searchMode,
-        bool hideFiltered)
+        bool hideFiltered,
+        bool preserveSourceOrder)
     {
         bool hasFilter = !string.IsNullOrWhiteSpace(filter);
-        
+
         IEnumerable<ModRefViewModel> sorted = searchMode switch
         {
             SearchFilterMode.ModifiedTime => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
+            _ when preserveSourceOrder => source,
             _ => source.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
         };
 
@@ -226,9 +231,6 @@ public partial class MainWindow
     {
         return StringFormatter.TrimForLog(value);
     }
-
-
-
     private static string DescribeSearchMode(SearchFilterMode mode)
     {
         return mode switch

@@ -30,10 +30,9 @@ public partial class MainWindow
         if (TryShowTransientStatusNotice())
             return;
 
-        (bool dfRunning, bool dfProcessRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
+        (bool dfRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
             await Task.Run(() => (
                 manager.DwarfFortressRunning(),
-                manager.IsDwarfFortressProcessRunning(),
                 manager.HasDfhackExecutable(),
                 manager.IsDfhackRpcRunning(),
                 manager.IsDFHackInstalled()));
@@ -41,12 +40,12 @@ public partial class MainWindow
         if (dfhackStatusLabel == null)
             return;
 
-        ApplyDfHackStatusToLabel(dfRunning, dfProcessRunning, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+        ApplyDfHackStatusToLabel(dfRunning, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
     }
 
-    private void ApplyDfHackStatusToLabel(bool dfRunning, bool dfProcessRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
+    private void ApplyDfHackStatusToLabel(bool dfRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
     {
-        var current = (dfRunning, dfProcessRunning, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+        var current = (dfRunning, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
         bool changed = current != lastDfHackStatus;
         lastDfHackStatus = current;
 

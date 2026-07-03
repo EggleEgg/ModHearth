@@ -259,30 +259,11 @@
       </Border>
     </Grid>
 
-    <Border x:Name="reloadNotificationBorder"
+    <StackPanel x:Name="notificationContainer"
       HorizontalAlignment="Left"
       VerticalAlignment="Bottom"
-      Padding="6,5.5,20,5.5"
       Margin="0,0,0,10"
-      CornerRadius="0,4,4,0"
-      Background="#2D2D30"
-      BorderBrush="#3F3F46"
-      BorderThickness="0,1,1,1"
-      BoxShadow="0 4 12 0 #40000000"
-      IsVisible="False"
-      PointerEntered="ReloadNotification_PointerEntered">
-      <StackPanel Orientation="Horizontal"
-        Spacing="6">
-        <Image Source="{ui:AssetImage infoCircleClearIcon.svg}"
-          Width="16"
-          Height="16"
-          VerticalAlignment="Center" />
-        <TextBlock x:Name="reloadNotificationText"
-          Text="Reload finished"
-          FontSize="12"
-          FontWeight="SemiBold"
-          VerticalAlignment="Center" />
-      </StackPanel>
-    </Border>
+      Spacing="4">
+    </StackPanel>
   </Panel>
 </Window>

@@ -29,16 +29,26 @@ public partial class MainWindow
 
         RefreshDescriptionHtml();
 
-        var rNotificationBorder = this.FindControl<Border>("reloadNotificationBorder");
-        var rNotificationText = this.FindControl<TextBlock>("reloadNotificationText");
-
-        if (rNotificationBorder != null)
+        var notificationContainer = this.FindControl<StackPanel>("notificationContainer");
+        if (notificationContainer != null)
         {
-            rNotificationBorder.Background = panelBrushClear;
-            rNotificationBorder.BorderBrush = buttonOutlineBrush;
+            foreach (var child in notificationContainer.Children)
+            {
+                if (child is Border b)
+                {
+                    b.Background = panelBrushClear;
+                    b.BorderBrush = buttonOutlineBrush;
+                    if (b.Child is StackPanel sp)
+                    {
+                        foreach (var innerChild in sp.Children)
+                        {
+                            if (innerChild is TextBlock tb)
+                                tb.Foreground = textBrush;
+                        }
+                    }
+                }
+            }
         }
-        if (rNotificationText != null)
-            rNotificationText.Foreground = textBrush;
 
         dfhackStatusLabel.Foreground = textBrush;
         modInfoTopBorder.Background = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
@@ -76,6 +86,7 @@ public partial class MainWindow
             redoConfigButton,
             warningIssuesButton,
             updateButton,
+            runDwarfFortressButton,
         };
 
         foreach (Button button in buttons)

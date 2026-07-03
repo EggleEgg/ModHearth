@@ -111,6 +111,15 @@ namespace ModHearth
             }
 
             HashSet<string> enabledIds = new HashSet<string>(enabledRefs.Select(m => m.ID), StringComparer.OrdinalIgnoreCase);
+
+            foreach (ModReference modref in idMap.Values)
+            {
+                if (IsVanillaBaseMod(modref))
+                {
+                    enabledIds.Add(modref.ID);
+                }
+            }
+
             foreach (ModSortRule rule in sortRules)
             {
                 if (rule == null)

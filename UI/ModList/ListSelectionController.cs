@@ -13,9 +13,9 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
     private bool suppressSelectionHandling;
     private bool suppressSelectionForScrollbar;
     private List<T>? suppressSelectionSnapshot;
-    private ListBox? suppressSelectionList;
+    private System.Collections.IList? suppressSelectionList;
     private List<T>? contextSelectionSnapshot;
-    private ListBox? contextSelectionList;
+    private System.Collections.IList? contextSelectionList;
 
     public void RegisterList(DataGrid list)
     {
@@ -32,49 +32,88 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         list.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, true);
     }
 
-    public bool HandleSelectionChanged(DataGrid list) => HandleSelectionChangedCore(list?.SelectedItems);
-    public bool HandleSelectionChanged(ListBox list) => HandleSelectionChangedCore(list?.SelectedItems);
-    public bool HandleSelectionChangedCore(System.Collections.IList? SelectedItems)
+    public bool HandleSelectionChanged(ListBox list)
     {
         if (suppressSelectionHandling)
             return true;
 
-        return TryRestoreScrollbarSelectionCore(SelectedItems);
+        return TryRestoreScrollbarSelection(list);
+    }
+    public bool HandleSelectionChanged(DataGrid list)
+    {
+        if (suppressSelectionHandling)
+            return true;
+
+        return TryRestoreScrollbarSelection(list);
+    }
+    public bool TryRestoreScrollbarSelection(ListBox list)
+    {
+        if (list?.SelectedItems == null || !suppressSelectionForScrollbar || suppressSelectionList != list.SelectedItems)
+            return false;
+
+        suppressSelectionForScrollbar = false;
+        suppressSelectionList = null;
+
+        if (suppressSelectionSnapshot != null)
+            RestoreListSelection(list, suppressSelectionSnapshot);
+
+        suppressSelectionSnapshot = null;
+        return true;
     }
 
-    public void UpdateSelectionState(DataGrid list)
+    public bool TryRestoreScrollbarSelection(DataGrid grid)
     {
-        if (list == null) return;
-        UpdateSelectionStateCore(list.Name, list.ItemsSource as IEnumerable<T>, list.SelectedItems);
+        if (grid?.SelectedItems == null || !suppressSelectionForScrollbar || suppressSelectionList != grid.SelectedItems)
+            return false;
+
+        suppressSelectionForScrollbar = false;
+        suppressSelectionList = null;
+
+        if (suppressSelectionSnapshot != null)
+            RestoreListSelection(grid, suppressSelectionSnapshot);
+
+        suppressSelectionSnapshot = null;
+        return true;
     }
-    public void UpdateSelectionState(ListBox list)
+
+    public bool TryRestoreContextSelection(ListBox list, T item)
     {
-        if (list == null) return;
-        UpdateSelectionStateCore(list.Name, list.ItemsSource as IEnumerable<T>, list.SelectedItems);
-    }
-    public void UpdateSelectionStateCore(string? listName, IEnumerable<T>? items, System.Collections.IList? selectedItems)
-    {
-        //SearchLogging.Log($"UpdateSelectionState START for list={listName ?? "<unnamed>"}");
+        if (list?.SelectedItems == null)
+            return false;
 
-        if (items == null)
-            return;
-
-        // Capture current selection in a hashset for O(1) lookup
-        HashSet<T> selected = selectedItems?.Cast<T>().ToHashSet() ?? new HashSet<T>();
-
-        // Only update property if it actually changed to minimize NotifyPropertyChanged spam.
-        // This is critical to preventing layout churn during bulk updates.
-        foreach (T item in items)
+        bool restored = false;
+        if (contextSelectionSnapshot != null &&
+            contextSelectionList == list.SelectedItems &&
+            contextSelectionSnapshot.Contains(item))
         {
-            bool isCurrentlySelected = selected.Contains(item);
-            if (item.IsSelected != isCurrentlySelected)
-                item.IsSelected = isCurrentlySelected;
+            RestoreListSelection(list, contextSelectionSnapshot);
+            restored = true;
         }
 
-        //SearchLogging.Log($"UpdateSelectionState END for list={listName ?? "<unnamed>"}");
+        contextSelectionSnapshot = null;
+        contextSelectionList = null;
+        return restored;
     }
 
-    public void RestoreListSelection(System.Collections.IList? list, IEnumerable<T> selection) => RestoreListSelection(list, selection);
+    public bool TryRestoreContextSelection(DataGrid grid, T item)
+    {
+        if (grid?.SelectedItems == null)
+            return false;
+
+        bool restored = false;
+        if (contextSelectionSnapshot != null &&
+            contextSelectionList == grid.SelectedItems &&
+            contextSelectionSnapshot.Contains(item))
+        {
+            RestoreListSelection(grid, contextSelectionSnapshot);
+            restored = true;
+        }
+
+        contextSelectionSnapshot = null;
+        contextSelectionList = null;
+        return restored;
+    }
+
     public void RestoreListSelection(ListBox list, IEnumerable<T> selection)
     {
         if (list.SelectedItems == null)
@@ -88,23 +127,53 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         suppressSelectionHandling = false;
     }
 
-    public bool TryRestoreContextSelection(DataGrid list, T item) => TryRestoreContextSelectionCore(list?.SelectedItems, item);
-    public bool TryRestoreContextSelection(ListBox list, T item) => TryRestoreContextSelectionCore(list?.SelectedItems, item);
-    public bool TryRestoreContextSelectionCore(System.Collections.IList? selectedItems, T item)
+    public void RestoreListSelection(DataGrid grid, IEnumerable<T> selection)
     {
-        if (selectedItems == null) return false;
-        bool restored = false;
-        if (contextSelectionSnapshot != null &&
-            contextSelectionList == selectedItems &&
-            contextSelectionSnapshot.Contains(item))
+        if (grid.SelectedItems == null)
+            return;
+
+        suppressSelectionHandling = true;
+        grid.SelectedItems.Clear();
+        foreach (T item in selection)
+            grid.SelectedItems.Add(item);
+        UpdateSelectionState(grid);
+        suppressSelectionHandling = false;
+    }
+
+    public void UpdateSelectionState(DataGrid list)
+    {
+        if (list == null) return;
+
+        UpdateSelectionStateCore(list.Name, list.ItemsSource as IEnumerable<T>, list.SelectedItems);
+    }
+    public void UpdateSelectionState(ListBox list)
+    {
+        if (list == null) return;
+
+        UpdateSelectionStateCore(list.Name, list.ItemsSource as IEnumerable<T>, list.SelectedItems);
+    }
+    public void UpdateSelectionStateCore(string? listName, IEnumerable<T>? items, System.Collections.IList? selectedItems)
+    {
+
+
+        if (items == null)
         {
-            RestoreListSelection(selectedItems, contextSelectionSnapshot);
-            restored = true;
+
+            return;
         }
 
-        contextSelectionSnapshot = null;
-        contextSelectionList = null;
-        return restored;
+        HashSet<T> selected = selectedItems?.Cast<T>().ToHashSet() ?? new HashSet<T>();
+
+        foreach (T item in items)
+        {
+            bool isCurrentlySelected = selected.Contains(item);
+            if (item.IsSelected != isCurrentlySelected)
+            {
+                item.IsSelected = isCurrentlySelected;
+            }
+        }
+
+
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -113,20 +182,37 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         suppressSelectionList = null;
         suppressSelectionSnapshot = null;
 
-        if (sender is not ListBox list)
-            return;
-
-        PointerPoint point = e.GetCurrentPoint(list);
-        CaptureContextSelectionSnapshot(list, point);
-
-        if (IsPointerOverScrollBar(list, point.Position))
+        if (sender is ListBox list)
         {
-            CaptureScrollbarSelectionSnapshot(list, point);
+            PointerPoint point = e.GetCurrentPoint(list);
+            CaptureContextSelectionSnapshot(list, point);
+
+            if (IsPointerOverScrollBar(list, point.Position))
+            {
+                CaptureScrollbarSelectionSnapshot(list, point);
+                return;
+            }
+
+            if (point.Properties.IsRightButtonPressed && TryOpenContextMenu(list, e, point))
+                return;
+
             return;
         }
 
-        if (point.Properties.IsRightButtonPressed && TryOpenContextMenu(list, e, point))
-            return;
+        if (sender is DataGrid grid)
+        {
+            PointerPoint point = e.GetCurrentPoint(grid);
+            CaptureContextSelectionSnapshot(grid, point);
+
+            if (IsPointerOverScrollBar(grid, point.Position))
+            {
+                CaptureScrollbarSelectionSnapshot(grid, point);
+                return;
+            }
+
+            if (point.Properties.IsRightButtonPressed && TryOpenContextMenu(grid, e, point))
+                return;
+        }
     }
 
     private void CaptureScrollbarSelectionSnapshot(ListBox list, PointerPoint point)
@@ -135,27 +221,22 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
             return;
 
         suppressSelectionForScrollbar = true;
-        suppressSelectionList = list;
+        suppressSelectionList = list.SelectedItems;
         suppressSelectionSnapshot = list.SelectedItems?.Cast<T>().ToList()
             ?? new List<T>();
     }
 
-    public bool TryRestoreScrollbarSelection(DataGrid list) => TryRestoreScrollbarSelectionCore(list?.SelectedItems);
-    public bool TryRestoreScrollbarSelection(ListBox list) => TryRestoreScrollbarSelectionCore(list?.SelectedItems);
-    public bool TryRestoreScrollbarSelectionCore(System.Collections.IList? selectedItems)
+    private void CaptureScrollbarSelectionSnapshot(DataGrid grid, PointerPoint point)
     {
-        if (!suppressSelectionForScrollbar || suppressSelectionList != selectedItems)
-            return false;
+        if (!point.Properties.IsLeftButtonPressed)
+            return;
 
-        suppressSelectionForScrollbar = false;
-        suppressSelectionList = null;
-
-        if (suppressSelectionSnapshot != null)
-            RestoreListSelection(selectedItems, suppressSelectionSnapshot);
-
-        suppressSelectionSnapshot = null;
-        return true;
+        suppressSelectionForScrollbar = true;
+        suppressSelectionList = grid.SelectedItems;
+        suppressSelectionSnapshot = grid.SelectedItems?.Cast<T>().ToList()
+            ?? new List<T>();
     }
+
 
     private void CaptureContextSelectionSnapshot(ListBox list, PointerPoint point)
     {
@@ -173,7 +254,27 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (selected.Count > 1 && selected.Contains(hit))
         {
             contextSelectionSnapshot = selected;
-            contextSelectionList = list;
+            contextSelectionList = list.SelectedItems;
+        }
+    }
+
+    private void CaptureContextSelectionSnapshot(DataGrid grid, PointerPoint point)
+    {
+        contextSelectionSnapshot = null;
+        contextSelectionList = null;
+
+        if (!point.Properties.IsRightButtonPressed)
+            return;
+
+        T? hit = GetItemAtPoint(grid, point.Position);
+        if (hit == null)
+            return;
+
+        List<T> selected = grid.SelectedItems?.Cast<T>().ToList() ?? new List<T>();
+        if (selected.Count > 1 && selected.Contains(hit))
+        {
+            contextSelectionSnapshot = selected;
+            contextSelectionList = grid.SelectedItems;
         }
     }
 
@@ -185,9 +286,17 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         return item?.DataContext as T;
     }
 
-    private static bool IsPointerOverScrollBar(ListBox list, Point point)
+    private static T? GetItemAtPoint(DataGrid grid, Point point)
     {
-        IInputElement? element = list.InputHitTest(point) as IInputElement;
+        IInputElement? element = grid.InputHitTest(point) as IInputElement;
+        Control? control = element as Control;
+        DataGridRow? row = control?.FindAncestorOfType<DataGridRow>();
+        return row?.DataContext as T;
+    }
+
+    private static bool IsPointerOverScrollBar(IInputElement root, Point point)
+    {
+        IInputElement? element = root.InputHitTest(point) as IInputElement;
         if (element is not Control control)
             return false;
 
@@ -195,6 +304,30 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
             return true;
 
         return control.FindAncestorOfType<ScrollBar>() != null;
+    }
+
+    private static bool TryFindContextMenu(IInputElement root, Point point, out ContextMenu? menu, out Control? target)
+    {
+        menu = null;
+        target = null;
+
+        IInputElement? element = root.InputHitTest(point) as IInputElement;
+        Control? control = element as Control;
+        Visual? current = control;
+
+        while (current != null)
+        {
+            if (current is Control currentControl && currentControl.ContextMenu != null)
+            {
+                menu = currentControl.ContextMenu;
+                target = currentControl;
+                return true;
+            }
+
+            current = current.GetVisualParent();
+        }
+
+        return false;
     }
 
     private bool TryOpenContextMenu(ListBox list, PointerPressedEventArgs e, PointerPoint point)
@@ -220,27 +353,26 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         return true;
     }
 
-    private static bool TryFindContextMenu(ListBox list, Point point, out ContextMenu? menu, out Control? target)
+    private bool TryOpenContextMenu(DataGrid grid, PointerPressedEventArgs e, PointerPoint point)
     {
-        menu = null;
-        target = null;
+        T? hit = GetItemAtPoint(grid, point.Position);
+        if (hit == null)
+            return false;
 
-        IInputElement? element = list.InputHitTest(point) as IInputElement;
-        Control? control = element as Control;
-        Visual? current = control;
+        if (!TryFindContextMenu(grid, point.Position, out ContextMenu? menu, out Control? target))
+            return false;
 
-        while (current != null)
+        if (grid.SelectedItems != null &&
+            (grid.SelectedItems.Count == 0 || !grid.SelectedItems.Contains(hit)))
         {
-            if (current is Control currentControl && currentControl.ContextMenu != null)
-            {
-                menu = currentControl.ContextMenu;
-                target = currentControl;
-                return true;
-            }
-
-            current = current.GetVisualParent();
+            grid.SelectedItems.Clear();
+            grid.SelectedItems.Add(hit);
         }
 
-        return false;
+        UpdateSelectionState(grid);
+
+        menu!.Open(target);
+        e.Handled = true;
+        return true;
     }
 }

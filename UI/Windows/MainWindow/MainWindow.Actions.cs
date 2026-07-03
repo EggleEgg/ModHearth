@@ -53,6 +53,20 @@ public partial class MainWindow
         RefreshModlistPanels();
     }
 
+    private async Task RunDwarfFortressAsync()
+    {
+        if (manager.DwarfFortressRunning())
+        {
+            await DialogService.ShowMessageAsync(this, "Dwarf Fortress is already running.", "Already Running");
+            return;
+        }
+
+        bool success = manager.RunDwarfFortress(out string message);
+
+        if (!success)
+            await DialogService.ShowMessageAsync(this, message, "Launch Failed");
+    }
+
     private async Task ClearInstalledModsAsync()
     {
         string installedModsPath = manager.GetInstalledModsPath();

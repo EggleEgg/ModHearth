@@ -40,7 +40,7 @@ namespace ModHearth
                 case ProblemType.ConflictPresent:
                     return $"Mod '{problemThrowerID}' is incompatible with mod '{problemID}'.";
                 case ProblemType.DuplicateMod:
-                    return $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}). Please remove one to avoid issues.";
+                    return $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}).\nPlease remove one to avoid issues.";
             }
             return "";
         }
@@ -342,26 +342,6 @@ namespace ModHearth
         {
             return !string.IsNullOrWhiteSpace(Config?.DFHackFolderPath) && Directory.Exists(Config.DFHackFolderPath);
         }
-
-        public bool IsDwarfFortressProcessRunning()
-        {
-            string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort" };
-            foreach (string name in candidateNames)
-            {
-                try
-                {
-                    if (Process.GetProcessesByName(name).Length > 0)
-                        return true;
-                }
-                catch
-                {
-                    // Ignore query failures for this candidate name.
-                }
-            }
-
-            return false;
-        }
-
         private void ResolveActiveModpackStorage()
         {
             string dfhackPath = GetModManagerConfigPath();
@@ -1161,6 +1141,92 @@ namespace ModHearth
             return false;
         }
 
+        // Run Dwarf Fortress executable.
+        public bool RunDwarfFortress(out string message)
+        {
+            message = string.Empty;
+
+            if (DwarfFortressRunning())
+            {
+                message = "Dwarf Fortress is already running.";
+                return false;
+            }
+
+            if (Config == null || string.IsNullOrWhiteSpace(Config.DFFolderPath))
+            {
+                message = "Dwarf Fortress folder path is not configured.";
+                return false;
+            }
+
+            string dfFolderPath = Config.DFFolderPath;
+            if (!Directory.Exists(dfFolderPath))
+            {
+                message = $"Dwarf Fortress folder not found: {dfFolderPath}";
+                return false;
+            }
+
+            string executablePath = string.Empty;
+
+            // Determine the executable path based on the OS
+            if (OperatingSystem.IsWindows())
+            {
+                // Try df.exe first, then Dwarf Fortress.exe
+                string[] possibleExes = { "df.exe", "Dwarf Fortress.exe" };
+                foreach (string exe in possibleExes)
+                {
+                    string candidate = Path.Combine(dfFolderPath, exe);
+                    if (File.Exists(candidate))
+                    {
+                        executablePath = candidate;
+                        break;
+                    }
+                }
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                // On Linux, the executable is typically named 'df'
+                string candidate = Path.Combine(dfFolderPath, "df");
+                if (File.Exists(candidate))
+                {
+                    executablePath = candidate;
+                }
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                // On macOS, it's inside an app bundle
+                string appBundle = Path.Combine(dfFolderPath, "Dwarf Fortress.app", "Contents", "MacOS", "Dwarf Fortress");
+                if (File.Exists(appBundle))
+                {
+                    executablePath = appBundle;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
+            {
+                message = "Dwarf Fortress executable not found in the configured folder.";
+                return false;
+            }
+
+            try
+            {
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = executablePath,
+                    WorkingDirectory = dfFolderPath,
+                    UseShellExecute = true
+                };
+
+                Process.Start(startInfo);
+                message = "Dwarf Fortress launched successfully.";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = $"Failed to launch Dwarf Fortress: {ex.Message}";
+                return false;
+            }
+        }
+
         // Alter the current modpack with enabledMods and save modpack list.
         public ModpackSaveResult SaveCurrentModpack()
         {
@@ -1457,6 +1523,8 @@ namespace ModHearth
             if (mods == null || mods.Count == 0)
                 return;
 
+
+
             List<DFHMod> uniqueMods = new List<DFHMod>();
             HashSet<DFHMod> seen = new HashSet<DFHMod>();
             foreach (DFHMod mod in mods)
@@ -1531,12 +1599,22 @@ namespace ModHearth
 
             // Check for filesystem duplicate mods (Steam and Local duplicates of same ID and version)
             // We check the entire pool, as even uninstalled duplicates are problematic.
+            string installedModsPath = GetInstalledModsPath();
+            bool hasInstalledModsPath = !string.IsNullOrWhiteSpace(installedModsPath);
+
             foreach (DFHMod dfm in modPool)
             {
-                if (duplicateModRefs.TryGetValue(dfm.ToString(), out var duplicates) && duplicates.Count > 1)
+                if (duplicateModRefs.TryGetValue(dfm.ToString(), out var duplicates))
                 {
-                    var paths = string.Join(", ", duplicates.Select(m => $"\'{m.path}\'"));
-                    modproblems.Add(new ModProblem(dfm.id, paths, ModProblem.ProblemType.DuplicateMod));
+                    var nonInstalledDuplicates = hasInstalledModsPath
+                        ? duplicates.Where(m => string.IsNullOrWhiteSpace(m.path) || !IsPathUnderRoot(m.path, installedModsPath)).ToList()
+                        : duplicates;
+
+                    if (nonInstalledDuplicates.Count > 1)
+                    {
+                        var paths = string.Join(", ", nonInstalledDuplicates.Select(m => $"\'{m.path}\'"));
+                        modproblems.Add(new ModProblem(dfm.id, paths, ModProblem.ProblemType.DuplicateMod));
+                    }
                 }
             }
 

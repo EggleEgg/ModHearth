@@ -57,8 +57,7 @@ public partial class MainWindow : Window
     private string? currentSelectedModId;
     private string? previousSelectedModId;
     private string? currentDescriptionBBCode;
-    private System.Threading.CancellationTokenSource? reloadNotificationCts;
-    private (bool dfRunning, bool dfProcessRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) lastDfHackStatus;
+    private (bool dfRunning, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) lastDfHackStatus;
 
     public MainWindow()
     {
@@ -116,6 +115,7 @@ public partial class MainWindow : Window
         rightSearchBar.SearchModeChanged += OnSearchModeChanged;
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
+        runDwarfFortressButton.Click += async (_, _) => await RunDwarfFortressAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
         autoSortButton.Click += (_, _) => AutoSort();
         sortRulesButton.Click += async (_, _) => await OpenSortRulesAsync();

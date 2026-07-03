@@ -324,7 +324,15 @@ internal static class ModContextMenuSupport
 
         IClipboard? clipboard = TopLevel.GetTopLevel(owner)?.Clipboard;
         if (clipboard != null)
+        {
             await clipboard.SetTextAsync(id);
+
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                desktop.MainWindow is UI.MainWindow mainWindow)
+            {
+                mainWindow.ShowNotification($"Copied ID: {id}", "copyIcon.svg");
+            }
+        }
     }
 
     private static void SetMenuItem(

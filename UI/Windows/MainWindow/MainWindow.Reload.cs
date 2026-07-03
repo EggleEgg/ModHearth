@@ -44,9 +44,7 @@ public partial class MainWindow
 
     private void ReloadModpacksFromDisk()
     {
-        var rNotificationBorder = this.FindControl<Border>("reloadNotificationBorder");
-        if (rNotificationBorder != null)
-            rNotificationBorder.IsVisible = false;
+        DismissAllNotifications();
 
         SearchLogging.Log("ReloadModpacksFromDisk begin");
         searchDebounceTimer?.Stop();
@@ -363,51 +361,152 @@ public partial class MainWindow
 
     private void ShowReloadFinishedPopup()
     {
-        reloadNotificationCts?.Cancel();
-        reloadNotificationCts?.Dispose();
-        reloadNotificationCts = new System.Threading.CancellationTokenSource();
+        ShowNotification("Reload finished", "infoCircleWhiteIcon.svg");
+    }
 
-        var cts = reloadNotificationCts;
-
+    public void ShowNotification(string message, string iconResourceName)
+    {
         Dispatcher.UIThread.Post(() =>
         {
-            var rNotificationBorder = this.FindControl<Border>("reloadNotificationBorder");
-            if (rNotificationBorder != null)
-                rNotificationBorder.IsVisible = true;
-        });
+            var container = this.FindControl<StackPanel>("notificationContainer");
+            if (container == null)
+                return;
 
-        _ = Task.Run(async () =>
-        {
-            try
+            // Limit to 3 notifications by removing the oldest (last in children list)
+            while (container.Children.Count >= 3)
             {
-                await Task.Delay(3000, cts.Token);
-                Dispatcher.UIThread.Post(() =>
+                var oldest = container.Children[container.Children.Count - 1];
+                if (oldest is Border b && b.Tag is System.Threading.CancellationTokenSource oldCts)
                 {
-                    if (!cts.IsCancellationRequested)
-                    {
-                        var rNotificationBorder = this.FindControl<Border>("reloadNotificationBorder");
-                        if (rNotificationBorder != null)
-                            rNotificationBorder.IsVisible = false;
-                    }
-                });
+                    oldCts.Cancel();
+                    oldCts.Dispose();
+                }
+                container.Children.RemoveAt(container.Children.Count - 1);
             }
-            catch (TaskCanceledException)
+
+            // Create notification border and elements
+            var notificationCts = new System.Threading.CancellationTokenSource();
+
+            var border = new Border
             {
-                // Cancelled gracefully
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
+                Padding = new Thickness(6, 5.5, 20, 5.5),
+                CornerRadius = new CornerRadius(0, 4, 4, 0),
+                BorderThickness = new Thickness(0, 1, 1, 1),
+                BoxShadow = BoxShadows.Parse("0 4 12 0 #40000000"),
+                Tag = notificationCts
+            };
+
+            // Apply theme styling
+            IBrush panelBrushClear;
+            IBrush buttonOutlineBrush;
+            IBrush textBrush;
+
+            if (Style.instance != null)
+            {
+                panelBrushClear = new SolidColorBrush(Style.instance.modRefPanelColorClear.ToAvaloniaColor());
+                buttonOutlineBrush = new SolidColorBrush(Style.instance.buttonOutlineColor.ToAvaloniaColor());
+                textBrush = new SolidColorBrush(Style.instance.textColor.ToAvaloniaColor());
             }
+            else
+            {
+                panelBrushClear = new SolidColorBrush(Avalonia.Media.Color.Parse("#2D2D30"));
+                buttonOutlineBrush = new SolidColorBrush(Avalonia.Media.Color.Parse("#3F3F46"));
+                textBrush = Brushes.White;
+            }
+
+            border.Background = panelBrushClear;
+            border.BorderBrush = buttonOutlineBrush;
+
+            var stackPanel = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 6
+            };
+
+            var image = new Image
+            {
+                Width = 16,
+                Height = 16,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Source = ImageSourceLoader.LoadFromAssetUri(iconResourceName)
+            };
+
+            var textBlock = new TextBlock
+            {
+                Text = message,
+                FontSize = 12,
+                FontWeight = FontWeight.SemiBold,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Foreground = textBrush
+            };
+
+            stackPanel.Children.Add(image);
+            stackPanel.Children.Add(textBlock);
+            border.Child = stackPanel;
+
+            // Set up pointer entered to dismiss immediately
+            border.PointerEntered += (s, e) =>
+            {
+                DismissNotification(border);
+            };
+
+            // Insert at top (index 0) so newest is on top, oldest is on bottom
+            container.Children.Insert(0, border);
+
+            // Timeout to dismiss after 3000ms
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(3000, notificationCts.Token);
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!notificationCts.IsCancellationRequested)
+                        {
+                            DismissNotification(border);
+                        }
+                    });
+                }
+                catch (TaskCanceledException)
+                {
+                    // Graceful cancellation
+                }
+            });
         });
     }
 
-    private void ReloadNotification_PointerEntered(object? sender, PointerEventArgs e)
+    public void DismissNotification(Border border)
     {
-        HideReloadFinishedPopup();
+        if (border.Tag is System.Threading.CancellationTokenSource cts)
+        {
+            cts.Cancel();
+            cts.Dispose();
+            border.Tag = null;
+        }
+
+        var container = this.FindControl<StackPanel>("notificationContainer");
+        if (container != null)
+        {
+            container.Children.Remove(border);
+        }
     }
 
-    private void HideReloadFinishedPopup()
+    public void DismissAllNotifications()
     {
-        reloadNotificationCts?.Cancel();
-        var rNotificationBorder = this.FindControl<Border>("reloadNotificationBorder");
-        if (rNotificationBorder != null)
-            rNotificationBorder.IsVisible = false;
+        var container = this.FindControl<StackPanel>("notificationContainer");
+        if (container != null)
+        {
+            foreach (var child in container.Children)
+            {
+                if (child is Border b && b.Tag is System.Threading.CancellationTokenSource cts)
+                {
+                    cts.Cancel();
+                    cts.Dispose();
+                }
+            }
+            container.Children.Clear();
+        }
     }
 }
