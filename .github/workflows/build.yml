@@ -136,10 +136,17 @@ jobs:
           echo "tag=$tag" >> $GITHUB_OUTPUT
           echo "name=$name" >> $GITHUB_OUTPUT
 
+      - name: Checkout Git history only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 5 # Slightly increased from 3 just to ensure parent SHAs are safely caught
+          sparse-checkout: .github # Forces GitHub to skip downloading your code/assets
+          sparse-checkout-cone-mode: false
+
       - name: Get commit message
         id: get_commit_message
         run: |
-          commit_message=$(git log -1 --pretty=%B)
+          commit_message=$(git log -1 --pretty=%s)
           echo "commit_message=$commit_message" >> $GITHUB_OUTPUT
 
       - name: Set release body
@@ -151,14 +158,20 @@ jobs:
             for parent_sha in $parent_shas;
             do
               if [ -n "$body_content" ]; then
-                body_content+="\n\n"
+                body_content+=$'\n\n'
               fi
               body_content+=$(git log --format=%B -n 1 $parent_sha)
             done
           else
             body_content="${{ steps.get_commit_message.outputs.commit_message }}"
           fi
-          echo "body=$body_content" >> $GITHUB_OUTPUT
+          
+          # Fix: Safe multi-line writing to GITHUB_OUTPUT
+          {
+            echo "body<<EOF"
+            echo "$body_content"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - uses: actions/download-artifact@v4
         with:
