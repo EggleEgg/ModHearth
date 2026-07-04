@@ -3,6 +3,7 @@ bin/
 obj/
 **/bin/
 **/obj/
+**/dist/
 /.external.zip
 /.external
 
