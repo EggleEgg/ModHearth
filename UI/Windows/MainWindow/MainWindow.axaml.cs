@@ -7,12 +7,34 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public bool IsAutoSaveEnabled
+    {
+        get => ConfigManager.IsAutoSaveEnabled();
+        set
+        {
+            if (value != ConfigManager.IsAutoSaveEnabled())
+            {
+                ConfigManager.SetAutoSaveEnabled(value);
+                NotifyOfPropertyChange();
+            }
+        }
+    }
+
     private readonly ObservableCollection<ModRefViewModel> inactiveMods = new();
     private readonly ObservableCollection<ModRefViewModel> activeMods = new();
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
@@ -62,6 +84,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        saveButton.DataContext = this;
         SetWindowIcon();
         SetPreviewImage(LoadFallbackPreview());
         ShowFallbackHelpText();
@@ -115,6 +138,7 @@ public partial class MainWindow : Window
         rightSearchBar.SearchModeChanged += OnSearchModeChanged;
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
+        saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);
         runDwarfFortressButton.Click += async (_, _) => await RunDwarfFortressAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
         autoSortButton.Click += (_, _) => AutoSort();

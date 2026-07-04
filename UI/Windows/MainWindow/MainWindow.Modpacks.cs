@@ -23,6 +23,11 @@ public partial class MainWindow
 
         if (result.UsesFallbackStorage || !result.LiveReloadApplied)
             ShowTransientStatusNotice(result.LiveReloadMessage);
+        else if (ConfigManager.IsAutoSaveEnabled())
+        {
+            // If live reload applied, show a different message for autosaves
+            ShowNotification("Modlist Autosaved", "saveIcon.svg");
+        }
     }
 
     private async Task UndoChangesAsync()
@@ -124,9 +129,18 @@ public partial class MainWindow
             ClearRedo();
         SetChangesMade(made);
         if (made)
+        {
             MarkChanges(lastIndex);
+            if (ConfigManager.IsAutoSaveEnabled())
+            {
+                ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
+                ShowModpackSaveNotice(result);
+            }
+        }
         else
+        {
             UnmarkChanges(lastIndex);
+        }
     }
 
     private async Task CreateNewModpackAsync()

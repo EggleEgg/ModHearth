@@ -46,13 +46,11 @@ internal static class UpdateHelpers
 
     public static string GetReleaseTitle(GitHubRelease release, int index)
     {
-        if (!string.IsNullOrWhiteSpace(release.Body))
-            return release.Body!;
         if (!string.IsNullOrWhiteSpace(release.Name))
             return release.Name!;
-
         if (!string.IsNullOrWhiteSpace(release.TagName))
             return release.TagName!;
+
 
         return $"Build {index + 1}";
     }

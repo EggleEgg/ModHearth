@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Avalonia.Threading;
 
 namespace ModHearth.UI;
 
@@ -12,37 +13,79 @@ public partial class MainWindow
         if (modifyingComboBox)
             return;
 
+        if (manager.SelectedModlist == null)
+            return;
+
         if (changesMade)
         {
-            _ = HandleModpackChangeWithUnsavedAsync();
-            return;
+            if (ConfigManager.IsAutoSaveEnabled())
+            {
+                ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
+                ShowModpackSaveNotice(result);
+            }
+            else
+            {
+                // If autosave is not enabled, prompt the user if there are unsaved changes.
+                _ = Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+                        this,
+                        manager.SelectedModlist.name,
+                        "change modpacks");
+                    if (choice == UnsavedChangesChoice.Cancel)
+                    {
+                        modifyingComboBox = true;
+                        modpackComboBox.SelectedIndex = lastIndex;
+                        modifyingComboBox = false;
+                        return;
+                    }
+
+                    if (choice == UnsavedChangesChoice.Save)
+                        await SaveCurrentModpackAsync();
+
+                    SetAndRefreshModpack(modpackComboBox.SelectedIndex);
+                    lastIndex = modpackComboBox.SelectedIndex;
+                    SetChangesMade(false);
+                });
+                return;
+            }
         }
 
         SetAndRefreshModpack(modpackComboBox.SelectedIndex);
         lastIndex = modpackComboBox.SelectedIndex;
+        SetChangesMade(false);
     }
 
     private async Task HandleModpackChangeWithUnsavedAsync()
     {
-        UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-            this,
-            manager.SelectedModlist.name,
-            "switch modpacks");
-
-        if (choice == UnsavedChangesChoice.Save)
-            await SaveCurrentModpackAsync();
-        else if (choice == UnsavedChangesChoice.ExitWithoutSaving)
-            SetAndMarkChanges(false);
+        if (ConfigManager.IsAutoSaveEnabled())
+        {
+            ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
+            ShowModpackSaveNotice(result);
+        }
         else
         {
-            modifyingComboBox = true;
-            modpackComboBox.SelectedIndex = lastIndex;
-            modifyingComboBox = false;
-            return;
+            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+                this,
+                manager.SelectedModlist.name,
+                "switch modpacks");
+
+            if (choice == UnsavedChangesChoice.Save)
+                await SaveCurrentModpackAsync();
+            else if (choice == UnsavedChangesChoice.ExitWithoutSaving)
+                SetAndMarkChanges(false);
+            else
+            {
+                modifyingComboBox = true;
+                modpackComboBox.SelectedIndex = lastIndex;
+                modifyingComboBox = false;
+                return;
+            }
         }
 
         SetAndRefreshModpack(modpackComboBox.SelectedIndex);
         lastIndex = modpackComboBox.SelectedIndex;
+        SetChangesMade(false);
     }
 
     private async void MainWindowClosing(object? sender, WindowClosingEventArgs e)

@@ -1,6 +1,9 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace ModHearth.UI;
 
@@ -94,6 +97,28 @@ public partial class MainWindow
 
         e.Handled = true;
         await RevealInstalledModsFolderAsync();
+    }
+
+    private void SaveButtonPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(saveButton).Properties.IsRightButtonPressed)
+            return;
+
+        e.Handled = true;
+        IsAutoSaveEnabled = !IsAutoSaveEnabled;
+
+        if (IsAutoSaveEnabled)
+        {
+            ShowNotification("Autosave enabled", "saveWhiteIcon.svg");
+            if (changesMade)
+            {
+                _ = SaveCurrentModpackAsync();
+            }
+        }
+        else
+        {
+            ShowNotification("Autosave disabled", "saveCancelIcon.svg");
+        }
     }
 
     private async Task RevealInstalledModsFolderAsync()

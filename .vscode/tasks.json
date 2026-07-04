@@ -1,64 +1,107 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "build",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/ModHearth.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary;ForceNoAlign"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "watch",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "watch",
-                "run",
-                "--project",
-                "${workspaceFolder}/ModHearth.csproj"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "run",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "run",
-                "--project",
-                "${workspaceFolder}/ModHearth.csproj"
-            ],
-            "problemMatcher": "$msCompile",
-            "dependsOn": "build"
-        },
-        {
-            "label": "run --dev",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "run",
-                "--project",
-                "${workspaceFolder}/ModHearth.csproj",
-                "--devmode"
-            ],
-            "problemMatcher": "$msCompile",
-            "dependsOn": "build"
-        },
-        {
-            "label": "dotnet: clean",
-            "command": "powershell",
-            "type": "process",
-            "args": [
-                "-NoProfile",
-                "-Command",
-                "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Remove-Item -Path $dir -Recurse -Force } }"
-            ]
-        }
-    ]
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "linuxBuildVersion",
+      "type": "promptString",
+      "description": "Version string to embed (InformationalVersion)",
+      "default": "local-dev"
+    }
+  ],
+
+  "tasks": [
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/ModHearth.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "watch",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "watch",
+        "run",
+        "--project",
+        "${workspaceFolder}/ModHearth.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run",
+      "command": "dotnet",
+      "type": "process",
+      "args": ["run", "--project", "${workspaceFolder}/ModHearth.csproj"],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "build"
+    },
+    {
+      "label": "run --dev",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ModHearth.csproj",
+        "--devmode"
+      ],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "build"
+    },
+    {
+      "label": "dotnet: clean",
+      "command": "powershell",
+      "type": "process",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Remove-Item -Path $dir -Recurse -Force } }"
+      ]
+    },
+
+    {
+      "label": "build linux release (WSL)",
+      "type": "process",
+      "command": "wsl.exe",
+      "args": [
+        "--cd",
+        "${workspaceFolder}",
+        "bash",
+        ".vscode/build-linux-local.sh",
+        "--version",
+        "${input:linuxBuildVersion}"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "build linux release (WSL, skip tests)",
+      "type": "process",
+      "command": "wsl.exe",
+      "args": [
+        "--cd",
+        "${workspaceFolder}",
+        "bash",
+        ".vscode/build-linux-local.sh",
+        "--version",
+        "${input:linuxBuildVersion}",
+        "--skip-tests"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    }
+  ]
 }

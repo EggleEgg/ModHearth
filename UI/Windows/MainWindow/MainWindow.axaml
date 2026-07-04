@@ -10,7 +10,8 @@
   MinHeight="640">
   <Window.DataTemplates>
     <DataTemplate DataType="ui:ModRefViewModel">
-      <Border Background="{Binding BackgroundBrush}" Padding="2,0" MinHeight="20"
+      <Border Background="{Binding BackgroundBrush}" Padding="0" MinHeight="20"
+        Margin="0,0,-3,0"
         HorizontalAlignment="Stretch"
         ToolTip.Tip="{Binding HoverTooltip}">
         <Border.ContextMenu>
@@ -28,7 +29,7 @@
           </ContextMenu>
         </Border.ContextMenu>
         <Grid>
-          <Grid ColumnDefinitions="Auto,Auto,*">
+          <Grid ColumnDefinitions="Auto,Auto,*" Margin="2,0,5,0">
             <Border Width="2"
               Background="{Binding CacheBarBrush}"
               IsVisible="{Binding IsCached}"
@@ -195,8 +196,11 @@
           </Grid.Styles>
 
           <Grid ColumnDefinitions="*,*,*,*" Height="42">
-            <Button x:Name="saveButton" Grid.Column="0" ToolTip.Tip="Save the current modlist">
-              <Image Source="{ui:AssetImage saveIcon}" />
+            <Button x:Name="saveButton" Grid.Column="0" ToolTip.Tip="Save the current modlist. Right click to toggle autosave">
+              <Grid>
+                <Image Source="{ui:AssetImage saveIcon}" />
+                <Image x:Name="autoSaveIndicator" Source="{ui:AssetImage updateBorderIcon}" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="0" IsVisible="{Binding IsAutoSaveEnabled}" />
+              </Grid>
             </Button>
             <Button x:Name="runDwarfFortressButton" Grid.Column="1" ToolTip.Tip="Run Dwarf Fortress">
               <Image Source="{ui:AssetImage arrowPlayIcon}" />

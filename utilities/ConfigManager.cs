@@ -12,7 +12,7 @@ namespace ModHearth
     {
         public static ModHearthConfig Config { get; private set; } = new();
 
-        public static readonly string ConfigPath = Path.Combine(AppContext.BaseDirectory, "Config.json");
+        public static readonly string ConfigPath = Path.Combine(AppContext.BaseDirectory, "config.json");
         private static readonly string styleLightPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.light.json");
         private static readonly string styleDarkPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.dark.json");
 
@@ -164,6 +164,14 @@ namespace ModHearth
             SaveConfigFile();
         }
 
+        public static bool IsAutoSaveEnabled() => Config.IsAutoSaveEnabled;
+
+        public static void SetAutoSaveEnabled(bool enabled)
+        {
+            Config.IsAutoSaveEnabled = enabled;
+            SaveConfigFile();
+        }
+
         public static string GetModsPath()
         {
             if (string.IsNullOrWhiteSpace(Config.ModsPath))
@@ -195,7 +203,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(Config.InstalledModsPath))
                 return GetDefaultInstalledModsPath();
 
-            if (IsInstalledModsUnderGameFolder(Config.InstalledModsPath, Config.DFFolderPath))
+            if (OperatingSystem.IsWindows() && IsInstalledModsUnderGameFolder(Config.InstalledModsPath, Config.DFFolderPath))
                 return GetDefaultInstalledModsPath();
 
             string normalizedConfigured = NormalizeFileSystemPath(Config.InstalledModsPath);
@@ -949,6 +957,14 @@ namespace ModHearth
                     return resolved;
             }
 
+            if (OperatingSystem.IsLinux() && !string.IsNullOrWhiteSpace(Config.DFFolderPath))
+            {
+                string nativeLinuxCandidate = Path.Combine(Config.DFFolderPath, "data", "installed_mods");
+                string? resolvedNativeLinux = ResolveExistingDirectoryPath(nativeLinuxCandidate);
+                if (!string.IsNullOrWhiteSpace(resolvedNativeLinux))
+                    return resolvedNativeLinux;
+            }
+
             foreach (string candidate in GetLinuxProtonInstalledModsPathCandidates())
             {
                 if (string.IsNullOrWhiteSpace(candidate))
@@ -1037,6 +1053,10 @@ namespace ModHearth
 
         public static string GetDefaultInstalledModsPath()
         {
+            string? resolved = TryFindInstalledModsPath();
+            if (!string.IsNullOrWhiteSpace(resolved))
+                return resolved;
+
             foreach (string candidate in GetInstalledModsPathCandidates())
             {
                 if (!string.IsNullOrWhiteSpace(candidate))

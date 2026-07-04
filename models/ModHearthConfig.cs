@@ -53,5 +53,8 @@ namespace ModHearth
 
         // Path to the DFHack folder (e.g., etc/steamapps/common/DFHack).
         public string DFHackFolderPath { get; set; } = string.Empty;
+
+        // Automatically save modlist changes.
+        public bool IsAutoSaveEnabled { get; set; } = false;
     }
 }

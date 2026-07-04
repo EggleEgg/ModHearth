@@ -752,7 +752,8 @@ public partial class SortRulesWindow : Window
         {
             ModRefViewModel before = masterRuleList[aboveIndex];
             ModRefViewModel after = masterRuleList[minIndex];
-            SetGapBetween(before.ModReference.ID, after.ModReference.ID, addGap);
+            bool sideAddGap = addGap || !context.DropAfter;
+            SetGapBetween(before.ModReference.ID, after.ModReference.ID, sideAddGap);
         }
 
         int belowIndex = maxIndex + 1;
@@ -760,7 +761,8 @@ public partial class SortRulesWindow : Window
         {
             ModRefViewModel before = masterRuleList[maxIndex];
             ModRefViewModel after = masterRuleList[belowIndex];
-            SetGapBetween(before.ModReference.ID, after.ModReference.ID, addGap);
+            bool sideAddGap = addGap || context.DropAfter;
+            SetGapBetween(before.ModReference.ID, after.ModReference.ID, sideAddGap);
         }
 
         NormalizeGaps();

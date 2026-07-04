@@ -46,6 +46,8 @@ public partial class UpdateDialog : Window
         public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
         public string ButtonLabel { get; init; } = "Install";
         public bool CanInstall { get; init; } = true;
+        public bool IsFirstItem { get; init; }
+        public bool IsNotFirstItem { get; init; }
         public GitHubRelease Release { get; init; } = new GitHubRelease();
 
         public static ReleaseEntry FromRelease(GitHubRelease release, int index, string currentBuild)
@@ -62,6 +64,8 @@ public partial class UpdateDialog : Window
                 Subtitle = subtitle,
                 Description = release.Body ?? string.Empty,
                 ButtonLabel = isCurrent ? "Reinstall" : "Install",
+                IsFirstItem = index == 0,
+                IsNotFirstItem = index != 0,
                 Release = release
             };
         }
