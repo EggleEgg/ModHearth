@@ -121,7 +121,6 @@ public partial class MainWindow
         bool preserveSourceOrder = false)
     {
         string trimmed = filter?.Trim() ?? string.Empty;
-        bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
 
         List<ModRefViewModel> displayItems = ApplyFilterAndSort(
             sourceMods.Select(m => modViewMap[m.ToString()]),

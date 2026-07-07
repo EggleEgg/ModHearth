@@ -56,6 +56,14 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
     public string ActiveText { get; }
     public string Path { get; }
 
+    // Lets the DataGrid's State column sort by importance (Updated > Added > Deleted) instead of alphabetically, via SortMemberPath in the XAML.
+    public int StateSortRank => Entry.ChangeType switch
+    {
+        ModUpdateChangeType.Updated => 2,
+        ModUpdateChangeType.Added => 1,
+        ModUpdateChangeType.Deleted => 0,
+        _ => 0
+    };
     public bool IsSelected
     {
         get => isSelected;

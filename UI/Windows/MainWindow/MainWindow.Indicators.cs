@@ -38,11 +38,12 @@ public partial class MainWindow
         if (!hasIssues || warningIssuesIcon == null)
             return;
 
-        string iconName = hasProblems && hasDuplicates
-            ? "warningErrorIcon.svg"
-            : hasProblems
-                ? "errorIcon.svg"
-                : "warningIcon.svg";
+        string iconName;
+        if (hasProblems && hasDuplicates)
+            iconName = "warningErrorIcon.svg";
+        else if (hasProblems)
+            iconName = "errorIcon.svg";
+        else iconName = "warningIcon.svg";
 
         warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
             ?? warningIssuesIcon.Source;

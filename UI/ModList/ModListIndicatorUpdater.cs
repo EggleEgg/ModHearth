@@ -95,7 +95,7 @@ internal static class ModListIndicatorUpdater
 
     public static string BuildDuplicateWarningTooltip(ModHearthManager? manager, IEnumerable<string> duplicates)
     {
-        string errorLogPath = manager?.GetErrorLogPath() ?? "errorlog.txt";
+        string errorLogPath = ConfigManager.GetErrorLogPath() ?? "errorlog.txt";
         StringBuilder builder = new StringBuilder($"Duplicate raw definitions ({errorLogPath}):");
         foreach (string entry in duplicates)
             builder.AppendLine().Append(entry);
@@ -107,13 +107,17 @@ internal static class ModListIndicatorUpdater
         if (problemCount <= 0 && duplicateCount <= 0)
             return null;
 
-        string problemText = problemCount > 0
-            ? $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues"
-            : string.Empty;
+        string problemText;
+        if (problemCount > 0)
+            problemText = $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues";
+        else
+            problemText = string.Empty;
 
-        string duplicateText = duplicateCount > 0
-            ? $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws"
-            : string.Empty;
+        string duplicateText;
+        if (duplicateCount > 0)
+            duplicateText = $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws";
+        else
+            duplicateText = string.Empty;
 
         if (string.IsNullOrEmpty(problemText))
             return duplicateText;

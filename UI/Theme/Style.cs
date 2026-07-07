@@ -57,8 +57,9 @@ namespace ModHearth.UI
     /// </summary>
     public class Style
     {
-        // This only ever has one instance
-        public static Style? instance;
+        // Only ever set explicitly, from ConfigManager.LoadStyle, once the object is fully populated and validated via IsComplete(). volatile ensures a
+        // thread reading this after a theme swap on another thread sees the new reference promptly rather than a cached stale one.
+        public static volatile Style? instance;
 
         private static readonly PropertyInfo[] RequiredColorProperties = typeof(Style)
             .GetProperties(BindingFlags.Instance | BindingFlags.Public)
@@ -89,7 +90,6 @@ namespace ModHearth.UI
         // Default style.
         public Style()
         {
-            instance = this;
         }
 
         public bool IsComplete()

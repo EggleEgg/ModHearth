@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace ModHearth
 {
@@ -17,7 +17,7 @@ namespace ModHearth
             return duplicateWarningGroups;
         }
 
-        private bool IsVanillaBaseMod(ModReference modref)
+        private static bool IsVanillaBaseMod(ModReference modref)
         {
             if (modref == null)
                 return false;
@@ -49,9 +49,11 @@ namespace ModHearth
         {
             if (modref == null)
                 return false;
-            if (_patchCache.TryGetValue(modref.ID, out bool cached))
-                return cached;
 
+            return _patchCache.GetOrAdd(modref.ID, _ => ComputeIsPatchLike(modref));
+        }
+        private static bool ComputeIsPatchLike(ModReference modref)
+        {
             string label = $"{modref.name} {modref.ID}".ToLowerInvariant();
             bool patchLike = label.Contains("patch") ||
                              label.Contains("compat") ||
@@ -87,9 +89,9 @@ namespace ModHearth
                 }
             }
 
-            _patchCache[modref.ID] = patchLike;
             return patchLike;
         }
+
 
         public bool AutoSortEnabledMods()
         {
@@ -382,9 +384,11 @@ namespace ModHearth
         private (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla) GetModTraits(
             ModReference modref)
         {
-            if (_modTraitCache.TryGetValue(modref.ID, out var cached))
-                return cached;
-
+            return _modTraitCache.GetOrAdd(modref.ID, _ => ComputeModTraits(modref));
+        }
+        private (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla) ComputeModTraits(
+            ModReference modref)
+        {
             bool vanillaEntity = false;
             bool newEntity = false;
             bool reaction = false;
@@ -467,12 +471,10 @@ namespace ModHearth
             if (creature)
                 newStuff = true;
 
-            var result = (vanillaEntity, newEntity, reaction, creature, newStuff, graphics, beforeVanilla);
-            _modTraitCache[modref.ID] = result;
-            return result;
+            return (vanillaEntity, newEntity, reaction, creature, newStuff, graphics, beforeVanilla);
         }
 
-        private bool IsVanillaEntity(string id)
+        private static bool IsVanillaEntity(string id)
         {
             switch (id.ToUpperInvariant())
             {

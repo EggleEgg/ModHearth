@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using System.ComponentModel;
@@ -28,9 +28,9 @@ public partial class MainWindow
         SortRulesWindow dialog = new SortRulesWindow(
             manager.GetSortRules(),
             modRefs,
-            manager.GetModsPath(),
-            manager.GetVanillaModsPath(),
-            manager.GetSortRulesPath(),
+            ConfigManager.GetModsPath(),
+            ConfigManager.GetVanillaModsPath(),
+            ModHearthManager.GetSortRulesPath(),
             rules => manager.SetSortRules(rules))
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -58,13 +58,13 @@ public partial class MainWindow
 
     private async Task RunDwarfFortressAsync()
     {
-        if (manager.DwarfFortressRunning())
+        if (ModHearthManager.DwarfFortressRunning())
         {
             await DialogService.ShowMessageAsync(this, "Dwarf Fortress is already running.", "Already Running");
             return;
         }
 
-        bool success = manager.RunDwarfFortress(out string message);
+        (bool success, string message) = await manager.RunDwarfFortressAsync();
 
         if (!success)
             await DialogService.ShowMessageAsync(this, message, "Launch Failed");
@@ -72,7 +72,7 @@ public partial class MainWindow
 
     private async Task ClearInstalledModsAsync()
     {
-        string installedModsPath = manager.GetInstalledModsPath();
+        string installedModsPath = ConfigManager.GetInstalledModsPath();
         bool confirm = await DialogService.ShowConfirmAsync(this,
             $"Clear installed mods cache?\n{installedModsPath}",
             "Clear installed mods");
@@ -123,7 +123,7 @@ public partial class MainWindow
 
     private async Task RevealInstalledModsFolderAsync()
     {
-        string installedModsPath = manager.GetInstalledModsPath();
+        string installedModsPath = ConfigManager.GetInstalledModsPath();
         if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
         {
             await DialogService.ShowMessageAsync(this, "Installed mods folder not found.", "Open Folder");

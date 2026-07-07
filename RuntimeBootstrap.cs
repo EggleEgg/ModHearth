@@ -56,11 +56,8 @@ internal static class RuntimeBootstrap
         string? existing = AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") as string;
         if (!string.IsNullOrWhiteSpace(existing))
         {
-            foreach (string entry in existing.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!paths.Contains(entry))
-                    paths.Add(entry);
-            }
+            foreach (string entry in existing.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Where(entry => !paths.Contains(entry)))
+                paths.Add(entry);
         }
 
         if (paths.Count > 0)

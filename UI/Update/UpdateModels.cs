@@ -1,4 +1,4 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace ModHearth.UI;
 
@@ -65,7 +65,7 @@ internal static class UpdateHelpers
                          string.Equals(buildNumber, currentBuild, StringComparison.OrdinalIgnoreCase);
 
         return isCurrent
-            ? $"{buildLabel} · {date} (current)"
-            : $"{buildLabel} · {date}";
+            ? $"{buildLabel} Â· {date} (current)"
+            : $"{buildLabel} Â· {date}";
     }
 }

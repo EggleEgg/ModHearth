@@ -1,4 +1,4 @@
-
+﻿
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -15,7 +15,7 @@ namespace ModHearth.UI;
 
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public new event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null)
     {
@@ -39,7 +39,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly ObservableCollection<ModRefViewModel> activeMods = new();
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ModListDragDropController modListController;
-    private readonly UndoRedoKeyHandler undoRedoHandler;
+    private readonly ShortcutKeyHandler shortcutKeyHandler;
 
     private ModHearthManager manager;
     private bool changesMade;
@@ -90,7 +90,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ShowFallbackHelpText();
 
         manager = new ModHearthManager();
-        manager.RequestUIReload += () => Dispatcher.UIThread.Post(ReloadModpacksFromDisk);
+        manager.RequestUIReload += () => Dispatcher.UIThread.Post(async () => await ReloadModpacksFromDisk());
         modListController = new ModListDragDropController(
             this,
             () => modViewMap.Values,
@@ -98,12 +98,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             vm => vm.DfMod.ToString());
         modListController.Dropped += ModlistDropped;
 
-        undoRedoHandler = new UndoRedoKeyHandler(
+        shortcutKeyHandler = new ShortcutKeyHandler(
             () => undoChangesButton.IsEnabled,
             () => UndoChangesAsync(),
             () => redoAvailable,
-            () => RedoListChanges());
-        undoRedoHandler.Attach(this);
+            () => RedoListChanges(),
+            saveAsync: () => SaveCurrentModpackAsync());
+        shortcutKeyHandler.Attach(this);
 
         leftModlist.ItemsSource = inactiveMods;
         rightModlist.ItemsSource = activeMods;

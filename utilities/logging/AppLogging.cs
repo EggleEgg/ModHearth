@@ -2,6 +2,9 @@ using System.Text;
 
 namespace ModHearth;
 
+/// <summary>
+/// Handles application-wide logging, including unhandled exceptions and console output redirection to log files.
+/// </summary>
 internal static class AppLogging
 {
     private static readonly object gate = new();
@@ -67,6 +70,14 @@ internal static class AppLogging
 
     public static void LogException(string label, Exception? ex)
     {
+        //See avalonia issues #17616, #18703, #4175. Likely wont be fixed ever, so we just ignore these.
+        if (ex is System.AggregateException aggregate &&
+            aggregate.InnerException?.GetType().FullName == "Tmds.DBus.Protocol.DBusException" &&
+            aggregate.InnerException.Message.Contains("AppMenu.Registrar", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         Initialize();
         string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         string details = ex?.ToString() ?? "No exception details available.";

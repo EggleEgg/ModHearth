@@ -1,9 +1,7 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Avalonia.Threading;
 using ModHearth.Utilities.Logging;
 
@@ -28,9 +26,8 @@ public partial class MainWindow
                 SetAndMarkChanges(false);
         }
 
-        ReloadModpacksFromDisk();
+        await ReloadModpacksFromDisk();
     }
-
     private void ReloadButtonPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(reloadButton).Properties.IsRightButtonPressed)
@@ -42,7 +39,7 @@ public partial class MainWindow
         reloadOptionsFlyout?.ShowAt(reloadButton);
     }
 
-    private void ReloadModpacksFromDisk()
+    private async Task ReloadModpacksFromDisk()
     {
         DismissAllNotifications();
 
@@ -57,24 +54,43 @@ public partial class MainWindow
             : null;
 
         SearchLogging.Log("Refreshing modlists from disk.");
+        bool didReload;
         try
         {
-            manager.Initialize(preferredName);
-            BuildModViewModels();
-            _ = UpdateDfHackStatusAsync();
-            if (!DevMode.IsEnabled)
-                ResetModManagerWatcher();
+            didReload = await Task.Run(() =>
+            {
+                bool result = manager.Initialize(preferredName);
+                if (result)
+                    manager.RefreshInstalledCacheModIds();
+                return result;
+            });
         }
         catch (UserActionRequiredException ex)
         {
-            _ = DialogService.ShowMessageAsync(this, ex.Message, "Dwarf Fortress required");
+            await DialogService.ShowMessageAsync(this, ex.Message, "Dwarf Fortress required");
             return;
         }
         catch (Exception ex)
         {
-            _ = DialogService.ShowMessageAsync(this, ex.Message, "Reload failed");
+            await DialogService.ShowMessageAsync(this, ex.Message, "Reload failed");
             return;
         }
+
+        if (!didReload)
+        {
+            SearchLogging.Log("ReloadModpacksFromDisk skipped: a reload was already in progress");
+            return;
+        }
+
+        BuildModViewModels();
+        _ = UpdateDfHackStatusAsync();
+        if (!DevMode.IsEnabled)
+            ResetModManagerWatcher();
+
+        BuildModViewModels();
+        _ = UpdateDfHackStatusAsync();
+        if (!DevMode.IsEnabled)
+            ResetModManagerWatcher();
 
         modifyingComboBox = true;
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();
@@ -94,7 +110,6 @@ public partial class MainWindow
 
         SearchLogging.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
         RestoreSearchFilterStateSnapshot(filterStateSnapshot);
-        manager.RefreshInstalledCacheModIds();
         RefreshModlistPanels();
         SetAndMarkChanges(false);
         RestoreSelectionSnapshot(selectionSnapshot);
@@ -117,12 +132,12 @@ public partial class MainWindow
         ConfigureAutoReloadTimer(configured);
     }
 
-    private void AutoReloadTimerTick(object? sender, EventArgs e)
+    private async void AutoReloadTimerTick(object? sender, EventArgs e)
     {
         if (changesMade || manager.IsSavingModpacks || modifyingComboBox)
             return;
 
-        ReloadModpacksFromDisk();
+        await ReloadModpacksFromDisk();
     }
 
     private void EnsureReloadOptionsFlyout()
@@ -332,21 +347,21 @@ public partial class MainWindow
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };
-        modManagerReloadTimer.Tick += (_, _) =>
+        modManagerReloadTimer.Tick += async (_, _) =>
         {
             modManagerReloadTimer.Stop();
             if (manager.IsSavingModpacks)
                 return;
-            ReloadModpacksFromDisk();
+            await ReloadModpacksFromDisk();
         };
 
         modManagerWatcher = new FileSystemWatcher(directory, fileName)
         {
             NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.CreationTime
         };
-        modManagerWatcher.Changed += (_, _) => RestartWatcherTimer();
-        modManagerWatcher.Created += (_, _) => RestartWatcherTimer();
-        modManagerWatcher.Renamed += (_, _) => RestartWatcherTimer();
+        modManagerWatcher.Changed += (_, _) => Dispatcher.UIThread.Post(RestartWatcherTimer);
+        modManagerWatcher.Created += (_, _) => Dispatcher.UIThread.Post(RestartWatcherTimer);
+        modManagerWatcher.Renamed += (_, _) => Dispatcher.UIThread.Post(RestartWatcherTimer);
         modManagerWatcher.EnableRaisingEvents = true;
     }
 
@@ -362,151 +377,5 @@ public partial class MainWindow
     private void ShowReloadFinishedPopup()
     {
         ShowNotification("Reload finished", "infoCircleWhiteIcon.svg");
-    }
-
-    public void ShowNotification(string message, string iconResourceName)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            var container = this.FindControl<StackPanel>("notificationContainer");
-            if (container == null)
-                return;
-
-            // Limit to 3 notifications by removing the oldest (last in children list)
-            while (container.Children.Count >= 3)
-            {
-                var oldest = container.Children[container.Children.Count - 1];
-                if (oldest is Border b && b.Tag is System.Threading.CancellationTokenSource oldCts)
-                {
-                    oldCts.Cancel();
-                    oldCts.Dispose();
-                }
-                container.Children.RemoveAt(container.Children.Count - 1);
-            }
-
-            // Create notification border and elements
-            var notificationCts = new System.Threading.CancellationTokenSource();
-
-            var border = new Border
-            {
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
-                Padding = new Thickness(6, 5.5, 20, 5.5),
-                CornerRadius = new CornerRadius(0, 4, 4, 0),
-                BorderThickness = new Thickness(0, 1, 1, 1),
-                BoxShadow = BoxShadows.Parse("0 4 12 0 #40000000"),
-                Tag = notificationCts
-            };
-
-            // Apply theme styling
-            IBrush panelBrushClear;
-            IBrush buttonOutlineBrush;
-            IBrush textBrush;
-
-            if (Style.instance != null)
-            {
-                panelBrushClear = new SolidColorBrush(Style.instance.modRefPanelColorClear.ToAvaloniaColor());
-                buttonOutlineBrush = new SolidColorBrush(Style.instance.buttonOutlineColor.ToAvaloniaColor());
-                textBrush = new SolidColorBrush(Style.instance.textColor.ToAvaloniaColor());
-            }
-            else
-            {
-                panelBrushClear = new SolidColorBrush(Avalonia.Media.Color.Parse("#2D2D30"));
-                buttonOutlineBrush = new SolidColorBrush(Avalonia.Media.Color.Parse("#3F3F46"));
-                textBrush = Brushes.White;
-            }
-
-            border.Background = panelBrushClear;
-            border.BorderBrush = buttonOutlineBrush;
-
-            var stackPanel = new StackPanel
-            {
-                Orientation = Avalonia.Layout.Orientation.Horizontal,
-                Spacing = 6
-            };
-
-            var image = new Image
-            {
-                Width = 16,
-                Height = 16,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Source = ImageSourceLoader.LoadFromAssetUri(iconResourceName)
-            };
-
-            var textBlock = new TextBlock
-            {
-                Text = message,
-                FontSize = 12,
-                FontWeight = FontWeight.SemiBold,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Foreground = textBrush
-            };
-
-            stackPanel.Children.Add(image);
-            stackPanel.Children.Add(textBlock);
-            border.Child = stackPanel;
-
-            // Set up pointer entered to dismiss immediately
-            border.PointerEntered += (s, e) =>
-            {
-                DismissNotification(border);
-            };
-
-            // Insert at top (index 0) so newest is on top, oldest is on bottom
-            container.Children.Insert(0, border);
-
-            // Timeout to dismiss after 3000ms
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(3000, notificationCts.Token);
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (!notificationCts.IsCancellationRequested)
-                        {
-                            DismissNotification(border);
-                        }
-                    });
-                }
-                catch (TaskCanceledException)
-                {
-                    // Graceful cancellation
-                }
-            });
-        });
-    }
-
-    public void DismissNotification(Border border)
-    {
-        if (border.Tag is System.Threading.CancellationTokenSource cts)
-        {
-            cts.Cancel();
-            cts.Dispose();
-            border.Tag = null;
-        }
-
-        var container = this.FindControl<StackPanel>("notificationContainer");
-        if (container != null)
-        {
-            container.Children.Remove(border);
-        }
-    }
-
-    public void DismissAllNotifications()
-    {
-        var container = this.FindControl<StackPanel>("notificationContainer");
-        if (container != null)
-        {
-            foreach (var child in container.Children)
-            {
-                if (child is Border b && b.Tag is System.Threading.CancellationTokenSource cts)
-                {
-                    cts.Cancel();
-                    cts.Dispose();
-                }
-            }
-            container.Children.Clear();
-        }
     }
 }

@@ -1,23 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:ui="clr-namespace:ModHearth.UI"
-  x:Class="ModHearth.UI.ModUpdateLogWindow"
-  Title="Mod Update Log"
-  Width="980"
-  Height="560"
-  MinWidth="820"
-  MinHeight="480">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:ModHearth.UI"
+        x:Class="ModHearth.UI.ModUpdateLogWindow"
+        Title="Mod Update Log"
+        Width="980"
+        Height="560"
+        MinWidth="820"
+        MinHeight="480">
 
   <Grid Margin="12" RowDefinitions="Auto,*">
 
-    <DataGrid x:Name="logList" Grid.Row="1" ItemsSource="{Binding LogItems}"
-      CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
-      IsReadOnly="True" GridLinesVisibility="All">
+    <DataGrid x:Name="logList" Grid.Row="1"
+              CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
+              IsReadOnly="True" GridLinesVisibility="None" LoadingRow="LogListLoadingRow">
       <DataGrid.Styles>
-        <Style Selector="DataGridRow">
-          <Setter Property="TextBlock.Foreground" Value="{Binding RowBrush}" />
-          <Setter Property="Background" Value="{Binding BackgroundBrush}" />
-        </Style>
         <Style Selector="DataGridRow:selected /template/ Rectangle">
           <Setter Property="Fill" Value="Transparent" />
         </Style>
@@ -26,22 +22,23 @@
         <ContextMenu Opened="ModContextMenuOpened">
           <MenuItem Header="Delete local mod" Tag="delete-mod" Click="ModContextDeleteMod" />
           <MenuItem Header="Unsubscribe from steam mod" Tag="unsubscribe-steam" IsVisible="False"
-            Click="ModContextUnsubscribeSteam" />
+                    Click="ModContextUnsubscribeSteam" />
           <MenuItem Header="Redownload steam mod" Tag="redownload-steam" IsVisible="False"
-            Click="ModContextRedownloadSteam" />
+                    Click="ModContextRedownloadSteam" />
           <Separator />
           <MenuItem Header="Open Folder" Tag="open" Click="ModContextOpenFolder" />
           <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False"
-            Click="ModContextOpenSteam" />
+                    Click="ModContextOpenSteam" />
           <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
         </ContextMenu>
       </DataGrid.ContextMenu>
       <DataGrid.Columns>
-        <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="150" />
-        <DataGridTextColumn Header="Mod" Binding="{Binding ModName}" Width="200" />
-        <DataGridTextColumn Header="Type" Binding="{Binding SourceType}" Width="100" />
-        <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="100" />
-        <DataGridTextColumn Header="Active" Binding="{Binding ActiveText}" Width="100" />
+        <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="160" />
+        <DataGridTextColumn Header="Mod" Binding="{Binding ModName}" Width="220" />
+        <DataGridTextColumn Header="Type" Binding="{Binding SourceType}" Width="120" />
+        <DataGridTextColumn Header="State" Binding="{Binding StateText}"
+                            SortMemberPath="StateSortRank" Width="120" />
+        <DataGridTextColumn Header="Active" Binding="{Binding ActiveText}" Width="80" />
         <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="*" />
       </DataGrid.Columns>
     </DataGrid>

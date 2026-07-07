@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using ModHearth.Utilities;
@@ -7,6 +7,7 @@ namespace ModHearth.UI;
 
 public partial class MainWindow
 {
+    public const string AvaloniaUri = "avares://ModHearth/";
     private void ShowFallbackHelpText()
     {
         modTitleLabel.Text = "Welcome to ModHearth!";
@@ -20,7 +21,7 @@ public partial class MainWindow
     {
         try
         {
-            Uri iconUri = new Uri("avares://ModHearth/icons/modhearth_icon_v1.ico");
+            Uri iconUri = new Uri($"{AvaloniaUri}/icons/modhearth_icon_v1.ico");
             using Stream stream = AssetLoader.Open(iconUri);
             Icon = new WindowIcon(stream);
         }
@@ -45,7 +46,19 @@ public partial class MainWindow
             {
                 try
                 {
-                    manager.Initialize();
+                    bool didInitialize = await Task.Run(() =>
+                    {
+                        bool result = manager.Initialize();
+                        if (result)
+                            manager.RefreshInstalledCacheModIds();
+                        return result;
+                    });
+                    if (!didInitialize)
+                    {
+                        await Task.Delay(200);
+                        continue;
+                    }
+
                     await UpdateDfHackStatusAsync();
                     break;
                 }
@@ -70,7 +83,7 @@ public partial class MainWindow
         {
             try
             {
-                manager.Initialize();
+                await Task.Run(() => manager.Initialize());
             }
             catch (Exception ex)
             {
@@ -89,10 +102,10 @@ public partial class MainWindow
             Close();
             return;
         }
-        manager.RefreshInstalledCacheModIds();
+
         BuildModViewModels();
         RefreshModlistPanels();
-        clearInstalledModsButton.IsEnabled = Directory.Exists(manager.GetInstalledModsPath());
+        clearInstalledModsButton.IsEnabled = Directory.Exists(ConfigManager.GetInstalledModsPath());
         buildVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
         _ = UpdateDfHackStatusAsync();
         StartDfHackStatusTimer();
@@ -105,7 +118,7 @@ public partial class MainWindow
     {
         while (true)
         {
-            IReadOnlyList<ModHearthManager.ConfigIssue> issues = manager.GetConfigIssues();
+            IReadOnlyList<ModHearthManager.ConfigIssue> issues = ModHearthManager.GetConfigIssues();
             if (issues.Count == 0)
                 return true;
 
@@ -175,7 +188,7 @@ public partial class MainWindow
 
     private async Task<bool> PromptForInstalledModsPathAsync()
     {
-        string defaultPath = manager.GetInstalledModsPath();
+        string defaultPath = ConfigManager.GetInstalledModsPath();
         if (!string.IsNullOrWhiteSpace(defaultPath) && Directory.Exists(defaultPath))
         {
             ConfigManager.SetInstalledModsPath(defaultPath);

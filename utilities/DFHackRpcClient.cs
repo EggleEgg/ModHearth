@@ -4,9 +4,9 @@ using System.Text.Json;
 
 namespace ModHearth.Utilities
 {
-    // <summary> 
-    // For more information on the source visit https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp 
-    // </summary>
+    /// <summary> 
+    /// For more information on the source visit https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp 
+    /// </summary>
     internal static class DFHackRpcClient
     {
         public static string? ExecuteDFHackCommandViaRpc(string command, List<string> args, string? dfFolderPath, out string error)

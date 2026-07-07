@@ -7,8 +7,8 @@ internal static class MainWindowModListBuilder
     public static void SyncViewModels(ModHearthManager manager, IDictionary<string, ModRefViewModel> modViewMap)
     {
         modViewMap.Clear();
-        string modsFolderPath = manager.GetModsPath();
-        string vanillaFolderPath = manager.GetVanillaModsPath();
+        string modsFolderPath = ConfigManager.GetModsPath();
+        string vanillaFolderPath = ConfigManager.GetVanillaModsPath();
         foreach (DFHMod dfm in manager.modPool)
         {
             ModReference modref = manager.GetModRef(dfm.ToString());

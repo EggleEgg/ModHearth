@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using ModHearth.UI;
 using ModHearth.Utilities;
@@ -16,6 +16,9 @@ namespace ModHearth
         private static readonly string styleLightPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.light.json");
         private static readonly string styleDarkPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.dark.json");
 
+        // Guards every read/write of config.json so concurrent callers can't interleave and corrupt the file or clobber each other's writes.
+        private static readonly object configGate = new();
+
         private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
         private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -26,33 +29,37 @@ namespace ModHearth
         private static void LogAdvancedSteam(string message) => SteamConnectionLogger.LogInfo(message);
         private static string DFHackExeName =>
             OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
+        private static string installedMods = "installed_mods", dfString = "Dwarf Fortress", steamString = "Steam", steamApps = "steamapps";
 
         public static void AttemptLoadConfig() => AttemptLoadConfig(true);
         public static void AttemptLoadConfig(bool createLogs)
         {
-            if (createLogs) Console.WriteLine("Attempting config file load.");
-            try
+            lock (configGate)
             {
-                if (File.Exists(ConfigPath))
+                if (createLogs) Console.WriteLine("Attempting config file load.");
+                try
                 {
-                    if (createLogs) Console.WriteLine("Config file found.");
-                    string jsonContent = File.ReadAllText(ConfigPath);
-                    ModHearthConfig? loadedConfig = JsonSerializer.Deserialize<ModHearthConfig>(jsonContent);
-                    Config = loadedConfig ?? new ModHearthConfig();
+                    if (File.Exists(ConfigPath))
+                    {
+                        if (createLogs) Console.WriteLine("Config file found.");
+                        string jsonContent = File.ReadAllText(ConfigPath);
+                        ModHearthConfig? loadedConfig = JsonSerializer.Deserialize<ModHearthConfig>(jsonContent);
+                        Config = loadedConfig ?? new ModHearthConfig();
 
-                    if (loadedConfig == null)
-                        Console.WriteLine("Config file borked.");
+                        if (loadedConfig == null)
+                            Console.WriteLine("Config file borked.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Config file missing.");
+                        Config = new ModHearthConfig();
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Console.WriteLine("Config file missing.");
+                    Console.WriteLine($"An error occurred: {ex.Message}");
                     Config = new ModHearthConfig();
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                Config = new ModHearthConfig();
             }
         }
 
@@ -69,34 +76,40 @@ namespace ModHearth
 
         public static void SaveConfigFile()
         {
-            Console.WriteLine("Config saved.");
-            try
+            lock (configGate)
             {
-                JsonSerializerOptions options = new JsonSerializerOptions
+                Console.WriteLine("Config saved.");
+                try
                 {
-                    WriteIndented = true
-                };
-                string jsonContent = JsonSerializer.Serialize(Config, options);
-                File.WriteAllText(ConfigPath, jsonContent);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred while saving config: {ex.Message}");
+                    JsonSerializerOptions options = new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    };
+                    string jsonContent = JsonSerializer.Serialize(Config, options);
+                    File.WriteAllText(ConfigPath, jsonContent);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"An error occurred while saving config: {ex.Message}");
+                }
             }
         }
 
         public static void DestroyConfig()
         {
-            if (File.Exists(ConfigPath))
+            lock (configGate)
             {
-                File.Delete(ConfigPath);
+                if (File.Exists(ConfigPath))
+                {
+                    File.Delete(ConfigPath);
+                }
             }
         }
 
         public static Style LoadStyle() => LoadStyle(true);
         public static Style LoadStyle(bool createLogs)
         {
-            Style style = new Style();
+            Style style;
             int theme = GetTheme();
             string stylePath = GetStylePathForTheme(theme);
 
@@ -300,10 +313,10 @@ namespace ModHearth
 
             if (string.IsNullOrWhiteSpace(Config.InstalledModsPath))
             {
-                string? installedMods = TryFindInstalledModsPath();
-                if (!string.IsNullOrWhiteSpace(installedMods))
+                string? installedModsPath = TryFindInstalledModsPath();
+                if (!string.IsNullOrWhiteSpace(installedModsPath))
                 {
-                    Config.InstalledModsPath = installedMods;
+                    Config.InstalledModsPath = installedModsPath;
                     updated = true;
                 }
             }
@@ -363,7 +376,7 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(libraryRoot))
                     continue;
 
-                string candidate = Path.Combine(libraryRoot, "steamapps", "common", "Dwarf Fortress");
+                string candidate = Path.Combine(libraryRoot, steamApps, "common", dfString);
                 string? resolved = ResolveDwarfFortressFolderCandidate(candidate);
                 if (!string.IsNullOrWhiteSpace(resolved))
                     return resolved;
@@ -392,8 +405,8 @@ namespace ModHearth
 
                 string[] candidates =
                 {
-            Path.Combine(libraryRoot, "steamapps", "common", "DFHack", "hack"),
-            Path.Combine(libraryRoot, "steamapps", "common", "DFHack"),
+            Path.Combine(libraryRoot, steamApps, "common", "DFHack", "hack"),
+            Path.Combine(libraryRoot, steamApps, "common", "DFHack"),
         };
 
                 foreach (string candidate in candidates)
@@ -474,14 +487,14 @@ namespace ModHearth
                     if (string.IsNullOrWhiteSpace(root))
                         continue;
 
-                    string normalizedRoot = NormalizeFileSystemPath(root);
+                    string normalizedRoot = ResolveCanonicalPath(root);
                     if (string.IsNullOrWhiteSpace(normalizedRoot))
                         continue;
 
                     if (!Directory.Exists(normalizedRoot))
                         continue;
 
-                    if (Directory.Exists(Path.Combine(normalizedRoot, "steamapps")))
+                    if (Directory.Exists(Path.Combine(normalizedRoot, steamApps)))
                         libraries.Add(normalizedRoot);
 
                     foreach (string library in ReadSteamLibraryFolders(normalizedRoot))
@@ -489,11 +502,11 @@ namespace ModHearth
                         if (string.IsNullOrWhiteSpace(library))
                             continue;
 
-                        string normalizedLibrary = NormalizeFileSystemPath(library);
+                        string normalizedLibrary = ResolveCanonicalPath(library);
                         if (string.IsNullOrWhiteSpace(normalizedLibrary))
                             continue;
 
-                        if (Directory.Exists(Path.Combine(normalizedLibrary, "steamapps")))
+                        if (Directory.Exists(Path.Combine(normalizedLibrary, steamApps)))
                             libraries.Add(normalizedLibrary);
                     }
                 }
@@ -519,17 +532,17 @@ namespace ModHearth
 
             if (OperatingSystem.IsMacOS())
             {
-                yield return Path.Combine(home, "Library", "Application Support", "Steam");
+                yield return Path.Combine(home, "Library", "Application Support", steamString);
                 yield break;
             }
 
             if (OperatingSystem.IsLinux())
             {
-                yield return Path.Combine(home, ".steam", "steam");
+                yield return Path.Combine(home, ".steam", steamString);
                 yield return Path.Combine(home, ".steam", "root");
-                yield return Path.Combine(home, ".local", "share", "Steam");
-                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam");
-                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", "Steam");
+                yield return Path.Combine(home, ".local", "share", steamString);
+                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", steamString);
+                yield return Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", "data", steamString);
             }
         }
 
@@ -543,11 +556,11 @@ namespace ModHearth
 
             string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
             if (!string.IsNullOrWhiteSpace(programFilesX86))
-                candidates.Add(Path.Combine(programFilesX86, "Steam"));
+                candidates.Add(Path.Combine(programFilesX86, steamString));
 
             string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
             if (!string.IsNullOrWhiteSpace(programFiles))
-                candidates.Add(Path.Combine(programFiles, "Steam"));
+                candidates.Add(Path.Combine(programFiles, steamString));
 
             string? steamPathEnv = Environment.GetEnvironmentVariable("STEAM_PATH");
             if (!string.IsNullOrWhiteSpace(steamPathEnv))
@@ -584,7 +597,7 @@ namespace ModHearth
             HashSet<string> libraries = new HashSet<string>(
                 OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
-            string vdfPath = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
+            string vdfPath = Path.Combine(steamRoot, steamApps, "libraryfolders.vdf");
             if (!File.Exists(vdfPath))
             {
                 LogAdvancedSteam($"Steam library file missing: {vdfPath}");
@@ -642,6 +655,41 @@ namespace ModHearth
                 normalized = normalized.Replace('\\', '/');
 
             return NormalizeFileSystemPath(normalized);
+        }
+
+        /// <summary>
+        /// Use this over NormalizeFileSystemPath when symlinks are present. 
+        /// Rule of thumb on usage: when the code is about to put a path into a HashSet/dictionary key, compare two paths for equality, or make a security-relevant containment decision
+        /// </summary>
+        public static string ResolveCanonicalPath(string path)
+        {
+            string normalized = NormalizeFileSystemPath(path);
+            if (string.IsNullOrWhiteSpace(normalized))
+                return normalized;
+
+            try
+            {
+                FileSystemInfo? target = null;
+
+                if (Directory.Exists(normalized))
+                {
+                    target = Directory.ResolveLinkTarget(normalized, returnFinalTarget: true);
+                }
+                else if (File.Exists(normalized))
+                {
+                    target = File.ResolveLinkTarget(normalized, returnFinalTarget: true);
+                }
+
+                if (target != null)
+                    return NormalizeFileSystemPath(target.FullName);
+
+            }
+            catch
+            {
+                // Ignore resolution failures; fall back to the normalized (possibly symlinked) path.
+            }
+
+            return normalized;
         }
 
         public static string NormalizeFileSystemPath(string path)
@@ -836,21 +884,11 @@ namespace ModHearth
             if (Directory.Exists(Path.Combine(path, "data")))
                 return true;
 
-            if (OperatingSystem.IsWindows())
-            {
-                if (File.Exists(Path.Combine(path, "Dwarf Fortress.exe")) || File.Exists(Path.Combine(path, "df.exe")))
-                    return true;
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                if (File.Exists(Path.Combine(path, "df")))
-                    return true;
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                if (Directory.Exists(Path.Combine(path, "Dwarf Fortress.app")))
-                    return true;
-            }
+            if (DwarfFortressExecutableLocator.TryResolvePath(path, out _))
+                return true;
+
+            if (OperatingSystem.IsMacOS() && Directory.Exists(Path.Combine(path, "Dwarf Fortress.app")))
+                return true;
 
             return false;
         }
@@ -865,7 +903,7 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(libraryRoot))
                     continue;
 
-                string steamAppsRoot = NormalizeFileSystemPath(Path.Combine(libraryRoot, "steamapps"));
+                string steamAppsRoot = NormalizeFileSystemPath(Path.Combine(libraryRoot, steamApps));
                 if (string.IsNullOrWhiteSpace(steamAppsRoot))
                     continue;
 
@@ -959,7 +997,7 @@ namespace ModHearth
 
             if (OperatingSystem.IsLinux() && !string.IsNullOrWhiteSpace(Config.DFFolderPath))
             {
-                string nativeLinuxCandidate = Path.Combine(Config.DFFolderPath, "data", "installed_mods");
+                string nativeLinuxCandidate = Path.Combine(Config.DFFolderPath, "data", installedMods);
                 string? resolvedNativeLinux = ResolveExistingDirectoryPath(nativeLinuxCandidate);
                 if (!string.IsNullOrWhiteSpace(resolvedNativeLinux))
                     return resolvedNativeLinux;
@@ -982,8 +1020,8 @@ namespace ModHearth
         {
             foreach (string basePath in GetAppDataBasePaths())
             {
-                yield return Path.Combine(basePath, "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(basePath, "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
+                yield return Path.Combine(basePath, dfString, "data", installedMods);
+                yield return Path.Combine(basePath, "Bay 12 Games", dfString, "data", installedMods);
             }
         }
 
@@ -997,13 +1035,13 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(libraryRoot))
                     continue;
 
-                string compatRoot = Path.Combine(libraryRoot, "steamapps", "compatdata", DwarfFortressSteamAppId, "pfx",
+                string compatRoot = Path.Combine(libraryRoot, steamApps, "compatdata", DwarfFortressSteamAppId, "pfx",
                     "drive_c", "users", "steamuser", "AppData");
 
-                yield return Path.Combine(compatRoot, "Local", "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(compatRoot, "Local", "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(compatRoot, "Roaming", "Dwarf Fortress", "data", "installed_mods");
-                yield return Path.Combine(compatRoot, "Roaming", "Bay 12 Games", "Dwarf Fortress", "data", "installed_mods");
+                yield return Path.Combine(compatRoot, "Local", dfString, "data", installedMods);
+                yield return Path.Combine(compatRoot, "Local", "Bay 12 Games", dfString, "data", installedMods);
+                yield return Path.Combine(compatRoot, "Roaming", dfString, "data", installedMods);
+                yield return Path.Combine(compatRoot, "Roaming", "Bay 12 Games", dfString, "data", installedMods);
             }
         }
 
@@ -1057,7 +1095,7 @@ namespace ModHearth
             if (!string.IsNullOrWhiteSpace(resolved))
                 return resolved;
 
-            foreach (string candidate in GetInstalledModsPathCandidates())
+            foreach (string candidate in GetInstalledModsPathCandidates().Where(candidate => !string.IsNullOrWhiteSpace(candidate)))
             {
                 if (!string.IsNullOrWhiteSpace(candidate))
                     return candidate;

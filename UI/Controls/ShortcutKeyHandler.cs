@@ -1,24 +1,32 @@
+﻿using System;
+using System.Threading.Tasks;
 using Avalonia.Input;
 
 namespace ModHearth.UI;
 
-public sealed class UndoRedoKeyHandler
+public sealed class ShortcutKeyHandler
 {
     private readonly Func<bool> canUndo;
     private readonly Func<Task> undoAsync;
     private readonly Func<bool> canRedo;
     private readonly Action redo;
+    private readonly Func<bool>? canSave;
+    private readonly Func<Task>? saveAsync;
 
-    public UndoRedoKeyHandler(
+    public ShortcutKeyHandler(
         Func<bool> canUndo,
         Func<Task> undoAsync,
         Func<bool> canRedo,
-        Action redo)
+        Action redo,
+        Func<bool>? canSave = null,
+        Func<Task>? saveAsync = null)
     {
         this.canUndo = canUndo ?? throw new ArgumentNullException(nameof(canUndo));
         this.undoAsync = undoAsync ?? throw new ArgumentNullException(nameof(undoAsync));
         this.canRedo = canRedo ?? throw new ArgumentNullException(nameof(canRedo));
         this.redo = redo ?? throw new ArgumentNullException(nameof(redo));
+        this.canSave = canSave;
+        this.saveAsync = saveAsync;
     }
 
     public void Attach(InputElement element)
@@ -37,19 +45,35 @@ public sealed class UndoRedoKeyHandler
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.Z)
-        {
-            if (canUndo())
-                _ = undoAsync();
-            e.Handled = true;
+        if (e.Handled)
             return;
-        }
 
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.Y)
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            if (canRedo())
-                redo();
-            e.Handled = true;
+            if (e.Key == Key.Z)
+            {
+                if (canUndo())
+                    _ = undoAsync();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Y)
+            {
+                if (canRedo())
+                    redo();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.S)
+            {
+                if (saveAsync != null && (canSave == null || canSave()))
+                {
+                    _ = saveAsync();
+                    e.Handled = true;
+                }
+            }
         }
     }
 }

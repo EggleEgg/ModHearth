@@ -6,6 +6,9 @@ using Avalonia.VisualTree;
 
 namespace ModHearth.UI;
 
+/// <summary>
+/// Applies default style colours for any window
+/// </summary>
 public static class WindowThemeManager
 {
     private static readonly List<WeakReference<Window>> registered = new();
@@ -76,6 +79,8 @@ public static class WindowThemeManager
         IBrush buttonBrush = new SolidColorBrush(style.buttonColor.ToAvaloniaColor());
         IBrush buttonTextBrush = new SolidColorBrush(style.buttonTextColor.ToAvaloniaColor());
         IBrush buttonOutlineBrush = new SolidColorBrush(style.buttonOutlineColor.ToAvaloniaColor());
+        IBrush borderPanelBrush = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
+        IBrush dataGridBrush = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
 
         window.Background = formBrush;
 
@@ -86,6 +91,12 @@ public static class WindowThemeManager
 
         foreach (Visual visual in window.GetVisualDescendants())
         {
+            if (visual is Border border)
+            {
+                if (!border.IsSet(Border.BackgroundProperty))
+                    border.Background = borderPanelBrush;
+                continue;
+            }
             if (visual is TextBlock textBlock)
             {
                 if (!textBlock.IsSet(TextBlock.ForegroundProperty))
@@ -97,7 +108,6 @@ public static class WindowThemeManager
             {
                 if (textBox.FindAncestorOfType<ModSearchBar>() != null)
                     continue;
-
                 if (!textBox.IsSet(TextBox.BackgroundProperty))
                     textBox.Background = panelBrush;
                 if (!textBox.IsSet(TextBox.ForegroundProperty))

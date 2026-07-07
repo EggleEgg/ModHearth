@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -47,38 +47,6 @@ public partial class MainWindow
                     lastIndex = modpackComboBox.SelectedIndex;
                     SetChangesMade(false);
                 });
-                return;
-            }
-        }
-
-        SetAndRefreshModpack(modpackComboBox.SelectedIndex);
-        lastIndex = modpackComboBox.SelectedIndex;
-        SetChangesMade(false);
-    }
-
-    private async Task HandleModpackChangeWithUnsavedAsync()
-    {
-        if (ConfigManager.IsAutoSaveEnabled())
-        {
-            ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
-            ShowModpackSaveNotice(result);
-        }
-        else
-        {
-            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                this,
-                manager.SelectedModlist.name,
-                "switch modpacks");
-
-            if (choice == UnsavedChangesChoice.Save)
-                await SaveCurrentModpackAsync();
-            else if (choice == UnsavedChangesChoice.ExitWithoutSaving)
-                SetAndMarkChanges(false);
-            else
-            {
-                modifyingComboBox = true;
-                modpackComboBox.SelectedIndex = lastIndex;
-                modifyingComboBox = false;
                 return;
             }
         }

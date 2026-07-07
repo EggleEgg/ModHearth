@@ -5,19 +5,29 @@ namespace ModHearth.UI;
 
 internal static class ContextMenuCoordinator
 {
+    private static readonly object gate = new();
     private static ContextMenu? activeMenu;
 
     public static void Activate(ContextMenu menu)
     {
-        if (activeMenu != null && !ReferenceEquals(activeMenu, menu))
-            DismissActive();
+        lock (gate)
+        {
+            if (activeMenu != null && !ReferenceEquals(activeMenu, menu))
+                DismissActiveLocked();
 
-        activeMenu = menu;
-        menu.Closed -= OnMenuClosed;
-        menu.Closed += OnMenuClosed;
+            activeMenu = menu;
+            menu.Closed -= OnMenuClosed;
+            menu.Closed += OnMenuClosed;
+        }
     }
 
     public static void DismissActive()
+    {
+        lock (gate)
+            DismissActiveLocked();
+    }
+
+    private static void DismissActiveLocked()
     {
         if (activeMenu == null)
             return;
@@ -33,8 +43,11 @@ internal static class ContextMenuCoordinator
         if (sender is not ContextMenu menu)
             return;
 
-        menu.Closed -= OnMenuClosed;
-        if (ReferenceEquals(activeMenu, menu))
-            activeMenu = null;
+        lock (gate)
+        {
+            menu.Closed -= OnMenuClosed;
+            if (ReferenceEquals(activeMenu, menu))
+                activeMenu = null;
+        }
     }
 }

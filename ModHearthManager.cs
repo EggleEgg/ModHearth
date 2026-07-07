@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using System.Text;
+using System.Threading;
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Reflection;
@@ -17,7 +20,8 @@ namespace ModHearth
             MissingBefore,
             MissingAfter,
             ConflictPresent,
-            DuplicateMod
+            DuplicateMod,
+            MissingRequired
         };
 
         public ProblemType problemType;
@@ -41,6 +45,8 @@ namespace ModHearth
                     return $"Mod '{problemThrowerID}' is incompatible with mod '{problemID}'.";
                 case ProblemType.DuplicateMod:
                     return $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}).\nPlease remove one to avoid issues.";
+                case ProblemType.MissingRequired:
+                    return $"Mod '{problemThrowerID}' requires mod '{problemID}' to be enabled.";
             }
             return "";
         }
@@ -108,7 +114,7 @@ namespace ModHearth
         }
 
         // Maps strings to ModReferences. The keys match DFHMods.ToString() perfectly. Given a value V, V.ToDFHMod.ToString() returns it's key.
-        private Dictionary<string, ModReference> modrefMap = new(StringComparer.OrdinalIgnoreCase);
+        private volatile Dictionary<string, ModReference> modrefMap = new(StringComparer.OrdinalIgnoreCase);
 
         // Get a ModReference given a string key.
         public ModReference GetModRef(string key) => modrefMap[key];
@@ -122,34 +128,34 @@ namespace ModHearth
         public IReadOnlyDictionary<string, List<ModReference>> GetDuplicateModRefs() => duplicateModRefs;
 
         // The sorted list of enabled DFHmods. This list is modified by the form, and when saved it overwrites the list of a ModPack.
-        public List<DFHMod> enabledMods = new();
+        public volatile List<DFHMod> enabledMods = new();
 
         // The unsorted list of disabled DFHmods
-        public HashSet<DFHMod> disabledMods = new();
+        public volatile HashSet<DFHMod> disabledMods = new();
 
         // The unsorted list of all available DFHmods
-        public HashSet<DFHMod> modPool = new();
+        public volatile HashSet<DFHMod> modPool = new();
 
         // Get the currently selected modpack
         public DFHModpack SelectedModlist => modpacks[selectedModlistIndex];
 
         // List of all modpacks. After a modpack in this list is modified the list is saved to file.
-        public List<DFHModpack> modpacks = new();
+        public volatile List<DFHModpack> modpacks = new();
 
         // The index of the currently selected modpack.
-        public int selectedModlistIndex;
+        public volatile int selectedModlistIndex;
 
         // The file Config for this class.
         public static ModHearthConfig Config => ConfigManager.Config;
-        public IEnumerable<string> EnumerateModRoots() => ConfigManager.EnumerateModRoots();
-        public string GetModsPath() => ConfigManager.GetModsPath();
-        public string GetInstalledModsPath() => ConfigManager.GetInstalledModsPath();
-        public string GetVanillaModsPath() => ConfigManager.GetVanillaModsPath();
-        public string GetErrorLogPath() => ConfigManager.GetErrorLogPath();
-        public string GetModManagerConfigPath() => ConfigManager.GetModManagerConfigPath();
+        public static IEnumerable<string> EnumerateModRoots() => ConfigManager.EnumerateModRoots();
+        public static string GetModsPath() => ConfigManager.GetModsPath();
+        public static string GetInstalledModsPath() => ConfigManager.GetInstalledModsPath();
+        public static string GetVanillaModsPath() => ConfigManager.GetVanillaModsPath();
+        public static string GetErrorLogPath() => ConfigManager.GetErrorLogPath();
+        public static string GetModManagerConfigPath() => ConfigManager.GetModManagerConfigPath();
         public static string GetDfhackRunPath() => ConfigManager.GetDfhackRunPath();
-        public string NormalizeFileSystemPath(string path) => ConfigManager.NormalizeFileSystemPath(path);
-        public string? ResolveExistingDirectoryPath(string path) => ConfigManager.ResolveExistingDirectoryPath(path);
+        public static string NormalizeFileSystemPath(string path) => ConfigManager.NormalizeFileSystemPath(path);
+        public static string? ResolveExistingDirectoryPath(string path) => ConfigManager.ResolveExistingDirectoryPath(path);
         public static string? ResolveInfoFilePath(string modDirectory) => ConfigManager.ResolveInfoFilePath(modDirectory);
 
         // Paths.
@@ -160,23 +166,28 @@ namespace ModHearth
         private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Mod problem tracker.
-        public List<ModProblem> modproblems = new();
-        private Dictionary<string, List<ModReference>> duplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
+        public volatile List<ModProblem> modproblems = new();
+        private volatile Dictionary<string, List<ModReference>> duplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
+        private volatile Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
+        private volatile List<HashSet<string>> duplicateWarningGroups = new();
         public bool IsSavingModpacks { get; private set; }
-        private HashSet<string> installedCacheModIds = new(StringComparer.OrdinalIgnoreCase);
+        private readonly object installedCacheGate = new();
+        private HashSet<string>? installedCacheModIds;
         private List<ModSortRule> sortRules = new();
         public string LastMissingModsMessage { get; private set; } = string.Empty;
         private DateTime? duplicateWarningLastWriteUtc;
-        private Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
-        private List<HashSet<string>> duplicateWarningGroups = new();
+
         private string? lastLoggedErrorLogPath;
         private bool lastLoggedErrorLogExists;
         private readonly object modManagerReloadGate = new();
+        private readonly object stateGate = new();
+        private int reloadInProgress;
+        public bool IsReloadingMods => reloadInProgress != 0;
         private CancellationTokenSource? deferredModManagerReloadCts;
-        private readonly Dictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> _modTraitCache = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, bool> _patchCache = new(StringComparer.OrdinalIgnoreCase);
-        private ModpackStorageBackend activeModpackBackend = ModpackStorageBackend.LocalFallback;
-        private string activeModpackPath = localFallbackModpacksPath;
+        private readonly ConcurrentDictionary<string, (bool vanillaEntity, bool newEntity, bool reaction, bool creature, bool newStuff, bool graphics, bool beforeVanilla)> _modTraitCache = new(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, bool> _patchCache = new(StringComparer.OrdinalIgnoreCase);
+        private volatile ModpackStorageBackend activeModpackBackend = ModpackStorageBackend.LocalFallback;
+        private volatile string activeModpackPath = localFallbackModpacksPath;
         private static readonly TimeSpan DeferredModManagerReloadInterval = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan DeferredModManagerReloadTimeout = TimeSpan.FromMinutes(5);
 
@@ -189,38 +200,48 @@ namespace ModHearth
             LoadSortRules();
         }
 
-        public void Initialize(string? preferredModlistName = null)
+        public bool Initialize(string? preferredModlistName = null)
         {
-            SteamManager.Initialize();
+            if (Interlocked.CompareExchange(ref reloadInProgress, 1, 0) != 0)
+            {
+                Console.WriteLine("[ModHearth] Initialize() called while a reload was already in progress; ignoring.");
+                return false;
+            }
 
             try
             {
-                System.Threading.Tasks.Task.Run(() => AuditWorkshopManifests());
+                SteamManager.Initialize();
+
+                try
+                {
+                    Task.Run(() => AuditWorkshopManifests());
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Steam] Error starting background manifest audit: {ex.Message}");
+                }
+
+                FindAllModsDFHackLua();
+                FindModpacks(preferredModlistName);
+
+                Console.WriteLine();
+                Console.WriteLine($"Found {modrefMap.Count} mods and {modpacks.Count} modlists");
+                Console.WriteLine();
+
+                ModUpdateLogger.RecordChanges(modrefMap.Values, enabledMods, ConfigManager.GetSteamWorkshopAcfPaths());
+                return true;
             }
-            catch (Exception ex)
+            finally
             {
-                Console.WriteLine($"[Steam] Error starting background manifest audit: {ex.Message}");
+                Interlocked.Exchange(ref reloadInProgress, 0);
             }
-
-            // Find all mods and add to the lists.
-            FindAllModsDFHackLua();
-
-            // Find DFHModpacks, and fix them if needed.
-            FindModpacks(preferredModlistName);
-
-            // Write some info on found things.
-            Console.WriteLine();
-            Console.WriteLine($"Found {modrefMap.Count} mods and {modpacks.Count} modlists");
-            Console.WriteLine();
-
-            ModUpdateLogger.RecordChanges(modrefMap.Values, enabledMods, ConfigManager.GetSteamWorkshopAcfPaths());
         }
 
         public IReadOnlyList<ModSortRule> GetSortRules()
         {
             return sortRules;
         }
-        public string GetSortRulesPath() => modSortRulesPath;
+        public static string GetSortRulesPath() => modSortRulesPath;
 
         public void SetSortRules(IEnumerable<ModSortRule> rules)
         {
@@ -325,20 +346,18 @@ namespace ModHearth
 
         public string GetActiveModpackPath() => activeModpackPath;
 
-        public string GetLocalFallbackModpacksPath() => localFallbackModpacksPath;
-
-        public bool HasDfhackExecutable()
+        public static bool HasDfhackExecutable()
         {
             string dfhackRunPath = GetDfhackRunPath();
             return !string.IsNullOrWhiteSpace(dfhackRunPath) && File.Exists(dfhackRunPath);
         }
 
-        public bool IsDfhackRpcRunning()
+        public static bool IsDfhackRpcRunning()
         {
             return DFHackRpcClient.IsDFHackRunning(Config?.DFFolderPath);
         }
 
-        public bool IsDFHackInstalled()
+        public static bool IsDFHackInstalled()
         {
             return !string.IsNullOrWhiteSpace(Config?.DFHackFolderPath) && Directory.Exists(Config.DFHackFolderPath);
         }
@@ -365,7 +384,7 @@ namespace ModHearth
                 CancelDeferredModManagerReload();
         }
 
-        private bool TryReadModpackFile(string path, out List<DFHModpack> loadedModpacks, out string error)
+        private static bool TryReadModpackFile(string path, out List<DFHModpack> loadedModpacks, out string error)
         {
             loadedModpacks = new List<DFHModpack>();
             error = string.Empty;
@@ -418,8 +437,8 @@ namespace ModHearth
             string modsPath = GetModsPath();
             if (string.IsNullOrWhiteSpace(modsPath))
                 return false;
-            string modPath = NormalizeFileSystemPath(modref.path);
-            modsPath = NormalizeFileSystemPath(modsPath);
+            string modPath = ConfigManager.ResolveCanonicalPath(modref.path);
+            modsPath = ConfigManager.ResolveCanonicalPath(modsPath);
             if (string.IsNullOrWhiteSpace(modPath) || string.IsNullOrWhiteSpace(modsPath))
                 return false;
             if (!IsPathUnderRoot(modPath, modsPath))
@@ -458,10 +477,25 @@ namespace ModHearth
             }
 
             DFHMod dfm = modref.ToDFHMod();
-            modPool.Remove(dfm);
-            enabledMods.Remove(dfm);
-            disabledMods.Remove(dfm);
-            modrefMap.Remove(modref.DFHackCompatibleString());
+            string modrefKey = modref.DFHackCompatibleString();
+
+            HashSet<DFHMod> newModPool = new HashSet<DFHMod>(modPool);
+            newModPool.Remove(dfm);
+            List<DFHMod> newEnabledMods = enabledMods.Where(m => m != dfm).ToList();
+            HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
+            newDisabledMods.Remove(dfm);
+            Dictionary<string, ModReference> newModrefMap = new Dictionary<string, ModReference>(modrefMap, StringComparer.OrdinalIgnoreCase);
+            newModrefMap.Remove(modrefKey);
+
+            lock (stateGate)
+            {
+                modPool = newModPool;
+                enabledMods = newEnabledMods;
+                disabledMods = newDisabledMods;
+                modrefMap = newModrefMap;
+            }
+
+            RefreshInstalledCacheModIds();
             FindModlistProblems();
             TryRequestModManagerReload(out _, out _);
 
@@ -526,14 +560,19 @@ namespace ModHearth
 
         public HashSet<string> GetInstalledCacheModIds()
         {
-            if (installedCacheModIds == null)
-                installedCacheModIds = BuildInstalledCacheModIds();
-            return installedCacheModIds;
+            lock (installedCacheGate)
+            {
+                installedCacheModIds ??= BuildInstalledCacheModIds();
+                return installedCacheModIds;
+            }
         }
 
         public void RefreshInstalledCacheModIds()
         {
-            installedCacheModIds = BuildInstalledCacheModIds();
+            lock (installedCacheGate)
+            {
+                installedCacheModIds = BuildInstalledCacheModIds();
+            }
         }
 
         private HashSet<string> BuildInstalledCacheModIds()
@@ -583,6 +622,7 @@ namespace ModHearth
             return ids;
         }
 
+        private static string scrDir = "src_dir";
         private void FindAllModsDFHackLua()
         {
             if (!DwarfFortressRunning())
@@ -592,12 +632,10 @@ namespace ModHearth
                 return;
             }
 
-            // Initialize relevant variables.
-            modrefMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
-            duplicateModRefs = new Dictionary<string, List<ModReference>>(StringComparer.OrdinalIgnoreCase);
-            modPool = new HashSet<DFHMod>();
+            Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<DFHMod> newModPool = new();
 
-            // Get all mod folders.
             Console.WriteLine("Finding all mods... ");
 
             HashSet<Dictionary<string, string>> modData;
@@ -624,35 +662,37 @@ namespace ModHearth
             foreach (Dictionary<string, string> modDataEntry in modData)
             {
                 // Directory correction.
-                modDataEntry["src_dir"] = ResolveModPath(modDataEntry, modIdPathMap);
+                modDataEntry[scrDir] = ResolveModPath(modDataEntry, modIdPathMap);
 
                 // Mod setup and registry.
                 ModReference modRef = new ModReference(modDataEntry);
                 modRef.LastModifiedTime = GetLatestModifiedTimestamp(modDataEntry["src_dir"]);
                 string key = modRef.DFHackCompatibleString();
 
-                if (modrefMap.ContainsKey(key))
+                if (newModrefMap.ContainsKey(key))
                 {
-                    if (!duplicateModRefs.TryGetValue(key, out var list))
+                    if (!newDuplicateModRefs.TryGetValue(key, out var list))
                     {
-                        list = new List<ModReference> { modrefMap[key] };
-                        duplicateModRefs[key] = list;
+                        list = new List<ModReference> { newModrefMap[key] };
+                        newDuplicateModRefs[key] = list;
                     }
                     list.Add(modRef);
                     continue;
                 }
 
                 Console.WriteLine($"   Mod found + registered: {modRef.name}.");
-                modrefMap.Add(key, modRef);
-                modPool.Add(modRef.ToDFHMod());
+                newModrefMap.Add(key, modRef);
+                newModPool.Add(modRef.ToDFHMod());
             }
+
+            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs);
         }
 
         private void FindAllModsFromDisk()
         {
-            modrefMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
-            duplicateModRefs = new Dictionary<string, List<ModReference>>(StringComparer.OrdinalIgnoreCase);
-            modPool = new HashSet<DFHMod>();
+            Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<DFHMod> newModPool = new();
             bool diagnosticsEnabled = DevMode.IsEnabled;
 
             Console.WriteLine("Finding all mods (filesystem)...");
@@ -682,32 +722,49 @@ namespace ModHearth
                     };
 
                     string key = modRef.DFHackCompatibleString();
-                    if (modrefMap.ContainsKey(key))
+                    if (newModrefMap.ContainsKey(key))
                     {
                         duplicateCount++;
-                        if (!duplicateModRefs.TryGetValue(key, out var list))
+                        if (!newDuplicateModRefs.TryGetValue(key, out var list))
                         {
-                            list = new List<ModReference> { modrefMap[key] };
-                            duplicateModRefs[key] = list;
+                            list = new List<ModReference> { newModrefMap[key] };
+                            newDuplicateModRefs[key] = list;
                         }
                         list.Add(modRef);
                         continue;
                     }
 
                     Console.WriteLine($"   Mod found + registered: {modRef.name}.");
-                    modrefMap.Add(key, modRef);
-                    modPool.Add(modRef.ToDFHMod());
+                    newModrefMap.Add(key, modRef);
+                    newModPool.Add(modRef.ToDFHMod());
                     addedCount++;
                 }
 
                 if (diagnosticsEnabled)
                 {
-                    InfoLogger.Log($"Disk mod scan root='{NormalizeFileSystemPath(root)}' candidates={candidateCount}, added={addedCount}, duplicates={duplicateCount}, total_registered={modrefMap.Count}.");
+                    InfoLogger.Log($"Disk mod scan root='{NormalizeFileSystemPath(root)}' candidates={candidateCount}, added={addedCount}, duplicates={duplicateCount}, total_registered={newModrefMap.Count}.");
                 }
             }
 
+            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs);
+
             if (diagnosticsEnabled)
-                InfoLogger.Log($"Disk mod scan completed. Total registered mods={modrefMap.Count}.");
+                InfoLogger.Log($"Disk mod scan completed. Total registered mods={newModrefMap.Count}.");
+        }
+
+        // A reader that checks modPool for a key must be able to find it in modrefMap too.
+        // Grouping the reassignment under one lock stops two writers (e.g. a manual reload racing the auto-reload timer) from interleaving; readers stay lock-free by design.
+        private void PublishModCatalog(
+            Dictionary<string, ModReference> newModrefMap,
+            HashSet<DFHMod> newModPool,
+            Dictionary<string, List<ModReference>> newDuplicateModRefs)
+        {
+            lock (stateGate)
+            {
+                modrefMap = newModrefMap;
+                modPool = newModPool;
+                duplicateModRefs = newDuplicateModRefs;
+            }
         }
 
         private static DateTime? GetLatestModifiedTimestamp(string directoryPath)
@@ -796,7 +853,7 @@ namespace ModHearth
                                                 GetInfoTag(tags, "EARLIEST_COMPATIBLE_VERSION") ??
                                                 displayedVersion;
             string steamFileId = (GetInfoTag(tags, "STEAM_FILE_ID") ?? string.Empty).Trim();
-            if (!TryParsePositiveSteamId(steamFileId, out string normalizedSteamFileId))
+            if (!ConfigManager.TryParsePositiveSteamId(steamFileId, out string normalizedSteamFileId))
             {
                 if (ConfigManager.TryExtractSteamWorkshopItemIdFromPath(modPath, out string steamItemIdFromPath))
                     steamFileId = steamItemIdFromPath;
@@ -819,7 +876,7 @@ namespace ModHearth
                 ["steam_file_id"] = steamFileId,
                 ["steam_title"] = GetInfoTag(tags, "STEAM_TITLE") ?? string.Empty,
                 ["steam_description"] = GetInfoTag(tags, "STEAM_DESCRIPTION") ?? string.Empty,
-                ["src_dir"] = modPath
+                [scrDir] = modPath
             };
         }
 
@@ -855,7 +912,7 @@ namespace ModHearth
                         string tag = info.Substring(tagStart + 1, colonIndex - tagStart - 1);
                         int valueStart = colonIndex + 1;
                         int depth = 1;
-                        System.Text.StringBuilder valueBuilder = new System.Text.StringBuilder();
+                        StringBuilder valueBuilder = new StringBuilder();
 
                         int j = valueStart;
                         while (j < info.Length)
@@ -931,7 +988,7 @@ namespace ModHearth
             return match.Success ? match.Value : null;
         }
 
-        private Dictionary<string, string> BuildModIdPathMap()
+        private static Dictionary<string, string> BuildModIdPathMap()
         {
             Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -952,10 +1009,9 @@ namespace ModHearth
                         if (idMatch.Success)
                         {
                             string id = idMatch.Groups[1].Value.Trim();
-                            if (!string.IsNullOrEmpty(id))
+                            if (!string.IsNullOrEmpty(id) && !map.ContainsKey(id))
                             {
-                                if (!map.ContainsKey(id))
-                                    map[id] = dir;
+                                map[id] = dir;
                             }
                         }
                     }
@@ -970,9 +1026,9 @@ namespace ModHearth
             return map;
         }
 
-        private string ResolveModPath(Dictionary<string, string> modDataEntry, Dictionary<string, string> modIdPathMap)
+        private static string ResolveModPath(Dictionary<string, string> modDataEntry, Dictionary<string, string> modIdPathMap)
         {
-            string rawSrcDir = modDataEntry.TryGetValue("src_dir", out string? srcDirValue)
+            string rawSrcDir = modDataEntry.TryGetValue(scrDir, out string? srcDirValue)
                 ? srcDirValue ?? string.Empty
                 : string.Empty;
             if (string.IsNullOrWhiteSpace(rawSrcDir))
@@ -1052,7 +1108,6 @@ namespace ModHearth
             {
                 // Split into headers and non headers. Deserialize headers into dict.
                 string[] pairArr = simpleModDataPair.Split("===");
-                string[] nonHeaders = pairArr[0].Split('|');
                 Dictionary<string, string>? headers = JsonSerializer.Deserialize<Dictionary<string, string>>(pairArr[1]);
                 if (headers == null)
                     continue;
@@ -1122,7 +1177,7 @@ namespace ModHearth
         }
 
         // Check if DF is running.
-        public bool DwarfFortressRunning()
+        public static bool DwarfFortressRunning()
         {
             string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort" };
             foreach (string name in candidateNames)
@@ -1142,71 +1197,22 @@ namespace ModHearth
         }
 
         // Run Dwarf Fortress executable.
-        public bool RunDwarfFortress(out string message)
+        public async Task<(bool Success, string Message)> RunDwarfFortressAsync()
         {
-            message = string.Empty;
-
             if (DwarfFortressRunning())
-            {
-                message = "Dwarf Fortress is already running.";
-                return false;
-            }
+                return (false, "Dwarf Fortress is already running.");
 
             if (Config == null || string.IsNullOrWhiteSpace(Config.DFFolderPath))
-            {
-                message = "Dwarf Fortress folder path is not configured.";
-                return false;
-            }
+                return (false, "Dwarf Fortress folder path is not configured.");
 
             string dfFolderPath = Config.DFFolderPath;
             if (!Directory.Exists(dfFolderPath))
-            {
-                message = $"Dwarf Fortress folder not found: {dfFolderPath}";
-                return false;
-            }
+                return (false, $"Dwarf Fortress folder not found: {dfFolderPath}");
 
-            string executablePath = string.Empty;
+            if (!DwarfFortressExecutableLocator.TryResolvePath(dfFolderPath, out string executablePath))
+                return (false, "Dwarf Fortress executable not found in the configured folder.");
 
-            // Determine the executable path based on the OS
-            if (OperatingSystem.IsWindows())
-            {
-                // Try df.exe first, then Dwarf Fortress.exe
-                string[] possibleExes = { "df.exe", "Dwarf Fortress.exe" };
-                foreach (string exe in possibleExes)
-                {
-                    string candidate = Path.Combine(dfFolderPath, exe);
-                    if (File.Exists(candidate))
-                    {
-                        executablePath = candidate;
-                        break;
-                    }
-                }
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                // On Linux, the executable is typically named 'df'
-                string candidate = Path.Combine(dfFolderPath, "df");
-                if (File.Exists(candidate))
-                {
-                    executablePath = candidate;
-                }
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                // On macOS, it's inside an app bundle
-                string appBundle = Path.Combine(dfFolderPath, "Dwarf Fortress.app", "Contents", "MacOS", "Dwarf Fortress");
-                if (File.Exists(appBundle))
-                {
-                    executablePath = appBundle;
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
-            {
-                message = "Dwarf Fortress executable not found in the configured folder.";
-                return false;
-            }
-
+            Process started;
             try
             {
                 ProcessStartInfo startInfo = new ProcessStartInfo
@@ -1216,18 +1222,46 @@ namespace ModHearth
                     UseShellExecute = true
                 };
 
-                Process.Start(startInfo);
-                message = "Dwarf Fortress launched successfully.";
-                return true;
+                if (OperatingSystem.IsLinux() &&
+                    string.Equals(Path.GetFileName(executablePath), "dwarfort", StringComparison.Ordinal))
+                {
+                    string? bundledLibs = DwarfFortressExecutableLocator.TryResolveBundledLibraryPath(dfFolderPath);
+                    if (!string.IsNullOrWhiteSpace(bundledLibs))
+                    {
+                        string existing = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? string.Empty;
+                        startInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(existing)
+                            ? bundledLibs
+                            : $"{bundledLibs}:{existing}";
+                    }
+                }
+
+                Process? process = Process.Start(startInfo);
+                if (process == null)
+                    return (false, "Failed to launch Dwarf Fortress: process did not start.");
+                started = process;
             }
             catch (Exception ex)
             {
-                message = $"Failed to launch Dwarf Fortress: {ex.Message}";
-                return false;
+                return (false, $"Failed to launch Dwarf Fortress: {ex.Message}");
             }
+
+            using Process process1 = started;
+
+            // A real, successfully-started DF process won't exit within this window. Catches
+            // dynamic-linker failures and similar immediate crashes that Process.Start itself
+            // can't detect, since the OS process genuinely starts before dying.
+            bool exitedQuickly = await Task.Run(() => process1.WaitForExit(1500));
+            if (exitedQuickly)
+            {
+                return (false,
+                    $"Dwarf Fortress exited immediately (exit code {process1.ExitCode}). " +
+                    "Check the terminal/console output for missing shared library errors.");
+            }
+
+            return (true, "Dwarf Fortress launched successfully.");
         }
 
-        public bool IsDwarfFortressFound()
+        public static bool IsDwarfFortressFound()
         {
             if (Config == null || string.IsNullOrWhiteSpace(Config.DFFolderPath))
             {
@@ -1240,39 +1274,8 @@ namespace ModHearth
                 return false;
             }
 
-            string executablePath = string.Empty;
+            return DwarfFortressExecutableLocator.TryResolvePath(dfFolderPath, out _);
 
-            if (OperatingSystem.IsWindows())
-            {
-                string[] possibleExes = { "df.exe", "Dwarf Fortress.exe" };
-                foreach (string exe in possibleExes)
-                {
-                    string candidate = Path.Combine(dfFolderPath, exe);
-                    if (File.Exists(candidate))
-                    {
-                        executablePath = candidate;
-                        break;
-                    }
-                }
-            }
-            else if (OperatingSystem.IsLinux())
-            {
-                string candidate = Path.Combine(dfFolderPath, "df");
-                if (File.Exists(candidate))
-                {
-                    executablePath = candidate;
-                }
-            }
-            else if (OperatingSystem.IsMacOS())
-            {
-                string appBundle = Path.Combine(dfFolderPath, "Dwarf Fortress.app", "Contents", "MacOS", "Dwarf Fortress");
-                if (File.Exists(appBundle))
-                {
-                    executablePath = appBundle;
-                }
-            }
-
-            return !string.IsNullOrWhiteSpace(executablePath) && File.Exists(executablePath);
         }
 
         // Alter the current modpack with enabledMods and save modpack list.
@@ -1545,8 +1548,10 @@ namespace ModHearth
 
         public void SetSelectedModpack(int index)
         {
+            lock (stateGate)
+                selectedModlistIndex = index;
+
             // Regenerate enabled and disabled lists to match newly selected modpack.
-            selectedModlistIndex = index;
             SetActiveMods(SelectedModlist.modlist);
 
             // Find problems with newly selected modpack.
@@ -1557,12 +1562,15 @@ namespace ModHearth
         // The only time this is called (other than SetSelectedModpack) is when overwriting a modpack due to importing.
         public void SetActiveMods(List<DFHMod> mods)
         {
-            enabledMods = new List<DFHMod>();
-            disabledMods = new HashSet<DFHMod>(modPool);
-            for (int i = 0; i < mods.Count; i++)
+            List<DFHMod> newEnabledMods = new List<DFHMod>(mods);
+            HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(modPool);
+            foreach (DFHMod mod in newEnabledMods)
+                newDisabledMods.Remove(mod);
+
+            lock (stateGate)
             {
-                enabledMods.Add(mods[i]);
-                disabledMods.Remove(mods[i]);
+                enabledMods = newEnabledMods;
+                disabledMods = newDisabledMods;
             }
         }
 
@@ -1571,14 +1579,11 @@ namespace ModHearth
             if (mods == null || mods.Count == 0)
                 return;
 
-
-
             List<DFHMod> uniqueMods = new List<DFHMod>();
             HashSet<DFHMod> seen = new HashSet<DFHMod>();
-            foreach (DFHMod mod in mods)
+            foreach (DFHMod mod in mods.Where(thisMod => seen.Add(thisMod)))
             {
-                if (seen.Add(mod))
-                    uniqueMods.Add(mod);
+                uniqueMods.Add(mod);
             }
 
             if (uniqueMods.Count == 0)
@@ -1611,7 +1616,8 @@ namespace ModHearth
 
                 if (!enabledMods.SequenceEqual(newList))
                 {
-                    enabledMods = newList;
+                    lock (stateGate)
+                        enabledMods = newList;
                     changed = true;
                 }
             }
@@ -1619,31 +1625,46 @@ namespace ModHearth
             {
                 HashSet<DFHMod> selectedSet = new HashSet<DFHMod>(uniqueMods);
                 int beforeCount = enabledMods.Count;
-                enabledMods = enabledMods.Where(m => !selectedSet.Contains(m)).ToList();
+                List<DFHMod> newEnabledMods = enabledMods.Where(m => !selectedSet.Contains(m)).ToList();
+
+                HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
                 foreach (DFHMod mod in uniqueMods)
-                    disabledMods.Add(mod);
-                changed = enabledMods.Count != beforeCount;
+                    newDisabledMods.Add(mod);
+
+                lock (stateGate)
+                {
+                    enabledMods = newEnabledMods;
+                    disabledMods = newDisabledMods;
+                }
+                changed = newEnabledMods.Count != beforeCount;
             }
             else if (sourceLeft && !destinationLeft)
             {
+                HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
                 foreach (DFHMod mod in uniqueMods)
-                    disabledMods.Remove(mod);
+                    newDisabledMods.Remove(mod);
 
-                int insertIndex = Math.Max(0, Math.Min(newIndex, enabledMods.Count));
-                enabledMods.InsertRange(insertIndex, uniqueMods);
+                List<DFHMod> newEnabledMods = new List<DFHMod>(enabledMods);
+                int insertIndex = Math.Max(0, Math.Min(newIndex, newEnabledMods.Count));
+                newEnabledMods.InsertRange(insertIndex, uniqueMods);
+
+                lock (stateGate)
+                {
+                    disabledMods = newDisabledMods;
+                    enabledMods = newEnabledMods;
+                }
                 changed = true;
             }
 
             if (changed)
                 FindModlistProblems();
         }
-
         // Go through modlist and scan for problems.
         // Tuple representing problem has problem mod, int problemType (missing before, missing after, conflict present), and string modID.
         public void FindModlistProblems()
         {
             // Set up list of problems to return.
-            modproblems = new List<ModProblem>();
+            List<ModProblem> newModProblems = new List<ModProblem>();
 
             // Check for filesystem duplicate mods (Steam and Local duplicates of same ID and version)
             // We check the entire pool, as even uninstalled duplicates are problematic.
@@ -1660,8 +1681,8 @@ namespace ModHearth
 
                     if (nonInstalledDuplicates.Count > 1)
                     {
-                        var paths = string.Join(", ", nonInstalledDuplicates.Select(m => $"\'{m.path}\'"));
-                        modproblems.Add(new ModProblem(dfm.id, paths, ModProblem.ProblemType.DuplicateMod));
+                        var paths = string.Join(", ", nonInstalledDuplicates.Select(m => $"'{m.path}'"));
+                        newModProblems.Add(new ModProblem(dfm.id, paths, ModProblem.ProblemType.DuplicateMod));
                     }
                 }
             }
@@ -1672,9 +1693,7 @@ namespace ModHearth
 
             // Add all enabled mod IDs to unscanned.
             foreach (DFHMod dfm in enabledMods)
-            {
                 unscannedModIDs.Add(dfm.id);
-            }
 
             // Loop through enabled mods, doing a mock load.
             for (int i = 0; i < enabledMods.Count; i++)
@@ -1685,30 +1704,34 @@ namespace ModHearth
                 // Check for problems.
                 if (currentMod.problematic)
                 {
-                    foreach (string beforeID in currentMod.require_before_me)
-                        if (!scannedModIDs.Contains(beforeID))
-                        {
-                            modproblems.Add(new ModProblem(currentDFM.id, beforeID, ModProblem.ProblemType.MissingBefore));
-                            //Console.WriteLine("Problem found: missing before mod with ID: " + beforeID + " mod needing is: " + currentDFM.id);
-                        }
-                    foreach (string afterID in currentMod.require_after_me)
-                        if (!unscannedModIDs.Contains(afterID))
-                        {
-                            modproblems.Add(new ModProblem(currentDFM.id, afterID, ModProblem.ProblemType.MissingAfter));
-                            //Console.WriteLine("Problem found: missing after mod with ID: " + afterID + " mod needing is: " + currentDFM.id);
-                        }
-                    foreach (string conflictID in currentMod.conflicts_with)
-                        if (scannedModIDs.Contains(conflictID) || unscannedModIDs.Contains(conflictID))
-                        {
-                            modproblems.Add(new ModProblem(currentDFM.id, conflictID, ModProblem.ProblemType.ConflictPresent));
-                            //Console.WriteLine("Problem found: conflict present mod with ID: " + conflictID + " mod needing is: " + currentDFM.id);
-                        }
+                    foreach (string beforeID in currentMod.require_before_me.Where(id => !scannedModIDs.Contains(id)))
+                    {
+                        newModProblems.Add(new ModProblem(currentDFM.id, beforeID, ModProblem.ProblemType.MissingBefore));
+                        InfoLogger.Log("Problem found: missing before mod with ID: " + beforeID + " mod needing is: " + currentDFM.id);
+                    }
+                    foreach (string afterID in currentMod.require_after_me.Where(id => !unscannedModIDs.Contains(id)))
+                    {
+                        newModProblems.Add(new ModProblem(currentDFM.id, afterID, ModProblem.ProblemType.MissingAfter));
+                        InfoLogger.Log("Problem found: missing after mod with ID: " + afterID + " mod needing is: " + currentDFM.id);
+                    }
+                    foreach (string conflictID in currentMod.conflicts_with.Where(id => scannedModIDs.Contains(id) || unscannedModIDs.Contains(id)))
+                    {
+                        newModProblems.Add(new ModProblem(currentDFM.id, conflictID, ModProblem.ProblemType.ConflictPresent));
+                        InfoLogger.Log("Problem found: conflict present mod with ID: " + conflictID + " mod needing is: " + currentDFM.id);
+                    }
+                    foreach (string requiredID in currentMod.require_ids.Where(id => !scannedModIDs.Contains(id) && !unscannedModIDs.Contains(id)))
+                    {
+                        newModProblems.Add(new ModProblem(currentDFM.id, requiredID, ModProblem.ProblemType.MissingRequired));
+                        InfoLogger.Log("Problem found: missing required mod with ID: " + requiredID + " mod needing is: " + currentDFM.id);
+                    }
                 }
 
-                // Move to scanned.
                 scannedModIDs.Add(currentDFM.id);
                 unscannedModIDs.Remove(currentDFM.id);
             }
+
+            lock (stateGate)
+                modproblems = newModProblems;
         }
 
         public IReadOnlyDictionary<string, List<string>> GetDuplicateWarningMap()
@@ -1732,25 +1755,40 @@ namespace ModHearth
 
             if (!exists)
             {
-                duplicateWarningLastWriteUtc = null;
-                duplicateWarningMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                duplicateWarningGroups = new List<HashSet<string>>();
+                lock (stateGate)
+                {
+                    duplicateWarningLastWriteUtc = null;
+                    duplicateWarningMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                    duplicateWarningGroups = new List<HashSet<string>>();
+                }
                 return;
             }
 
             DateTime lastWriteUtc = File.GetLastWriteTimeUtc(errorLogPath);
-            if (duplicateWarningLastWriteUtc.HasValue && duplicateWarningLastWriteUtc.Value == lastWriteUtc)
+            bool upToDate;
+            lock (stateGate)
+                upToDate = duplicateWarningLastWriteUtc.HasValue && duplicateWarningLastWriteUtc.Value == lastWriteUtc;
+
+            if (upToDate)
                 return;
 
-            duplicateWarningLastWriteUtc = lastWriteUtc;
+            Dictionary<string, List<string>> newMap;
+            List<HashSet<string>> newGroups;
             try
             {
-                ParseDuplicateWarnings(errorLogPath, out duplicateWarningMap, out duplicateWarningGroups);
+                ParseDuplicateWarnings(errorLogPath, out newMap, out newGroups);
             }
             catch
             {
-                duplicateWarningMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                duplicateWarningGroups = new List<HashSet<string>>();
+                newMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                newGroups = new List<HashSet<string>>();
+            }
+
+            lock (stateGate)
+            {
+                duplicateWarningLastWriteUtc = lastWriteUtc;
+                duplicateWarningMap = newMap;
+                duplicateWarningGroups = newGroups;
             }
         }
 
@@ -1834,6 +1872,7 @@ namespace ModHearth
                 aliasMap[key] = modId;
         }
         #region initialization file stuff
+
         private bool FindModpacks(string? preferredModlistName)
         {
             ResolveActiveModpackStorage();
@@ -1862,7 +1901,11 @@ namespace ModHearth
                 }
             }
 
-            modpacks = new List<DFHModpack>(loadedModpacks);
+            // Everything below works on this local list. loadedModpacks and its DFHModpack entries are freshly deserialized/created and not visible to
+            // any other reader yet, so trimming them here is safe. The old bug was publishing straight to the `modpacks` field before this trim loop ran,
+            // so a reader could observe a modpack list mid-trim (missing some now-removed mods, still containing others). Now `modpacks` is assigned
+            // exactly once, fully formed.
+            List<DFHModpack> newModpacks = new List<DFHModpack>(loadedModpacks);
 
             Console.WriteLine();
             Console.WriteLine("Found modlists: ");
@@ -1876,28 +1919,29 @@ namespace ModHearth
             int defaultIndex = -1;
             int preferredIndex = -1;
 
-            // Go through modpacks, and go through their modlists, looking for mods that we don't have.
-            for (int i = 0; i < modpacks.Count; i++)
-            {
-                DFHModpack modlist = modpacks[i];
+            StringBuilder messageBuilder = new StringBuilder(missingMessage);
 
-                HashSet<DFHMod> thisListMissingMods = new HashSet<DFHMod>();
-                foreach (DFHMod mod in modlist.modlist)
-                {
-                    if (!modPool.Contains(mod))
-                    {
-                        modMissing = true;
-                        notFound.Add(mod);
-                        thisListMissingMods.Add(mod);
-                        missingMessage += $"\n{mod}";
-                    }
-                }
+            // Go through modpacks, and go through their modlists, looking for mods that we don't have.
+            for (int i = 0; i < newModpacks.Count; i++)
+            {
+                DFHModpack modlist = newModpacks[i];
 
                 // Remove the missing mods from the modlist.
-                foreach (DFHMod m in thisListMissingMods)
+                HashSet<DFHMod> thisListMissingMods = new HashSet<DFHMod>();
+                foreach (DFHMod mod in modlist.modlist.Where(mod => !modPool.Contains(mod)))
                 {
-                    modlist.modlist.Remove(m);
+                    modMissing = true;
+                    notFound.Add(mod);
+                    thisListMissingMods.Add(mod);
+
+                    messageBuilder.Append('\n').Append(mod);
                 }
+                missingMessage = messageBuilder.ToString();
+
+                // modlist isn't published anywhere yet, so replacing its .modlist with a trimmed copy (instead of mutating the shared List<DFHMod>
+                // in place via .Remove()) is just cheap extra insurance, not a hard requirement — keeps the habit consistent though.
+                if (thisListMissingMods.Count > 0)
+                    modlist.modlist = modlist.modlist.Where(m => !thisListMissingMods.Contains(m)).ToList();
 
                 // Write out some info on the modpack
                 Console.WriteLine("   Name: " + modlist.name);
@@ -1911,37 +1955,43 @@ namespace ModHearth
                 if (!string.IsNullOrWhiteSpace(preferredModlistName) &&
                     string.Equals(modlist.name, preferredModlistName, StringComparison.OrdinalIgnoreCase))
                     preferredIndex = i;
-
-                // Set modpacks[i] back to this modpack. #FIXME: why is this necessary? Isn't modpack a reference type?
-                modpacks[i] = modlist;
             }
 
-            // Set default as backup.
-            if (modpacks.Count > 0)
+            int? indexToSelect = null;
+
+            if (newModpacks.Count > 0)
             {
                 if (preferredIndex >= 0)
                 {
-                    SetSelectedModpack(preferredIndex);
+                    indexToSelect = preferredIndex;
                 }
                 else if (defaultIndex >= 0)
                 {
-                    SetSelectedModpack(defaultIndex);
+                    indexToSelect = defaultIndex;
                 }
                 else
                 {
-                    SetSelectedModpack(0);
-                    modpacks[0].@default = true;
+                    newModpacks[0].@default = true;
                     shouldPersistActiveFile = true;
+                    indexToSelect = 0;
                 }
             }
 
             // Create default modpack if none present.
-            if (modpacks.Count == 0)
+            if (newModpacks.Count == 0)
             {
-                modpacks = CreateDefaultModpacks();
-                SetSelectedModpack(0);
+                newModpacks = CreateDefaultModpacks();
                 shouldPersistActiveFile = true;
+                indexToSelect = 0;
             }
+
+            // Single publish point — modpacks becomes visible to every other reader
+            // only once loading, trimming, and defaulting are fully done.
+            lock (stateGate)
+                modpacks = newModpacks;
+
+            if (indexToSelect.HasValue)
+                SetSelectedModpack(indexToSelect.Value);
 
             if (shouldPersistActiveFile)
             {
@@ -2003,10 +2053,10 @@ namespace ModHearth
 
         public readonly record struct ConfigIssue(ConfigIssueType IssueType, string Message);
 
-        public IReadOnlyList<ConfigIssue> GetConfigIssues()
+        public static IReadOnlyList<ConfigIssue> GetConfigIssues()
         {
             var issues = ConfigManager.GetConfigIssues();
-            return issues.Select(i => new ConfigIssue((ConfigIssueType)i.IssueType, i.Message)).ToList();
+            return issues.Select(i => new ConfigIssue(i.IssueType, i.Message)).ToList();
         }
 
         #endregion

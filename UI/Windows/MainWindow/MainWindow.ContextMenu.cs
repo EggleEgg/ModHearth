@@ -77,7 +77,7 @@ public partial class MainWindow
 
         try
         {
-            ReloadModpacksFromDisk();
+            await ReloadModpacksFromDisk();
         }
         catch (Exception ex)
         {

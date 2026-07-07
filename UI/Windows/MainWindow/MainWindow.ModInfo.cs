@@ -38,7 +38,7 @@ public partial class MainWindow
             sanitizedBBCode, GetDescriptionTextColor(), "transparent");
     }
 
-    private string GetDescriptionTextColor()
+    private static string GetDescriptionTextColor()
         => Style.instance != null ? SimpleColor.ToHex(Style.instance.textColor) : "#000000";
 
     private void ShowModInfo(ModReference modref)
@@ -87,7 +87,7 @@ public partial class MainWindow
         }
     }
 
-    private IImage LoadFallbackPreview()
+    private static IImage LoadFallbackPreview()
     {
         IImage? fallback = ImageSourceLoader.LoadFromAssetUri("43G6tag.png");
         if (fallback != null)
@@ -95,7 +95,7 @@ public partial class MainWindow
 
         try
         {
-            Uri uri = new Uri("avares://ModHearth/resources/43G6tag.png");
+            Uri uri = new Uri($"{AvaloniaUri}/resources/43G6tag.png");
             using Stream stream = AssetLoader.Open(uri);
             return new Bitmap(stream);
         }
@@ -106,7 +106,7 @@ public partial class MainWindow
 
         try
         {
-            Uri uri = new Uri("avares://ModHearth/Resources/43G6tag.png");
+            Uri uri = new Uri($"{AvaloniaUri}/Resources/43G6tag.png");
             using Stream stream = AssetLoader.Open(uri);
             return new Bitmap(stream);
         }

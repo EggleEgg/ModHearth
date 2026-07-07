@@ -6,77 +6,86 @@ namespace ModHearth.Utilities;
 public static class SteamManager
 {
     public static bool Initialized { get; private set; }
+    internal static readonly object Gate = new();
 
     public static bool Initialize()
     {
-        if (Initialized)
-            return true;
-
-        try
+        lock (Gate)
         {
-            const string appId = ConfigManager.DwarfFortressSteamAppId;
-            string currentDirectory = Directory.GetCurrentDirectory();
-            string appBaseDirectory = AppContext.BaseDirectory;
+            if (Initialized)
+                return true;
 
-            SteamConnectionLogger.LogInfo($"SteamManager.Initialize() called.");
-            SteamConnectionLogger.LogInfo($"Current Directory: {currentDirectory}");
-            SteamConnectionLogger.LogInfo($"App Base Directory: {appBaseDirectory}");
-        
-            // Write steam_appid.txt to execution directory to allow Steamworks.NET initialization. This is a hard requirement for the API
             try
             {
-                string baseDirAppIdPath = Path.Combine(appBaseDirectory, "steam_appid.txt");
-                string currentDirAppIdPath = Path.Combine(currentDirectory, "steam_appid.txt");
+                const string appId = ConfigManager.DwarfFortressSteamAppId;
+                string currentDirectory = Directory.GetCurrentDirectory();
+                string appBaseDirectory = AppContext.BaseDirectory;
 
-                if (!File.Exists(baseDirAppIdPath) || File.ReadAllText(baseDirAppIdPath).Trim() != appId)
+                SteamConnectionLogger.LogInfo($"SteamManager.Initialize() called.");
+                SteamConnectionLogger.LogInfo($"Current Directory: {currentDirectory}");
+                SteamConnectionLogger.LogInfo($"App Base Directory: {appBaseDirectory}");
+
+                try
                 {
-                    File.WriteAllText(baseDirAppIdPath, appId);
-                    SteamConnectionLogger.LogInfo($"Wrote steam_appid.txt in App Base Dir with ID: {appId}");
+                    string baseDirAppIdPath = Path.Combine(appBaseDirectory, "steam_appid.txt");
+                    string currentDirAppIdPath = Path.Combine(currentDirectory, "steam_appid.txt");
+
+                    if (!File.Exists(baseDirAppIdPath) || File.ReadAllText(baseDirAppIdPath).Trim() != appId)
+                    {
+                        File.WriteAllText(baseDirAppIdPath, appId);
+                        SteamConnectionLogger.LogInfo($"Wrote steam_appid.txt in App Base Dir with ID: {appId}");
+                    }
+
+                    if (!File.Exists(currentDirAppIdPath) || File.ReadAllText(currentDirAppIdPath).Trim() != appId)
+                    {
+                        File.WriteAllText(currentDirAppIdPath, appId);
+                        SteamConnectionLogger.LogInfo($"Wrote steam_appid.txt in Current Dir with ID: {appId}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SteamConnectionLogger.Log($"[SteamManager] Warning: failed to write steam_appid.txt: {ex.Message}");
                 }
 
-                if (!File.Exists(currentDirAppIdPath) || File.ReadAllText(currentDirAppIdPath).Trim() != appId)
+                Initialized = SteamAPI.Init();
+
+                if (Initialized)
                 {
-                    File.WriteAllText(currentDirAppIdPath, appId);
-                    SteamConnectionLogger.LogInfo($"Wrote steam_appid.txt in Current Dir with ID: {appId}");
+                    SteamConnectionLogger.LogInfo("Steam API has started");
                 }
+                else
+                {
+                    SteamConnectionLogger.LogError("Steam API failed to initialize (SteamAPI.Init() returned false). Is Steam running?");
+                }
+
+                return Initialized;
             }
             catch (Exception ex)
             {
-                SteamConnectionLogger.Log($"[SteamManager] Warning: failed to write steam_appid.txt: {ex.Message}");
+                SteamConnectionLogger.LogError($"Steam API not initialized: {ex.Message}");
+                return false;
             }
-
-            Initialized = SteamAPI.Init();
-            
-            if (Initialized)
-            {
-                SteamConnectionLogger.LogInfo("Steam API has started");
-            }
-            else
-            {
-                SteamConnectionLogger.LogError("Steam API failed to initialize (SteamAPI.Init() returned false). Is Steam running?");
-            }
-
-            return Initialized;
-        }
-        catch (Exception ex)
-        {
-            SteamConnectionLogger.LogError($"Steam API not initialized: {ex.Message}");
-            return false;
         }
     }
 
     public static void Shutdown()
     {
-        if (!Initialized)
-            return;
+        lock (Gate)
+        {
+            if (!Initialized)
+                return;
 
-        SteamAPI.Shutdown();
-        Initialized = false;
+            SteamAPI.Shutdown();
+            Initialized = false;
+        }
     }
 
     public static void RunCallbacks()
     {
-        if (Initialized)
-            SteamAPI.RunCallbacks();
+        lock (Gate)
+        {
+            if (Initialized)
+                SteamAPI.RunCallbacks();
+        }
     }
 }

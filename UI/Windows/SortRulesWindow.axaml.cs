@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -35,7 +35,7 @@ public partial class SortRulesWindow : Window
     private HashSet<string> redoExplicitRequiredIds = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly ModListDragDropController modListController;
-    private readonly UndoRedoKeyHandler undoRedoHandler;
+    private readonly ShortcutKeyHandler shortcutKeyHandler;
     private readonly string modsFolderPath;
     private readonly string vanillaFolderPath;
     private readonly string rulesFilePath;
@@ -51,7 +51,7 @@ public partial class SortRulesWindow : Window
     private List<string> redoRuleOrder = new();
     private string? lastJumpModId;
     private int lastJumpIndex;
-    private int emptyRuleGapSize = 12;
+    private readonly int emptyRuleGapSize = 12;
 
     public SortRulesWindow()
         : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null)
@@ -114,19 +114,47 @@ public partial class SortRulesWindow : Window
             searchDebounceTimer.Stop();
             ApplySearchFilter();
         };
+
         modTreeSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
         rulesSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
+        modTreeSearchBar.SearchModeChanged += (_, _) =>
+        {
+            searchDebounceTimer.Stop();
+            ApplySearchFilter();
+        };
+        rulesSearchBar.SearchModeChanged += (_, _) =>
+        {
+            searchDebounceTimer.Stop();
+            ApplySearchFilter();
+        };
+        modTreeSearchBar.HideFilteredToggled += (_, _) =>
+        {
+            searchDebounceTimer.Stop();
+            ApplySearchFilter();
+        };
+        rulesSearchBar.HideFilteredToggled += (_, _) =>
+        {
+            searchDebounceTimer.Stop();
+            ApplySearchFilter();
+        };
+
         saveButton.Click += (_, _) => SaveRules();
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Bubble, true);
         KeyDown += SortRulesWindowKeyDown;
         Closing += SortRulesWindowClosing;
 
-        undoRedoHandler = new UndoRedoKeyHandler(
+        shortcutKeyHandler = new ShortcutKeyHandler(
             () => changesMade,
             () => UndoChangesAsync(),
             () => redoAvailable,
-            () => RedoChanges());
-        undoRedoHandler.Attach(this);
+            () => RedoChanges(),
+            canSave: () => changesMade,
+            saveAsync: () =>
+            {
+                SaveRules();
+                return Task.CompletedTask;
+            });
+        shortcutKeyHandler.Attach(this);
         Closed += (_, _) => searchDebounceTimer.Stop();
 
         ApplySearchBarStyles();
@@ -432,7 +460,7 @@ public partial class SortRulesWindow : Window
                 List<ModRefViewModel> unique = Deduplicate(selected);
                 if (unique.Count > 0)
                 {
-                    SetGapBetween(lastBeforeInsert.ModReference.ID, unique.First().ModReference.ID, true);
+                    SetGapBetween(lastBeforeInsert.ModReference.ID, unique[0].ModReference.ID, true);
                     NormalizeGaps();
                 }
             }
@@ -1260,7 +1288,7 @@ public partial class SortRulesWindow : Window
     {
         string trimmed = filter?.Trim() ?? string.Empty;
         bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
-        
+
         List<ModRefViewModel> ordered = ApplySortToViewModels(source, searchMode).ToList();
 
         List<ModRefViewModel> displayItems = ordered.Where(vm =>
@@ -1855,6 +1883,7 @@ public partial class SortRulesWindow : Window
         }
         catch (Exception)
         {
+            // Ignored
         }
     }
 }

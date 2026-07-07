@@ -1,13 +1,15 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
 using Steamworks;
 using ModHearth.Utilities;
+using ModHearth.UI;
 
 namespace ModHearth
 {
+    /// Handles the logic for performing actions on mods.
     public partial class ModHearthManager
     {
         private static readonly TimeSpan SteamActionGap = TimeSpan.FromMilliseconds(500);
@@ -26,7 +28,7 @@ namespace ModHearth
             return ConfigManager.TryExtractSteamWorkshopItemIdFromPath(modref.path, out steamItemId);
         }
 
-        public bool CanUnsubscribeSteamMod(ModReference modref) => TryGetSteamWorkshopItemId(modref, out _);
+        public static bool CanUnsubscribeSteamMod(ModReference modref) => TryGetSteamWorkshopItemId(modref, out _);
 
         public void SplitActionableMods(
             IEnumerable<ModReference>? mods,
@@ -205,6 +207,7 @@ namespace ModHearth
                 OnRequestUIReload();
             }
 
+            ShowNotification($"Unsubscribed {steamItemIds.Count} workshop items. {failures.Count} failure(s).", "steamRemoveIcon.svg");
             return failures;
         }
 
@@ -295,8 +298,9 @@ namespace ModHearth
                 }
             }
 
-            SteamConnectionLogger.Log(
-                $"Steam resubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+            SteamConnectionLogger.Log($"Steam resubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+            ShowNotification($"Resubscribed {steamItemIds.Count} workshop items. {failures.Count} failure(s).", "steamReloadIcon.svg");
+
             return failures;
         }
 
@@ -365,85 +369,6 @@ namespace ModHearth
             return processNames.Count > 0;
         }
 
-        private static bool TryRunSteamProtocolAction(
-            string steamUri,
-            string steamItemId,
-            string actionLabel,
-            out string message)
-        {
-            if (TryLaunchUri(steamUri, out Exception? steamException))
-            {
-                message = $"Requested Steam to {actionLabel} workshop item {steamItemId}.";
-                SteamConnectionLogger.LogInfo(message);
-                return true;
-            }
-
-            string fallbackUrl = BuildSteamWorkshopPageUrl(steamItemId);
-            bool openedFallback = TryLaunchUri(fallbackUrl, out Exception? fallbackException);
-            if (openedFallback)
-            {
-                message = $"Failed to {actionLabel} workshop item {steamItemId} via Steam URI ({steamException?.Message ?? "unknown"}). Opened workshop page.";
-                SteamConnectionLogger.LogInfo(message);
-                return false;
-            }
-
-            message = $"Failed to {actionLabel} workshop item {steamItemId}: {fallbackException?.Message ?? steamException?.Message ?? "unknown error"}";
-            SteamConnectionLogger.LogInfo(message);
-            return false;
-        }
-
-        private static bool TryTriggerSteamValidate(string steamItemId, out string message)
-        {
-            string primaryUri = BuildSteamValidateUriWithApp(steamItemId);
-            if (TryLaunchUri(primaryUri, out _))
-            {
-                message = $"Requested Steam validation for workshop item {steamItemId}.";
-                SteamConnectionLogger.LogInfo(message);
-                return true;
-            }
-
-            string fallbackUri = BuildSteamValidateUriLegacy(steamItemId);
-            if (TryLaunchUri(fallbackUri, out _))
-            {
-                message = $"Requested Steam validation (legacy URI) for workshop item {steamItemId}.";
-                SteamConnectionLogger.LogInfo(message);
-                return true;
-            }
-
-            message = $"Failed to trigger Steam validation for workshop item {steamItemId}.";
-            SteamConnectionLogger.LogInfo(message);
-            return false;
-        }
-
-        private static bool TryLaunchUri(string uri, out Exception? exception)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = uri,
-                    UseShellExecute = true
-                });
-                exception = null;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                exception = ex;
-                return false;
-            }
-        }
-
-        private static string BuildSteamValidateUriWithApp(string steamItemId)
-        {
-            return $"steam://validate/{ConfigManager.DwarfFortressSteamAppId}/{steamItemId}";
-        }
-
-        private static string BuildSteamValidateUriLegacy(string steamItemId)
-        {
-            return $"steam://validate/{steamItemId}";
-        }
-
         private bool TryAddLocalActionableMod(
             ModReference modref,
             HashSet<string> uniqueLocalKeys,
@@ -494,20 +419,16 @@ namespace ModHearth
             return modref.ID?.Trim() ?? string.Empty;
         }
 
-        private static string BuildSteamWorkshopPageUrl(string steamItemId)
+        private static void ShowNotification(string message, string icon)
         {
-            return $"https://steamcommunity.com/sharedfiles/filedetails/?id={steamItemId}";
-        }
-
-        private static bool TryParsePositiveSteamId(string? rawSteamId, out string steamItemId)
-        {
-            steamItemId = string.Empty;
-            string normalized = rawSteamId?.Trim() ?? string.Empty;
-            if (!long.TryParse(normalized, out long parsedSteamId) || parsedSteamId <= 0)
-                return false;
-
-            steamItemId = parsedSteamId.ToString();
-            return true;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
+                    desktop.MainWindow is UI.MainWindow mainWindow)
+                {
+                    mainWindow.ShowNotification(message, icon);
+                }
+            });
         }
     }
 }

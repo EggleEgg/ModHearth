@@ -1,7 +1,10 @@
-using System;
+﻿using System;
 
 namespace ModHearth.Utilities.Logging
 {
+    /// <summary>
+    /// Logging for debugging search actions
+    /// </summary>
     public static class SearchLogging
     {
         public static void Log(string message)

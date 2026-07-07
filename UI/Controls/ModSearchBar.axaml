@@ -1,23 +1,23 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:ui="clr-namespace:ModHearth.UI"
-  x:Class="ModHearth.UI.ModSearchBar">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ModHearth.UI"
+             x:Class="ModHearth.UI.ModSearchBar">
   <Border x:Name="SearchBorder" CornerRadius="6" BorderThickness="1">
     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
       <TextBox x:Name="SearchBox" Grid.Column="0" BorderThickness="0" Background="Transparent"
-        Margin="1,0,0,0" Padding="6" VerticalContentAlignment="Center" />
+               Margin="1,0,0,0" Padding="6" VerticalContentAlignment="Center" />
       <Button x:Name="SearchModeButton" Grid.Column="1" Width="22" Height="22" Padding="-1"
-        Margin="0,2,2,2" VerticalAlignment="Center">
+              Margin="0,2,2,2" VerticalAlignment="Center">
         <Image x:Name="SearchModeIcon"
-          Source="{ui:AssetImage wrenchIcon}" />
+               Source="{ui:AssetImage wrenchIcon}" />
       </Button>
       <Button x:Name="ToggleButton" Grid.Column="2" Width="22" Height="22" Padding="-1"
-        Margin="0,2,2,2" VerticalAlignment="Center">
+              Margin="0,2,2,2" VerticalAlignment="Center">
         <Image x:Name="ToggleIcon"
-          Source="{ui:AssetImage viewEyeIcon}" />
+               Source="{ui:AssetImage viewEyeIcon}" />
       </Button>
       <Button x:Name="ClearButton" Grid.Column="3" Width="22" Height="22" Padding="0"
-        Margin="0,2,2,2" VerticalAlignment="Center">
+              Margin="0,2,2,2" VerticalAlignment="Center">
         <Image Source="{ui:AssetImage cancelIcon}" />
       </Button>
     </Grid>

@@ -6,9 +6,10 @@ using Avalonia.Platform;
 using Avalonia.Svg.Skia;
 
 namespace ModHearth.UI;
-// <summary> 
-// Nifty tool to shorten uri from svg paths
-// </summary>
+
+/// <summary> 
+/// Nifty tool to shorten uri from svg paths
+/// </summary>
 public sealed class AssetImageExtension : MarkupExtension
 {
     public AssetImageExtension()

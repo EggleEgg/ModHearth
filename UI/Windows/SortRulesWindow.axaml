@@ -1,18 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:ui="clr-namespace:ModHearth.UI"
-  xmlns:sys="clr-namespace:System;assembly=System.Runtime"
-  x:Class="ModHearth.UI.SortRulesWindow"
-  Title="Sort Rules"
-  Width="720"
-  Height="800"
-  MinWidth="600"
-  MinHeight="400">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:ModHearth.UI"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        x:Class="ModHearth.UI.SortRulesWindow"
+        Title="Sort Rules"
+        Width="720"
+        Height="800"
+        MinWidth="600"
+        MinHeight="400">
   <Window.DataTemplates>
     <DataTemplate DataType="ui:ModRefViewModel">
       <Border Background="{Binding BackgroundBrush}" Margin="{Binding RuleGapMargin}" Padding="2,0"
-        MinHeight="20"
-        ToolTip.Tip="{Binding HoverTooltip}">
+              MinHeight="20"
+              ToolTip.Tip="{Binding HoverTooltip}">
         <Border.ContextMenu>
           <ContextMenu Opened="SortRuleContextMenuOpened">
             <MenuItem Header="Add required mod" Tag="add-required-root" />
@@ -21,50 +21,50 @@
         <Grid>
           <Grid ColumnDefinitions="Auto,Auto,*">
             <Border Width="2"
-              Background="{Binding CacheBarBrush}"
-              IsVisible="{Binding IsCached}"
-              ZIndex="2" />
+                    Background="{Binding CacheBarBrush}"
+                    IsVisible="{Binding IsCached}"
+                    ZIndex="2" />
             <Image Grid.Column="1"
-              Source="{ui:AssetImage dwarfIcon}"
-              IsVisible="{Binding IsVanillaModSource}"
-              Margin="0,0,3,0"
-              Width="14"
-              Height="14"
-              VerticalAlignment="Center"
-              Stretch="Uniform" />
+                   Source="{ui:AssetImage dwarfIcon}"
+                   IsVisible="{Binding IsVanillaModSource}"
+                   Margin="0,0,3,0"
+                   Width="14"
+                   Height="14"
+                   VerticalAlignment="Center"
+                   Stretch="Uniform" />
             <Image Grid.Column="1"
-              Source="{ui:AssetImage folderIcon}"
-              IsVisible="{Binding IsLocalModSource}"
-              Margin="0,0,3,0"
-              Width="14"
-              Height="14"
-              VerticalAlignment="Center"
-              Stretch="Uniform" />
+                   Source="{ui:AssetImage folderIcon}"
+                   IsVisible="{Binding IsLocalModSource}"
+                   Margin="0,0,3,0"
+                   Width="14"
+                   Height="14"
+                   VerticalAlignment="Center"
+                   Stretch="Uniform" />
             <Image Grid.Column="1"
-              Source="{ui:AssetImage steamIcon}"
-              IsVisible="{Binding IsSteamModSource}"
-              Margin="0,0,3,0"
-              Width="14"
-              Height="14"
-              VerticalAlignment="Center"
-              Stretch="Uniform" />
+                   Source="{ui:AssetImage steamIcon}"
+                   IsVisible="{Binding IsSteamModSource}"
+                   Margin="0,0,3,0"
+                   Width="14"
+                   Height="14"
+                   VerticalAlignment="Center"
+                   Stretch="Uniform" />
             <TextBlock Grid.Column="2"
-              Text="{Binding DisplayName}"
-              Foreground="{Binding TextBrush}"
-              TextTrimming="CharacterEllipsis"
-              FontWeight="Normal"
-              TextDecorations="{Binding TextDecorations}"
-              Margin="0,0,3,0"
-              VerticalAlignment="Center" />
+                       Text="{Binding DisplayName}"
+                       Foreground="{Binding TextBrush}"
+                       TextTrimming="CharacterEllipsis"
+                       FontWeight="Normal"
+                       TextDecorations="{Binding TextDecorations}"
+                       Margin="0,0,3,0"
+                       VerticalAlignment="Center" />
           </Grid>
           <Border Height="2"
-            Background="{Binding DropHighlightBrush}"
-            IsVisible="{Binding ShowDropAbove}"
-            VerticalAlignment="Top" />
+                  Background="{Binding DropHighlightBrush}"
+                  IsVisible="{Binding ShowDropAbove}"
+                  VerticalAlignment="Top" />
           <Border Height="2"
-            Background="{Binding DropHighlightBrush}"
-            IsVisible="{Binding ShowDropBelow}"
-            VerticalAlignment="Bottom" />
+                  Background="{Binding DropHighlightBrush}"
+                  IsVisible="{Binding ShowDropBelow}"
+                  VerticalAlignment="Bottom" />
         </Grid>
       </Border>
     </DataTemplate>
@@ -81,19 +81,19 @@
   </Window.DataTemplates>
 
   <Grid Margin="12" RowDefinitions="Auto,*,160" ColumnDefinitions="*,*" ColumnSpacing="12"
-    RowSpacing="10">
+        RowSpacing="10">
     <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
       <ui:ModSearchBar x:Name="modTreeSearchBar" Watermark="Search mods" Height="28" />
       <ui:ModSearchBar x:Name="rulesSearchBar" Grid.Column="1" Watermark="Search rules" Height="28" />
       <Button x:Name="saveButton" Grid.Column="2" Content="Save" Width="100" Height="28"
-        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-        ToolTip.Tip="Save changes. Right click to open rules file." />
+              HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+              ToolTip.Tip="Save changes. Right click to open rules file." />
     </Grid>
 
     <Grid Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" RowDefinitions="Auto,*">
       <TextBlock Text="Mod Tree" FontWeight="Bold" />
       <ListBox x:Name="modTreeList" Grid.Row="1" SelectionMode="Multiple" Margin="0,6,0,0"
-        AutoScrollToSelectedItem="False">
+               AutoScrollToSelectedItem="False">
         <ListBox.ItemContainerTheme>
           <ControlTheme TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0" />
@@ -109,7 +109,7 @@
     <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,*">
       <TextBlock Text="Rules List" FontWeight="Bold" />
       <ListBox x:Name="rulesList" Grid.Row="1" SelectionMode="Multiple" Margin="0,6,0,0"
-        Padding="0,0,0,120" AutoScrollToSelectedItem="False">
+               Padding="0,0,0,120" AutoScrollToSelectedItem="False">
         <ListBox.ItemContainerTheme>
           <ControlTheme TargetType="ListBoxItem">
             <Setter Property="Padding" Value="0" />

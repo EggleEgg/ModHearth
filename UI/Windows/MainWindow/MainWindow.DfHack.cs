@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 
 namespace ModHearth.UI;
 
@@ -32,11 +32,11 @@ public partial class MainWindow
 
         (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
             await Task.Run(() => (
-                manager.DwarfFortressRunning(),
-                manager.IsDwarfFortressFound(),
-                manager.HasDfhackExecutable(),
-                manager.IsDfhackRpcRunning(),
-                manager.IsDFHackInstalled()));
+                ModHearthManager.DwarfFortressRunning(),
+                ModHearthManager.IsDwarfFortressFound(),
+                ModHearthManager.HasDfhackExecutable(),
+                ModHearthManager.IsDfhackRpcRunning(),
+                ModHearthManager.IsDFHackInstalled()));
 
         if (dfhackStatusLabel == null)
             return;

@@ -4,10 +4,8 @@ using Xunit;
 namespace ModHearth.App.Tests;
 
 /// <summary>
-/// Prevents SkiaSharp.NativeAssets.* from drifting away from the managed
-/// SkiaSharp package version. NuGet does not enforce these stay in lockstep
-/// on its own — an explicit version pin on one native asset package without
-/// pinning the managed package (or pinning it to a different version) ships
+/// Prevents SkiaSharp.NativeAssets.* from drifting away from the managed SkiaSharp package version. NuGet does not enforce these stay in lockstep
+/// on its own — an explicit version pin on one native asset package without pinning the managed package (or pinning it to a different version) ships
 /// a native library whose ABI doesn't match what the managed wrapper expects.
 /// </summary>
 public class PackageVersionConsistencyTests

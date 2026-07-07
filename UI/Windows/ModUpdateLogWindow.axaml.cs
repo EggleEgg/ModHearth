@@ -1,4 +1,5 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -40,6 +41,11 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
     }
 
     private event PropertyChangedEventHandler? propertyChanged;
+    event PropertyChangedEventHandler? INotifyPropertyChanged.PropertyChanged
+    {
+        add => propertyChanged += value;
+        remove => propertyChanged -= value;
+    }
 
     public IBrush BackgroundColorBrush
     {
@@ -74,11 +80,17 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             bool isActive = activeIds.Contains(entry.ModId);
             IBrush brush = GetRowBrush(entry, defaultBrush, isActive);
 
-            // Add directly to entries instead of allEntries
             entries.Add(new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive));
         }
 
         selectionController.UpdateSelectionState(logList);
+        ApplyDefaultSort();
+    }
+
+    private void ApplyDefaultSort()
+    {
+        if (logList.Columns.Count > 0)
+            logList.Columns[0].Sort(ListSortDirection.Descending);
     }
 
     private static IBrush GetDefaultTextBrush()
@@ -170,6 +182,16 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             return;
 
         selectionController.UpdateSelectionState(list);
+    }
+
+    private void LogListLoadingRow(object? sender, DataGridRowEventArgs e)
+    {
+        e.Row.Bind(
+            DataGridRow.BackgroundProperty,
+            new Binding(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay });
+        e.Row.Bind(
+            TextBlock.ForegroundProperty,
+            new Binding(nameof(ModUpdateLogItemViewModel.RowBrush)) { Mode = BindingMode.OneWay });
     }
 
     private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)

@@ -21,7 +21,7 @@ public enum SearchFilterMode
 public partial class ModSearchBar : UserControl
 {
     private readonly Dictionary<SearchFilterMode, TextBlock> searchModeLabels = new();
-    private readonly Dictionary<SearchFilterMode, Image> searchModeCheckIcons = new();
+    private readonly Dictionary<SearchFilterMode, Image> searchModeIcons = new();
 
     private sealed class SearchButtonState
     {
@@ -272,7 +272,7 @@ public partial class ModSearchBar : UserControl
         };
     }
 
-    private Image CreateCheckIcon(SearchFilterMode mode)
+    private Image CreateSearchModeIcon(SearchFilterMode mode)
     {
         Image icon = new Image
         {
@@ -283,7 +283,7 @@ public partial class ModSearchBar : UserControl
             Stretch = Stretch.Uniform
         };
 
-        searchModeCheckIcons[mode] = icon;
+        searchModeIcons[mode] = icon;
         return icon;
     }
     private Button CreateSearchModeOptionButton(SearchFilterMode mode, string label)
@@ -292,7 +292,7 @@ public partial class ModSearchBar : UserControl
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Padding = new Thickness(8, 4, 6, 4),
+            Padding = new Thickness(4, 4, 6, 4),
         };
 
         TextBlock text = new TextBlock
@@ -332,9 +332,9 @@ public partial class ModSearchBar : UserControl
                 });
             };
 
-            Image checkIcon = CreateCheckIcon(mode);
+            Image optionIcon = CreateSearchModeIcon(mode);
             StackPanel leftContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            leftContent.Children.Add(checkIcon);
+            leftContent.Children.Add(optionIcon);
             leftContent.Children.Add(text);
             grid.Children.Add(leftContent);
             grid.Children.Add(helpButton);
@@ -342,9 +342,9 @@ public partial class ModSearchBar : UserControl
         }
         else
         {
-            Image checkIcon = CreateCheckIcon(mode);
+            Image optionIcon = CreateSearchModeIcon(mode);
             StackPanel content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            content.Children.Add(checkIcon);
+            content.Children.Add(optionIcon);
             content.Children.Add(text);
             button.Content = content;
         }
@@ -362,12 +362,16 @@ public partial class ModSearchBar : UserControl
     private void UpdateSearchModeOptionLabels()
     {
         foreach ((SearchFilterMode mode, TextBlock label) in searchModeLabels)
-            label.Text = GetSearchModeLabel(mode);
-
-        foreach ((SearchFilterMode mode, Image icon) in searchModeCheckIcons)
         {
-            string iconName = SearchMode == mode ? "checkBoxIcon.svg" : "checkBoxEmptyIcon.svg";
+            label.Text = GetSearchModeLabel(mode);
+            label.FontWeight = SearchMode == mode ? FontWeight.Bold : FontWeight.Normal;
+        }
+
+        foreach ((SearchFilterMode mode, Image icon) in searchModeIcons)
+        {
+            string iconName = GetSearchModeIconName(mode);
             icon.Source = ImageSourceLoader.LoadFromAssetUri(iconName) ?? icon.Source;
+            icon.Opacity = SearchMode == mode ? 1.0 : 0.6;
         }
     }
 

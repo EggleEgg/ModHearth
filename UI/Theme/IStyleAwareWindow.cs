@@ -1,4 +1,4 @@
-namespace ModHearth.UI;
+﻿namespace ModHearth.UI;
 
 public interface IStyleAwareWindow
 {

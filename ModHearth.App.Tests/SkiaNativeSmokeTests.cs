@@ -4,11 +4,7 @@ using Xunit;
 namespace ModHearth.App.Tests;
 
 /// <summary>
-/// Directly reproduces the code path that crashed on Linux in July 2026:
-/// SkiaSharp.NativeAssets.Linux was pinned a major version ahead of the
-/// managed SkiaSharp package, so libSkiaSharp.so no longer exported
-/// sk_fontmgr_ref_default. Touching SKFontManager.Default is exactly what
-/// Avalonia.Skia.FontManagerImpl does on startup.
+/// Smoke tests to verify that SkiaSharp can be used in the current environment, specially on linux
 /// </summary>
 public class SkiaNativeSmokeTests
 {

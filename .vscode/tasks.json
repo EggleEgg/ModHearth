@@ -63,7 +63,9 @@
         "-NoProfile",
         "-Command",
         "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Remove-Item -Path $dir -Recurse -Force } }"
-      ]
+      ],
+      "problemMatcher": ["$esbuild-watch"],
+      "isBackground": true
     },
 
     {

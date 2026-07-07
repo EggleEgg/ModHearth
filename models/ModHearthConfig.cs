@@ -1,4 +1,4 @@
-namespace ModHearth
+﻿namespace ModHearth
 {
     /// <summary>
     /// Config class, to extract data from the json.

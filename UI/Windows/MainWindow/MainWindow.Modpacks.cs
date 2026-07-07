@@ -1,4 +1,4 @@
-using Avalonia.Platform.Storage;
+﻿using Avalonia.Platform.Storage;
 using System.Text.Json;
 
 namespace ModHearth.UI;
@@ -123,24 +123,26 @@ public partial class MainWindow
         newListButton.IsEnabled = !made;
     }
 
+    //for autosave
     private void SetAndMarkChanges(bool made)
     {
         if (made && !isRedoing)
             ClearRedo();
-        SetChangesMade(made);
-        if (made)
+
+        bool autoSaved = false;
+        if (made && ConfigManager.IsAutoSaveEnabled())
         {
+            ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
+            ShowModpackSaveNotice(result);
+            autoSaved = true;
+        }
+
+        SetChangesMade(autoSaved ? false : made);
+
+        if (made && !autoSaved)
             MarkChanges(lastIndex);
-            if (ConfigManager.IsAutoSaveEnabled())
-            {
-                ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
-                ShowModpackSaveNotice(result);
-            }
-        }
         else
-        {
             UnmarkChanges(lastIndex);
-        }
     }
 
     private async Task CreateNewModpackAsync()
@@ -241,7 +243,7 @@ public partial class MainWindow
 
         try
         {
-            string importedString = File.ReadAllText(filePath);
+            string importedString = await File.ReadAllTextAsync(filePath);
             DFHModpack? importedList = JsonSerializer.Deserialize<DFHModpack>(importedString);
             if (importedList == null)
                 throw new InvalidOperationException("Invalid modpack file.");
@@ -294,7 +296,7 @@ public partial class MainWindow
         {
             JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
             string exportString = JsonSerializer.Serialize(manager.SelectedModlist, options);
-            File.WriteAllText(filePath, exportString);
+            await File.WriteAllTextAsync(filePath, exportString);
             await DialogService.ShowMessageAsync(this, "File saved successfully.", "Success");
         }
         catch (Exception ex)

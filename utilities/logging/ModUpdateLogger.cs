@@ -42,22 +42,29 @@ public static class ModUpdateLogger
     private static readonly string LogPath = Path.Combine(LogDir, "mod_update_log.json");
     private static readonly string SnapshotPath = Path.Combine(LogDir, "mod_folder_snapshot.json");
     private static readonly string WorkshopSnapshotPath = Path.Combine(LogDir, "steam_workshop_snapshot.json");
+    private static string ResolveCanonicalPath(string path) => ConfigManager.ResolveCanonicalPath(path);
     private const int MaxLogLines = 5000;
+    // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
+    // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
+    private static readonly object fileGate = new();
 
     public static IReadOnlyList<ModUpdateLogEntry> LoadEntries()
     {
-        try
+        lock (fileGate)
         {
-            if (!File.Exists(LogPath))
-                return Array.Empty<ModUpdateLogEntry>();
+            try
+            {
+                if (!File.Exists(LogPath))
+                    return Array.Empty<ModUpdateLogEntry>();
 
-            string json = File.ReadAllText(LogPath);
-            List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json);
-            return entries ?? new List<ModUpdateLogEntry>();
-        }
-        catch
-        {
-            return Array.Empty<ModUpdateLogEntry>();
+                string json = File.ReadAllText(LogPath);
+                List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json);
+                return entries ?? new List<ModUpdateLogEntry>();
+            }
+            catch
+            {
+                return Array.Empty<ModUpdateLogEntry>();
+            }
         }
     }
 
@@ -66,62 +73,65 @@ public static class ModUpdateLogger
         IEnumerable<DFHMod> activeMods,
         IEnumerable<string>? workshopAcfPaths = null)
     {
-        try
+        lock (fileGate)
         {
-            Directory.CreateDirectory(LogDir);
-
-            Dictionary<string, ModUpdateSnapshotEntry> current = BuildSnapshot(mods);
-            if (!File.Exists(SnapshotPath))
+            try
             {
-                InitializeLocalFingerprints(current.Values);
+                Directory.CreateDirectory(LogDir);
+
+                Dictionary<string, ModUpdateSnapshotEntry> current = BuildSnapshot(mods);
+                if (!File.Exists(SnapshotPath))
+                {
+                    InitializeLocalFingerprints(current.Values);
+                    SaveSnapshot(current);
+                    return;
+                }
+
+                Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
+                HashSet<string> activeIds = new HashSet<string>(
+                    activeMods.Select(m => m.id),
+                    StringComparer.OrdinalIgnoreCase);
+
+                List<ModUpdateLogEntry> entries = new List<ModUpdateLogEntry>();
+
+                foreach (ModUpdateSnapshotEntry currentEntry in current.Values)
+                {
+                    if (!previous.TryGetValue(currentEntry.ModId, out ModUpdateSnapshotEntry? oldEntry))
+                    {
+                        EnsureLocalDeepStamp(currentEntry);
+                        entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
+                        continue;
+                    }
+
+                    if (!PathsMatch(oldEntry.Path, currentEntry.Path))
+                    {
+                        EnsureLocalDeepStamp(currentEntry);
+                        entries.Add(BuildEntry(oldEntry, activeIds.Contains(oldEntry.ModId), ModUpdateChangeType.Deleted));
+                        entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
+                        continue;
+                    }
+
+                    if (TryDetectLocalUpdate(oldEntry, currentEntry))
+                        entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Updated));
+                }
+
+                foreach (ModUpdateSnapshotEntry previousEntry in previous.Values)
+                {
+                    if (!current.ContainsKey(previousEntry.ModId))
+                        entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
+                }
+
+                entries.AddRange(BuildWorkshopUpdateEntries(mods, activeIds, workshopAcfPaths));
+
+                if (entries.Count > 0)
+                    AppendEntries(entries);
+
                 SaveSnapshot(current);
-                return;
             }
-
-            Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
-            HashSet<string> activeIds = new HashSet<string>(
-                activeMods.Select(m => m.id),
-                StringComparer.OrdinalIgnoreCase);
-
-            List<ModUpdateLogEntry> entries = new List<ModUpdateLogEntry>();
-
-            foreach (ModUpdateSnapshotEntry currentEntry in current.Values)
+            catch
             {
-                if (!previous.TryGetValue(currentEntry.ModId, out ModUpdateSnapshotEntry? oldEntry))
-                {
-                    EnsureLocalDeepStamp(currentEntry);
-                    entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
-                    continue;
-                }
-
-                if (!PathsMatch(oldEntry.Path, currentEntry.Path))
-                {
-                    EnsureLocalDeepStamp(currentEntry);
-                    entries.Add(BuildEntry(oldEntry, activeIds.Contains(oldEntry.ModId), ModUpdateChangeType.Deleted));
-                    entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
-                    continue;
-                }
-
-                if (TryDetectLocalUpdate(oldEntry, currentEntry))
-                    entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Updated));
+                // Ignore logging failures.
             }
-
-            foreach (ModUpdateSnapshotEntry previousEntry in previous.Values)
-            {
-                if (!current.ContainsKey(previousEntry.ModId))
-                    entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
-            }
-
-            entries.AddRange(BuildWorkshopUpdateEntries(mods, activeIds, workshopAcfPaths));
-
-            if (entries.Count > 0)
-                AppendEntries(entries);
-
-            SaveSnapshot(current);
-        }
-        catch
-        {
-            // Ignore logging failures.
         }
     }
 
@@ -141,7 +151,7 @@ public static class ModUpdateLogger
                 ModId = id,
                 ModName = string.IsNullOrWhiteSpace(modref.name) ? id : modref.name,
                 SourceType = GetSourceType(modref),
-                Path = NormalizeFileSystemPath(modref.path ?? string.Empty),
+                Path = ResolveCanonicalPath(modref.path ?? string.Empty),
                 SteamId = ResolveSteamId(modref),
                 QuickStamp = BuildLocalQuickStamp(modref.path ?? string.Empty),
                 DeepStamp = string.Empty
@@ -186,7 +196,7 @@ public static class ModUpdateLogger
             ModId = modref.ID?.Trim() ?? string.Empty,
             ModName = string.IsNullOrWhiteSpace(modref.name) ? (modref.ID?.Trim() ?? string.Empty) : modref.name,
             SourceType = GetSourceType(modref),
-            Path = NormalizeFileSystemPath(modref.path ?? string.Empty),
+            Path = ResolveCanonicalPath(modref.path ?? string.Empty),
             SteamId = ResolveSteamId(modref)
         };
 
@@ -285,8 +295,11 @@ public static class ModUpdateLogger
         if (entries == null)
             return;
 
-        foreach (ModUpdateSnapshotEntry entry in entries)
-            EnsureLocalDeepStamp(entry);
+        // Every mod's deep stamp is independent of every other mod's, so this is safe to parallelize, no shared state between iterations.
+        Parallel.ForEach(
+            entries,
+            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+            EnsureLocalDeepStamp);
     }
 
     private static bool IsLocalSource(string? sourceType)
@@ -296,7 +309,7 @@ public static class ModUpdateLogger
 
     private static string BuildLocalQuickStamp(string? modPath)
     {
-        string normalizedPath = NormalizeFileSystemPath(modPath ?? string.Empty);
+        string normalizedPath = ResolveCanonicalPath(modPath ?? string.Empty);
         if (string.IsNullOrWhiteSpace(normalizedPath) || !Directory.Exists(normalizedPath))
             return string.Empty;
 
@@ -323,7 +336,7 @@ public static class ModUpdateLogger
 
     private static string BuildLocalDeepStamp(string? modPath)
     {
-        string normalizedPath = NormalizeFileSystemPath(modPath ?? string.Empty);
+        string normalizedPath = ResolveCanonicalPath(modPath ?? string.Empty);
         if (string.IsNullOrWhiteSpace(normalizedPath) || !Directory.Exists(normalizedPath))
             return string.Empty;
 
@@ -488,7 +501,7 @@ public static class ModUpdateLogger
 
         StringComparer pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         List<string> acfPaths = workshopAcfPaths?
-            .Select(NormalizeFileSystemPath)
+            .Select(ResolveCanonicalPath)
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Distinct(pathComparer)
             .ToList() ?? new List<string>();
@@ -786,29 +799,6 @@ public static class ModUpdateLogger
         {
             return null;
         }
-    }
-
-    private static string NormalizeFileSystemPath(string path)
-    {
-        string normalized = path?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalized))
-            return string.Empty;
-
-        if (OperatingSystem.IsWindows())
-            normalized = normalized.Replace('/', '\\');
-        else
-            normalized = normalized.Replace('\\', '/');
-
-        try
-        {
-            normalized = Path.GetFullPath(normalized);
-        }
-        catch
-        {
-            // Keep original path if normalization fails.
-        }
-
-        return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
     private static bool IsSteamRunning(out List<string> runningProcesses)
