@@ -14,11 +14,16 @@ public partial class ModHearthManager
 {
     private Dictionary<string, ModRawDependencyInfo>? rawDependencyInfoByModId;
     private readonly object rawDependencyGate = new();
+    private readonly object vanillaBaselineGate = new();
+    private VanillaRawBaseline? cachedVanillaBaseline;
+    private string? cachedVanillaBaselinePath;
 
     public async Task EnsureModRawDependencyCacheAsync()
     {
         List<ModReference> modsSnapshot = modrefMap.Values.ToList();
         Dictionary<string, ModRawDependencyInfo> cache = ModRawDependencyCacheStore.Load();
+
+        VanillaRawBaseline vanillaBaseline = GetVanillaBaseline();
 
         ConcurrentDictionary<string, ModRawDependencyInfo> resolved = new(StringComparer.OrdinalIgnoreCase);
         int cacheHitCount = 0;
@@ -44,7 +49,12 @@ public partial class ModHearthManager
                 return ValueTask.CompletedTask;
             }
 
-            ModRawDependencyInfo scanned = ModRawObjectScanner.Scan(modId, modref.numericVersion ?? string.Empty, modref.path, stamp);
+            RawDatabase rawDatabase = ModRawObjectScanner.Scan(modref.path, modId);
+            ModRawDependencyInfo scanned = rawDatabase.ToDependencyInfo(
+                modId,
+                modref.numericVersion ?? string.Empty,
+                stamp,
+                vanillaBaseline);
             resolved[modId] = scanned;
             Interlocked.Increment(ref scannedCount);
             return ValueTask.CompletedTask;
@@ -68,6 +78,24 @@ public partial class ModHearthManager
             if (rawDependencyInfoByModId == null)
                 return null;
             return rawDependencyInfoByModId.TryGetValue(modref.ID, out ModRawDependencyInfo? info) ? info : null;
+        }
+    }
+
+    private VanillaRawBaseline GetVanillaBaseline()
+    {
+        string? vanillaPath = GetVanillaModsPath();
+
+        lock (vanillaBaselineGate)
+        {
+            if (cachedVanillaBaseline != null
+                && string.Equals(cachedVanillaBaselinePath, vanillaPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return cachedVanillaBaseline;
+            }
+
+            cachedVanillaBaseline = VanillaRawBaseline.Load(vanillaPath);
+            cachedVanillaBaselinePath = vanillaPath;
+            return cachedVanillaBaseline;
         }
     }
 
