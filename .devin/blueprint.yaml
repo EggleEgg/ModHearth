@@ -1,0 +1,20 @@
+# https://docs.devin.ai/onboard-devin/environment-yaml
+# Commands run from the repo root.
+
+initialize: |
+  apt-get update -qq
+  apt-get install -y -qq dotnet-sdk-8.0
+
+maintenance: |
+  dotnet restore ModHearth.sln
+
+knowledge:
+  - name: build
+    contents: |
+      dotnet build ModHearth.sln -c Release
+  - name: test
+    contents: |
+      dotnet test ModHearth.App.Tests/ModHearth.App.Tests.csproj -c Release
+  - name: notes
+    contents: |
+      .NET 8 Avalonia app; the ModHearth.App.Tests project references the main project.
