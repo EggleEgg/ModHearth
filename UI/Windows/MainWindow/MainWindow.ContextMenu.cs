@@ -27,9 +27,9 @@ public partial class MainWindow
         ListBox? list = GetListForMod(vm);
         if (list == null)
         {
-            if (rightModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) == true)
+            if (rightModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) ?? true)
                 list = rightModlist;
-            else if (leftModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) == true)
+            else if (leftModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) ?? true)
                 list = leftModlist;
             else if (rightModlist.SelectedItems?.Count > 0)
                 list = rightModlist;

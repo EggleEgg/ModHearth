@@ -48,8 +48,9 @@ public partial class MainWindow
         _ = dialog.ShowDialog(this);
     }
 
-    private void AutoSort()
+    private async Task AutoSortAsync()
     {
+        await manager.EnsureModRawDependencyCacheAsync();
         bool changed = manager.AutoSortEnabledMods();
         if (changed)
             SetAndMarkChanges(true);

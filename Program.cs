@@ -1,5 +1,6 @@
 using Avalonia;
 using ModHearth.Utilities;
+using System.Diagnostics;
 
 namespace ModHearth;
 
@@ -8,7 +9,35 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        RuntimeBootstrap.Initialize();
+            if (OperatingSystem.IsWindows())
+            {
+                string scriptPath = Path.Combine(AppContext.BaseDirectory, "InstallDotNetRuntime.ps1");
+                if (File.Exists(scriptPath))
+                {
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\"",
+                        UseShellExecute = true,
+                        CreateNoWindow = false,
+                        Verb = "runas"
+                    };
+
+                    try
+                    {
+                        using (Process? process = Process.Start(startInfo))
+                        {
+                            process?.WaitForExit();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error running runtime check script: {ex.Message}");
+                    }
+                }
+            }
+
+            RuntimeBootstrap.Initialize();
         ConfigManager.AttemptLoadConfig(false);
 
         if (OperatingSystem.IsLinux() && !ModHearthManager.Config.showConsole)

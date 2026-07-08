@@ -78,6 +78,8 @@ public partial class MainWindow
                     return;
                 }
             }
+
+            await manager.EnsureModRawDependencyCacheAsync();
         }
         else
         {
@@ -89,6 +91,8 @@ public partial class MainWindow
             {
                 Console.WriteLine($"[DEV] Initialization failed in dev mode: {ex}");
             }
+
+            await manager.EnsureModRawDependencyCacheAsync();
         }
 
         SetupModlistBox();

@@ -136,8 +136,7 @@ public partial class MainWindow
             ShowModpackSaveNotice(result);
             autoSaved = true;
         }
-
-        SetChangesMade(autoSaved ? false : made);
+        SetChangesMade(!autoSaved && made);
 
         if (made && !autoSaved)
             MarkChanges(lastIndex);

@@ -38,11 +38,61 @@ internal sealed class ModUpdateSnapshotEntry
 
 public static class ModUpdateLogger
 {
+    private static readonly string OldLogDirForMigration = Path.Combine(AppContext.BaseDirectory, "logs");
     private static readonly string LogDir = Path.Combine(AppContext.BaseDirectory, "logs");
-    private static readonly string LogPath = Path.Combine(LogDir, "mod_update_log.json");
-    private static readonly string SnapshotPath = Path.Combine(LogDir, "mod_folder_snapshot.json");
-    private static readonly string WorkshopSnapshotPath = Path.Combine(LogDir, "steam_workshop_snapshot.json");
+    private static readonly string MetadataDir = Path.Combine(AppContext.BaseDirectory, "metadata");
+
+    private static readonly string LogPath = Path.Combine(MetadataDir, "mod_update_log.json");
+    private static readonly string SnapshotPath = Path.Combine(MetadataDir, "mod_folder_snapshot.json");
+    private static readonly string WorkshopSnapshotPath = Path.Combine(MetadataDir, "steam_workshop_snapshot.json");
     private static string ResolveCanonicalPath(string path) => ConfigManager.ResolveCanonicalPath(path);
+
+    static ModUpdateLogger()
+    {
+        EnsureMetadataDirectoryAndMigrateOldFiles();
+
+        // Ensure the general logs directory (for things like updatelog.txt) exists.
+        if (!Directory.Exists(LogDir))
+        {
+            Directory.CreateDirectory(LogDir);
+        }
+    }
+
+    private static void EnsureMetadataDirectoryAndMigrateOldFiles()
+    {
+        // Ensure metadata directory exists
+        if (!Directory.Exists(MetadataDir))
+        {
+            Directory.CreateDirectory(MetadataDir);
+        }
+
+        // List of files to migrate
+        var filesToMigrate = new[]
+        {
+            "mod_update_log.json",
+            "mod_folder_snapshot.json",
+            "steam_workshop_snapshot.json"
+        };
+
+        foreach (var fileName in filesToMigrate)
+        {
+            string oldPath = Path.Combine(OldLogDirForMigration, fileName);
+            string newPath = Path.Combine(MetadataDir, fileName);
+
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                try
+                {
+                    File.Move(oldPath, newPath);
+                    InfoLogger.Log($"Migrated {fileName} from logs/ to metadata/.");
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException($"Failed to migrate {fileName}", ex);
+                }
+            }
+        }
+    }
     private const int MaxLogLines = 5000;
     // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
     // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
@@ -77,7 +127,6 @@ public static class ModUpdateLogger
         {
             try
             {
-                Directory.CreateDirectory(LogDir);
 
                 Dictionary<string, ModUpdateSnapshotEntry> current = BuildSnapshot(mods);
                 if (!File.Exists(SnapshotPath))
@@ -115,11 +164,8 @@ public static class ModUpdateLogger
                         entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Updated));
                 }
 
-                foreach (ModUpdateSnapshotEntry previousEntry in previous.Values)
-                {
-                    if (!current.ContainsKey(previousEntry.ModId))
-                        entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
-                }
+                foreach (ModUpdateSnapshotEntry previousEntry in previous.Values.Where(previousEntry => !current.ContainsKey(previousEntry.ModId)))
+                    entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
 
                 entries.AddRange(BuildWorkshopUpdateEntries(mods, activeIds, workshopAcfPaths));
 
@@ -810,11 +856,8 @@ public static class ModUpdateLogger
             HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (string name in processNames)
             {
-                if (Process.GetProcessesByName(name).Length > 0)
-                {
-                    if (seen.Add(name))
-                        runningProcesses.Add(name);
-                }
+                if (Process.GetProcessesByName(name).Length > 0 && seen.Add(name))
+                    runningProcesses.Add(name);
             }
         }
         catch (Exception ex)

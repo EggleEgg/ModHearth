@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using Avalonia.Controls.Generators;
 
 namespace ModHearth.UI;
 
@@ -128,6 +129,13 @@ public static class WindowThemeManager
             {
                 if (!listBox.IsSet(ListBox.BackgroundProperty))
                     listBox.Background = panelBrush;
+                continue;
+            }
+
+            if (visual is DataGrid dataGrid)
+            {
+                if (!dataGrid.IsSet(DataGrid.BackgroundProperty))
+                    dataGrid.Background = dataGridBrush;
                 continue;
             }
 

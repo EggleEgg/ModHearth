@@ -55,8 +55,22 @@ internal static class ModContextMenuSupport
         out List<ModReference> modReferences) where T : class
     {
         modReferences = new List<ModReference>();
-        if (sender is not MenuItem menuItem || menuItem.DataContext is not T contextItem)
+        if (sender is not MenuItem menuItem)
             return false;
+
+        if (menuItem.DataContext is not T contextItem)
+        {
+            // The menu item might inherit DataContext from its parent context menu or placement target.
+            // If the MenuItem itself doesn't have the T, we check if the MenuItem's parent ContextMenu has it.
+            if (menuItem.Parent is ContextMenu menu && menu.DataContext is T menuContext)
+            {
+                contextItem = menuContext;
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         List<T> selected = selectedItems?.Cast<T>().ToList() ?? new List<T>();
         IEnumerable<T> targets = selected.Count > 0 && selected.Contains(contextItem)

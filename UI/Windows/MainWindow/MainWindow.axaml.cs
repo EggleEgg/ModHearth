@@ -142,7 +142,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);
         runDwarfFortressButton.Click += async (_, _) => await RunDwarfFortressAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
-        autoSortButton.Click += (_, _) => AutoSort();
+        autoSortButton.Click += async (_, _) => await AutoSortAsync();
         sortRulesButton.Click += async (_, _) => await OpenSortRulesAsync();
         clearInstalledModsButton.Click += async (_, _) => await ClearInstalledModsAsync();
         clearInstalledModsButton.AddHandler(InputElement.PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);

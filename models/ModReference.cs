@@ -9,7 +9,7 @@ namespace ModHearth
     }
 
     /// <summary>
-    /// Stores all data relevant to a mod.
+    /// Stores all data relevant to a mod from DFHack or FindAllModsFromDisk() (filesearch)
     /// More comprehensive than DFHMod, but not used in the actual creation of modpacks.
     /// </summary>
     public class ModReference
@@ -98,32 +98,40 @@ namespace ModHearth
             {
                 string modInfo = File.ReadAllText(modInfoPath);
 
-                // FIXME: this should really pull from memory using lua, but dealing with the tables sucks.
-                // FIXME: this may not match the game internals.
-                MatchCollection requireBeforeMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_BEFORE_ME\]:*(.*?)\n|\[REQUIRES_ID_BEFORE_ME:*(.*?)\]", RegexOptions.IgnoreCase);
-                MatchCollection requireAfterMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_AFTER_ME\]:*(.*?)\n|\[REQUIRES_ID_AFTER_ME:*(.*?)\]", RegexOptions.IgnoreCase);
-                MatchCollection conflictsMatches = Regex.Matches(modInfo, @"\[CONFLICTS_WITH_ID\]:*(.*?)\n|\[CONFLICTS_WITH_ID:*(.*?)\]", RegexOptions.IgnoreCase);
-                MatchCollection requiresMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID\]:*(.*?)\n|\[REQUIRES_ID:*(.*?)\]", RegexOptions.IgnoreCase);
+                MatchCollection requireBeforeMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_BEFORE_ME(?::(.*?))?\]", RegexOptions.IgnoreCase);
+                MatchCollection requireAfterMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_AFTER_ME(?::(.*?))?\]", RegexOptions.IgnoreCase);
+                MatchCollection conflictsMatches = Regex.Matches(modInfo, @"\[CONFLICTS_WITH_ID(?::(.*?))?\]", RegexOptions.IgnoreCase);
+                MatchCollection requiresMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID(?::(.*?))?\]", RegexOptions.IgnoreCase);
 
-                // See if this mod has any extra needs. The groups are added, since one is empty.
+                // Each pattern now has exactly one capturing group (empty for a
+                // valueless "[TAG]" tag), rather than the old two-alternative pattern
+                // that needed both groups concatenated together.
                 foreach (Match match in requireBeforeMatches)
                 {
-                    require_before_me.Add(match.Groups[1].Value + match.Groups[2].Value);
+                    string value = match.Groups[1].Value.Trim();
+                    if (!string.IsNullOrEmpty(value))
+                        require_before_me.Add(value);
                 }
 
                 foreach (Match match in requireAfterMatches)
                 {
-                    require_after_me.Add(match.Groups[1].Value + match.Groups[2].Value);
+                    string value = match.Groups[1].Value.Trim();
+                    if (!string.IsNullOrEmpty(value))
+                        require_after_me.Add(value);
                 }
 
                 foreach (Match match in conflictsMatches)
                 {
-                    conflicts_with.Add(match.Groups[1].Value + match.Groups[2].Value);
+                    string value = match.Groups[1].Value.Trim();
+                    if (!string.IsNullOrEmpty(value))
+                        conflicts_with.Add(value);
                 }
 
                 foreach (Match match in requiresMatches)
                 {
-                    require_ids.Add(match.Groups[1].Value + match.Groups[2].Value);
+                    string value = match.Groups[1].Value.Trim();
+                    if (!string.IsNullOrEmpty(value))
+                        require_ids.Add(value);
                 }
             }
             else

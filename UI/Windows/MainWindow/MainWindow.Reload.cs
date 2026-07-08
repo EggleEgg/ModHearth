@@ -27,6 +27,7 @@ public partial class MainWindow
         }
 
         await ReloadModpacksFromDisk();
+        await manager.EnsureModRawDependencyCacheAsync();
     }
     private void ReloadButtonPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -191,7 +192,7 @@ public partial class MainWindow
         };
     }
 
-    private void AutoReloadSecondsTextInput(object? sender, TextInputEventArgs e)
+    private static void AutoReloadSecondsTextInput(object? sender, TextInputEventArgs e)
     {
         string text = e.Text ?? string.Empty;
         if (text.All(char.IsDigit))

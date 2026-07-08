@@ -116,6 +116,7 @@ internal static class AppLogging
 
     private sealed class TeeTextWriter : TextWriter
     {
+        private readonly object gateTee = new();
         private readonly TextWriter primary;
         private readonly TextWriter secondary;
 
@@ -129,26 +130,47 @@ internal static class AppLogging
 
         public override void Write(char value)
         {
-            primary.Write(value);
-            secondary.Write(value);
+            lock (gateTee)
+            {
+                primary.Write(value);
+                secondary.Write(value);
+            }
         }
 
         public override void Write(char[] buffer, int index, int count)
         {
-            primary.Write(buffer, index, count);
-            secondary.Write(buffer, index, count);
+            lock (gateTee)
+            {
+                primary.Write(buffer, index, count);
+                secondary.Write(buffer, index, count);
+            }
         }
 
         public override void Write(string? value)
         {
-            primary.Write(value);
-            secondary.Write(value);
+            lock (gateTee)
+            {
+                primary.Write(value);
+                secondary.Write(value);
+            }
+        }
+
+        public override void WriteLine(string? value)
+        {
+            lock (gateTee)
+            {
+                primary.WriteLine(value);
+                secondary.WriteLine(value);
+            }
         }
 
         public override void Flush()
         {
-            primary.Flush();
-            secondary.Flush();
+            lock (gateTee)
+            {
+                primary.Flush();
+                secondary.Flush();
+            }
         }
     }
 }

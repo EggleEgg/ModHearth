@@ -155,8 +155,12 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
                 .OfType<ModUpdateLogItemViewModel>()
                 .FirstOrDefault() ??
             logList.SelectedItems?.OfType<ModUpdateLogItemViewModel>().FirstOrDefault();
+
         if (vm == null)
             return;
+
+        // Ensure the ContextMenu itself has the DataContext so MenuItems can find it if needed
+        menu.DataContext = vm;
 
         if (logList.SelectedItems == null)
             return;

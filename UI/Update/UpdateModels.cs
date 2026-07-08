@@ -2,6 +2,9 @@
 
 namespace ModHearth.UI;
 
+/// <summary>
+/// Used for github release API deserialization
+/// </summary>
 public sealed class GitHubRelease
 {
     [JsonPropertyName("tag_name")]

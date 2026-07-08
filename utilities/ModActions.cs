@@ -181,6 +181,14 @@ namespace ModHearth
                         {
                             Directory.Delete(modrefToDelete.path, true);
                             SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.path}");
+
+                            if (!string.IsNullOrWhiteSpace(modrefToDelete.ID))
+                            {
+                                lock (installedCacheGate)
+                                {
+                                    installedCacheModIds?.Remove(modrefToDelete.ID);
+                                }
+                            }
                         }
                         catch (Exception ex)
                         {
@@ -249,6 +257,11 @@ namespace ModHearth
                 else
                 {
                     SteamConnectionLogger.LogInfo($"Unsubscribed workshop item {steamItemId} (resubscribe stage).");
+                    lock (installedCacheGate)
+                    {
+                        // Since we are unsubscribing, it's effectively deleted from the installed mods for now.
+                        installedCacheModIds?.Remove(steamItemId);
+                    }
                 }
 
                 if (index < steamItemIds.Count - 1)
@@ -369,7 +382,7 @@ namespace ModHearth
             return processNames.Count > 0;
         }
 
-        private bool TryAddLocalActionableMod(
+        private static bool TryAddLocalActionableMod(
             ModReference modref,
             HashSet<string> uniqueLocalKeys,
             List<ModReference> localDeletableMods)
@@ -392,7 +405,7 @@ namespace ModHearth
             return true;
         }
 
-        private void TryAddSteamActionableMod(
+        private static void TryAddSteamActionableMod(
             ModReference modref,
             HashSet<string> uniqueSteamIds,
             List<ModReference> steamActionableMods)
