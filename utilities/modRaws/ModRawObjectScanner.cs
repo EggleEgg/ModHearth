@@ -32,106 +32,113 @@ internal static class ModRawObjectScanner
         string objectsPath = Path.Combine(modPath, "objects");
         if (Directory.Exists(objectsPath))
         {
-            foreach (string file in Directory.EnumerateFiles(objectsPath, "*.txt", SearchOption.AllDirectories))
+            try
             {
-                string text;
-                try
+                foreach (string file in Directory.EnumerateFiles(objectsPath, "*.txt", SearchOption.AllDirectories))
                 {
-                    text = File.ReadAllText(file);
-                }
-                catch
-                {
-                    continue;
-                }
-
-                // Active object type from the most recent [OBJECT:TYPE] block.
-                string? currentObjectType = null;
-
-                // The most recent SELECT_ target. A plain [CUT] token ends this
-                // selection and applies the cut to it.
-                string? currentSelectObjectType = null;
-                string? currentSelectId = null;
-
-                foreach (var groups in TagRegex.Matches(text).Select(match => match.Groups))
-                {
-                    string tag = groups[1].Value;
-                    string arg = groups[2].Success ? groups[2].Value.Trim() : string.Empty;
-                    string firstArg = arg.Length == 0 ? string.Empty : arg.Split(':')[0].Trim();
-
-                    // [OBJECT:TYPE] establishes the active context for the file.
-                    if (string.Equals(tag, "OBJECT", StringComparison.OrdinalIgnoreCase))
+                    string text;
+                    try
                     {
-                        if (!string.IsNullOrWhiteSpace(firstArg))
-                            currentObjectType = firstArg;
-
-                        currentSelectObjectType = null;
-                        currentSelectId = null;
+                        text = File.ReadAllText(file);
+                    }
+                    catch
+                    {
                         continue;
                     }
 
-                    // SELECT_<OBJECT_TYPE>:ID -> generic patch target.
-                    if (tag.StartsWith("SELECT_", StringComparison.OrdinalIgnoreCase))
+                    // Active object type from the most recent [OBJECT:TYPE] block.
+                    string? currentObjectType = null;
+
+                    // The most recent SELECT_ target. A plain [CUT] token ends this
+                    // selection and applies the cut to it.
+                    string? currentSelectObjectType = null;
+                    string? currentSelectId = null;
+
+                    foreach (var groups in TagRegex.Matches(text).Select(match => match.Groups))
                     {
-                        string objectType = tag.Substring("SELECT_".Length);
-                        if (!string.IsNullOrWhiteSpace(objectType))
+                        string tag = groups[1].Value;
+                        string arg = groups[2].Success ? groups[2].Value.Trim() : string.Empty;
+                        string firstArg = arg.Length == 0 ? string.Empty : arg.Split(':')[0].Trim();
+
+                        // [OBJECT:TYPE] establishes the active context for the file.
+                        if (string.Equals(tag, "OBJECT", StringComparison.OrdinalIgnoreCase))
                         {
-                            objects.Add(new RawObject(objectType, firstArg, sourceMod, false, true, false));
-                            currentSelectObjectType = objectType;
-                            currentSelectId = firstArg;
-                        }
-                        continue;
-                    }
+                            if (!string.IsNullOrWhiteSpace(firstArg))
+                                currentObjectType = firstArg;
 
-                    // CUT_<OBJECT_TYPE>:ID -> generic standalone cut.
-                    if (tag.StartsWith("CUT_", StringComparison.OrdinalIgnoreCase))
-                    {
-                        isCutter = true;
-                        string objectType = tag.Substring("CUT_".Length);
-                        if (!string.IsNullOrWhiteSpace(objectType))
-                            objects.Add(new RawObject(objectType, firstArg, sourceMod, false, false, true));
-                        continue;
-                    }
-
-                    // [CUT] ends the current SELECT_ block and cuts its target.
-                    if (string.Equals(tag, "CUT", StringComparison.OrdinalIgnoreCase))
-                    {
-                        isCutter = true;
-                        if (!string.IsNullOrWhiteSpace(currentSelectObjectType)
-                            && !string.IsNullOrWhiteSpace(currentSelectId))
-                        {
-                            objects.Add(new RawObject(currentSelectObjectType, currentSelectId, sourceMod, false, false, true));
+                            currentSelectObjectType = null;
+                            currentSelectId = null;
+                            continue;
                         }
 
-                        currentSelectObjectType = null;
-                        currentSelectId = null;
-                        continue;
-                    }
-
-                    // [COPY_TAGS_FROM:ID] -> hard dependency on the source object
-                    // within the active object type.
-                    if (string.Equals(tag, "COPY_TAGS_FROM", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!string.IsNullOrWhiteSpace(firstArg))
+                        // SELECT_<OBJECT_TYPE>:ID -> generic patch target.
+                        if (tag.StartsWith("SELECT_", StringComparison.OrdinalIgnoreCase))
                         {
-                            objects.Add(new RawObject(currentObjectType ?? string.Empty, firstArg, sourceMod, false, false, false)
+                            string objectType = tag.Substring("SELECT_".Length);
+                            if (!string.IsNullOrWhiteSpace(objectType))
                             {
-                                IsCopyTagsFrom = true
-                            });
+                                objects.Add(new RawObject(objectType, firstArg, sourceMod, false, true, false));
+                                currentSelectObjectType = objectType;
+                                currentSelectId = firstArg;
+                            }
+                            continue;
                         }
-                        continue;
-                    }
 
-                    // Direct definition: the tag matches the active [OBJECT:TYPE].
-                    if (!string.IsNullOrWhiteSpace(currentObjectType)
-                        && string.Equals(tag, currentObjectType, StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!string.IsNullOrWhiteSpace(firstArg))
-                            objects.Add(new RawObject(currentObjectType, firstArg, sourceMod, true, false, false));
+                        // CUT_<OBJECT_TYPE>:ID -> generic standalone cut.
+                        if (tag.StartsWith("CUT_", StringComparison.OrdinalIgnoreCase))
+                        {
+                            isCutter = true;
+                            string objectType = tag.Substring("CUT_".Length);
+                            if (!string.IsNullOrWhiteSpace(objectType))
+                                objects.Add(new RawObject(objectType, firstArg, sourceMod, false, false, true));
+                            continue;
+                        }
 
-                        currentSelectObjectType = null;
-                        currentSelectId = null;
+                        // [CUT] ends the current SELECT_ block and cuts its target.
+                        if (string.Equals(tag, "CUT", StringComparison.OrdinalIgnoreCase))
+                        {
+                            isCutter = true;
+                            if (!string.IsNullOrWhiteSpace(currentSelectObjectType)
+                                && !string.IsNullOrWhiteSpace(currentSelectId))
+                            {
+                                objects.Add(new RawObject(currentSelectObjectType, currentSelectId, sourceMod, false, false, true));
+                            }
+
+                            currentSelectObjectType = null;
+                            currentSelectId = null;
+                            continue;
+                        }
+
+                        // [COPY_TAGS_FROM:ID] -> hard dependency on the source object
+                        // within the active object type.
+                        if (string.Equals(tag, "COPY_TAGS_FROM", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!string.IsNullOrWhiteSpace(firstArg))
+                            {
+                                objects.Add(new RawObject(currentObjectType ?? string.Empty, firstArg, sourceMod, false, false, false)
+                                {
+                                    IsCopyTagsFrom = true
+                                });
+                            }
+                            continue;
+                        }
+
+                        // Direct definition: the tag matches the active [OBJECT:TYPE].
+                        if (!string.IsNullOrWhiteSpace(currentObjectType)
+                            && string.Equals(tag, currentObjectType, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!string.IsNullOrWhiteSpace(firstArg))
+                                objects.Add(new RawObject(currentObjectType, firstArg, sourceMod, true, false, false));
+
+                            currentSelectObjectType = null;
+                            currentSelectId = null;
+                        }
                     }
                 }
+            }
+            catch
+            {
+                // Ignore unreadable objects/ folders; return the objects we parsed.
             }
         }
 
