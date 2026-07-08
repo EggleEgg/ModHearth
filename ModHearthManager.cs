@@ -225,6 +225,11 @@ namespace ModHearth
                 Console.WriteLine();
 
                 ModUpdateLogger.RecordChanges(modrefMap.Values, enabledMods, ConfigManager.GetSteamWorkshopAcfPaths());
+
+                // Preload the vanilla raw baseline once during initialization so
+                // later scans can evaluate vanilla membership by set containment.
+                _ = GetVanillaBaseline();
+
                 return true;
             }
             finally
