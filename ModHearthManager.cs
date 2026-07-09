@@ -1815,7 +1815,7 @@ namespace ModHearth
                         string trimmedId = beforeID?.Trim() ?? string.Empty;
                         if (string.IsNullOrWhiteSpace(trimmedId))
                             continue;
-                        if (allEnabledIDs.Contains(trimmedId) && !scannedModIDs.Contains(trimmedId))
+                        if (!scannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingBefore));
                             InfoLogger.Log("Problem found: missing before mod with ID: " + trimmedId + " mod needing is: " + currentDFM.id);
@@ -1826,7 +1826,7 @@ namespace ModHearth
                         string trimmedId = afterID?.Trim() ?? string.Empty;
                         if (string.IsNullOrWhiteSpace(trimmedId))
                             continue;
-                        if (allEnabledIDs.Contains(trimmedId) && !unscannedModIDs.Contains(trimmedId))
+                        if (!unscannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingAfter));
                             InfoLogger.Log("Problem found: missing after mod with ID: " + trimmedId + " mod needing is: " + currentDFM.id);

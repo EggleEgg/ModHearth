@@ -26,8 +26,13 @@ public partial class MainWindow
     private void InitializeModInfoDock()
     {
         modDescriptionHtml = new HtmlPanel();
-        ScrollViewer.SetVerticalScrollBarVisibility(modDescriptionHtml, ScrollBarVisibility.Auto);
-        ScrollViewer.SetHorizontalScrollBarVisibility(modDescriptionHtml, ScrollBarVisibility.Disabled);
+
+        ScrollViewer modDescriptionScrollViewer = new ScrollViewer
+        {
+            Content = modDescriptionHtml,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
 
         modDataPanelContent = new StackPanel
         {
@@ -73,7 +78,7 @@ public partial class MainWindow
         {
             Id = "DescriptionTool",
             Title = "Description",
-            Content = modDescriptionHtml,
+            Content = modDescriptionScrollViewer,
             CanClose = false,
             CanFloat = false,
             CanPin = false,
