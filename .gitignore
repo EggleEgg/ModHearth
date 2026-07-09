@@ -2,8 +2,6 @@
 **/bin/
 **/obj/
 **/dist/
-/.external.zip
-/.external
 
 # .NET build artifacts
 *.pdb
@@ -15,11 +13,6 @@
 # User-specific
 *.user
 *.suo
-
-# Playwright
-node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+**/.devin/
+/.external.zip
+/.external

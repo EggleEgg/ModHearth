@@ -100,6 +100,7 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
         return Brushes.White;
     }
 
+    // non configurable for now
     private static IBrush GetRowBrush(ModUpdateLogEntry entry, IBrush defaultBrush, bool isActive)
     {
         if (entry.ChangeType == ModUpdateChangeType.Deleted)
@@ -147,9 +148,15 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
         if (sender is not ContextMenu menu)
             return;
 
+        ModUpdateLogItemViewModel? contextVm = menu.DataContext as ModUpdateLogItemViewModel;
+        if (contextVm != null && (logList.SelectedItems == null || !logList.SelectedItems.Contains(contextVm)))
+        {
+            contextVm = null;
+        }
+
         ModUpdateLogItemViewModel? vm =
             (menu.PlacementTarget as Control)?.DataContext as ModUpdateLogItemViewModel ??
-            menu.DataContext as ModUpdateLogItemViewModel ??
+            contextVm ??
             menu.Items.OfType<MenuItem>()
                 .Select(item => item.DataContext)
                 .OfType<ModUpdateLogItemViewModel>()
@@ -194,8 +201,13 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             DataGridRow.BackgroundProperty,
             new Binding(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay });
         e.Row.Bind(
-            TextBlock.ForegroundProperty,
+            DataGridRow.ForegroundProperty,
             new Binding(nameof(ModUpdateLogItemViewModel.RowBrush)) { Mode = BindingMode.OneWay });
+
+        if (e.Row.DataContext is ModUpdateLogItemViewModel vm)
+        {
+            Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
+        }
     }
 
     private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)

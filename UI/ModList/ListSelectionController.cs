@@ -348,6 +348,8 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
 
         UpdateSelectionState(list);
 
+        menu!.DataContext = hit;
+
         menu!.Open(target);
         e.Handled = true;
         return true;
@@ -370,6 +372,8 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         }
 
         UpdateSelectionState(grid);
+
+        menu!.DataContext = hit;
 
         menu!.Open(target);
         e.Handled = true;

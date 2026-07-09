@@ -96,7 +96,7 @@ internal static class ModListIndicatorUpdater
     public static string BuildDuplicateWarningTooltip(ModHearthManager? manager, IEnumerable<string> duplicates)
     {
         string errorLogPath = ConfigManager.GetErrorLogPath() ?? "errorlog.txt";
-        StringBuilder builder = new StringBuilder($"Duplicate raw definitions ({errorLogPath}):");
+        StringBuilder builder = new StringBuilder($"Duplicate raw definitions ({errorLogPath}):\n");
         foreach (string entry in duplicates)
             builder.AppendLine().Append(entry);
         return builder.ToString();

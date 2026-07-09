@@ -17,6 +17,9 @@
         <Style Selector="DataGridRow:selected /template/ Rectangle">
           <Setter Property="Fill" Value="Transparent" />
         </Style>
+        <Style Selector="DataGridCell TextBlock">
+          <Setter Property="Foreground" Value="{Binding RowBrush}" />
+        </Style>
       </DataGrid.Styles>
       <DataGrid.ContextMenu>
         <ContextMenu Opened="ModContextMenuOpened">

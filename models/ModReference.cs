@@ -103,8 +103,7 @@ namespace ModHearth
                 MatchCollection conflictsMatches = Regex.Matches(modInfo, @"\[CONFLICTS_WITH_ID(?::(.*?))?\]", RegexOptions.IgnoreCase);
                 MatchCollection requiresMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID(?::(.*?))?\]", RegexOptions.IgnoreCase);
 
-                // Each pattern now has exactly one capturing group (empty for a
-                // valueless "[TAG]" tag), rather than the old two-alternative pattern
+                // Each pattern now has exactly one capturing group (empty for a valueless "[TAG]" tag), rather than the old two-alternative pattern
                 // that needed both groups concatenated together.
                 foreach (Match match in requireBeforeMatches)
                 {
