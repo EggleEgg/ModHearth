@@ -135,11 +135,58 @@ public partial class MainWindow
             return;
 
         List<DFHMod> mods = context.Items.Select(vm => vm.DfMod).ToList();
-        manager.MoveMods(mods, context.InsertIndex, sourceLeft, destinationLeft);
+
+        // context.InsertIndex is a position within the filtered/displayed
+        // activeMods collection, not a raw index into manager.enabledMods.
+        // disabledMods is an unordered HashSet, so no translation is
+        // needed/possible when the destination is the left (inactive) list.
+        int insertIndex = destinationLeft
+            ? context.InsertIndex
+            : MapFilteredToMasterIndex(activeMods, BuildEnabledOrderViewModels(), context.InsertIndex);
+
+        manager.MoveMods(mods, insertIndex, sourceLeft, destinationLeft);
         SetAndMarkChanges(true);
         RefreshModlistPanels();
         if (sourceLeft != destinationLeft)
             SelectModsInList(destinationLeft, mods);
+    }
+
+    // The real, order-defining sequence backing the active list — built by
+    // walking manager.enabledMods (the source of truth for order) through
+    // modViewMap, rather than trusting activeMods' displayed order directly.
+    private List<ModRefViewModel> BuildEnabledOrderViewModels()
+    {
+        List<ModRefViewModel> master = new List<ModRefViewModel>(manager.enabledMods.Count);
+        foreach (DFHMod mod in manager.enabledMods)
+        {
+            if (modViewMap.TryGetValue(mod.ToString(), out ModRefViewModel? vm) && vm != null)
+                master.Add(vm);
+        }
+        return master;
+    }
+
+    // Same translation SortRulesWindow already uses for its own drag-drop:
+    // find where a displayed/filtered index actually falls within the true,
+    // unfiltered backing order.
+    private static int MapFilteredToMasterIndex(
+        IList<ModRefViewModel> filtered,
+        IList<ModRefViewModel> master,
+        int filteredIndex)
+    {
+        if (filteredIndex <= 0)
+            return 0;
+
+        if (filteredIndex >= filtered.Count)
+        {
+            if (filtered.Count == 0)
+                return master.Count;
+
+            int lastIndex = master.IndexOf(filtered[^1]);
+            return lastIndex >= 0 ? lastIndex + 1 : master.Count;
+        }
+
+        int idx = master.IndexOf(filtered[filteredIndex]);
+        return idx >= 0 ? idx : master.Count;
     }
 
     private void MoveSelectedBetweenLists(bool sourceLeft)

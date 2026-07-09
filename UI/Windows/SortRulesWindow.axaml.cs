@@ -1,6 +1,7 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using System.Net.Http;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -18,6 +19,8 @@ public partial class SortRulesWindow : Window
 {
     private readonly ObservableCollection<ModRefViewModel> availableMods = new();
     private readonly ObservableCollection<ModRefViewModel> ruleMods = new();
+    private readonly List<ModSortRule> _userRules = new();
+    private List<ModSortRule> _communityRules = new();
     private readonly List<ModRefViewModel> masterRuleList = new();
     private readonly ObservableCollection<object> ruleJsonLines = new();
 
@@ -83,7 +86,8 @@ public partial class SortRulesWindow : Window
         this.rulesFilePath = rulesFilePath ?? string.Empty;
         this.onSave = onSave;
 
-        BuildViewModels(existingRules ?? Array.Empty<ModSortRule>(), modRefs ?? Array.Empty<ModReference>());
+        _userRules.AddRange(existingRules ?? Array.Empty<ModSortRule>());
+        BuildViewModels(modRefs ?? Array.Empty<ModReference>());
 
         modTreeList.ItemsSource = availableMods;
         rulesList.ItemsSource = ruleMods;
@@ -139,6 +143,7 @@ public partial class SortRulesWindow : Window
         };
 
         saveButton.Click += (_, _) => SaveRules();
+        fetchCommunityRulesButton.Click += async (_, _) => await FetchCommunityRules();
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Bubble, true);
         KeyDown += SortRulesWindowKeyDown;
         Closing += SortRulesWindowClosing;
@@ -994,7 +999,7 @@ public partial class SortRulesWindow : Window
         return handled;
     }
 
-    private void BuildViewModels(IEnumerable<ModSortRule> existingRules, IEnumerable<ModReference> modRefs)
+    private void BuildViewModels(IEnumerable<ModReference> modRefs)
     {
         modKeyMap.Clear();
         modIdMap.Clear();
@@ -1024,7 +1029,9 @@ public partial class SortRulesWindow : Window
             modKeyMap[vm.DfMod.ToString()] = vm;
         }
 
-        foreach (ModSortRule rule in existingRules)
+        List<ModSortRule> allRules = MergeRules(_userRules, _communityRules);
+
+        foreach (ModSortRule rule in allRules)
         {
             if (rule == null)
                 continue;
@@ -1034,7 +1041,7 @@ public partial class SortRulesWindow : Window
         }
 
         masterRuleList.Clear();
-        List<string> orderedRuleIds = BuildRuleOrder(existingRules, modIdMap.Keys);
+        List<string> orderedRuleIds = BuildRuleOrder(allRules, modIdMap.Keys);
         foreach (string id in orderedRuleIds)
         {
             if (modIdMap.TryGetValue(id, out ModRefViewModel? vm))
@@ -1052,7 +1059,7 @@ public partial class SortRulesWindow : Window
         InitializeRuleGaps(existingRules);
     }
 
-    private void InitializeRuleGaps(IEnumerable<ModSortRule> existingRules)
+    private void InitializeRuleGaps()
     {
         ruleGaps.Clear();
         initialRuleGaps.Clear();
@@ -1065,7 +1072,8 @@ public partial class SortRulesWindow : Window
         redoExplicitRequiredIds.Clear();
 
         HashSet<RuleEdge> explicitRules = new HashSet<RuleEdge>(RuleEdgeComparer.Instance);
-        foreach (ModSortRule rule in existingRules ?? Array.Empty<ModSortRule>())
+        List<ModSortRule> allRules = MergeRules(_userRules, _communityRules);
+        foreach (ModSortRule rule in allRules)
         {
             if (rule == null)
                 continue;
@@ -1847,6 +1855,57 @@ public partial class SortRulesWindow : Window
         foreach (ModRefViewModel vm in items) target.Add(vm);
     }
 
+    private List<ModSortRule> MergeRules(IEnumerable<ModSortRule> userRules, IEnumerable<ModSortRule> communityRules)
+    {
+        List<ModSortRule> merged = new(userRules);
+
+        HashSet<RuleEdge> userEdges = new(RuleEdgeComparer.Instance);
+        HashSet<string> userRequiredIds = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (ModSortRule rule in userRules)
+        {
+            if (!string.IsNullOrWhiteSpace(rule.BeforeId) && !string.IsNullOrWhiteSpace(rule.AfterId))
+            {
+                userEdges.Add(CreateEdge(rule.BeforeId, rule.AfterId));
+            }
+            if (!string.IsNullOrWhiteSpace(rule.RequiresId))
+            {
+                userRequiredIds.Add(rule.RequiresId);
+            }
+        }
+
+        foreach (ModSortRule communityRule in communityRules)
+        {
+            bool conflict = false;
+
+            // Check for BeforeId/AfterId conflict
+            if (!string.IsNullOrWhiteSpace(communityRule.BeforeId) && !string.IsNullOrWhiteSpace(communityRule.AfterId))
+            {
+                RuleEdge communityEdge = CreateEdge(communityRule.BeforeId, communityRule.AfterId);
+                if (userEdges.Contains(communityEdge))
+                {
+                    conflict = true;
+                }
+            }
+
+            // Check for RequiresId conflict
+            if (!string.IsNullOrWhiteSpace(communityRule.RequiresId))
+            {
+                if (userRequiredIds.Contains(communityRule.RequiresId))
+                {
+                    conflict = true;
+                }
+            }
+
+            if (!conflict)
+            {
+                merged.Add(communityRule);
+            }
+        }
+
+        return merged;
+    }
+
     private static List<ModRefViewModel> Deduplicate(IEnumerable<ModRefViewModel> items)
     {
         List<ModRefViewModel> unique = new List<ModRefViewModel>();
@@ -1884,6 +1943,74 @@ public partial class SortRulesWindow : Window
         catch (Exception)
         {
             // Ignored
+        }
+    }
+
+    private async Task FetchCommunityRules()
+    {
+        string url = communityRulesUrlTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            await DialogService.ShowMessagePromptAsync(this, "Error", "GitHub URL cannot be empty.");
+            return;
+        }
+
+        // Basic URL validation. More robust validation may be needed.
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            await DialogService.ShowMessagePromptAsync(this, "Error", "Invalid URL. Please provide a valid HTTP/HTTPS URL.");
+            return;
+        }
+
+        // Convert GitHub 'blob' URL to 'raw' content URL
+        string rawUrl = url.Replace("github.com", "raw.githubusercontent.com").Replace("/blob/", "/");
+
+        try
+        {
+            using HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("ModHearth-App"); // GitHub requires a User-Agent header
+            HttpResponseMessage response = await client.GetAsync(rawUrl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string jsonContent = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    List<ModSortRule>? communityRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent);
+                    if (communityRules != null)
+                    {
+                        // TODO: Implement logic to merge community rules
+                        await DialogService.ShowMessagePromptAsync(this, "Success", $"Fetched {communityRules.Count} community rules. Further processing is required.");
+                    }
+                    else
+                    {
+                        await DialogService.ShowMessagePromptAsync(this, "Error", "Failed to parse community rules: JSON is empty or malformed.");
+                    }
+                }
+                catch (JsonException jsonEx)
+                {
+                    AppLogging.Log(jsonEx);
+                    await DialogService.ShowMessagePromptAsync(this, "JSON Parsing Error",
+                        $"Failed to parse community rules JSON: {jsonEx.Message}");
+                }
+            }
+            else
+            {
+                await DialogService.ShowMessagePromptAsync(this, "Error",
+                    $"Failed to fetch community rules. Status code: {response.StatusCode}");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            await DialogService.ShowMessagePromptAsync(this, "Network Error",
+                $"Network error while fetching community rules: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            AppLogging.Log(ex);
+            await DialogService.ShowMessagePromptAsync(this, "Error",
+                $"An unexpected error occurred: {ex.Message}");
         }
     }
 }

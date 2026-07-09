@@ -1,1 +1,1 @@
-Code must be thread safe
+Code must be thread safem and comptible with both linux and windows os

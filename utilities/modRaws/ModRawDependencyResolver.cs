@@ -3,12 +3,9 @@ using System.Collections.Concurrent;
 
 namespace ModHearth;
 
-// Orchestrates the raw-file dependency scan: loads the persistent cache,
-// scans only what's stale (in parallel, since each mod folder is fully
-// independent), saves, and publishes the result for AutoSort to read.
-// Deliberately not called from Initialize()/ReloadModpacksFromDisk() — this
-// is invoked explicitly from exactly three UI-level call sites (startup,
-// the manual reload button, AutoSort) so it doesn't run on every automatic
+// Orchestrates the raw-file dependency scan: loads the persistent cache, scans only what's stale (in parallel, since each mod folder is fully
+// independent), saves, and publishes the result for AutoSort to read. Deliberately not called from Initialize()/ReloadModpacksFromDisk() — this
+// is invoked explicitly from exactly three UI-level call sites (startup, the manual reload button, AutoSort) so it doesn't run on every automatic
 // reload from the auto-reload timer or file watcher.
 public partial class ModHearthManager
 {
