@@ -1,9 +1,12 @@
 # https://docs.devin.ai/onboard-devin/environment-yaml
 # Commands run from the repo root.
 
-initialize: |
-  apt-get update -qq
-  apt-get install -y -qq dotnet-sdk-8.0
+initialize:
+  - uses: github.com/actions/setup-dotnet@v4
+    with:
+      dotnet-version: "8.0"
+  - run: |
+      dotnet --version
 
 maintenance: |
   dotnet restore ModHearth.sln
