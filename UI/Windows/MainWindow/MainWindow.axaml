@@ -101,12 +101,8 @@
             <TextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold"
                        TextWrapping="WrapWithOverflow"
                        VerticalAlignment="Center" MinHeight="42" Margin="2,2,2,5" />
-            <Border Grid.Row="1" Background="Transparent" Margin="2">
-              <Image x:Name="modPreviewImage" Stretch="Uniform" HorizontalAlignment="Center"
-                     VerticalAlignment="Center" MaxWidth="450" MaxHeight="450" Margin="10,0,10,0" />
-            </Border>
-            <dock:DockControl x:Name="modInfoDockControl" Grid.Row="2" Margin="2,12,2,2"
-                              InitializeFactory="False" InitializeLayout="False" />
+            <dock:DockControl x:Name="modInfoDockControl" Grid.Row="1" Grid.RowSpan="2"
+                              Margin="2,2,2,2" InitializeFactory="False" InitializeLayout="False" />
             <Grid Grid.Row="3" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
                   VerticalAlignment="Center" Margin="0,5,2,0" MinHeight="18" RowSpacing="7">
               <Border x:Name="modInfoTopBorder" Grid.Row="0" Grid.ColumnSpan="2" Height="2"

@@ -170,6 +170,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Closed += (_, _) =>
         {
             SaveModDataPanelLayout();
+            SaveModPreviewPanelLayout();
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();
             dfHackStatusTimer?.Stop();

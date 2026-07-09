@@ -16,6 +16,8 @@ namespace ModHearth.UI;
 public partial class MainWindow
 {
     private HtmlPanel modDescriptionHtml = null!;
+    private Image modPreviewImage = null!;
+    private Tool? modPreviewTool;
     private Tool? modDataTool;
     private Tool? descriptionTool;
     private StackPanel modDataPanelContent = null!;
@@ -39,8 +41,25 @@ public partial class MainWindow
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
         };
 
+        modPreviewImage = new Image
+        {
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 4, 10, 4)
+        };
+
         Factory factory = new Factory();
 
+        modPreviewTool = new Tool
+        {
+            Id = "ModPreviewTool",
+            Title = "Preview",
+            Content = modPreviewImage,
+            CanClose = false,
+            CanFloat = false,
+            CanPin = false
+        };
         modDataTool = new Tool
         {
             Id = "ModDataTool",
@@ -105,12 +124,45 @@ public partial class MainWindow
                 : factory.CreateList<IDockable>(descriptionDock, splitter, modDataDock)
         };
 
+        double previewProportion = ConfigManager.GetModPreviewPanelProportion();
+        if (double.IsNaN(previewProportion) || previewProportion < 0.05 || previewProportion > 0.95)
+            previewProportion = 0.45;
+        DockOrientation previewOrientation = ConfigManager.GetModPreviewPanelOrientation() == 1
+            ? DockOrientation.Horizontal
+            : DockOrientation.Vertical;
+        bool previewFirst = ConfigManager.GetModPreviewPanelFirst();
+
+        ToolDock previewDock = new ToolDock
+        {
+            Id = "ModPreviewDock",
+            Proportion = previewProportion,
+            Alignment = Alignment.Top,
+            GripMode = GripMode.Visible,
+            VisibleDockables = factory.CreateList<IDockable>(modPreviewTool),
+            ActiveDockable = modPreviewTool,
+            CanClose = false,
+            CanFloat = false
+        };
+        layoutDock.Proportion = 1 - previewProportion;
+        ProportionalDockSplitter previewSplitter = new ProportionalDockSplitter
+        {
+            Id = "ModPreviewSplitter"
+        };
+        ProportionalDock outerLayoutDock = new ProportionalDock
+        {
+            Id = "ModInfoOuterLayout",
+            Orientation = previewOrientation,
+            VisibleDockables = previewFirst
+                ? factory.CreateList<IDockable>(previewDock, previewSplitter, layoutDock)
+                : factory.CreateList<IDockable>(layoutDock, previewSplitter, previewDock)
+        };
+
         RootDock root = new RootDock
         {
             Id = "ModInfoRoot",
-            VisibleDockables = factory.CreateList<IDockable>(layoutDock),
-            ActiveDockable = layoutDock,
-            DefaultDockable = layoutDock,
+            VisibleDockables = factory.CreateList<IDockable>(outerLayoutDock),
+            ActiveDockable = outerLayoutDock,
+            DefaultDockable = outerLayoutDock,
             CanClose = false,
             CanFloat = false
         };
@@ -145,6 +197,38 @@ public partial class MainWindow
         }
 
         ConfigManager.SetModDataPanelLayout(proportion, orientation, modDataFirst);
+    }
+
+    private void SaveModPreviewPanelLayout()
+    {
+        if (modPreviewTool?.Owner is not IDock previewDock)
+            return;
+
+        double proportion = previewDock.Proportion;
+        if (double.IsNaN(proportion) || proportion < 0.05 || proportion > 0.95)
+            proportion = 0.45;
+
+        int orientation = ConfigManager.GetModPreviewPanelOrientation();
+        bool previewFirst = ConfigManager.GetModPreviewPanelFirst();
+        if (previewDock.Owner is ProportionalDock proportionalDock && proportionalDock.VisibleDockables != null)
+        {
+            orientation = proportionalDock.Orientation == DockOrientation.Horizontal ? 1 : 0;
+            int previewIndex = proportionalDock.VisibleDockables.IndexOf(previewDock);
+            int otherIndex = -1;
+            for (int i = 0; i < proportionalDock.VisibleDockables.Count; i++)
+            {
+                IDockable dockable = proportionalDock.VisibleDockables[i];
+                if (i != previewIndex && dockable is IDock && dockable is not ProportionalDockSplitter)
+                {
+                    otherIndex = i;
+                    break;
+                }
+            }
+            if (previewIndex >= 0 && otherIndex >= 0)
+                previewFirst = previewIndex < otherIndex;
+        }
+
+        ConfigManager.SetModPreviewPanelLayout(proportion, orientation, previewFirst);
     }
 
     private void PopulateModDataViewer(ModReference? modref)

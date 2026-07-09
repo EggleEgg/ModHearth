@@ -191,6 +191,20 @@ namespace ModHearth
             SaveConfigFile();
         }
 
+        public static double GetModPreviewPanelProportion() => Config.ModPreviewPanelProportion;
+
+        public static int GetModPreviewPanelOrientation() => Config.ModPreviewPanelOrientation;
+
+        public static bool GetModPreviewPanelFirst() => Config.ModPreviewPanelFirst;
+
+        public static void SetModPreviewPanelLayout(double proportion, int orientation, bool first)
+        {
+            Config.ModPreviewPanelProportion = proportion;
+            Config.ModPreviewPanelOrientation = orientation;
+            Config.ModPreviewPanelFirst = first;
+            SaveConfigFile();
+        }
+
         public static bool IsAutoSaveEnabled() => Config.IsAutoSaveEnabled;
 
         public static void SetAutoSaveEnabled(bool enabled)
