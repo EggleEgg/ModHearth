@@ -880,29 +880,10 @@ namespace ModHearth
 
         private static DateTime? GetLatestModifiedTimestamp(string directoryPath)
         {
-            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
-                return null;
-
-            DateTime latestTimestamp = Directory.GetLastWriteTimeUtc(directoryPath);
-
-            try
-            {
-                foreach (string file in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
-                {
-                    DateTime fileWriteTime = File.GetLastWriteTimeUtc(file);
-                    if (fileWriteTime > latestTimestamp)
-                    {
-                        latestTimestamp = fileWriteTime;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Warning: Failed to enumerate files in {directoryPath} for timestamp: {ex.Message}");
-                // Fallback to directory's last write time if file enumeration fails
-            }
-
-            return latestTimestamp;
+            DateTime? result = FolderTimestampHelper.GetLatestModifiedTimeUtc(
+                directoryPath,
+                ex => Console.WriteLine($"Warning: Failed to enumerate files in {directoryPath} for timestamp: {ex.Message}"));
+            return result ?? (Directory.Exists(directoryPath) ? Directory.GetLastWriteTimeUtc(directoryPath) : null);
         }
 
 

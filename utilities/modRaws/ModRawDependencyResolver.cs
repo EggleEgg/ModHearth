@@ -98,23 +98,6 @@ public partial class ModHearthManager
 
     private static long GetFolderStampTicks(string folderPath)
     {
-        if (!Directory.Exists(folderPath))
-            return 0;
-
-        try
-        {
-            long latest = Directory.GetLastWriteTimeUtc(folderPath).Ticks;
-            foreach (string file in Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories))
-            {
-                long fileTicks = File.GetLastWriteTimeUtc(file).Ticks;
-                if (fileTicks > latest)
-                    latest = fileTicks;
-            }
-            return latest;
-        }
-        catch
-        {
-            return 0;
-        }
+        return FolderTimestampHelper.GetLatestModifiedTimeUtc(folderPath)?.Ticks ?? 0;
     }
 }

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
@@ -362,24 +361,7 @@ namespace ModHearth
 
         private static bool TryDetectSteamProcess(out List<string> processNames)
         {
-            processNames = new List<string>();
-            string[] candidates = { "steam", "Steam", "steamwebhelper", "SteamWebHelper" };
-            foreach (string candidate in candidates)
-            {
-                try
-                {
-                    if (Process.GetProcessesByName(candidate).Length == 0)
-                        continue;
-                    if (!processNames.Contains(candidate, StringComparer.OrdinalIgnoreCase))
-                        processNames.Add(candidate);
-                }
-                catch
-                {
-                    // Ignore process query failures for one process name.
-                }
-            }
-
-            return processNames.Count > 0;
+            return SteamProcessHelper.TryDetectSteamProcess(out processNames);
         }
 
         private static bool TryAddLocalActionableMod(
