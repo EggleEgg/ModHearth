@@ -127,21 +127,11 @@
       <ListBox x:Name="selectedRulesList" Grid.Row="1" SelectionMode="Single" />
     </Grid>
 
-    <Grid Grid.Row="3" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-      <TextBox x:Name="communityRulesUrlTextBox"
-               Watermark="GitHub repository URL with modsort_rules.json"
-               Height="28"
-               VerticalContentAlignment="Center" />
-      <Button x:Name="fetchCommunityRulesButton"
-              Grid.Column="1"
-              Content="Fetch Rules"
-              Height="28"
-              HorizontalContentAlignment="Center"
-              VerticalContentAlignment="Center" />
-      <TextBlock x:Name="communityRulesStatusTextBlock"
-                 Grid.Column="2"
-                 VerticalAlignment="Center"
-                 Text="" />
+    <Grid Grid.Row="3" Grid.ColumnSpan="2" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" RowSpacing="12" Margin="0,15,0,5">
+      <Border x:Name="lineBreak" Grid.Row="0" Grid.ColumnSpan="3" Height="2" HorizontalAlignment="Stretch" />
+      <TextBox x:Name="communityRulesUrlTextBox" Grid.Row="1" Grid.Column="0" Watermark="GitHub repository URL with modsort_rules.json" Height="32" VerticalContentAlignment="Center" />
+      <Button x:Name="fetchCommunityRulesButton" Grid.Row="1" Grid.Column="1" Content="Fetch Rules" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+      <TextBlock x:Name="communityRulesStatusTextBlock" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="4,0,0,0" Text="Ready" />
     </Grid>
   </Grid>
 </Window>

@@ -98,6 +98,13 @@ public static class WindowThemeManager
                     border.Background = borderPanelBrush;
                 continue;
             }
+            if (visual is Border lineBreak && lineBreak.Name == "lineBreak")
+            {
+                if (!lineBreak.IsSet(Border.BackgroundProperty))
+                    lineBreak.Background = borderPanelBrush;
+
+                continue;
+            }
             if (visual is TextBlock textBlock)
             {
                 if (!textBlock.IsSet(TextBlock.ForegroundProperty))
