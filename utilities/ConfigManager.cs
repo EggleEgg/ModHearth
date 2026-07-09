@@ -177,6 +177,20 @@ namespace ModHearth
             SaveConfigFile();
         }
 
+        public static double GetModDataPanelProportion() => Config.ModDataPanelProportion;
+
+        public static int GetModDataPanelOrientation() => Config.ModDataPanelOrientation;
+
+        public static bool GetModDataPanelFirst() => Config.ModDataPanelFirst;
+
+        public static void SetModDataPanelLayout(double proportion, int orientation, bool first)
+        {
+            Config.ModDataPanelProportion = proportion;
+            Config.ModDataPanelOrientation = orientation;
+            Config.ModDataPanelFirst = first;
+            SaveConfigFile();
+        }
+
         public static bool IsAutoSaveEnabled() => Config.IsAutoSaveEnabled;
 
         public static void SetAutoSaveEnabled(bool enabled)

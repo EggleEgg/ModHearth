@@ -84,6 +84,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow()
     {
         InitializeComponent();
+        InitializeModInfoDock();
         saveButton.DataContext = this;
         SetWindowIcon();
         SetPreviewImage(LoadFallbackPreview());
@@ -168,6 +169,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Closing += MainWindowClosing;
         Closed += (_, _) =>
         {
+            SaveModDataPanelLayout();
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();
             dfHackStatusTimer?.Stop();
