@@ -13,6 +13,5 @@
 # User-specific
 *.user
 *.suo
-**/.devin/
 /.external.zip
 /.external
