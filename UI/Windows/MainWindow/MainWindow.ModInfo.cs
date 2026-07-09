@@ -18,6 +18,7 @@ public partial class MainWindow
         previousSelectedModId = null;
         SetPreviewImage(LoadFallbackPreview());
         ShowFallbackHelpText();
+        PopulateModDataViewer(null);
     }
 
     private void RefreshDescriptionHtml()
@@ -48,6 +49,7 @@ public partial class MainWindow
 
         currentDescriptionBBCode = modref.description ?? string.Empty;
         RefreshDescriptionHtml();
+        PopulateModDataViewer(modref);
 
         IImage? previewImage = null;
         string? previewSvgPath = ResolveFilePathCaseInsensitive(modref.path, "preview.svg");

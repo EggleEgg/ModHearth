@@ -59,5 +59,14 @@ namespace ModHearth
 
         // Optional GitHub repository URL from which to load community modsort_rules.json.
         public string CommunitySortRulesUrl { get; set; } = string.Empty;
+
+        // Proportion (0-1) of the mod info dock taken by the mod data panel.
+        public double ModDataPanelProportion { get; set; } = 0.35;
+
+        // Split orientation of the mod info dock. 0 = vertical, 1 = horizontal.
+        public int ModDataPanelOrientation { get; set; } = 0;
+
+        // Whether the mod data panel is placed before (top/left of) the description.
+        public bool ModDataPanelFirst { get; set; } = true;
     }
 }
