@@ -68,5 +68,14 @@ namespace ModHearth
 
         // Whether the mod data panel is placed before (top/left of) the description.
         public bool ModDataPanelFirst { get; set; } = true;
+
+        // Proportion (0-1) of the mod info dock taken by the preview image panel.
+        public double ModPreviewPanelProportion { get; set; } = 0.45;
+
+        // Split orientation between the preview panel and the rest. 0 = vertical, 1 = horizontal.
+        public int ModPreviewPanelOrientation { get; set; } = 0;
+
+        // Whether the preview panel is placed before (top/left of) the data/description panels.
+        public bool ModPreviewPanelFirst { get; set; } = true;
     }
 }
