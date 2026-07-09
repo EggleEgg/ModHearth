@@ -43,8 +43,9 @@ public partial class SortRulesWindow : Window
     private readonly string rulesFilePath;
     private readonly Action<List<ModSortRule>>? onSave;
     private readonly string? initialCommunityRulesUrl;
-    private readonly Func<string, Task<(bool success, string message)>>? fetchCommunityRules;
+    private readonly Func<string, Task<(bool success, string message, IReadOnlyList<ModSortRule>? rules)>>? fetchCommunityRules;
     private readonly DispatcherTimer searchDebounceTimer;
+    private readonly IEnumerable<ModReference> modRefs;
 
     private readonly List<string> initialRuleOrder = new();
     private bool changesMade;
@@ -58,17 +59,17 @@ public partial class SortRulesWindow : Window
     private readonly int emptyRuleGapSize = 12;
 
     public SortRulesWindow()
-        : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null)
+        : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null, null)
     {
     }
 
     public SortRulesWindow(IEnumerable<ModSortRule> existingRules)
-        : this(existingRules, Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null)
+        : this(existingRules, Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null, null)
     {
     }
 
     public SortRulesWindow(IEnumerable<ModSortRule> existingRules, IEnumerable<ModReference> modRefs)
-        : this(existingRules, modRefs, string.Empty, string.Empty, string.Empty, null, null, null)
+        : this(existingRules, modRefs, string.Empty, string.Empty, string.Empty, null, null, null, null)
     {
     }
 
@@ -80,7 +81,8 @@ public partial class SortRulesWindow : Window
         string? rulesFilePath,
         Action<List<ModSortRule>>? onSave = null,
         string? communityRulesUrl = null,
-        Func<string, Task<(bool success, string message)>>? fetchCommunityRules = null)
+        Func<string, Task<(bool success, string message, IReadOnlyList<ModSortRule>? rules)>>? fetchCommunityRules = null,
+        IEnumerable<ModSortRule>? communityRules = null)
     {
         InitializeComponent();
         WindowThemeManager.Register(this);
@@ -90,9 +92,11 @@ public partial class SortRulesWindow : Window
         this.onSave = onSave;
         this.initialCommunityRulesUrl = communityRulesUrl;
         this.fetchCommunityRules = fetchCommunityRules;
+        this.modRefs = modRefs ?? Array.Empty<ModReference>();
 
         _userRules.AddRange(existingRules ?? Array.Empty<ModSortRule>());
-        BuildViewModels(modRefs ?? Array.Empty<ModReference>());
+        _communityRules = communityRules?.ToList() ?? new List<ModSortRule>();
+        BuildViewModels(this.modRefs);
 
         modTreeList.ItemsSource = availableMods;
         rulesList.ItemsSource = ruleMods;
@@ -1955,11 +1959,24 @@ public partial class SortRulesWindow : Window
         }
 
         SetCommunityRulesStatus("Fetching...");
-        (bool success, string message) = await fetchCommunityRules(url);
+        (bool success, string message, IReadOnlyList<ModSortRule>? rules) = await fetchCommunityRules(url);
         SetCommunityRulesStatus(message);
 
-        if (success)
-            MarkChanged();
+        if (!success || rules == null)
+            return;
+
+        _communityRules = new List<ModSortRule>(rules);
+
+        if (!changesMade)
+        {
+            BuildViewModels(modRefs);
+            ApplySearchFilter();
+            UpdateRuleReferenceOverlay();
+            UpdateRuleGapVisuals();
+            UpdateRulesJsonPreview();
+        }
+
+        MarkChanged();
     }
 
     private void SetCommunityRulesStatus(string message)

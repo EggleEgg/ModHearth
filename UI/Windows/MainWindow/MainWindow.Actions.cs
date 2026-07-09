@@ -38,8 +38,10 @@ public partial class MainWindow
                 bool success = await manager.FetchCommunitySortRulesAsync(url);
                 if (success)
                     manager.SetCommunitySortRulesUrl(url);
-                return (success, success ? "Community rules loaded." : "Failed to load community rules.");
-            })
+                IReadOnlyList<ModSortRule> rules = manager.GetCommunitySortRules();
+                return (success, success ? $"Loaded {rules.Count} community rules." : "Failed to load community rules.", rules);
+            },
+            manager.GetCommunitySortRules())
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
