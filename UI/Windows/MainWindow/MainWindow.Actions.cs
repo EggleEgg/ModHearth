@@ -31,7 +31,15 @@ public partial class MainWindow
             ConfigManager.GetModsPath(),
             ConfigManager.GetVanillaModsPath(),
             ModHearthManager.GetSortRulesPath(),
-            rules => manager.SetSortRules(rules))
+            rules => manager.SetSortRules(rules),
+            ConfigManager.Config.CommunitySortRulesUrl,
+            async url =>
+            {
+                bool success = await manager.FetchCommunitySortRulesAsync(url);
+                if (success)
+                    manager.SetCommunitySortRulesUrl(url);
+                return (success, success ? "Community rules loaded." : "Failed to load community rules.");
+            })
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };

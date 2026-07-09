@@ -80,7 +80,7 @@
     </DataTemplate>
   </Window.DataTemplates>
 
-  <Grid Margin="12" RowDefinitions="Auto,*,160" ColumnDefinitions="*,*" ColumnSpacing="12"
+  <Grid Margin="12" RowDefinitions="Auto,*,160,Auto" ColumnDefinitions="*,*" ColumnSpacing="12"
         RowSpacing="10">
     <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
       <ui:ModSearchBar x:Name="modTreeSearchBar" Watermark="Search mods" Height="28" />
@@ -125,6 +125,23 @@
     <Grid Grid.Row="2" Grid.Column="1" RowDefinitions="Auto,*">
       <TextBlock Text="Rules JSON" FontWeight="Bold" />
       <ListBox x:Name="selectedRulesList" Grid.Row="1" SelectionMode="Single" />
+    </Grid>
+
+    <Grid Grid.Row="3" Grid.ColumnSpan="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBox x:Name="communityRulesUrlTextBox"
+               Watermark="GitHub repository URL with modsort_rules.json"
+               Height="28"
+               VerticalContentAlignment="Center" />
+      <Button x:Name="fetchCommunityRulesButton"
+              Grid.Column="1"
+              Content="Fetch Rules"
+              Height="28"
+              HorizontalContentAlignment="Center"
+              VerticalContentAlignment="Center" />
+      <TextBlock x:Name="communityRulesStatusTextBlock"
+                 Grid.Column="2"
+                 VerticalAlignment="Center"
+                 Text="" />
     </Grid>
   </Grid>
 </Window>

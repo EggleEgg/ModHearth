@@ -40,6 +40,8 @@ public partial class SortRulesWindow : Window
     private readonly string vanillaFolderPath;
     private readonly string rulesFilePath;
     private readonly Action<List<ModSortRule>>? onSave;
+    private readonly string? initialCommunityRulesUrl;
+    private readonly Func<string, Task<(bool success, string message)>>? fetchCommunityRules;
     private readonly DispatcherTimer searchDebounceTimer;
 
     private readonly List<string> initialRuleOrder = new();
@@ -54,17 +56,17 @@ public partial class SortRulesWindow : Window
     private readonly int emptyRuleGapSize = 12;
 
     public SortRulesWindow()
-        : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null)
+        : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null)
     {
     }
 
     public SortRulesWindow(IEnumerable<ModSortRule> existingRules)
-        : this(existingRules, Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null)
+        : this(existingRules, Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null)
     {
     }
 
     public SortRulesWindow(IEnumerable<ModSortRule> existingRules, IEnumerable<ModReference> modRefs)
-        : this(existingRules, modRefs, string.Empty, string.Empty, string.Empty, null)
+        : this(existingRules, modRefs, string.Empty, string.Empty, string.Empty, null, null, null)
     {
     }
 
@@ -74,7 +76,9 @@ public partial class SortRulesWindow : Window
         string? modsFolderPath,
         string? vanillaFolderPath,
         string? rulesFilePath,
-        Action<List<ModSortRule>>? onSave = null)
+        Action<List<ModSortRule>>? onSave = null,
+        string? communityRulesUrl = null,
+        Func<string, Task<(bool success, string message)>>? fetchCommunityRules = null)
     {
         InitializeComponent();
         WindowThemeManager.Register(this);
@@ -82,6 +86,8 @@ public partial class SortRulesWindow : Window
         this.vanillaFolderPath = vanillaFolderPath ?? string.Empty;
         this.rulesFilePath = rulesFilePath ?? string.Empty;
         this.onSave = onSave;
+        this.initialCommunityRulesUrl = communityRulesUrl;
+        this.fetchCommunityRules = fetchCommunityRules;
 
         BuildViewModels(existingRules ?? Array.Empty<ModSortRule>(), modRefs ?? Array.Empty<ModReference>());
 
@@ -140,6 +146,12 @@ public partial class SortRulesWindow : Window
 
         saveButton.Click += (_, _) => SaveRules();
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Bubble, true);
+
+        if (communityRulesUrlTextBox != null)
+            communityRulesUrlTextBox.Text = communityRulesUrl ?? string.Empty;
+
+        fetchCommunityRulesButton.Click += async (_, _) => await FetchCommunityRulesAsync();
+
         KeyDown += SortRulesWindowKeyDown;
         Closing += SortRulesWindowClosing;
 
@@ -1355,6 +1367,7 @@ public partial class SortRulesWindow : Window
         }
 
         onSave(rules);
+        SaveCommunityRulesUrl();
         CommitCurrentStateAsSaved();
         if (!closeAfterSave)
             return;
@@ -1857,6 +1870,45 @@ public partial class SortRulesWindow : Window
                 unique.Add(vm);
         }
         return unique;
+    }
+
+    private void SaveCommunityRulesUrl()
+    {
+        if (communityRulesUrlTextBox != null)
+            ConfigManager.Config.CommunitySortRulesUrl = communityRulesUrlTextBox.Text?.Trim() ?? string.Empty;
+        ConfigManager.SaveConfigFile();
+    }
+
+    private async Task FetchCommunityRulesAsync()
+    {
+        if (fetchCommunityRules == null || communityRulesUrlTextBox == null)
+            return;
+
+        string url = communityRulesUrlTextBox.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            SetCommunityRulesStatus("Enter a GitHub repository URL.");
+            return;
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out _))
+        {
+            SetCommunityRulesStatus("Invalid URL.");
+            return;
+        }
+
+        SetCommunityRulesStatus("Fetching...");
+        (bool success, string message) = await fetchCommunityRules(url);
+        SetCommunityRulesStatus(message);
+
+        if (success)
+            MarkChanged();
+    }
+
+    private void SetCommunityRulesStatus(string message)
+    {
+        if (communityRulesStatusTextBlock != null)
+            communityRulesStatusTextBlock.Text = message;
     }
 
     private void SaveButtonPointerPressed(object? sender, PointerPressedEventArgs e)
