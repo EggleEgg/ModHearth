@@ -1,7 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using System.Net.Http;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -149,7 +148,6 @@ public partial class SortRulesWindow : Window
         };
 
         saveButton.Click += (_, _) => SaveRules();
-        fetchCommunityRulesButton.Click += async (_, _) => await FetchCommunityRules();
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Bubble, true);
 
         if (communityRulesUrlTextBox != null)
@@ -1068,7 +1066,7 @@ public partial class SortRulesWindow : Window
             .Select(vm => vm.ModReference.ID)
             .Where(id => !string.IsNullOrWhiteSpace(id)));
 
-        InitializeRuleGaps(existingRules);
+        InitializeRuleGaps();
     }
 
     private void InitializeRuleGaps()
@@ -1998,71 +1996,4 @@ public partial class SortRulesWindow : Window
         }
     }
 
-    private async Task FetchCommunityRules()
-    {
-        string url = communityRulesUrlTextBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            await DialogService.ShowMessagePromptAsync(this, "Error", "GitHub URL cannot be empty.");
-            return;
-        }
-
-        // Basic URL validation. More robust validation may be needed.
-        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-        {
-            await DialogService.ShowMessagePromptAsync(this, "Error", "Invalid URL. Please provide a valid HTTP/HTTPS URL.");
-            return;
-        }
-
-        // Convert GitHub 'blob' URL to 'raw' content URL
-        string rawUrl = url.Replace("github.com", "raw.githubusercontent.com").Replace("/blob/", "/");
-
-        try
-        {
-            using HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("ModHearth-App"); // GitHub requires a User-Agent header
-            HttpResponseMessage response = await client.GetAsync(rawUrl);
-
-            if (response.IsSuccessStatusCode)
-            {
-                string jsonContent = await response.Content.ReadAsStringAsync();
-                try
-                {
-                    List<ModSortRule>? communityRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent);
-                    if (communityRules != null)
-                    {
-                        // TODO: Implement logic to merge community rules
-                        await DialogService.ShowMessagePromptAsync(this, "Success", $"Fetched {communityRules.Count} community rules. Further processing is required.");
-                    }
-                    else
-                    {
-                        await DialogService.ShowMessagePromptAsync(this, "Error", "Failed to parse community rules: JSON is empty or malformed.");
-                    }
-                }
-                catch (JsonException jsonEx)
-                {
-                    AppLogging.Log(jsonEx);
-                    await DialogService.ShowMessagePromptAsync(this, "JSON Parsing Error",
-                        $"Failed to parse community rules JSON: {jsonEx.Message}");
-                }
-            }
-            else
-            {
-                await DialogService.ShowMessagePromptAsync(this, "Error",
-                    $"Failed to fetch community rules. Status code: {response.StatusCode}");
-            }
-        }
-        catch (HttpRequestException ex)
-        {
-            await DialogService.ShowMessagePromptAsync(this, "Network Error",
-                $"Network error while fetching community rules: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            AppLogging.Log(ex);
-            await DialogService.ShowMessagePromptAsync(this, "Error",
-                $"An unexpected error occurred: {ex.Message}");
-        }
-    }
 }
