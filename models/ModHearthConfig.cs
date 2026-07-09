@@ -56,5 +56,14 @@
 
         // Automatically save modlist changes.
         public bool IsAutoSaveEnabled { get; set; } = false;
+
+        // Proportion (0-1) of the mod info dock taken by the mod data panel.
+        public double ModDataPanelProportion { get; set; } = 0.35;
+
+        // Split orientation of the mod info dock. 0 = vertical, 1 = horizontal.
+        public int ModDataPanelOrientation { get; set; } = 0;
+
+        // Whether the mod data panel is placed before (top/left of) the description.
+        public bool ModDataPanelFirst { get; set; } = true;
     }
 }

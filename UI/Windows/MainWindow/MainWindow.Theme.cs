@@ -28,6 +28,7 @@ public partial class MainWindow
         buildVersionLabel.Foreground = textBrush;
 
         RefreshDescriptionHtml();
+        RefreshModDataViewer();
 
         var notificationContainer = this.FindControl<StackPanel>("notificationContainer");
         if (notificationContainer != null)
