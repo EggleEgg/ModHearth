@@ -23,6 +23,7 @@ public partial class UpdateDialog : Window
         };
 
         dialog.HeaderText.Text = "Select a build to install:";
+        dialog.HeaderText.FontSize = 16;
         dialog.ReleaseList.ItemsSource = releases
             .Select((release, index) => ReleaseEntry.FromRelease(release, index, currentBuild))
             .ToList();
