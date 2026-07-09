@@ -170,6 +170,20 @@ namespace ModHearth
                 enabledIds.Add(requiredRef.ID);
             }
 
+            foreach (ModSortRule rule in communitySortRules)
+            {
+                if (rule == null)
+                    continue;
+
+                string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(requiredId))
+                    continue;
+                if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
+                    continue;
+
+                enabledIds.Add(requiredRef.ID);
+            }
+
             Queue<ModReference> queue = new Queue<ModReference>();
             foreach (string enabledId in enabledIds)
             {
@@ -223,6 +237,24 @@ namespace ModHearth
 
             // --- Tier 1: user-defined sort rules ---
             foreach (ModSortRule rule in sortRules)
+            {
+                if (rule == null)
+                    continue;
+
+                string beforeId = rule.BeforeId?.Trim() ?? string.Empty;
+                string afterId = rule.AfterId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(beforeId) || string.IsNullOrWhiteSpace(afterId))
+                    continue;
+                if (string.Equals(beforeId, afterId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!enabledIds.Contains(beforeId) || !enabledIds.Contains(afterId))
+                    continue;
+
+                TryAddEdge(edges, indegree, beforeId, afterId);
+            }
+
+            // --- Tier 1.5: community sort rules fetched from a GitHub repository URL ---
+            foreach (ModSortRule rule in communitySortRules)
             {
                 if (rule == null)
                     continue;

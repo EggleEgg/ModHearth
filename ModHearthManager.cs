@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using ModHearth.UI;
 using ModHearth.Utilities;
 
 namespace ModHearth
@@ -172,6 +174,7 @@ namespace ModHearth
         private readonly object installedCacheGate = new();
         private HashSet<string>? installedCacheModIds;
         private List<ModSortRule> sortRules = new();
+        private List<ModSortRule> communitySortRules = new();
         public string LastMissingModsMessage { get; private set; } = string.Empty;
         private DateTime? duplicateWarningLastWriteUtc;
 
@@ -194,6 +197,7 @@ namespace ModHearth
             // Get and load Config file, fix if needed.
             ConfigManager.AttemptLoadConfigAndDiscover();
             LoadSortRules();
+            LoadCommunitySortRules();
         }
 
         public bool Initialize(string? preferredModlistName = null)
@@ -333,6 +337,66 @@ namespace ModHearth
             catch
             {
                 // Ignore sort rule save failures.
+            }
+        }
+
+        public IReadOnlyList<ModSortRule> GetCommunitySortRules()
+        {
+            return communitySortRules;
+        }
+
+        public async Task<bool> FetchCommunitySortRulesAsync(string repositoryUrl)
+        {
+            string? rawUrl = GitHubUrlParser.ToRawFileUrl(repositoryUrl);
+            if (string.IsNullOrWhiteSpace(rawUrl))
+            {
+                communitySortRules = new List<ModSortRule>();
+                return false;
+            }
+
+            try
+            {
+                using HttpResponseMessage response = await GitHubFileClient.Instance.GetAsync(rawUrl);
+                if (!response.IsSuccessStatusCode)
+                {
+                    communitySortRules = new List<ModSortRule>();
+                    return false;
+                }
+
+                string jsonContent = await response.Content.ReadAsStringAsync();
+                List<ModSortRule>? loadedRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent);
+                communitySortRules = NormalizeSortRules(loadedRules);
+                return true;
+            }
+            catch
+            {
+                communitySortRules = new List<ModSortRule>();
+                return false;
+            }
+        }
+
+        public void SetCommunitySortRulesUrl(string repositoryUrl)
+        {
+            ConfigManager.Config.CommunitySortRulesUrl = repositoryUrl?.Trim() ?? string.Empty;
+            ConfigManager.SaveConfigFile();
+        }
+
+        private void LoadCommunitySortRules()
+        {
+            string url = ConfigManager.Config.CommunitySortRulesUrl;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                communitySortRules = new List<ModSortRule>();
+                return;
+            }
+
+            try
+            {
+                Task.Run(async () => await FetchCommunitySortRulesAsync(url)).Wait();
+            }
+            catch
+            {
+                communitySortRules = new List<ModSortRule>();
             }
         }
 
