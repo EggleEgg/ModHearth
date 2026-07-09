@@ -68,11 +68,6 @@ internal static class AppLogging
         };
     }
 
-    public static void LogException(string label)
-    {
-        LogException(label, null);
-    }
-
     public static void LogException(string label, Exception? ex)
     {
         //See avalonia issues #17616, #18703, #4175. Likely wont be fixed ever, so we just ignore these.

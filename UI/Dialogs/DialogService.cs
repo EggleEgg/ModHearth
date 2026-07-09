@@ -18,11 +18,6 @@ public static class DialogService
         await MessageDialog.ShowAsync(owner, message, title, MessageDialogButtons.Ok);
     }
 
-    public static Task ShowMessagePromptAsync(Window owner, string message, string title)
-    {
-        return ShowMessageAsync(owner, message, title);
-    }
-
     public static async Task<bool> ShowConfirmAsync(Window owner, string message, string title)
     {
         MessageDialogResult result = await MessageDialog.ShowAsync(owner, message, title, MessageDialogButtons.YesNo);
