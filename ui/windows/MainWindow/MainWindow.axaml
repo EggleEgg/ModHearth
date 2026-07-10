@@ -27,6 +27,7 @@
             <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False"
                       Click="ModContextOpenSteam" />
             <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
+            <MenuItem Header="Set Mod Color" Tag="set-mod-color" Click="ModContextSetModColor" />
           </ContextMenu>
         </Border.ContextMenu>
         <Grid>
@@ -150,6 +151,7 @@
 
             <ListBox x:Name="leftModlist" Grid.Row="2" SelectionMode="Multiple"
                      AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                      Margin="0,6,0,0">
             </ListBox>
           </Grid>
@@ -163,6 +165,7 @@
 
             <ListBox x:Name="rightModlist" Grid.Row="2" SelectionMode="Multiple"
                      AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
                      Margin="0,6,0,0">
             </ListBox>
           </Grid>

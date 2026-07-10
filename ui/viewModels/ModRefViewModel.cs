@@ -1,8 +1,10 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
+using ModHearth.Metadata;
 
 namespace ModHearth.UI;
 
@@ -375,6 +377,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             blended = BlendColor(blended, selectionOverlay.Value);
 
         BackgroundBrush = new SolidColorBrush(blended);
+        RefreshModColorUnderlay();
     }
 
     private void RefreshTextStyle()
@@ -445,6 +448,33 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         return Color.FromArgb(255, r, g, b);
     }
 
+    public void RefreshModColorUnderlay()
+    {
+        ModColor modColor = ModReference.AssignedColor;
+        if (modColor == ModColor.None)
+        {
+            ColorUnderlayBrush = null;
+            return;
+        }
+
+        Color color = ModColorMap.GetColor(modColor, 128);
+        ColorUnderlayBrush = new SolidColorBrush(color);
+    }
+
+    private IBrush? colorUnderlayBrush;
+
+    public IBrush? ColorUnderlayBrush
+    {
+        get => colorUnderlayBrush;
+        set
+        {
+            if (Equals(colorUnderlayBrush, value))
+                return;
+            colorUnderlayBrush = value;
+            OnPropertyChanged();
+        }
+    }
+
     private static Color LightenColor(Color baseColor, float amount)
     {
         amount = Math.Clamp(amount, 0f, 1f);
@@ -452,6 +482,19 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         byte g = (byte)Math.Clamp(baseColor.G + (255 - baseColor.G) * amount, 0, 255);
         byte b = (byte)Math.Clamp(baseColor.B + (255 - baseColor.B) * amount, 0, 255);
         return Color.FromArgb(255, r, g, b);
+    }
+
+    public void RefreshModColorUnderlay()
+    {
+        ModColor modColor = ModReference.AssignedColor;
+        if (modColor == ModColor.None)
+        {
+            ColorUnderlayBrush = null;
+            return;
+        }
+
+        Color color = ModColorMap.GetColor(modColor, 128);
+        ColorUnderlayBrush = new SolidColorBrush(color);
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)
@@ -466,3 +509,4 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         BelowSelection
     }
 }
+

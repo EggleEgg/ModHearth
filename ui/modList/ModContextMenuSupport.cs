@@ -24,6 +24,7 @@ internal static class ModContextMenuSupport
     public const string OpenFolderTag = "open";
     public const string OpenSteamTag = "open-steam";
     public const string CopyIdTag = "copy-id";
+    public const string SetModColorTag = "set-mod-color";
 
     public static void PrepareContextMenu(
         ContextMenu menu,

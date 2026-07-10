@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using ModHearth.Metadata;
 
 namespace ModHearth
 {
@@ -23,6 +24,8 @@ namespace ModHearth
         public string author;
         public string name;
         public string description;
+
+        public ModColor AssignedColor { get; set; }
 
         public string steamName;
         public string steamDescription;
@@ -62,6 +65,7 @@ namespace ModHearth
             this.path = path;
             this.Source = source;
             problematic = false;
+            AssignedColor = ModColor.None;
 
             require_before_me = new List<string>();
             require_after_me = new List<string>();
@@ -83,6 +87,7 @@ namespace ModHearth
             path = Path.Combine(mmd["src_dir"]);
             steamID = mmd["steam_file_id"]; // FIXME: dubious
             steamName = mmd["steam_title"];
+            AssignedColor = ModColorMetadataStore.GetModColor(ID);
             steamDescription = mmd["steam_description"];
 
             Source = string.IsNullOrWhiteSpace(steamID) ? ModSource.Local : ModSource.Steam;

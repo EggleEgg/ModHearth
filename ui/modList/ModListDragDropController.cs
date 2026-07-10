@@ -3,7 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
+using System;
 using System.Text.Json;
 
 namespace ModHearth.UI;
@@ -39,6 +41,10 @@ public sealed class ModListDragDropController
     private Cursor? previousCursor;
     private readonly ListSelectionController<ModRefViewModel> selectionController = new();
     private ModRefViewModel? lastHighlightedItem;
+
+    private bool isDragging;
+    private ListBox? currentDragOverList;
+    private Point? currentDragOverPosition;
 
     public event Action<ModListDropContext>? Dropped;
 
@@ -162,15 +168,22 @@ public sealed class ModListDragDropController
         selected = OrderSelectionByList(dragSourceList, selected);
 
         SetDragHighlight(selected);
+        // Set the flag and spin up the background loop thread
+        isDragging = true;
+        StartBackgroundScrollLoop();
         try
         {
             string payload = SerializeDragData(selected);
             DataTransfer data = new DataTransfer();
             data.Add(DataTransferItem.Create(DragDataFormat, payload));
+
+            // The native OS blocking loop runs here
             await DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
         }
         finally
         {
+            // Flipping this to false immediately halts the background thread loop
+            isDragging = false;
             ClearDragHighlight();
             ResetDragState();
         }
@@ -187,11 +200,19 @@ public sealed class ModListDragDropController
         e.DragEffects = DragDropEffects.Move;
         Point pos = e.GetPosition(list);
         UpdateDropHighlight(list, pos);
+
+        currentDragOverList = list;
+        currentDragOverPosition = pos;
     }
 
     private void OnDragLeave(object? sender, DragEventArgs e)
     {
         ClearDropHighlights();
+        if (sender is ListBox list && currentDragOverList == list)
+        {
+            currentDragOverList = null;
+            currentDragOverPosition = null;
+        }
     }
 
     private void OnDrop(object? sender, DragEventArgs e)
@@ -459,5 +480,71 @@ public sealed class ModListDragDropController
         dragSelectionSnapshot = null;
         dragHitItem = null;
         dragPreserveSelection = false;
+    }
+
+    private async void StartBackgroundScrollLoop()
+    {
+        while (isDragging)
+        {
+            // Poll every 50ms (matching your original timer resolution)
+            await Task.Delay(50);
+
+            // Early escape if the drag ended or the cursor left a valid target list
+            if (!isDragging || currentDragOverList == null || currentDragOverPosition == null)
+                continue;
+
+            // Capture references safely for the UI thread callback
+            var list = currentDragOverList;
+
+            // Post the work to the UI thread. The active OS drag loop will 
+            // successfully intercept and process this window message!
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Verify state hasn't drifted while waiting for the dispatch frame
+                if (!isDragging || currentDragOverList != list || currentDragOverPosition == null)
+                    return;
+
+                ScrollViewer? scrollViewer = list.FindDescendantOfType<ScrollViewer>();
+                if (scrollViewer == null)
+                {
+                    scrollViewer = list.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+                }
+
+                if (scrollViewer == null) return;
+
+                Point pos = currentDragOverPosition.Value;
+                //TODO: Make these configurable in the future
+                double scrollSpeed = 40.0;
+                double scrollThreshold = 20.0;
+                bool scrolled = false;
+
+                if (pos.Y < scrollThreshold)
+                {
+                    double oldOffset = scrollViewer.Offset.Y;
+                    double newOffset = Math.Max(0, oldOffset - scrollSpeed);
+                    if (Math.Abs(newOffset - oldOffset) > 0.01)
+                    {
+                        scrollViewer.Offset = scrollViewer.Offset.WithY(newOffset);
+                        scrolled = true;
+                    }
+                }
+                else if (pos.Y > (list.Bounds.Height - scrollThreshold))
+                {
+                    double oldOffset = scrollViewer.Offset.Y;
+                    double maxOffset = scrollViewer.Extent.Height - scrollViewer.Viewport.Height;
+                    double newOffset = Math.Min(maxOffset, oldOffset + scrollSpeed);
+                    if (Math.Abs(newOffset - oldOffset) > 0.01)
+                    {
+                        scrollViewer.Offset = scrollViewer.Offset.WithY(newOffset);
+                        scrolled = true;
+                    }
+                }
+
+                if (scrolled)
+                {
+                    UpdateDropHighlight(list, pos);
+                }
+            }, DispatcherPriority.Input);
+        }
     }
 }

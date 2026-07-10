@@ -1,6 +1,16 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml.Templates;
+using Avalonia.Media;
+using ModHearth.Metadata;
+using ModHearth.UI.ViewModels;
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
 
 namespace ModHearth.UI;
 
@@ -132,6 +142,61 @@ public partial class MainWindow
             (ModRefViewModel vm) => vm.ModReference);
     }
 
+    private async void ModContextSetModColor(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
+            return;
+
+        if (modReferences.Count == 0)
+            return;
+
+        ModRefViewModel? contextVm = (sender as MenuItem)?.DataContext as ModRefViewModel;
+        if (contextVm == null)
+            return;
+
+        ModColor currentColor = ModColorMetadataStore.GetModColor(contextVm.ModReference.ID);
+
+        // Create a flyout for color selection
+        Flyout flyout = new Flyout();
+        ListBox colorListBox = new ListBox
+        {
+            Items = Enum.GetValues<ModColor>().Cast<ModColor>().Where(c => c != ModColor.None).ToList(),
+            SelectedItem = currentColor == ModColor.None ? null : currentColor,
+            Background = new SolidColorBrush(Style.instance!.backgroundColor.ToAvaloniaColor())
+        };
+        colorListBox.ItemTemplate = new FuncDataTemplate<ModColor>((color, scope) => {
+            Border border = new Border
+            {
+                Width = 20,
+                Height = 20,
+                Background = new SolidColorBrush(ModColorMap.GetColor(color)),
+                BorderBrush = color == currentColor ? Brushes.White : Brushes.Transparent,
+                BorderThickness = new Thickness(2),
+                Margin = new Thickness(2)
+            };
+            return border;
+        });
+
+        colorListBox.SelectionChanged += (s, ev) =>
+        {
+            if (colorListBox.SelectedItem is ModColor selectedColor)
+            {
+                foreach (ModReference modRef in modReferences)
+                {
+                    ModColorMetadataStore.SetModColor(modRef.ID, selectedColor);
+                }
+                // Optionally refresh UI for selected mods
+                RefreshModListBackgrounds();
+                flyout.Hide();
+            }
+        };
+
+        flyout.Content = colorListBox;
+        flyout.Placement = FlyoutPlacementMode.Right;
+        flyout.ShowAt(sender as Control);
+
+    }
+
     private bool TryGetContextModReferences(object? sender, out List<ModReference> modReferences)
     {
         modReferences = new List<ModReference>();
@@ -147,6 +212,18 @@ public partial class MainWindow
             list.SelectedItems,
             contextVm => contextVm.ModReference,
             out modReferences);
+    }
+
+    private void RefreshModListBackgrounds()
+    {
+        foreach (ModRefViewModel vm in leftModlist.Items.OfType<ModRefViewModel>())
+        {
+            vm.RefreshBackground();
+        }
+        foreach (ModRefViewModel vm in rightModlist.Items.OfType<ModRefViewModel>())
+        {
+            vm.RefreshBackground();
+        }
     }
 
     private IList? GetContextMenuSelectedItems(object? sender)
