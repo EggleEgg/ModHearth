@@ -429,6 +429,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             SearchFilterMode.Name => modref.name,
             SearchFilterMode.Id => modref.ID,
             SearchFilterMode.SteamFileId => modref.steamID,
+            SearchFilterMode.Color => ModColorMap.ColorNames.TryGetValue(modref.AssignedColor, out string? name) ? name : "None",
             _ => modref.name
         };
 
@@ -482,19 +483,6 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         byte g = (byte)Math.Clamp(baseColor.G + (255 - baseColor.G) * amount, 0, 255);
         byte b = (byte)Math.Clamp(baseColor.B + (255 - baseColor.B) * amount, 0, 255);
         return Color.FromArgb(255, r, g, b);
-    }
-
-    public void RefreshModColorUnderlay()
-    {
-        ModColor modColor = ModReference.AssignedColor;
-        if (modColor == ModColor.None)
-        {
-            ColorUnderlayBrush = null;
-            return;
-        }
-
-        Color color = ModColorMap.GetColor(modColor, 128);
-        ColorUnderlayBrush = new SolidColorBrush(color);
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)

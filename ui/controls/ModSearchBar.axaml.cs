@@ -13,6 +13,7 @@ public enum SearchFilterMode
 {
     Name,
     Regex,
+    Color,
     ModifiedTime,
     Id,
     SteamFileId,
@@ -260,6 +261,7 @@ public partial class ModSearchBar : UserControl
 
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name, "Search by name"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex, "Search by regex"));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color, "Search by color"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime, "Sort by modified time"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id, "Search by mod id"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId, "Search by steam file id"));
@@ -301,10 +303,14 @@ public partial class ModSearchBar : UserControl
         };
         searchModeLabels[mode] = text;
 
+        Thickness textRightSpacing = new Thickness(0, 0, 15, 0);
+
         if (mode == SearchFilterMode.Regex)
         {
             ToolTip.SetTip(button, "Search includes mod title and description");
+
             Grid grid = new Grid();
+            grid.ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto");
 
             Button helpButton = new Button
             {
@@ -336,6 +342,12 @@ public partial class ModSearchBar : UserControl
             StackPanel leftContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             leftContent.Children.Add(optionIcon);
             leftContent.Children.Add(text);
+
+            leftContent.Margin = textRightSpacing;
+
+            Grid.SetColumn(leftContent, 0);
+            Grid.SetColumn(helpButton, 2);
+
             grid.Children.Add(leftContent);
             grid.Children.Add(helpButton);
             button.Content = grid;
@@ -346,6 +358,8 @@ public partial class ModSearchBar : UserControl
             StackPanel content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             content.Children.Add(optionIcon);
             content.Children.Add(text);
+
+            content.Margin = textRightSpacing;
             button.Content = content;
         }
 
@@ -393,6 +407,7 @@ public partial class ModSearchBar : UserControl
         {
             SearchFilterMode.Name => "alphabetIcon.svg",
             SearchFilterMode.Regex => "regexIcon.svg",
+            SearchFilterMode.Color => "paintBrushIcon.svg",
             SearchFilterMode.ModifiedTime => "modifiedClockIcon.svg",
             SearchFilterMode.Id => "idButtonIcon.svg",
             SearchFilterMode.SteamFileId => "steamIdIcon.svg",
@@ -406,8 +421,9 @@ public partial class ModSearchBar : UserControl
         {
             SearchFilterMode.Name => "Search by name",
             SearchFilterMode.Regex => "Search by regex",
-            SearchFilterMode.Id => "Search by mod id",
+            SearchFilterMode.Color => "Search by color",
             SearchFilterMode.ModifiedTime => "Sort by modified time",
+            SearchFilterMode.Id => "Search by mod id",
             SearchFilterMode.SteamFileId => "Search by steam file id",
             _ => "Search by name"
         };

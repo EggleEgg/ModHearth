@@ -244,9 +244,6 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(Config.InstalledModsPath))
                 return GetDefaultInstalledModsPath();
 
-            if (OperatingSystem.IsWindows() && IsInstalledModsUnderGameFolder(Config.InstalledModsPath, Config.DFFolderPath))
-                return GetDefaultInstalledModsPath();
-
             string normalizedConfigured = NormalizeFileSystemPath(Config.InstalledModsPath);
             string? resolved = ResolveExistingDirectoryPath(normalizedConfigured);
             if (string.IsNullOrWhiteSpace(resolved))
@@ -1013,6 +1010,18 @@ namespace ModHearth
 
         public static string? TryFindInstalledModsPath()
         {
+            if (!string.IsNullOrWhiteSpace(Config.DFFolderPath))
+            {
+                string portableCandidate = Path.Combine(Config.DFFolderPath, "data", installedMods);
+                if (IsDwarfFortressPortable() || Directory.Exists(portableCandidate))
+                {
+                    string? resolvedPortable = ResolveExistingDirectoryPath(portableCandidate);
+                    if (!string.IsNullOrWhiteSpace(resolvedPortable))
+                        return resolvedPortable;
+                }
+            }
+
+            // fallback to standard AppData
             foreach (string candidate in GetInstalledModsPathCandidates())
             {
                 if (string.IsNullOrWhiteSpace(candidate))
@@ -1042,6 +1051,18 @@ namespace ModHearth
             }
 
             return string.Empty;
+        }
+
+        public static bool IsDwarfFortressPortable()
+        {
+            if (string.IsNullOrWhiteSpace(Config.DFFolderPath) || !Directory.Exists(Config.DFFolderPath))
+                return false;
+
+            string prefsPath = Path.Combine(Config.DFFolderPath, "prefs");
+
+            return Directory.Exists(Path.Combine(prefsPath, "portable")) ||
+                   File.Exists(Path.Combine(prefsPath, "portable")) ||
+                   File.Exists(Path.Combine(prefsPath, "portable.txt"));
         }
 
         private static IEnumerable<string> GetInstalledModsPathCandidates()
@@ -1122,6 +1143,12 @@ namespace ModHearth
             string? resolved = TryFindInstalledModsPath();
             if (!string.IsNullOrWhiteSpace(resolved))
                 return resolved;
+
+            // If auto-discovery didn't find an existing folder, determine the structural fallback
+            if (IsDwarfFortressPortable() && !string.IsNullOrWhiteSpace(Config.DFFolderPath))
+            {
+                return Path.Combine(Config.DFFolderPath, "data", installedMods);
+            }
 
             foreach (string candidate in GetInstalledModsPathCandidates().Where(candidate => !string.IsNullOrWhiteSpace(candidate)))
             {

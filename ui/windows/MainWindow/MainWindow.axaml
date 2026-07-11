@@ -57,15 +57,21 @@
                    Height="14"
                    VerticalAlignment="Center"
                    Stretch="Uniform" />
-            <TextBlock Grid.Column="2"
-                       Text="{Binding DisplayName}"
-                       Foreground="{Binding TextBrush}"
-                       TextTrimming="CharacterEllipsis"
-                       FontWeight="Normal"
-                       TextDecorations="{Binding TextDecorations}"
-                       MinWidth="0"
-                       Margin="4,0,0,0"
-                       VerticalAlignment="Center" />
+            <Grid Grid.Column="2" ColumnDefinitions="*,0.35*">
+              <TextBlock Grid.Column="0"
+                         Text="{Binding DisplayName}"
+                         Foreground="{Binding TextBrush}"
+                         TextTrimming="CharacterEllipsis"
+                         FontWeight="Normal"
+                         TextDecorations="{Binding TextDecorations}"
+                         MinWidth="0"
+                         Margin="4,0,0,0"
+                         VerticalAlignment="Center" />
+              <Border Grid.Column="1"
+                      Background="{Binding ColorUnderlayBrush}"
+                      HorizontalAlignment="Stretch"
+                      IsHitTestVisible="False" />
+            </Grid>
           </Grid>
           <Border Height="2"
                   Background="{Binding DropHighlightBrush}"

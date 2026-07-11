@@ -531,7 +531,7 @@ namespace ModHearth
 
             if (conflictingKeys.Any())
             {
-                Console.WriteLine($"[AutoSort] Warning: \'{string.Join(", ", conflictingKeys)}\' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order — applying a best-effort order.");
+                Console.WriteLine($"[AutoSort] Warning: \'{string.Join(", ", conflictingKeys)}\' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
             }
 
             List<string> available = new List<string>();

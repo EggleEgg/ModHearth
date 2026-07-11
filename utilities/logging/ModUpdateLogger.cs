@@ -164,7 +164,12 @@ public static class ModUpdateLogger
                 }
 
                 foreach (ModUpdateSnapshotEntry previousEntry in previous.Values.Where(previousEntry => !current.ContainsKey(previousEntry.ModId)))
+                {
+                    if (IsIgnoredPath(previousEntry.Path))
+                        continue;
+
                     entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
+                }
 
                 entries.AddRange(BuildWorkshopUpdateEntries(mods, activeIds, workshopAcfPaths));
 
@@ -191,12 +196,16 @@ public static class ModUpdateLogger
             if (string.IsNullOrWhiteSpace(id) || snapshot.ContainsKey(id))
                 continue;
 
+            string path = ResolveCanonicalPath(modref.path ?? string.Empty);
+            if (IsIgnoredPath(path))
+                continue;
+
             snapshot[id] = new ModUpdateSnapshotEntry
             {
                 ModId = id,
                 ModName = string.IsNullOrWhiteSpace(modref.name) ? id : modref.name,
                 SourceType = GetSourceType(modref),
-                Path = ResolveCanonicalPath(modref.path ?? string.Empty),
+                Path = path,
                 SteamId = ResolveSteamId(modref),
                 QuickStamp = BuildLocalQuickStamp(modref.path ?? string.Empty),
                 DeepStamp = string.Empty
@@ -204,6 +213,16 @@ public static class ModUpdateLogger
         }
 
         return snapshot;
+    }
+
+    //TODO handle this at the source instead of at the end
+    private static bool IsIgnoredPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        return path.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => string.Equals(segment, "installed_mods", StringComparison.OrdinalIgnoreCase));
     }
 
     private static ModUpdateLogEntry BuildEntry(ModUpdateSnapshotEntry entry, bool active, ModUpdateChangeType changeType)
@@ -596,6 +615,9 @@ public static class ModUpdateLogger
                 unmappedCount++;
                 continue;
             }
+
+            if (modref.path != null && IsIgnoredPath(ResolveCanonicalPath(modref.path)))
+                continue;
 
             DateTime? timestamp = TryConvertUnixTime(kvp.Value);
             bool isActive = activeIds.Contains(modref.ID ?? string.Empty);
