@@ -1785,13 +1785,25 @@ namespace ModHearth
             {
                 if (duplicateModRefs.TryGetValue(dfm.ToString(), out var duplicates))
                 {
-                    var nonInstalledDuplicates = hasInstalledModsPath
-                        ? duplicates.Where(m => string.IsNullOrWhiteSpace(m.path) || !IsPathUnderRoot(m.path, installedModsPath)).ToList()
-                        : duplicates;
-
-                    if (nonInstalledDuplicates.Count > 1)
+                    var relevantDuplicates = duplicates.Where(m =>
                     {
-                        var paths = string.Join(", ", nonInstalledDuplicates.Select(m => $"'{m.path}'"));
+                        if (hasInstalledModsPath && !string.IsNullOrWhiteSpace(m.path) && IsPathUnderRoot(m.path, installedModsPath))
+                            return false;
+
+                        if (!ConfigManager.TryGetSteamShadowCopyWorkshopId(m.path, out string shadowWorkshopId))
+                            return true;
+
+                        bool hasMatchingWorkshopSibling = duplicates.Any(other =>
+                            !ReferenceEquals(other, m) &&
+                            ConfigManager.TryExtractSteamWorkshopItemIdFromPath(other.path, out string otherWorkshopId) &&
+                            string.Equals(otherWorkshopId, shadowWorkshopId, StringComparison.Ordinal));
+
+                        return !hasMatchingWorkshopSibling;
+                    }).ToList();
+
+                    if (relevantDuplicates.Count > 1)
+                    {
+                        var paths = string.Join(", ", relevantDuplicates.Select(m => $"'{m.path}'"));
                         newModProblems.Add(new ModProblem(dfm.id, paths, ModProblem.ProblemType.DuplicateMod));
                     }
                 }

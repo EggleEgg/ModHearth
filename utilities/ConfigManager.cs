@@ -22,6 +22,7 @@ namespace ModHearth
         private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
         private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex SteamShadowCopyFolderNameRegex = new(@"^(?<id>\d+)(?:\s*\(\d+\))?$", RegexOptions.Compiled);
         public const string DwarfFortressSteamAppId = "975370";
 
         private static List<string>? _cachedSteamLibraryRoots;
@@ -884,6 +885,24 @@ namespace ModHearth
                 return false;
 
             return TryParsePositiveSteamId(pathMatch.Groups["id"].Value, out steamItemId);
+        }
+
+        // Detects Dwarf Fortress's own Steam-integration habit of materializing a workshop mod's content directly into the Mods\ folder, named after
+        // its numeric Steam Workshop file id, with a trailing " (<version>)" suffix, ex: "Mods\3445635304 (20)" or "Mods\3445635304"
+        // see steam discussion https://steamcommunity.com/app/975370/discussions/0/599642674183563431/ as reference of this (likely unpatched) bug
+        public static bool TryGetSteamShadowCopyWorkshopId(string? folderPath, out string workshopId)
+        {
+            workshopId = string.Empty;
+            if (string.IsNullOrWhiteSpace(folderPath))
+                return false;
+
+            string folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            Match match = SteamShadowCopyFolderNameRegex.Match(folderName);
+            if (!match.Success)
+                return false;
+
+            workshopId = match.Groups["id"].Value;
+            return true;
         }
 
         public static bool TryParsePositiveSteamId(string? rawSteamId, out string steamItemId)

@@ -3,9 +3,9 @@ namespace ModHearth;
 public static class ModSourceClassifier
 {
     public static (bool IsVanilla, bool IsLocal, bool IsSteam) Classify(
-        ModReference modref,
-        string? modsFolderPath,
-        string? vanillaFolderPath)
+    ModReference modref,
+    string? modsFolderPath,
+    string? vanillaFolderPath)
     {
         if (modref == null)
             return (false, false, false);
@@ -20,7 +20,11 @@ public static class ModSourceClassifier
         bool steamPathHint = path.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 ||
                              path.IndexOf("workshop", StringComparison.OrdinalIgnoreCase) >= 0;
 
-        bool isSteam = !isVanilla && !isLocal && (hasSteamId || steamPathHint);
+        bool isSteamShadowCopy = isLocal && ConfigManager.TryGetSteamShadowCopyWorkshopId(path, out _);
+        if (isSteamShadowCopy)
+            isLocal = false;
+
+        bool isSteam = !isVanilla && (isSteamShadowCopy || (!isLocal && (hasSteamId || steamPathHint)));
         return (isVanilla, isLocal, isSteam);
     }
 
