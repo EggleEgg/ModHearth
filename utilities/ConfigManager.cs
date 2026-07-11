@@ -1220,10 +1220,6 @@ namespace ModHearth
             foreach (string workshopPath in GetSteamWorkshopContentPaths())
                 yield return workshopPath;
 
-            string installedModsPath = GetInstalledModsPath();
-            if (!string.IsNullOrWhiteSpace(installedModsPath))
-                yield return installedModsPath;
-
             if (!string.IsNullOrWhiteSpace(Config.DFFolderPath))
             {
                 string vanillaRoot = GetVanillaModsPath();

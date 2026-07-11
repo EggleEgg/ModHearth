@@ -36,6 +36,7 @@ Information on the four buttons from left to right:
 - Ctrl + Z triggers undo.
 - Ctrl + Y re‑applies the last undone change.
 - Ctrl + S triggers any save action.
+- Ctrl + A selects all mods in the list
 - Escape to deselect mods.
 - Delete selects the previously selected mod.
 - Backspace removes the selected mods.

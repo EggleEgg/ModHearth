@@ -11,12 +11,6 @@ namespace ModHearth
     </summary>*/
     public partial class ModHearthManager
     {
-        private IReadOnlyList<HashSet<string>> GetDuplicateWarningGroups()
-        {
-            EnsureDuplicateWarningCache(logFound: false);
-            return duplicateWarningGroups;
-        }
-
         private static bool IsVanillaBaseMod(ModReference modref)
         {
             if (modref == null)

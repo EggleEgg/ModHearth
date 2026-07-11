@@ -85,13 +85,11 @@ public partial class MainWindow
 
         BuildModViewModels();
         _ = UpdateDfHackStatusAsync();
-        if (!DevMode.IsEnabled)
-            ResetModManagerWatcher();
+        ResetModManagerWatcher();
 
         BuildModViewModels();
         _ = UpdateDfHackStatusAsync();
-        if (!DevMode.IsEnabled)
-            ResetModManagerWatcher();
+        ResetModManagerWatcher();
 
         modifyingComboBox = true;
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();

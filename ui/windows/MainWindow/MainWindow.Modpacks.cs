@@ -15,19 +15,19 @@ public partial class MainWindow
 
     private void ShowModpackSaveNotice(ModHearthManager.ModpackSaveResult result)
     {
-        if (!DevMode.IsEnabled)
-            ResetModManagerWatcher();
+        ResetModManagerWatcher();
+
+        if (ConfigManager.IsAutoSaveEnabled())
+        {
+            // Confirms the local save succeeded, independent of DFHack
+            ShowNotification("Modlist Autosaved", "saveWhiteIcon.svg");
+        }
 
         if (string.IsNullOrWhiteSpace(result.LiveReloadMessage))
             return;
 
         if (result.UsesFallbackStorage || !result.LiveReloadApplied)
             ShowTransientStatusNotice(result.LiveReloadMessage);
-        else if (ConfigManager.IsAutoSaveEnabled())
-        {
-            // If live reload applied, show a different message for autosaves
-            ShowNotification("Modlist Autosaved", "saveIcon.svg");
-        }
     }
 
     private async Task UndoChangesAsync()

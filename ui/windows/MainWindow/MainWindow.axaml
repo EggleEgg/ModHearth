@@ -27,7 +27,7 @@
             <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False"
                       Click="ModContextOpenSteam" />
             <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
-            <MenuItem Header="Set Mod Color" Tag="set-mod-color" Click="ModContextSetModColor" />
+            <MenuItem Header="Set Mod Color [WIP]" Tag="set-mod-color" Click="ModContextSetModColor" />
           </ContextMenu>
         </Border.ContextMenu>
         <Grid>

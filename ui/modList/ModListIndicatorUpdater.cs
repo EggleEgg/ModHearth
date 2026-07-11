@@ -73,7 +73,7 @@ internal static class ModListIndicatorUpdater
                 duplicates.Count > 0)
             {
                 vm.IsDuplicateWarning = true;
-                vm.DuplicateWarningTooltip = BuildDuplicateWarningTooltip(manager, duplicates);
+                vm.DuplicateWarningTooltip = BuildDuplicateWarningTooltip(manager, vm.ModReference.ID, duplicates);
             }
             else
             {
@@ -93,10 +93,43 @@ internal static class ModListIndicatorUpdater
         return builder.ToString();
     }
 
-    public static string BuildDuplicateWarningTooltip(ModHearthManager? manager, IEnumerable<string> duplicates)
+    public static string BuildDuplicateWarningTooltip(ModHearthManager? manager, string modId, IEnumerable<string> duplicates)
     {
         string errorLogPath = ConfigManager.GetErrorLogPath() ?? "errorlog.txt";
-        StringBuilder builder = new StringBuilder($"Duplicate raw definitions ({errorLogPath}):\n");
+        StringBuilder builder = new StringBuilder();
+
+        builder.Append($"Duplicate raw definitions ({errorLogPath}):").AppendLine().AppendLine();
+
+        if (manager != null)
+        {
+            var groups = manager.GetDuplicateWarningGroups();
+            var offendingModIds = groups
+                .Where(g => g.Contains(modId))
+                .SelectMany(g => g)
+                .Where(id => !string.Equals(id, modId, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (offendingModIds.Count > 0)
+            {
+                builder.Append("Offending mods:");
+                foreach (string id in offendingModIds)
+                {
+                    string name;
+                    try
+                    {
+                        name = manager.GetModRef(id).name;
+                    }
+                    catch
+                    {
+                        name = id;
+                    }
+                    builder.AppendLine().Append("- ").Append(name);
+                }
+                builder.AppendLine();
+            }
+        }
+
         foreach (string entry in duplicates)
             builder.AppendLine().Append(entry);
         return builder.ToString();

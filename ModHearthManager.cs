@@ -170,7 +170,16 @@ namespace ModHearth
         private volatile Dictionary<string, List<ModReference>> duplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
         private volatile Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
         private volatile List<HashSet<string>> duplicateWarningGroups = new();
-        public bool IsSavingModpacks { get; private set; }
+        private DateTime savingModpacksCooldownUntilUtc = DateTime.MinValue;
+        public bool IsSavingModpacks
+        {
+            get
+            {
+                lock (stateGate)
+                    return DateTime.UtcNow < savingModpacksCooldownUntilUtc;
+            }
+        }
+
         private readonly object installedCacheGate = new();
         private HashSet<string>? installedCacheModIds;
         private List<ModSortRule> sortRules = new();
@@ -725,7 +734,7 @@ namespace ModHearth
                 return;
             }
 
-            InfoLogger.Log($"DFHack memory mod entries received: {modData.Count}.");
+            Console.WriteLine($"DFHack memory mod entries received: {modData.Count}.");
             Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
 
             foreach (Dictionary<string, string> modDataEntry in modData)
@@ -762,8 +771,6 @@ namespace ModHearth
         /// </summary>
         public void FindAllModsFromDisk()
         {
-            bool diagnosticsEnabled = DevMode.IsEnabled;
-
             Console.WriteLine("Finding all mods (filesystem)...");
 
             List<(string Root, string Dir)> candidates = new List<(string, string)>();
@@ -797,7 +804,7 @@ namespace ModHearth
 
             void FlushRootDiagnostics()
             {
-                if (diagnosticsEnabled && currentRoot != null)
+                if (currentRoot != null)
                 {
                     InfoLogger.Log($"Disk mod scan root='{NormalizeFileSystemPath(currentRoot)}' candidates={candidateCount}, added={addedCount}, duplicates={duplicateCount}, total_registered={newModrefMap.Count}.");
                 }
@@ -843,8 +850,7 @@ namespace ModHearth
 
             PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs);
 
-            if (diagnosticsEnabled)
-                InfoLogger.Log($"Disk mod scan completed. Total registered mods={newModrefMap.Count}.");
+            InfoLogger.Log($"Disk mod scan completed. Total registered mods={newModrefMap.Count}.");
         }
         private static ModReference? TryBuildModReferenceFromDirectory(string dir)
         {
@@ -1449,15 +1455,11 @@ namespace ModHearth
                 Directory.CreateDirectory(directory);
 
             string modlistJson = JsonSerializer.Serialize(modpacksToWrite, GetModpackJsonOptions());
-            IsSavingModpacks = true;
-            try
-            {
-                File.WriteAllText(path, modlistJson);
-            }
-            finally
-            {
-                IsSavingModpacks = false;
-            }
+
+            lock (stateGate)
+                savingModpacksCooldownUntilUtc = DateTime.UtcNow.AddSeconds(2);
+
+            File.WriteAllText(path, modlistJson);
         }
 
         private static JsonSerializerOptions GetModpackJsonOptions()
@@ -1871,6 +1873,12 @@ namespace ModHearth
             return duplicateWarningMap;
         }
 
+        public IReadOnlyList<HashSet<string>> GetDuplicateWarningGroups()
+        {
+            EnsureDuplicateWarningCache(logFound: true);
+            return duplicateWarningGroups;
+        }
+
         private void EnsureDuplicateWarningCache(bool logFound)
         {
             string errorLogPath = GetErrorLogPath();
@@ -2059,13 +2067,28 @@ namespace ModHearth
 
                 // Remove the missing mods from the modlist.
                 HashSet<DFHMod> thisListMissingMods = new HashSet<DFHMod>();
-                foreach (DFHMod mod in modlist.modlist.Where(mod => !modPool.Contains(mod)))
+                for (int mIndex = 0; mIndex < modlist.modlist.Count; mIndex++)
                 {
-                    modMissing = true;
-                    notFound.Add(mod);
-                    thisListMissingMods.Add(mod);
+                    DFHMod mod = modlist.modlist[mIndex];
+                    if (!modPool.Contains(mod))
+                    {
+                        // Check if a mod with the same ID is in modPool
+                        DFHMod? matchingIdMod = modPool.FirstOrDefault(m => string.Equals(m.id, mod.id, StringComparison.OrdinalIgnoreCase));
+                        if (matchingIdMod is not null)
+                        {
+                            Console.WriteLine($"[ModHearth] Modpack '{modlist.name}' contains mod '{mod.id}' with version {mod.version}, but version {matchingIdMod.version} is installed. Updating modpack to version {matchingIdMod.version}.");
+                            mod.version = matchingIdMod.version;
+                            shouldPersistActiveFile = true;
+                        }
+                        else
+                        {
+                            modMissing = true;
+                            notFound.Add(mod);
+                            thisListMissingMods.Add(mod);
 
-                    messageBuilder.Append('\n').Append(mod);
+                            messageBuilder.Append('\n').Append(mod);
+                        }
+                    }
                 }
                 missingMessage = messageBuilder.ToString();
 

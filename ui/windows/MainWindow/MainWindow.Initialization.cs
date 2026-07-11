@@ -114,8 +114,7 @@ public partial class MainWindow
         _ = UpdateDfHackStatusAsync();
         StartDfHackStatusTimer();
         SetChangesMade(false);
-        if (!DevMode.IsEnabled)
-            ResetModManagerWatcher();
+        ResetModManagerWatcher();
     }
 
     private async Task<bool> EnsureConfigAsync()

@@ -1,5 +1,7 @@
 using CodeKicker.BBCode;
 using System.Net;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace ModHearth.UI;
 
@@ -20,7 +22,19 @@ namespace ModHearth.UI;
 /// </summary>
 public static class BBCodeRenderer
 {
+    // Avalonia.HtmlRenderer has a rendering quirk where the document's true first line gets correct positioning, but every line after it —
+    // whether from a literal newline or the engine's own automatic word- wrap — renders with an unwanted left offset. Confirmed via testing
+    // that this isn't CSS-controllable (text-indent:0 has zero effect), so this works around it instead of trying to fix it
+
+    // This value is hand-tuned, not computed
+    private const double LeadingLineFixOffsetPx = -0.7;
+
     private static readonly BBCodeParser Parser = BuildParser();
+
+    // Matches pre-existing protected blocks (Capture Group 1) OR unformatted raw URLs (Capture Group 2)
+    private static readonly Regex AutoLinkRegex = new(
+        @"(\[url[=\]].*?\[/url\]|\[img\].*?\[/img\]|\[code\].*?\[/code\]|\[noparse\].*?\[/noparse\])|((?:https?|steam)://[^\s[\]<>""']+(?<![.,:;?!)]))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
     private static BBCodeParser BuildParser()
     {
@@ -100,6 +114,28 @@ public static class BBCodeRenderer
         return new BBCodeParser(ErrorMode.ErrorFree, null, tags);
     }
 
+    /// <summary>
+    /// Safely auto-formats raw web and steam protocol URLs into [url] tags,
+    /// excluding content already wrapped inside url, img, code, or noparse blocks.
+    /// </summary>
+    private static string AutoFormatRawUrls(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return text;
+
+        return AutoLinkRegex.Replace(text, match =>
+        {
+            // If Group 1 succeeded, it matched a protected block. Leave it as-is.
+            if (match.Groups[1].Success)
+            {
+                return match.Value;
+            }
+
+            // Group 2 succeeded: it's a raw unformatted link. Wrap it safely.
+            string rawUrl = match.Groups[2].Value;
+            return $"[url]{rawUrl}[/url]";
+        });
+    }
+
     // ── Public API ───────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -126,7 +162,11 @@ public static class BBCodeRenderer
             {
                 // Normalise line endings before parsing.
                 string normalized = bbcode.Replace("\r\n", "\n").Replace("\r", "\n");
-                body = Parser.ToHtml(normalized);
+
+                // Safely convert raw URLs into BBCode nodes before parsing.
+                string autoLinked = AutoFormatRawUrls(normalized);
+
+                body = Parser.ToHtml(autoLinked);
             }
             catch
             {
@@ -158,29 +198,37 @@ public static class BBCodeRenderer
 
     private static string BuildDocument(string body, string textColor, string backgroundColor)
     {
+        // Explicitly format the double values using the Invariant Culture (forces "." instead of ",")
+        string bodyLeftMargin = (8 + Math.Abs(LeadingLineFixOffsetPx)).ToString("F1", CultureInfo.InvariantCulture);
+        string divLeftMargin = LeadingLineFixOffsetPx.ToString("F1", CultureInfo.InvariantCulture);
+
         return $@"
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <meta charset=""utf-8""/>
-            <style>
-            body            {{ font-family:sans-serif; font-size:13px; color:{textColor}; background:{backgroundColor}; margin:4px 8px; padding:0; word-wrap:break-word; }}
-            h1              {{ font-size:1.4em;  margin:10px 0 4px; }}
-            h2              {{ font-size:1.2em;  margin:8px 0 4px; }}
-            h3              {{ font-size:1.05em; margin:6px 0 3px; }}
-            ul, ol          {{ margin:4px 0; padding-left:20px; }}
-            li              {{ margin:2px 0; }}
-            a               {{ color:#4ea0d1; }}
-            pre             {{ white-space:pre-wrap; font-family:monospace; background:rgba(128,128,128,0.15); padding:6px; border-radius:4px; }}
-            blockquote      {{ border-left:3px solid #888; margin:4px 0 4px 8px; padding-left:8px; opacity:0.85; }}
-            hr              {{ border:none; border-top:1px solid #888; margin:8px 0; }}
-            table           {{ border-collapse:collapse; margin:4px 0; }}
-            th, td          {{ border:1px solid #888; padding:4px 8px; }}
-            details         {{ margin:4px 0; }}
-            details summary {{ cursor:pointer; opacity:0.7; }}
-            </style>
-            </head>
-            <body>{body}</body>
-            </html>";
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset=""utf-8""/>
+        <style>
+        /* 3. Inject the web-safe invariant string values here */
+        body            {{ font-family:sans-serif; font-size:13px; color:{textColor}; background:{backgroundColor}; margin:4px 8px; margin-left:{bodyLeftMargin}px; padding:0; word-wrap:break-word; }}
+        h1              {{ font-size:1.4em;  margin:10px 0 4px; }}
+        h2              {{ font-size:1.2em;  margin:8px 0 4px; }}
+        h3              {{ font-size:1.05em; margin:6px 0 3px; }}
+        ul, ol          {{ margin:4px 0; padding-left:20px; }}
+        li              {{ margin:2px 0; }}
+        a               {{ color:#4ea0d1; }}
+        pre             {{ white-space:pre-wrap; font-family:monospace; background:rgba(128,128,128,0.15); padding:6px; border-radius:4px; }}
+        blockquote      {{ border-left:3px solid #888; margin:4px 0 4px 8px; padding-left:8px; opacity:0.85; }}
+        hr              {{ border:none; border-top:1px solid #888; margin:8px 0; }}
+        table           {{ border-collapse:collapse; margin:4px 0; }}
+        th, td          {{ border:1px solid #888; padding:4px 8px; }}
+        details         {{ margin:4px 0; }}
+        details summary {{ cursor:pointer; opacity:0.7; }}
+        </style>
+        </head>
+        <body>
+        <div style=""margin:0;padding:0;font-size:1px;line-height:1px;"">&nbsp;</div>
+        <div style=""margin-left:{divLeftMargin}px;"">{body}</div>
+        </body>
+        </html>";
     }
 }

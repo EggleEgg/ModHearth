@@ -263,9 +263,6 @@ public partial class MainWindow
 
     private void LogVisualFilterState(string phase)
     {
-        if (!DevMode.IsEnabled)
-            return;
-
         LogListVisualState(phase, leftModlist, inactiveMods, leftSearchBar.Text, leftSearchBar.SearchMode, leftSearchBar.HideFiltered);
         LogListVisualState(phase, rightModlist, activeMods, rightSearchBar.Text, rightSearchBar.SearchMode, rightSearchBar.HideFiltered);
     }

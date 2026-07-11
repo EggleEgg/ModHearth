@@ -50,7 +50,7 @@ public static class ModUpdateLogger
     {
         EnsureMetadataDirectoryAndMigrateOldFiles();
 
-        // Ensure the general logs directory (for things like updatelog.txt) exists.
+        // Ensure the general logs directory exists.
         if (!Directory.Exists(LogDir))
         {
             Directory.CreateDirectory(LogDir);

@@ -421,7 +421,7 @@ public partial class ModSearchBar : UserControl
         {
             SearchFilterMode.Name => "Search by name",
             SearchFilterMode.Regex => "Search by regex",
-            SearchFilterMode.Color => "Search by color",
+            SearchFilterMode.Color => "Search by color [WIP]",
             SearchFilterMode.ModifiedTime => "Sort by modified time",
             SearchFilterMode.Id => "Search by mod id",
             SearchFilterMode.SteamFileId => "Search by steam file id",
