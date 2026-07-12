@@ -2,13 +2,11 @@
 
 namespace ModHearth
 {
-    /** <summary> 
-    Uses a raw-file dependency scan (CUT/SELECT/COPY_TAGS_FROM) plus mod-author-declared hints (info.txt before/after/requires, sort rules) to build a dependency graph, then
-    topologically sorts it. Edges are added in strict priority order — sort rules, then info.txt declarations, then vanilla-conflict structural edges, then raw-scan-derived
-    edges — and every edge is checked against the graph as it currently stands before being added, so a lower-priority source can never override or contradict a
-    higher-priority one; it can only fill in relationships nothing else addressed. Coarse trait-based grouping (GetAutoSortGroup) only breaks ties among mods with no
-    actual graph relationship to anything else.
-    </summary>*/
+    // Uses a raw-file dependency scan (CUT/SELECT/COPY_TAGS_FROM) plus mod-author-declared hints (info.txt before/after/requires, sort rules) to build a dependency graph, then
+    // topologically sorts it. Edges are added in strict priority order — sort rules, then info.txt declarations, then vanilla-conflict structural edges, then raw-scan-derived
+    //edges — and every edge is checked against the graph as it currently stands before being added, so a lower-priority source can never override or contradict a
+    //higher-priority one; it can only fill in relationships nothing else addressed. Coarse trait-based grouping (GetAutoSortGroup) only breaks ties among mods with no
+    //actual graph relationship to anything else.
     public partial class ModHearthManager
     {
         private static bool IsVanillaBaseMod(ModReference modref)

@@ -890,7 +890,7 @@ namespace ModHearth
         // Detects Dwarf Fortress's own Steam-integration habit of materializing a workshop mod's content directly into the Mods\ folder, named after
         // its numeric Steam Workshop file id, with a trailing " (<version>)" suffix, ex: "Mods\3445635304 (20)" or "Mods\3445635304"
         // see steam discussion https://steamcommunity.com/app/975370/discussions/0/599642674183563431/ as reference of this (likely unpatched) bug
-        public static bool TryGetSteamShadowCopyWorkshopId(string? folderPath, out string workshopId)
+        public static bool IsLikelySteamShadowCopy(string? folderPath, out string workshopId)
         {
             workshopId = string.Empty;
             if (string.IsNullOrWhiteSpace(folderPath))
@@ -901,8 +901,17 @@ namespace ModHearth
             if (!match.Success)
                 return false;
 
-            workshopId = match.Groups["id"].Value;
-            return true;
+            string candidateId = match.Groups["id"].Value;
+            foreach (string workshopContentRoot in GetSteamWorkshopContentPaths())
+            {
+                if (Directory.Exists(Path.Combine(workshopContentRoot, candidateId)))
+                {
+                    workshopId = candidateId;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public static bool TryParsePositiveSteamId(string? rawSteamId, out string steamItemId)
@@ -1232,12 +1241,12 @@ namespace ModHearth
 
         public static IEnumerable<string> EnumerateConfiguredModRoots()
         {
+            foreach (string workshopPath in GetSteamWorkshopContentPaths())
+                yield return workshopPath;
+
             string modsPath = GetModsPath();
             if (!string.IsNullOrWhiteSpace(modsPath))
                 yield return modsPath;
-
-            foreach (string workshopPath in GetSteamWorkshopContentPaths())
-                yield return workshopPath;
 
             if (!string.IsNullOrWhiteSpace(Config.DFFolderPath))
             {

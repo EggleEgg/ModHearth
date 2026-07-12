@@ -28,6 +28,7 @@ public partial class MainWindow
                 leftFilter,
                 leftMode,
                 leftSearchBar.HideFiltered,
+                leftSearchBar.SortDescending,
                 leftModlist);
             ApplyFilterFlags(
                 activeMods,
@@ -35,8 +36,9 @@ public partial class MainWindow
                 rightFilter,
                 rightMode,
                 rightSearchBar.HideFiltered,
+                rightSearchBar.SortDescending,
                 rightModlist,
-                preserveSourceOrder: true);
+                isSortingEnabled: false);
         }
         finally
         {
@@ -117,8 +119,9 @@ public partial class MainWindow
         string filter,
         SearchFilterMode searchMode,
         bool hideFiltered,
+        bool sortDescending,
         ListBox list,
-        bool preserveSourceOrder = false)
+        bool isSortingEnabled = true)
     {
         string trimmed = filter?.Trim() ?? string.Empty;
 
@@ -127,12 +130,13 @@ public partial class MainWindow
             trimmed,
             searchMode,
             hideFiltered,
-            preserveSourceOrder);
+            sortDescending,
+            isSortingEnabled);
 
         ReplaceCollection(targetCollection, displayItems);
 
         SearchLogging.Log(
-            $"ApplyFilterFlags list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={DescribeSearchMode(searchMode)} hideFiltered={hideFiltered} total={sourceMods.Count()} visible={displayItems.Count}");
+            $"ApplyFilterFlags list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={DescribeSearchMode(searchMode)} hideFiltered={hideFiltered} sortDescending={sortDescending} total={sourceMods.Count()} visible={displayItems.Count}");
 
         DropNonDisplayedSelections(list, displayItems);
     }
@@ -142,17 +146,23 @@ public partial class MainWindow
         string filter,
         SearchFilterMode searchMode,
         bool hideFiltered,
-        bool preserveSourceOrder)
+        bool sortDescending,
+        bool isSortingEnabled = true)
     {
         bool hasFilter = !string.IsNullOrWhiteSpace(filter);
 
-        IEnumerable<ModRefViewModel> sorted = searchMode switch
-        {
-            SearchFilterMode.ModifiedTime => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-            _ when preserveSourceOrder => source,
-            _ => source.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
-        };
+        // handles sorting
+        IEnumerable<ModRefViewModel> sorted = (!isSortingEnabled)
+            ? source
+            : (searchMode, sortDescending) switch
+            {
+                (SearchFilterMode.ModifiedTime, true) => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
+                (SearchFilterMode.ModifiedTime, false) => source.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue),
+                (_, true) => source.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase),
+                (_, false) => source.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
+            };
 
+        // handles filtering
         return sorted.Where(vm =>
         {
             bool match = !hasFilter || vm.MatchesFilter(filter, searchMode);
@@ -205,8 +215,6 @@ public partial class MainWindow
         searchDebounceTimer?.Stop();
         ApplySearchFilter();
     }
-
-
 
     private string DescribeSearchSender(object? sender)
     {

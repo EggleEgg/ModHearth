@@ -424,12 +424,22 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             }
         }
 
+        if (mode == SearchFilterMode.Color)
+        {
+            if (modref.AssignedColor == ModColor.None)
+                return false;
+
+            string colorName = ModColorMap.ColorNames.TryGetValue(modref.AssignedColor, out string? name)
+                ? name
+                : modref.AssignedColor.ToString();
+            return colorName.Contains(filter, StringComparison.OrdinalIgnoreCase);
+        }
+
         string? candidate = mode switch
         {
             SearchFilterMode.Name => modref.name,
             SearchFilterMode.Id => modref.ID,
             SearchFilterMode.SteamFileId => modref.steamID,
-            SearchFilterMode.Color => ModColorMap.ColorNames.TryGetValue(modref.AssignedColor, out string? name) ? name : "None",
             _ => modref.name
         };
 
@@ -458,7 +468,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             return;
         }
 
-        Color color = ModColorMap.GetColor(modColor, 128);
+        Color color = ModColorMap.GetColor(modColor, 255);
         ColorUnderlayBrush = new SolidColorBrush(color);
     }
 

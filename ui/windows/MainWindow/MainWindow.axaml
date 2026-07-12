@@ -11,78 +11,8 @@
         MinHeight="640">
   <Window.DataTemplates>
     <DataTemplate DataType="ui:ModRefViewModel">
-      <Border Background="{Binding BackgroundBrush}" Padding="0" MinHeight="20"
-              Margin="0,0,-3,0"
-              HorizontalAlignment="Stretch"
-              ToolTip.Tip="{Binding HoverTooltip}">
-        <Border.ContextMenu>
-          <ContextMenu Opened="ModContextMenuOpened">
-            <MenuItem Header="Delete local mod" Tag="delete-mod" Click="ModContextDeleteMod" />
-            <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False"
-                      Click="ModContextUnsubscribeSteam" />
-            <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False"
-                      Click="ModContextRedownloadSteam" />
-            <Separator />
-            <MenuItem Header="Open Folder" Tag="open" Click="ModContextOpenFolder" />
-            <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False"
-                      Click="ModContextOpenSteam" />
-            <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
-            <MenuItem Header="Set Mod Color [WIP]" Tag="set-mod-color" Click="ModContextSetModColor" />
-          </ContextMenu>
-        </Border.ContextMenu>
-        <Grid>
-          <Grid ColumnDefinitions="Auto,Auto,*" Margin="2,0,5,0">
-            <Border Width="2"
-                    Background="{Binding CacheBarBrush}"
-                    IsVisible="{Binding IsCached}"
-                    ZIndex="2" />
-            <Image Grid.Column="1"
-                   Source="{ui:AssetImage dwarfIcon}"
-                   IsVisible="{Binding IsVanillaModSource}"
-                   Width="14"
-                   Height="14"
-                   VerticalAlignment="Center"
-                   Stretch="Uniform" />
-            <Image Grid.Column="1"
-                   Source="{ui:AssetImage folderIcon}"
-                   IsVisible="{Binding IsLocalModSource}"
-                   Width="14"
-                   Height="14"
-                   VerticalAlignment="Center"
-                   Stretch="Uniform" />
-            <Image Grid.Column="1"
-                   Source="{ui:AssetImage steamIcon}"
-                   IsVisible="{Binding IsSteamModSource}"
-                   Width="14"
-                   Height="14"
-                   VerticalAlignment="Center"
-                   Stretch="Uniform" />
-            <Grid Grid.Column="2" ColumnDefinitions="*,0.35*">
-              <TextBlock Grid.Column="0"
-                         Text="{Binding DisplayName}"
-                         Foreground="{Binding TextBrush}"
-                         TextTrimming="CharacterEllipsis"
-                         FontWeight="Normal"
-                         TextDecorations="{Binding TextDecorations}"
-                         MinWidth="0"
-                         Margin="4,0,0,0"
-                         VerticalAlignment="Center" />
-              <Border Grid.Column="1"
-                      Background="{Binding ColorUnderlayBrush}"
-                      HorizontalAlignment="Stretch"
-                      IsHitTestVisible="False" />
-            </Grid>
-          </Grid>
-          <Border Height="2"
-                  Background="{Binding DropHighlightBrush}"
-                  IsVisible="{Binding ShowDropAbove}"
-                  VerticalAlignment="Top" />
-          <Border Height="2"
-                  Background="{Binding DropHighlightBrush}"
-                  IsVisible="{Binding ShowDropBelow}"
-                  VerticalAlignment="Bottom" />
-        </Grid>
-      </Border>
+      <ui:ModRefControl ShowColorUnderlay="True" Padding="0" Margin="0,0,-3,0"
+                        HorizontalAlignment="Stretch" ToolTip.Tip="{Binding HoverTooltip}" />
     </DataTemplate>
   </Window.DataTemplates>
 

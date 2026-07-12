@@ -95,7 +95,7 @@ namespace ModHearth
             return false;
         }
 
-        public void AuditWorkshopManifests()
+        public static void AuditWorkshopManifests()
         {
             if (!TryEnsureSteamSession(new List<string>()))
                 return;
@@ -387,23 +387,26 @@ namespace ModHearth
             return true;
         }
 
-        private static void TryAddSteamActionableMod(
-            ModReference modref,
-            HashSet<string> uniqueSteamIds,
-            List<ModReference> steamActionableMods)
-        {
-            (_, _, bool isSteam) = ModSourceClassifier.Classify(
-                modref,
-                ConfigManager.Config.ModsPath,
-                ConfigManager.GetVanillaModsPath());
-            if (!isSteam)
-                return;
-            if (!TryGetSteamWorkshopItemId(modref, out string steamId))
-                return;
+private static void TryAddSteamActionableMod(
+    ModReference modref,
+    HashSet<string> uniqueSteamIds,
+    List<ModReference> steamActionableMods)
+{
+    if (ConfigManager.IsLikelySteamShadowCopy(modref.path, out _))
+        return;
 
-            if (uniqueSteamIds.Add(steamId))
-                steamActionableMods.Add(modref);
-        }
+    (_, _, bool isSteam) = ModSourceClassifier.Classify(
+        modref,
+        ConfigManager.Config.ModsPath,
+        ConfigManager.GetVanillaModsPath());
+    if (!isSteam)
+        return;
+    if (!TryGetSteamWorkshopItemId(modref, out string steamId))
+        return;
+
+    if (uniqueSteamIds.Add(steamId))
+        steamActionableMods.Add(modref);
+}
 
         private static string BuildLocalActionKey(ModReference modref)
         {

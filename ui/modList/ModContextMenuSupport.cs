@@ -312,7 +312,7 @@ internal static class ModContextMenuSupport
     {
         if (!ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId))
         {
-            await DialogService.ShowMessageAsync(owner, "Steam ID not available for this mod.", "Open Steam Page");
+            await DialogService.ShowMessageAsync(owner, "Steam ID not available for this mod.", "Open Steam Page (browser)");
             return;
         }
 
@@ -327,7 +327,7 @@ internal static class ModContextMenuSupport
         }
         catch (Exception ex)
         {
-            await DialogService.ShowMessageAsync(owner, ex.Message, "Open Steam Page");
+            await DialogService.ShowMessageAsync(owner, ex.Message, "Open Steam Page (browser)");
         }
     }
 

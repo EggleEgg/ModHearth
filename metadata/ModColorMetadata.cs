@@ -1,7 +1,5 @@
-using System.Collections.Generic;
-using System.IO;
 using System.Text.Json;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace ModHearth.Metadata
 {
@@ -16,8 +14,13 @@ namespace ModHearth.Metadata
         private static readonly string MetadataDir = Path.Combine(AppContext.BaseDirectory, "metadata");
         private static readonly string MetadataPath = Path.Combine(MetadataDir, "mod_colors.json");
         private static readonly object FileLock = new object();
+        private static readonly JsonSerializerOptions SerializerOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Converters = { new JsonStringEnumConverter() }
+        };
 
-        private static Dictionary<string, ModColor> _modColors = new Dictionary<string, ModColor>();
+        private static Dictionary<string, ModColor> _modColors = new Dictionary<string, ModColor>(StringComparer.OrdinalIgnoreCase);
 
         static ModColorMetadataStore()
         {
@@ -26,21 +29,26 @@ namespace ModHearth.Metadata
 
         public static ModColor GetModColor(string modId)
         {
+            if (string.IsNullOrWhiteSpace(modId))
+                return ModColor.None;
+
             lock (FileLock)
             {
-                if (_modColors.TryGetValue(modId, out ModColor color))
-                {
-                    return color;
-                }
-                return ModColor.None;
+                return _modColors.TryGetValue(modId, out ModColor color) ? color : ModColor.None;
             }
         }
 
         public static void SetModColor(string modId, ModColor color)
         {
+            if (string.IsNullOrWhiteSpace(modId))
+                return;
+
             lock (FileLock)
             {
-                _modColors[modId] = color;
+                if (color == ModColor.None)
+                    _modColors.Remove(modId);
+                else
+                    _modColors[modId] = color;
                 SaveModColors();
             }
         }
@@ -51,57 +59,51 @@ namespace ModHearth.Metadata
             {
                 if (!File.Exists(MetadataPath))
                 {
-                    _modColors = new Dictionary<string, ModColor>();
+                    _modColors = new Dictionary<string, ModColor>(StringComparer.OrdinalIgnoreCase);
                     return;
                 }
 
                 try
                 {
                     string json = File.ReadAllText(MetadataPath);
-                    var data = JsonSerializer.Deserialize<List<ModColorMetadata>>(json);
-                    _modColors = new Dictionary<string, ModColor>();
+                    List<ModColorMetadata>? data = JsonSerializer.Deserialize<List<ModColorMetadata>>(json, SerializerOptions);
+                    Dictionary<string, ModColor> loaded = new Dictionary<string, ModColor>(StringComparer.OrdinalIgnoreCase);
                     if (data != null)
                     {
-                        foreach (var entry in data)
+                        foreach (ModColorMetadata entry in data)
                         {
-                            _modColors[entry.ModId] = entry.Color;
+                            if (!string.IsNullOrWhiteSpace(entry.ModId))
+                                loaded[entry.ModId] = entry.Color;
                         }
                     }
+                    _modColors = loaded;
                 }
                 catch (Exception ex)
                 {
                     // Log the error and continue with an empty dictionary
                     Console.WriteLine($"Error loading mod colors: {ex.Message}");
-                    _modColors = new Dictionary<string, ModColor>();
+                    _modColors = new Dictionary<string, ModColor>(StringComparer.OrdinalIgnoreCase);
                 }
             }
         }
 
         private static void SaveModColors()
         {
-            lock (FileLock)
+            if (!Directory.Exists(MetadataDir))
+                Directory.CreateDirectory(MetadataDir);
+
+            List<ModColorMetadata> data = _modColors
+                .Select(entry => new ModColorMetadata { ModId = entry.Key, Color = entry.Value })
+                .ToList();
+
+            try
             {
-                if (!Directory.Exists(MetadataDir))
-                {
-                    Directory.CreateDirectory(MetadataDir);
-                }
-
-                var data = new List<ModColorMetadata>();
-                foreach (var entry in _modColors)
-                {
-                    data.Add(new ModColorMetadata { ModId = entry.Key, Color = entry.Value });
-                }
-
-                try
-                {
-                    var options = new JsonSerializerOptions { WriteIndented = true };
-                    string json = JsonSerializer.Serialize(data, options);
-                    File.WriteAllText(MetadataPath, json);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error saving mod colors: {ex.Message}");
-                }
+                string json = JsonSerializer.Serialize(data, SerializerOptions);
+                File.WriteAllText(MetadataPath, json);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving mod colors: {ex.Message}");
             }
         }
     }

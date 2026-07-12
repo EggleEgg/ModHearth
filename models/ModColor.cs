@@ -1,5 +1,8 @@
 namespace ModHearth;
 
+/// <summary>
+///  Always append values at the end to avoid corruption
+/// </summary>
 public enum ModColor
 {
     None = 0,
@@ -31,5 +34,8 @@ public enum ModColor
     SlateBlue,
     DarkGreen,
     DarkRed,
-    DarkBlue
+    DarkBlue,
+    ForestGreen,
+    Crimson,
+    SteelBlue
 }

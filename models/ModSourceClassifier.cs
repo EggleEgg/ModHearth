@@ -20,7 +20,7 @@ public static class ModSourceClassifier
         bool steamPathHint = path.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 ||
                              path.IndexOf("workshop", StringComparison.OrdinalIgnoreCase) >= 0;
 
-        bool isSteamShadowCopy = isLocal && ConfigManager.TryGetSteamShadowCopyWorkshopId(path, out _);
+        bool isSteamShadowCopy = isLocal && ConfigManager.IsLikelySteamShadowCopy(path, out _);
         if (isSteamShadowCopy)
             isLocal = false;
 

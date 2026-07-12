@@ -5,7 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>icons\\modhearth_icon_v1.ico</ApplicationIcon>
+    <ApplicationIcon>resources\\modhearth_icon_v1.ico</ApplicationIcon>
     <DllOutputFolder>dlls</DllOutputFolder>
     <IsPublishing>false</IsPublishing>
     <MoveOutputDlls>true</MoveOutputDlls>
@@ -43,7 +43,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="resources\\**" />
-    <AvaloniaResource Include="icons\\modhearth_icon_v1.ico" />
+    <AvaloniaResource Include="resources\\modhearth_icon_v1.ico" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1790,15 +1790,10 @@ namespace ModHearth
                         if (hasInstalledModsPath && !string.IsNullOrWhiteSpace(m.path) && IsPathUnderRoot(m.path, installedModsPath))
                             return false;
 
-                        if (!ConfigManager.TryGetSteamShadowCopyWorkshopId(m.path, out string shadowWorkshopId))
-                            return true;
+                        if (ConfigManager.IsLikelySteamShadowCopy(m.path, out _))
+                            return false;
 
-                        bool hasMatchingWorkshopSibling = duplicates.Any(other =>
-                            !ReferenceEquals(other, m) &&
-                            ConfigManager.TryExtractSteamWorkshopItemIdFromPath(other.path, out string otherWorkshopId) &&
-                            string.Equals(otherWorkshopId, shadowWorkshopId, StringComparison.Ordinal));
-
-                        return !hasMatchingWorkshopSibling;
+                        return true;
                     }).ToList();
 
                     if (relevantDuplicates.Count > 1)
@@ -1816,6 +1811,7 @@ namespace ModHearth
                 unscannedModIDs.Add(dfm.id);
 
             HashSet<string> allEnabledIDs = new HashSet<string>(unscannedModIDs, StringComparer.OrdinalIgnoreCase);
+            string modNeedIsStr = " mod needing is: ";
 
             for (int i = 0; i < enabledMods.Count; i++)
             {
@@ -1832,7 +1828,7 @@ namespace ModHearth
                         if (!scannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingBefore));
-                            InfoLogger.Log("Problem found: missing before mod with ID: " + trimmedId + " mod needing is: " + currentDFM.id);
+                            InfoLogger.Log("Problem found: missing before mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
                     foreach (string afterID in currentMod.require_after_me)
@@ -1843,7 +1839,7 @@ namespace ModHearth
                         if (!unscannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingAfter));
-                            InfoLogger.Log("Problem found: missing after mod with ID: " + trimmedId + " mod needing is: " + currentDFM.id);
+                            InfoLogger.Log("Problem found: missing after mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
                     foreach (string conflictID in currentMod.conflicts_with)
@@ -1854,7 +1850,7 @@ namespace ModHearth
                         if (allEnabledIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.ConflictPresent));
-                            InfoLogger.Log("Problem found: conflict present mod with ID: " + trimmedId + " mod needing is: " + currentDFM.id);
+                            InfoLogger.Log("Problem found: conflict present mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
                     foreach (string requiredID in currentMod.require_ids)
@@ -1865,7 +1861,7 @@ namespace ModHearth
                         if (!scannedModIDs.Contains(trimmedId) && !unscannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingRequired));
-                            InfoLogger.Log("Problem found: missing required mod with ID: " + trimmedId + " mod needing is: " + currentDFM.id);
+                            InfoLogger.Log("Problem found: missing required mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
 
                     }

@@ -10,63 +10,7 @@
         MinHeight="400">
   <Window.DataTemplates>
     <DataTemplate DataType="ui:ModRefViewModel">
-      <Border Background="{Binding BackgroundBrush}" Margin="{Binding RuleGapMargin}" Padding="2,0"
-              MinHeight="20"
-              ToolTip.Tip="{Binding HoverTooltip}">
-        <Border.ContextMenu>
-          <ContextMenu Opened="SortRuleContextMenuOpened">
-            <MenuItem Header="Add required mod" Tag="add-required-root" />
-          </ContextMenu>
-        </Border.ContextMenu>
-        <Grid>
-          <Grid ColumnDefinitions="Auto,Auto,*">
-            <Border Width="2"
-                    Background="{Binding CacheBarBrush}"
-                    IsVisible="{Binding IsCached}"
-                    ZIndex="2" />
-            <Image Grid.Column="1"
-                   Source="{ui:AssetImage dwarfIcon}"
-                   IsVisible="{Binding IsVanillaModSource}"
-                   Margin="0,0,3,0"
-                   Width="14"
-                   Height="14"
-                   VerticalAlignment="Center"
-                   Stretch="Uniform" />
-            <Image Grid.Column="1"
-                   Source="{ui:AssetImage folderIcon}"
-                   IsVisible="{Binding IsLocalModSource}"
-                   Margin="0,0,3,0"
-                   Width="14"
-                   Height="14"
-                   VerticalAlignment="Center"
-                   Stretch="Uniform" />
-            <Image Grid.Column="1"
-                   Source="{ui:AssetImage steamIcon}"
-                   IsVisible="{Binding IsSteamModSource}"
-                   Margin="0,0,3,0"
-                   Width="14"
-                   Height="14"
-                   VerticalAlignment="Center"
-                   Stretch="Uniform" />
-            <TextBlock Grid.Column="2"
-                       Text="{Binding DisplayName}"
-                       Foreground="{Binding TextBrush}"
-                       TextTrimming="CharacterEllipsis"
-                       FontWeight="Normal"
-                       TextDecorations="{Binding TextDecorations}"
-                       Margin="0,0,3,0"
-                       VerticalAlignment="Center" />
-          </Grid>
-          <Border Height="2"
-                  Background="{Binding DropHighlightBrush}"
-                  IsVisible="{Binding ShowDropAbove}"
-                  VerticalAlignment="Top" />
-          <Border Height="2"
-                  Background="{Binding DropHighlightBrush}"
-                  IsVisible="{Binding ShowDropBelow}"
-                  VerticalAlignment="Bottom" />
-        </Grid>
-      </Border>
+      <ui:ModRefControl Margin="{Binding RuleGapMargin}" Padding="2,0" ToolTip.Tip="{Binding HoverTooltip}" />
     </DataTemplate>
     <DataTemplate DataType="ui:RuleGapMarker">
       <Grid MinHeight="16">

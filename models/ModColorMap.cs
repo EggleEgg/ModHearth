@@ -22,14 +22,14 @@ public static class ModColorMap
             { ModColor.Brown, Color.Parse("#A52A2A") },
             { ModColor.Cyan, Color.Parse("#00FFFF") },
             { ModColor.Magenta, Color.Parse("#FF00FF") },
-            { ModColor.Lime, Color.Parse("#00FF00") }, // Green, but distinct from basic Green if needed
+            { ModColor.Lime, Color.Parse("#BFFF00") },
             { ModColor.Teal, Color.Parse("#008080") },
             { ModColor.Lavender, Color.Parse("#E6E6FA") },
             { ModColor.Beige, Color.Parse("#F5F5DC") },
             { ModColor.Maroon, Color.Parse("#800000") },
             { ModColor.Navy, Color.Parse("#000080") },
             { ModColor.Olive, Color.Parse("#808000") },
-            { ModColor.Aqua, Color.Parse("#00FFFF") },
+            { ModColor.Aqua, Color.Parse("#7FDBFF") },
             { ModColor.Coral, Color.Parse("#FF7F50") },
             { ModColor.Indigo, Color.Parse("#4B0082") },
             { ModColor.Gold, Color.Parse("#FFD700") },
@@ -40,7 +40,10 @@ public static class ModColorMap
             { ModColor.SlateBlue, Color.Parse("#6A5ACD") },
             { ModColor.DarkGreen, Color.Parse("#006400") },
             { ModColor.DarkRed, Color.Parse("#8B0000") },
-            { ModColor.DarkBlue, Color.Parse("#00008B") }
+            { ModColor.DarkBlue, Color.Parse("#00008B") },
+            { ModColor.ForestGreen, Color.Parse("#228B22") },
+            { ModColor.Crimson, Color.Parse("#DC143C") },
+            { ModColor.SteelBlue, Color.Parse("#4682B4") }
         };
 
         ColorNames = Colors.ToDictionary(kvp => kvp.Key, kvp => kvp.Key.ToString());

@@ -14,7 +14,7 @@ using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI;
 
-public partial class SortRulesWindow : Window
+public partial class SortRulesWindow : Window, IModRefContextMenuProvider
 {
     private readonly ObservableCollection<ModRefViewModel> availableMods = new();
     private readonly ObservableCollection<ModRefViewModel> ruleMods = new();
@@ -140,6 +140,16 @@ public partial class SortRulesWindow : Window
             searchDebounceTimer.Stop();
             ApplySearchFilter();
         };
+        modTreeSearchBar.SortOrderChanged += (_, _) =>
+        {
+            searchDebounceTimer.Stop();
+            ApplySearchFilter();
+        };
+        rulesSearchBar.SortOrderChanged += (_, _) =>
+        {
+            searchDebounceTimer.Stop();
+            ApplySearchFilter();
+        };
         modTreeSearchBar.HideFilteredToggled += (_, _) =>
         {
             searchDebounceTimer.Stop();
@@ -229,6 +239,34 @@ public partial class SortRulesWindow : Window
 
         if (list.SelectedItems != null && list.SelectedItems.Contains(hit))
             JumpToRuleLine(hit);
+    }
+
+    public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
+    {
+        foreach (var item in menu.Items)
+        {
+            if (item is MenuItem menuItem)
+            {
+                if (string.Equals(menuItem.Tag?.ToString(), "add-required-root", StringComparison.Ordinal))
+                {
+                    menuItem.IsVisible = true;
+                }
+                else
+                {
+                    menuItem.IsVisible = false;
+                }
+            }
+            else if (item is Separator separator)
+            {
+                separator.IsVisible = false;
+            }
+        }
+
+        SortRuleContextMenuOpened(menu, new RoutedEventArgs());
+    }
+
+    public void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+    {
     }
 
     private void SortRuleContextMenuOpened(object? sender, RoutedEventArgs e)
@@ -1277,6 +1315,7 @@ public partial class SortRulesWindow : Window
              modTreeSearchBar.Text,
              modTreeSearchBar.SearchMode,
              modTreeSearchBar.HideFiltered,
+             modTreeSearchBar.SortDescending,
              modTreeList);
         ApplyFilterFlags(
             ruleMods,
@@ -1284,6 +1323,7 @@ public partial class SortRulesWindow : Window
             rulesSearchBar.Text,
             rulesSearchBar.SearchMode,
             rulesSearchBar.HideFiltered,
+            rulesSearchBar.SortDescending,
             rulesList);
     }
 
@@ -1306,12 +1346,13 @@ public partial class SortRulesWindow : Window
         string filter,
         SearchFilterMode searchMode,
         bool hideFiltered,
+        bool sortDescending,
         ListBox list)
     {
         string trimmed = filter?.Trim() ?? string.Empty;
         bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
 
-        List<ModRefViewModel> ordered = ApplySortToViewModels(source, searchMode).ToList();
+        List<ModRefViewModel> ordered = ApplySortToViewModels(source, searchMode, sortDescending).ToList();
 
         List<ModRefViewModel> displayItems = ordered.Where(vm =>
         {
@@ -1339,13 +1380,17 @@ public partial class SortRulesWindow : Window
         modListController.UpdateSelectionState(list);
     }
 
-    private IEnumerable<ModRefViewModel> ApplySortToViewModels(IEnumerable<ModRefViewModel> source, SearchFilterMode mode)
+    //TODO try to merge with ApplyFilterAndSort() from MainWindow
+    private IEnumerable<ModRefViewModel> ApplySortToViewModels(IEnumerable<ModRefViewModel> source, SearchFilterMode mode, bool sortDescending)
     {
-        return mode switch
+        return (mode, sortDescending) switch
         {
-            SearchFilterMode.Name => source.OrderBy(vm => vm.ModReference.name ?? string.Empty),
-            SearchFilterMode.ModifiedTime => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-            _ => source.OrderBy(vm => vm.ModReference.name ?? string.Empty) // Default to sorting by name
+            (SearchFilterMode.Name, true) => source.OrderByDescending(vm => vm.ModReference.name ?? string.Empty),
+            (SearchFilterMode.Name, false) => source.OrderBy(vm => vm.ModReference.name ?? string.Empty),
+            (SearchFilterMode.ModifiedTime, true) => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
+            (SearchFilterMode.ModifiedTime, false) => source.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue),
+            (_, true) => source.OrderByDescending(vm => vm.ModReference.name ?? string.Empty), // Default to sorting by name
+            (_, false) => source.OrderBy(vm => vm.ModReference.name ?? string.Empty)
         };
     }
 

@@ -41,9 +41,16 @@ public partial class ModSearchBar : UserControl
     public static readonly StyledProperty<SearchFilterMode> SearchModeProperty =
         AvaloniaProperty.Register<ModSearchBar, SearchFilterMode>(nameof(SearchMode), SearchFilterMode.Name);
 
+    public static readonly StyledProperty<bool> SortDescendingProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(SortDescending), true);
+
+    public static readonly StyledProperty<bool> IsSortingEnabledProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsSortingEnabled), true);
+
     public event EventHandler? SearchTextChanged;
     public event EventHandler? HideFilteredToggled;
     public event EventHandler? SearchModeChanged;
+    public event EventHandler? SortOrderChanged;
     private readonly Dictionary<Button, SearchButtonState> searchButtonStates = new();
     private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = new();
     private Flyout? searchModeFlyout;
@@ -88,11 +95,35 @@ public partial class ModSearchBar : UserControl
                 SearchLogging.Log($"SearchModeChanged = {GetSearchModeLabel(SearchMode)}");
                 SearchModeChanged?.Invoke(this, EventArgs.Empty);
             }
+            else if (args.Property == SortDescendingProperty)
+            {
+                UpdateSearchModeIcon();
+                UpdateSearchModeButtonTooltip();
+                SortOrderChanged?.Invoke(this, EventArgs.Empty);
+            }
+            else if (args.Property == IsSortingEnabledProperty)
+            {
+                UpdateSearchModeIcon();
+                UpdateSearchModeButtonTooltip();
+                searchModeFlyout = null;
+            }
         };
         SearchBox.Watermark = Watermark;
         UpdateToggleIcon();
         UpdateSearchModeIcon();
         UpdateSearchModeButtonTooltip();
+
+        SearchModeButton.PointerPressed += (s, e) =>
+        {
+            if (IsSortingEnabled && e.GetCurrentPoint(SearchModeButton).Properties.IsRightButtonPressed)
+            {
+                e.Handled = true;
+                SortDescending = !SortDescending;
+                UpdateSearchModeIcon();
+                UpdateSearchModeButtonTooltip();
+                SortOrderChanged?.Invoke(this, EventArgs.Empty);
+            }
+        };
 
         InitializeSearchButtonState(SearchModeButton);
         InitializeSearchButtonState(ToggleButton);
@@ -115,6 +146,18 @@ public partial class ModSearchBar : UserControl
     {
         get => GetValue(HideFilteredProperty);
         set => SetValue(HideFilteredProperty, value);
+    }
+
+    public bool SortDescending
+    {
+        get => GetValue(SortDescendingProperty);
+        set => SetValue(SortDescendingProperty, value);
+    }
+
+    public bool IsSortingEnabled
+    {
+        get => GetValue(IsSortingEnabledProperty);
+        set => SetValue(IsSortingEnabledProperty, value);
     }
 
     public SearchFilterMode SearchMode
@@ -227,13 +270,20 @@ public partial class ModSearchBar : UserControl
 
     private static void UpdateSearchButtonBackground(Button button, SearchButtonState state)
     {
+        IBrush targetBrush;
         if (state.IsPressed)
-        {
-            button.Background = state.PressedBrush;
-            return;
-        }
+            targetBrush = state.PressedBrush;
+        else if (state.IsPointerOver)
+            targetBrush = state.HoverBrush;
+        else
+            targetBrush = state.NormalBrush;
 
-        button.Background = state.IsPointerOver ? state.HoverBrush : state.NormalBrush;
+        button.Background = targetBrush;
+
+        if (button.Content is Panel contentPanel)
+            foreach (Control child in contentPanel.Children)
+                if (child is Border contentBorder)
+                    contentBorder.Background = targetBrush;
     }
 
     private void UpdateToggleIcon()
@@ -254,7 +304,7 @@ public partial class ModSearchBar : UserControl
 
         StackPanel panel = new StackPanel
         {
-            Margin = new Thickness(8),
+            Margin = new Thickness(0),
             Spacing = 4,
             MinWidth = 160
         };
@@ -262,7 +312,10 @@ public partial class ModSearchBar : UserControl
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name, "Search by name"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex, "Search by regex"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color, "Search by color"));
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime, "Sort by modified time"));
+        if (IsSortingEnabled)
+        {
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime, "Sort by modified time"));
+        }
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id, "Search by mod id"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId, "Search by steam file id"));
         UpdateSearchModeOptionLabels();
@@ -391,14 +444,32 @@ public partial class ModSearchBar : UserControl
 
     private void UpdateSearchModeButtonTooltip()
     {
-        ToolTip.SetTip(SearchModeButton, $"{GetSearchModeLabel(SearchMode)} (click to change)");
+        string sortOrder = SortDescending ? "descending" : "ascending";
+        ToolTip.SetTip(SearchModeButton, IsSortingEnabled
+            ? $"{GetSearchModeLabel(SearchMode)} ({sortOrder})\nRight click to sort by asc/desc order"
+            : GetSearchModeLabel(SearchMode));
     }
 
+    //make sure to change these if the asociated axaml template ever changes
     private void UpdateSearchModeIcon()
     {
         string iconName = GetSearchModeIconName(SearchMode);
         SearchModeIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
             ?? SearchModeIcon.Source;
+
+        string directionIconName = SortDescending ? "sortDownIcon.svg" : "sortUpIcon.svg";
+        SortDirectionIcon.Source = ImageSourceLoader.LoadFromAssetUri(directionIconName)
+            ?? SortDirectionIcon.Source;
+        SortDirectionIcon.IsVisible = IsSortingEnabled;
+        SearchModeButton.Width = IsSortingEnabled ? 30 : 22;
+
+        if (!IsSortingEnabled)
+        {
+            SearchModeIcon.Width = double.NaN;
+            SearchModeIcon.Height = double.NaN;
+            SearchModeIcon.HorizontalAlignment = HorizontalAlignment.Center;
+        }
+
     }
 
     private static string GetSearchModeIconName(SearchFilterMode mode)
@@ -421,7 +492,7 @@ public partial class ModSearchBar : UserControl
         {
             SearchFilterMode.Name => "Search by name",
             SearchFilterMode.Regex => "Search by regex",
-            SearchFilterMode.Color => "Search by color [WIP]",
+            SearchFilterMode.Color => "Search by color",
             SearchFilterMode.ModifiedTime => "Sort by modified time",
             SearchFilterMode.Id => "Search by mod id",
             SearchFilterMode.SteamFileId => "Search by steam file id",

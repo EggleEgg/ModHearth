@@ -206,7 +206,8 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
 
         if (e.Row.DataContext is ModUpdateLogItemViewModel vm)
         {
-            Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
         }
     }
 

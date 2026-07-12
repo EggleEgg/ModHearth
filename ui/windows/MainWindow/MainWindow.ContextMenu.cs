@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Layout;
 using ModHearth.Metadata;
 using System;
 using System.Collections;
@@ -13,8 +15,56 @@ using System.Threading.Tasks;
 
 namespace ModHearth.UI;
 
-public partial class MainWindow
+public partial class MainWindow : IModRefContextMenuProvider
 {
+    public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
+    {
+        foreach (var item in menu.Items)
+        {
+            if (item is MenuItem menuItem && string.Equals(menuItem.Tag?.ToString(), "add-required-root", StringComparison.Ordinal))
+            {
+                menuItem.IsVisible = false;
+            }
+            else if (item is Separator separator)
+            {
+                separator.IsVisible = true;
+            }
+        }
+
+        ModContextMenuOpened(menu, new RoutedEventArgs());
+    }
+
+    public void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+    {
+        string? tag = item.Tag?.ToString();
+        switch (tag)
+        {
+            case "delete-mod":
+                ModContextDeleteMod(item, new RoutedEventArgs());
+                break;
+            case "unsubscribe-steam":
+                ModContextUnsubscribeSteam(item, new RoutedEventArgs());
+                break;
+            case "redownload-steam":
+                ModContextRedownloadSteam(item, new RoutedEventArgs());
+                break;
+            case "open":
+                ModContextOpenFolder(item, new RoutedEventArgs());
+                break;
+            case "open-steam":
+                ModContextOpenSteam(item, new RoutedEventArgs());
+                break;
+            case "copy-id":
+                ModContextCopyId(item, new RoutedEventArgs());
+                break;
+                /* TODO Fix this!!!!!
+                case "set-mod-color":
+                    ConfigureModColorSubmenu(item);
+                    break;
+                */
+        }
+    }
+
     private void ModContextMenuOpened(object? sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu)
@@ -59,6 +109,8 @@ public partial class MainWindow
             manager,
             vm.ModReference,
             selected.Select(item => item.ModReference));
+
+        ConfigureModColorSubmenu(menu, vm, selected);
     }
 
     private async void ModContextDeleteMod(object? sender, RoutedEventArgs e)
@@ -141,60 +193,114 @@ public partial class MainWindow
             (ModRefViewModel vm) => vm.ModReference);
     }
 
-    private void ModContextSetModColor(object? sender, RoutedEventArgs e)
+    private void ConfigureModColorSubmenu(ContextMenu menu, ModRefViewModel contextVm, List<ModRefViewModel> selected)
     {
-        if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
+        MenuItem? colorRoot = menu.Items
+            .OfType<MenuItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), "set-mod-color-root", StringComparison.Ordinal));
+        if (colorRoot == null)
             return;
 
-        if (modReferences.Count == 0)
-            return;
+        List<ModRefViewModel> targets = selected.Count > 0 && selected.Contains(contextVm)
+            ? selected
+            : new List<ModRefViewModel> { contextVm };
+        List<ModReference> modReferences = targets.Select(t => t.ModReference).ToList();
 
-        ModRefViewModel? contextVm = (sender as MenuItem)?.DataContext as ModRefViewModel;
-        if (contextVm == null)
-            return;
+        ModColor currentColor = contextVm.ModReference.AssignedColor;
 
-        ModColor currentColor = ModColorMetadataStore.GetModColor(contextVm.ModReference.ID);
+        // Compute the optimal column count using the square root
+        int targetColumns = (int)Math.Sqrt(Enum.GetValues<ModColor>().Length);
+        if (targetColumns < 1) targetColumns = 1; // Safety fallback
 
-        // Create a flyout for color selection
-        Flyout flyout = new Flyout();
-        ListBox colorListBox = new ListBox
+        UniformGrid swatchPanel = new UniformGrid
         {
-            ItemsSource = Enum.GetValues<ModColor>().Cast<ModColor>().Where(c => c != ModColor.None).ToList(),
-            SelectedItem = currentColor == ModColor.None ? null : currentColor,
-            Background = new SolidColorBrush(Style.instance!.backgroundColor.ToAvaloniaColor())
+            Columns = targetColumns
         };
-        colorListBox.ItemTemplate = new FuncDataTemplate<ModColor>((color, _) => {
-            return new Border
-            {
-                Width = 20,
-                Height = 20,
-                Background = new SolidColorBrush(ModColorMap.GetColor(color)),
-                BorderBrush = color == currentColor ? Brushes.White : Brushes.Transparent,
-                BorderThickness = new Thickness(2),
-                Margin = new Thickness(2)
-            };
-        });
 
-        colorListBox.SelectionChanged += (s, ev) =>
+        void ApplyColor(ModColor color)
         {
-            if (colorListBox.SelectedItem is ModColor selectedColor)
+            foreach (ModReference modRef in modReferences)
             {
-                foreach (ModReference modRef in modReferences)
-                {
-                    modRef.AssignedColor = selectedColor;
-                    ModColorMetadataStore.SetModColor(modRef.ID, selectedColor);
-                }
-                // Refresh UI for selected mods
-                RefreshModListBackgrounds();
-                flyout.Hide();
+                modRef.AssignedColor = color;
+                ModColorMetadataStore.SetModColor(modRef.ID, color);
             }
+            RefreshModColorUnderlays(modReferences);
+            // Closes the whole menu tree, including this open submenu. The submenu itself has no independent "close" concept, 
+            // it lives inside the root ContextMenu's popup.
+            ContextMenuCoordinator.DismissActive();
+        }
+
+        swatchPanel.Children.Add(CreateColorSwatchButton(ModColor.None, currentColor, ApplyColor));
+        foreach (ModColor color in Enum.GetValues<ModColor>())
+        {
+            if (color == ModColor.None)
+                continue;
+            swatchPanel.Children.Add(CreateColorSwatchButton(color, currentColor, ApplyColor));
+        }
+
+        // Same trick SortRulesWindow's "Add required mod" submenu uses to host a live search box: a single submenu row whose Header is an arbitrary
+        // control rather than text. StaysOpenOnClick keeps the grid usable. ApplyColor above is what actually closes the menu once a color is
+        // picked, not the framework's default click-to-close behavior.
+        MenuItem swatchHost = new MenuItem
+        {
+            Header = swatchPanel,
+            StaysOpenOnClick = true,
+            Focusable = false
         };
 
-        flyout.Content = colorListBox;
-        flyout.Placement = PlacementMode.Right;
-        if (sender is Control control)
+        colorRoot.ItemsSource = new[] { swatchHost };
+    }
+
+    private static Button CreateColorSwatchButton(ModColor color, ModColor currentColor, Action<ModColor> onSelected)
+    {
+        bool isSelected = color == currentColor;
+        bool isClearOption = color == ModColor.None;
+
+        Border swatch = new Border
         {
-            flyout.ShowAt(control);
+            Width = 30,
+            Height = 30,
+            CornerRadius = new CornerRadius(3),
+            Background = isClearOption ? Brushes.Transparent : new SolidColorBrush(ModColorMap.GetColor(color)),
+            BorderBrush = isSelected ? Brushes.White : Brushes.Gray,
+            BorderThickness = new Thickness(isSelected ? 4 : 1)
+        };
+
+        if (isClearOption)
+        {
+            swatch.Child = new TextBlock
+            {
+                Text = "\u2715",
+                FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.Gray
+            };
+        }
+
+        Button button = new Button
+        {
+            Content = swatch,
+            Padding = new Thickness(0),
+            Margin = new Thickness(2),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0)
+        };
+
+        ToolTip.SetTip(button, isClearOption ? "None (clear color)" : ModColorMap.ColorNames[color]);
+        button.Click += (_, _) => onSelected(color);
+
+        return button;
+    }
+
+    // Refreshes only the specific mods that changed, looked up via modViewMap.
+    private void RefreshModColorUnderlays(IEnumerable<ModReference> modReferences)
+    {
+        foreach (ModReference modref in modReferences)
+        {
+            string key = modref.ToDFHMod().ToString();
+            if (modViewMap.TryGetValue(key, out ModRefViewModel? vm) && vm != null)
+                vm.RefreshBackground();
         }
     }
 
@@ -213,18 +319,6 @@ public partial class MainWindow
             list.SelectedItems,
             contextVm => contextVm.ModReference,
             out modReferences);
-    }
-
-    private void RefreshModListBackgrounds()
-    {
-        foreach (ModRefViewModel vm in leftModlist.Items.OfType<ModRefViewModel>())
-        {
-            vm.RefreshBackground();
-        }
-        foreach (ModRefViewModel vm in rightModlist.Items.OfType<ModRefViewModel>())
-        {
-            vm.RefreshBackground();
-        }
     }
 
     private IList? GetContextMenuSelectedItems(object? sender)

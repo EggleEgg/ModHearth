@@ -513,7 +513,7 @@ public sealed class ModListDragDropController
                 if (scrollViewer == null) return;
 
                 Point pos = currentDragOverPosition.Value;
-                //TODO: Make these configurable in the future
+                //TODO Make these configurable in the future
                 double scrollSpeed = 40.0;
                 double scrollThreshold = 20.0;
                 bool scrolled = false;

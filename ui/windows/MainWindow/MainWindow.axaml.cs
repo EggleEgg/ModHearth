@@ -132,12 +132,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         leftSearchBar.HideFiltered = true;
         rightSearchBar.HideFiltered = true;
+        rightSearchBar.IsSortingEnabled = false;
         leftSearchBar.SearchTextChanged += OnSearchInputChanged;
         rightSearchBar.SearchTextChanged += OnSearchInputChanged;
         leftSearchBar.HideFilteredToggled += OnHideFilteredChanged;
         rightSearchBar.HideFilteredToggled += OnHideFilteredChanged;
         leftSearchBar.SearchModeChanged += OnSearchModeChanged;
         rightSearchBar.SearchModeChanged += OnSearchModeChanged;
+        leftSearchBar.SortOrderChanged += OnSearchModeChanged;
+        rightSearchBar.SortOrderChanged += OnSearchModeChanged;
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);

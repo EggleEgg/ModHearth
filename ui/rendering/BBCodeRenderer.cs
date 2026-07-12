@@ -132,7 +132,7 @@ public static class BBCodeRenderer
 
             // Group 2 succeeded: it's a raw unformatted link. Wrap it safely.
             string rawUrl = match.Groups[2].Value;
-            return $"[url]{rawUrl}[/url]";
+            return $"[url={rawUrl}]{rawUrl}[/url]";
         });
     }
 

@@ -24,15 +24,13 @@
       <DataGrid.ContextMenu>
         <ContextMenu Opened="ModContextMenuOpened">
           <MenuItem Header="Delete local mod" Tag="delete-mod" Click="ModContextDeleteMod" />
-          <MenuItem Header="Unsubscribe from steam mod" Tag="unsubscribe-steam" IsVisible="False"
-                    Click="ModContextUnsubscribeSteam" />
-          <MenuItem Header="Redownload steam mod" Tag="redownload-steam" IsVisible="False"
-                    Click="ModContextRedownloadSteam" />
+          <MenuItem Header="Unsubscribe from steam mod" Tag="unsubscribe-steam" IsVisible="False" Click="ModContextUnsubscribeSteam" />
+          <MenuItem Header="Redownload steam mod" Tag="redownload-steam" IsVisible="False" Click="ModContextRedownloadSteam" />
           <Separator />
           <MenuItem Header="Open Folder" Tag="open" Click="ModContextOpenFolder" />
-          <MenuItem Header="Open Steam Page" Tag="open-steam" IsVisible="False"
-                    Click="ModContextOpenSteam" />
+          <MenuItem Header="Open Steam Page (browser)" Tag="open-steam" IsVisible="False" Click="ModContextOpenSteam" />
           <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="ModContextCopyId" />
+
         </ContextMenu>
       </DataGrid.ContextMenu>
       <DataGrid.Columns>
