@@ -96,7 +96,7 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
     private static IBrush GetDefaultTextBrush()
     {
         if (Style.instance != null)
-            return new SolidColorBrush(Style.instance.textColor.ToAvaloniaColor());
+            return BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
         return Brushes.White;
     }
 
@@ -115,7 +115,7 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
     private static IBrush GetSelectedBackgroundBrush()
     {
         if (Style.instance != null)
-            return new SolidColorBrush(Style.instance.modRefHighlightColor.ToAvaloniaColor());
+            return BrushCache.GetBrush(Style.instance.modRefHighlightColor.ToAvaloniaColor());
         return Brushes.Transparent;
     }
 
@@ -296,7 +296,7 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
 
     public void ApplyCustomStyle(Style style)
     {
-        BackgroundColorBrush = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
+        BackgroundColorBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
 
         if (logList != null)
         {

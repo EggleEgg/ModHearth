@@ -350,33 +350,38 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     {
         Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
         Color baseColor = style.backgroundColor.ToAvaloniaColor();
+        Color targetColor;
+
         if (IsDragging)
+            targetColor = LightenColor(baseColor, 0.35f);
+        else
         {
-            BackgroundBrush = new SolidColorBrush(LightenColor(baseColor, 0.35f));
-            return;
+            Color? referenceOverlayColor = ReferenceOverlay switch
+            {
+                ReferenceOverlayKind.AboveSelection => style.modRefCacheBarColor.ToAvaloniaColor(),
+                ReferenceOverlayKind.BelowSelection => style.modRefJumpHighlightColor.ToAvaloniaColor(),
+                _ => null
+            };
+
+            Color blended = referenceOverlayColor.HasValue
+                ? BlendColor(baseColor, referenceOverlayColor.Value)
+                : baseColor;
+
+            Color? selectionOverlay = null;
+            if (IsJumpHighlighted)
+                selectionOverlay = style.modRefJumpHighlightColor.ToAvaloniaColor();
+            else if (IsSelected)
+                selectionOverlay = style.modRefHighlightColor.ToAvaloniaColor();
+
+            targetColor = selectionOverlay.HasValue
+                ? BlendColor(blended, selectionOverlay.Value)
+                : blended;
         }
 
-        Color? referenceOverlayColor = ReferenceOverlay switch
-        {
-            ReferenceOverlayKind.AboveSelection => style.modRefCacheBarColor.ToAvaloniaColor(),
-            ReferenceOverlayKind.BelowSelection => style.modRefJumpHighlightColor.ToAvaloniaColor(),
-            _ => null
-        };
+        // Skip allocation & property notifications if color hasn't changed
+        if (!(BackgroundBrush is ISolidColorBrush scb && scb.Color == targetColor))
+            BackgroundBrush = BrushCache.GetBrush(targetColor);
 
-        Color blended = referenceOverlayColor.HasValue
-            ? BlendColor(baseColor, referenceOverlayColor.Value)
-            : baseColor;
-
-        Color? selectionOverlay = null;
-        if (IsJumpHighlighted)
-            selectionOverlay = style.modRefJumpHighlightColor.ToAvaloniaColor();
-        else if (IsSelected)
-            selectionOverlay = style.modRefHighlightColor.ToAvaloniaColor();
-
-        if (selectionOverlay.HasValue)
-            blended = BlendColor(blended, selectionOverlay.Value);
-
-        BackgroundBrush = new SolidColorBrush(blended);
         RefreshModColorUnderlay();
     }
 
@@ -384,6 +389,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     {
         Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
         Color color;
+
         // During search mismatch rendering, filtered style must win over issue/warning overlays.
         if (IsFilteredOut)
             color = style.modRefTextFilteredColor.ToAvaloniaColor();
@@ -394,15 +400,27 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         else
             color = style.modRefTextColor.ToAvaloniaColor();
 
-        TextBrush = new SolidColorBrush(color);
-        TextDecorations = IsFilteredOut ? Avalonia.Media.TextDecorations.Strikethrough : null;
+        if (!(TextBrush is ISolidColorBrush scb && scb.Color == color))
+            TextBrush = BrushCache.GetBrush(color);
+
+        var targetDecoration = IsFilteredOut ? Avalonia.Media.TextDecorations.Strikethrough : null;
+        if (TextDecorations != targetDecoration)
+        {
+            TextDecorations = targetDecoration;
+        }
     }
 
     private void RefreshAuxStyles()
     {
         Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
-        CacheBarBrush = new SolidColorBrush(style.modRefCacheBarColor.ToAvaloniaColor());
-        DropHighlightBrush = new SolidColorBrush(style.modRefHighlightColor.ToAvaloniaColor());
+        Color cacheBarColor = style.modRefCacheBarColor.ToAvaloniaColor();
+        Color dropHighlightColor = style.modRefHighlightColor.ToAvaloniaColor();
+
+        if (!(CacheBarBrush is ISolidColorBrush cb && cb.Color == cacheBarColor))
+            CacheBarBrush = BrushCache.GetBrush(cacheBarColor);
+
+        if (!(DropHighlightBrush is ISolidColorBrush dh && dh.Color == dropHighlightColor))
+            DropHighlightBrush = BrushCache.GetBrush(dropHighlightColor);
     }
 
     public bool MatchesFilter(string filter, SearchFilterMode mode)
@@ -464,12 +482,17 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         ModColor modColor = ModReference.AssignedColor;
         if (modColor == ModColor.None)
         {
-            ColorUnderlayBrush = null;
+            if (ColorUnderlayBrush != null)
+                ColorUnderlayBrush = null;
             return;
         }
 
-        Color color = ModColorMap.GetColor(modColor, 255);
-        ColorUnderlayBrush = new SolidColorBrush(color);
+        Color color = ModColorMap.GetColor(modColor);
+
+        if (!(ColorUnderlayBrush is ISolidColorBrush scb && scb.Color == color))
+        {
+            ColorUnderlayBrush = BrushCache.GetBrush(color);
+        }
     }
 
     private IBrush? colorUnderlayBrush;

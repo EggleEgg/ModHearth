@@ -74,14 +74,14 @@ public static class WindowThemeManager
         foreach (ModSearchBar searchBar in window.GetVisualDescendants().OfType<ModSearchBar>())
             searchBar.ApplyStyle(style);
 
-        IBrush formBrush = new SolidColorBrush(style.formColor.ToAvaloniaColor());
-        IBrush textBrush = new SolidColorBrush(style.textColor.ToAvaloniaColor());
-        IBrush panelBrush = new SolidColorBrush(style.modRefPanelColor.ToAvaloniaColor());
-        IBrush buttonBrush = new SolidColorBrush(style.buttonColor.ToAvaloniaColor());
-        IBrush buttonTextBrush = new SolidColorBrush(style.buttonTextColor.ToAvaloniaColor());
-        IBrush buttonOutlineBrush = new SolidColorBrush(style.buttonOutlineColor.ToAvaloniaColor());
-        IBrush borderPanelBrush = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
-        IBrush dataGridBrush = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
+        IBrush formBrush = BrushCache.GetBrush(style.formColor.ToAvaloniaColor());
+        IBrush textBrush = BrushCache.GetBrush(style.textColor.ToAvaloniaColor());
+        IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
+        IBrush buttonBrush = BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor());
+        IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
+        IBrush buttonOutlineBrush = BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor());
+        IBrush borderPanelBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
+        IBrush dataGridBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
 
         window.Background = formBrush;
 

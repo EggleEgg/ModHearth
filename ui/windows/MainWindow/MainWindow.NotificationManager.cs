@@ -49,14 +49,14 @@ public partial class MainWindow
 
             if (Style.instance != null)
             {
-                panelBrushClear = new SolidColorBrush(Style.instance.modRefPanelColorClear.ToAvaloniaColor());
-                buttonOutlineBrush = new SolidColorBrush(Style.instance.buttonOutlineColor.ToAvaloniaColor());
-                textBrush = new SolidColorBrush(Style.instance.textColor.ToAvaloniaColor());
+                panelBrushClear = BrushCache.GetBrush(Style.instance.modRefPanelColorClear.ToAvaloniaColor());
+                buttonOutlineBrush = BrushCache.GetBrush(Style.instance.buttonOutlineColor.ToAvaloniaColor());
+                textBrush = BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
             }
             else
             {
-                panelBrushClear = new SolidColorBrush(Avalonia.Media.Color.Parse("#2D2D30"));
-                buttonOutlineBrush = new SolidColorBrush(Avalonia.Media.Color.Parse("#3F3F46"));
+                panelBrushClear = BrushCache.GetBrush(Avalonia.Media.Color.Parse("#2D2D30"));
+                buttonOutlineBrush = BrushCache.GetBrush(Avalonia.Media.Color.Parse("#3F3F46"));
                 textBrush = Brushes.White;
             }
 

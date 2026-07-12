@@ -180,12 +180,12 @@ public partial class ModSearchBar : UserControl
         if (style == null)
             return;
 
-        IBrush panelBrush = new SolidColorBrush(style.modRefPanelColor.ToAvaloniaColor());
-        IBrush searchBorderBrush = new SolidColorBrush(style.searchBorderColor.ToAvaloniaColor());
-        IBrush searchButtonBrush = new SolidColorBrush(style.searchButtonColor.ToAvaloniaColor());
-        IBrush searchButtonHoverBrush = new SolidColorBrush(style.searchButtonHoverColor.ToAvaloniaColor());
-        IBrush searchButtonPressedBrush = new SolidColorBrush(style.searchButtonPressedColor.ToAvaloniaColor());
-        IBrush buttonTextBrush = new SolidColorBrush(style.buttonTextColor.ToAvaloniaColor());
+        IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
+        IBrush searchBorderBrush = BrushCache.GetBrush(style.searchBorderColor.ToAvaloniaColor());
+        IBrush searchButtonBrush = BrushCache.GetBrush(style.searchButtonColor.ToAvaloniaColor());
+        IBrush searchButtonHoverBrush = BrushCache.GetBrush(style.searchButtonHoverColor.ToAvaloniaColor());
+        IBrush searchButtonPressedBrush = BrushCache.GetBrush(style.searchButtonPressedColor.ToAvaloniaColor());
+        IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
 
         SearchBorder.Background = panelBrush;
         SearchBorder.BorderBrush = searchBorderBrush;
@@ -194,10 +194,10 @@ public partial class ModSearchBar : UserControl
 
         Button[] buttons =
         {
-            SearchModeButton,
-            ToggleButton,
-            ClearButton
-        };
+        SearchModeButton,
+        ToggleButton,
+        ClearButton
+    };
 
         foreach (Button button in buttons)
         {

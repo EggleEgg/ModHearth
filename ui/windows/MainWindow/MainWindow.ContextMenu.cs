@@ -261,7 +261,7 @@ public partial class MainWindow : IModRefContextMenuProvider
             Width = 30,
             Height = 30,
             CornerRadius = new CornerRadius(3),
-            Background = isClearOption ? Brushes.Transparent : new SolidColorBrush(ModColorMap.GetColor(color)),
+            Background = isClearOption ? Brushes.Transparent : BrushCache.GetBrush(ModColorMap.GetColor(color)),
             BorderBrush = isSelected ? Brushes.White : Brushes.Gray,
             BorderThickness = new Thickness(isSelected ? 4 : 1)
         };

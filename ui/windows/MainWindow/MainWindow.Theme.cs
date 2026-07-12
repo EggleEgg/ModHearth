@@ -13,13 +13,13 @@ public partial class MainWindow
             return;
 
         Style.instance = style;
-        IBrush formBrush = new SolidColorBrush(style.formColor.ToAvaloniaColor());
-        IBrush textBrush = new SolidColorBrush(style.textColor.ToAvaloniaColor());
-        IBrush panelBrush = new SolidColorBrush(style.modRefPanelColor.ToAvaloniaColor());
-        IBrush panelBrushClear = new SolidColorBrush(style.modRefPanelColorClear.ToAvaloniaColor());
-        IBrush buttonBrush = new SolidColorBrush(style.buttonColor.ToAvaloniaColor());
-        IBrush buttonTextBrush = new SolidColorBrush(style.buttonTextColor.ToAvaloniaColor());
-        IBrush buttonOutlineBrush = new SolidColorBrush(style.buttonOutlineColor.ToAvaloniaColor());
+        IBrush formBrush = BrushCache.GetBrush(style.formColor.ToAvaloniaColor());
+        IBrush textBrush = BrushCache.GetBrush(style.textColor.ToAvaloniaColor());
+        IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
+        IBrush panelBrushClear = BrushCache.GetBrush(style.modRefPanelColorClear.ToAvaloniaColor());
+        IBrush buttonBrush = BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor());
+        IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
+        IBrush buttonOutlineBrush = BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor());
 
         Background = formBrush;
         leftHeaderLabel.Foreground = textBrush;
@@ -29,6 +29,7 @@ public partial class MainWindow
 
         RefreshDescriptionHtml();
         RefreshModDataViewer();
+        BrushCache.Clear();
 
         var notificationContainer = this.FindControl<StackPanel>("notificationContainer");
         if (notificationContainer != null)
@@ -52,7 +53,7 @@ public partial class MainWindow
         }
 
         dfhackStatusLabel.Foreground = textBrush;
-        modInfoTopBorder.Background = new SolidColorBrush(style.backgroundColor.ToAvaloniaColor());
+        modInfoTopBorder.Background = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
 
         leftModlist.Background = panelBrush;
         rightModlist.Background = panelBrush;

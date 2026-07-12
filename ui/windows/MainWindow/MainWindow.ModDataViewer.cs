@@ -242,7 +242,7 @@ public partial class MainWindow
         modDataPanelContent.Children.Clear();
 
         IBrush textBrush = Style.instance != null
-            ? new SolidColorBrush(Style.instance.textColor.ToAvaloniaColor())
+            ? BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor())
             : Brushes.Black;
 
         if (modref == null)
@@ -325,8 +325,8 @@ public partial class MainWindow
         rowGrid.Children.Add(valueBlock);
 
         IBrush hoverBrush = Style.instance != null
-            ? new SolidColorBrush(Style.instance.modRefPanelColor.ToAvaloniaColor())
-            : new SolidColorBrush(Color.Parse("#22888888"));
+            ? BrushCache.GetBrush(Style.instance.modRefPanelColor.ToAvaloniaColor())
+            : BrushCache.GetBrush(Color.Parse("#22888888"));
 
         Border row = new Border
         {

@@ -740,7 +740,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
     private static IBrush GetGapLineBrush()
     {
         if (Style.instance != null)
-            return new SolidColorBrush(Style.instance.textColor.ToAvaloniaColor());
+            return BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
         return Brushes.White;
     }
 

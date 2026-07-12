@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:ModHearth.UI"
              x:Class="ModHearth.UI.ModRefControl"
+             x:Name="Root"
              x:DataType="ui:ModRefViewModel"
              Background="{Binding BackgroundBrush}"
              MinHeight="20">
@@ -15,10 +16,41 @@
       <MenuItem Header="Open Folder" Tag="open" Click="OnContextMenuItemClick" />
       <MenuItem Header="Open Steam Page (browser)" Tag="open-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <MenuItem Header="Copy Mod ID" Tag="copy-id" Click="OnContextMenuItemClick" />
-      <MenuItem Header="Set Mod Color" Tag="set-mod-color-root" Click="OnContextMenuItemClick" />
+      <MenuItem Header="Set Mod Color" Tag="set-mod-color-root" />
     </ContextMenu>
   </UserControl.ContextMenu>
-  <Grid>
+  <Grid IsHitTestVisible="False">
+
+
+    <!--45º diagonal pattern -->
+    <!--
+    Line Thickness = StrokeThickness
+    Line Spacing (Density) = SourceRect, DestinationRect, Canvas: Width, Height.
+    Example for tighter spacing (10x10 tile, width & height: 10.5): Lines go from 0,5.5 to 5.5,0 and 5,10.5 to 10.5,5.
+    For wider spacing just increase the numbers. 0.5 is used as margin to fully connect the lines
+    -->
+    <!-- TODO consider using a lighter svg-based approach -->
+    <Grid IsHitTestVisible="False" IsVisible="{Binding $parent[ui:ModRefControl].ShowColorUnderlay}">
+      <Border Grid.Column="1">
+        <Border.Background>
+          <VisualBrush TileMode="Tile"
+                       SourceRect="0,0,5,5"
+                       DestinationRect="0,0,5,5">
+            <VisualBrush.Visual>
+              <Canvas Width="6" Height="6" Background="Transparent">
+                <Line StartPoint="0,3.5" EndPoint="3.5,0"
+                      Stroke="{Binding #Root.((ui:ModRefViewModel)DataContext).ColorUnderlayBrush}"
+                      StrokeThickness="1.2" />
+                <Line StartPoint="2.5,6" EndPoint="6,2.5"
+                      Stroke="{Binding #Root.((ui:ModRefViewModel)DataContext).ColorUnderlayBrush}"
+                      StrokeThickness="1.2" />
+              </Canvas>
+            </VisualBrush.Visual>
+          </VisualBrush>
+        </Border.Background>
+      </Border>
+    </Grid>
+
     <Grid ColumnDefinitions="Auto,Auto,*" Margin="2,0,5,0">
 
       <Grid.Styles>
@@ -60,43 +92,9 @@
                             OffsetY="1"
                             BlurRadius="5"
                             Color="Black"
-                            Opacity="0.3" />
+                            Opacity="0.5" />
         </TextBlock.Effect>
       </TextBlock>
-
-      <!--
-      45º diagonal pattern
-      Line Thickness = StrokeThickness
-      Line Spacing (Density) = SourceRect, DestinationRect, Canvas: Width, Height.
-      Example for tighter spacing (10x10 tile): Lines go from 0,5 to 5,0 and 5,10 to 10,5.
-      Example for wider spacing (40x40 tile): Lines go from 0,20 to 20,0 and 20,40 to 40,20.
-      -->
-      <Border Grid.Column="2"
-              Margin="0,0,-5,0"
-              HorizontalAlignment="Stretch"
-              VerticalAlignment="Stretch"
-              IsHitTestVisible="False"
-              IsVisible="{Binding $parent[ui:ModRefControl].ShowColorUnderlay}">
-        <Border.Background>
-          <VisualBrush TileMode="Tile"
-                       SourceRect="0,0,20,20"
-                       DestinationRect="0,0,20,20">
-            <VisualBrush.Visual>
-              <Canvas Width="20" Height="20" Background="Transparent">
-
-                <Line StartPoint="0,10" EndPoint="10,0"
-                      Stroke="{Binding ColorUnderlayBrush}"
-                      StrokeThickness="3" />
-
-                <Line StartPoint="10,20" EndPoint="20,10"
-                      Stroke="{Binding ColorUnderlayBrush}"
-                      StrokeThickness="3" />
-
-              </Canvas>
-            </VisualBrush.Visual>
-          </VisualBrush>
-        </Border.Background>
-      </Border>
     </Grid>
     <Border Height="2"
             Background="{Binding DropHighlightBrush}"
