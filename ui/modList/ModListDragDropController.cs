@@ -32,6 +32,7 @@ public sealed class ModListDragDropController
     private readonly Dictionary<ListBox, bool> sortableLists = new();
 
     private Point? dragStartPoint;
+    private PointerPressedEventArgs? dragTriggerEvent;
     private ListBox? dragSourceList;
     private List<ModRefViewModel>? dragSelectionSnapshot;
     private ModRefViewModel? dragHitItem;
@@ -102,6 +103,8 @@ public sealed class ModListDragDropController
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        dragTriggerEvent = e;
+        dragStartPoint = e.GetPosition(sender as Control);
         ResetDragState();
         ClearDragHighlight();
 
@@ -129,7 +132,7 @@ public sealed class ModListDragDropController
 
     private async void OnPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (dragStartPoint == null || dragSourceList == null)
+        if (dragStartPoint == null || dragSourceList == null || dragTriggerEvent == null)
             return;
 
         if (!e.GetCurrentPoint(dragSourceList).Properties.IsLeftButtonPressed)
@@ -178,15 +181,21 @@ public sealed class ModListDragDropController
             data.Add(DataTransferItem.Create(DragDataFormat, payload));
 
             // The native OS blocking loop runs here
-            await DragDrop.DoDragDropAsync(e, data, DragDropEffects.Move);
+            await DragDrop.DoDragDropAsync(dragTriggerEvent, data, DragDropEffects.Move);
         }
         finally
         {
             // Flipping this to false immediately halts the background thread loop
+            dragTriggerEvent = null;
             isDragging = false;
             ClearDragHighlight();
             ResetDragState();
         }
+    }
+    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        dragTriggerEvent = null;
+        ResetDragState();
     }
 
     private void OnDragOver(object? sender, DragEventArgs e)

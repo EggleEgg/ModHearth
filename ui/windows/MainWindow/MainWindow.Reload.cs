@@ -154,7 +154,7 @@ public partial class MainWindow
         autoReloadSecondsTextBox = new TextBox
         {
             Width = 90,
-            Watermark = "seconds"
+            PlaceholderText = "seconds"
         };
         autoReloadSecondsTextBox.TextInput += AutoReloadSecondsTextInput;
         autoReloadSecondsTextBox.TextChanged += AutoReloadSecondsTextChanged;

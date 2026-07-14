@@ -2,7 +2,7 @@
 # General
 
 - Code must be thread safe and compatible with both linux and windows os
-- If editing fails, use the edit tool to modify files, providing the file_path, old_string, and new_string
+
 
 ## Git Workflow
 

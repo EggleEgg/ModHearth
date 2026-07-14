@@ -3,11 +3,25 @@
              x:Class="ModHearth.App">
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <DockFluentTheme />
+
+    <!-- Stick default style replacements in here. Use these only as last resort -->
     <Style Selector="Button Image">
       <Setter Property="Margin" Value="4" />
     </Style>
-    <FluentTheme />
-    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
-    <DockFluentTheme />
+    <Style Selector="MenuItem.color-grid">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  Padding="4">
+            <ContentPresenter Content="{TemplateBinding Header}"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Stretch"/>
+
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
   </Application.Styles>
 </Application>

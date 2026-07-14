@@ -77,5 +77,17 @@ namespace ModHearth
 
         // Whether the preview panel is placed before (top/left of) the data/description panels.
         public bool ModPreviewPanelFirst { get; set; } = true;
+
+        // Option to open Steam Workshop pages in the Steam client instead of a browser.
+        public bool OpenSteamInClient { get; set; } = false;
+
+        // Option to copy Steam File ID instead of Mod ID from context menu.
+        public bool CopySteamFileId { get; set; } = false;
+
+        // Search bar filter and sort state for the left modlist.
+        public string LeftSearchBarState { get; set; } = string.Empty;
+
+        // Search bar filter and sort state for the right modlist.
+        public string RightSearchBarState { get; set; } = string.Empty;
     }
 }

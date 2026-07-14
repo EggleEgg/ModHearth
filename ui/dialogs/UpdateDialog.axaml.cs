@@ -33,13 +33,13 @@ public partial class UpdateDialog : Window
 
     private void InstallClicked(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button button || button.DataContext is not ReleaseEntry entry)
-            return;
-
-        Close(entry.Release);
+        if (sender is Button { DataContext: ReleaseEntry entry })
+        {
+            Close(entry.Release);
+        }
     }
 
-    private sealed class ReleaseEntry
+    public sealed class ReleaseEntry
     {
         public string Title { get; init; } = string.Empty;
         public string Subtitle { get; init; } = string.Empty;

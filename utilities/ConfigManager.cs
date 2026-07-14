@@ -75,11 +75,15 @@ namespace ModHearth
             }
         }
 
-        public static void SaveConfigFile()
+        public static void SaveConfigFile(string? message = null)
         {
             lock (configGate)
             {
-                Console.WriteLine("Config saved.");
+                if (message != null)
+                    Console.WriteLine($"{message} config saved.");
+
+                else
+                    Console.WriteLine("Config saved.");
                 try
                 {
                     JsonSerializerOptions options = new JsonSerializerOptions
@@ -167,7 +171,7 @@ namespace ModHearth
         public static void SetTheme(int theme)
         {
             Config.theme = theme;
-            SaveConfigFile();
+            SaveConfigFile("Theme");
         }
 
         public static int GetAutoReloadIntervalSeconds() => Config.AutoReloadIntervalSeconds;
@@ -175,7 +179,7 @@ namespace ModHearth
         public static void SetAutoReloadIntervalSeconds(int seconds)
         {
             Config.AutoReloadIntervalSeconds = seconds;
-            SaveConfigFile();
+            SaveConfigFile("Autoreload");
         }
 
         public static double GetModDataPanelProportion() => Config.ModDataPanelProportion;
@@ -189,7 +193,7 @@ namespace ModHearth
             Config.ModDataPanelProportion = proportion;
             Config.ModDataPanelOrientation = orientation;
             Config.ModDataPanelFirst = first;
-            SaveConfigFile();
+            SaveConfigFile("Panel data");
         }
 
         public static double GetModPreviewPanelProportion() => Config.ModPreviewPanelProportion;
@@ -203,7 +207,7 @@ namespace ModHearth
             Config.ModPreviewPanelProportion = proportion;
             Config.ModPreviewPanelOrientation = orientation;
             Config.ModPreviewPanelFirst = first;
-            SaveConfigFile();
+            SaveConfigFile("Panel data");
         }
 
         public static bool IsAutoSaveEnabled() => Config.IsAutoSaveEnabled;
@@ -211,7 +215,35 @@ namespace ModHearth
         public static void SetAutoSaveEnabled(bool enabled)
         {
             Config.IsAutoSaveEnabled = enabled;
-            SaveConfigFile();
+            SaveConfigFile("Autosave");
+        }
+
+        public static string GetLeftSearchBarState() => Config.LeftSearchBarState;
+        public static void SetLeftSearchBarState(string state)
+        {
+            Config.LeftSearchBarState = state;
+            SaveConfigFile("Search filter");
+        }
+
+        public static string GetRightSearchBarState() => Config.RightSearchBarState;
+        public static void SetRightSearchBarState(string state)
+        {
+            Config.RightSearchBarState = state;
+            SaveConfigFile("Search filter");
+        }
+
+        public static bool GetOpenSteamInClient() => Config.OpenSteamInClient;
+        public static void SetOpenSteamInClient(bool openInClient)
+        {
+            Config.OpenSteamInClient = openInClient;
+            SaveConfigFile("Context menu");
+        }
+
+        public static bool GetCopySteamFileId() => Config.CopySteamFileId;
+        public static void SetCopySteamFileId(bool copySteamFileId)
+        {
+            Config.CopySteamFileId = copySteamFileId;
+            SaveConfigFile("Context menu");
         }
 
         public static string GetModsPath()
@@ -234,7 +266,7 @@ namespace ModHearth
             if (!string.Equals(Config.ModsPathOverride, resolved, GetFileSystemPathComparison()))
             {
                 Config.ModsPathOverride = resolved;
-                SaveConfigFile();
+                SaveConfigFile($"Path resolved: {resolved},");
             }
 
             return resolved;
@@ -253,7 +285,7 @@ namespace ModHearth
             if (!string.Equals(Config.InstalledModsPath, resolved, GetFileSystemPathComparison()))
             {
                 Config.InstalledModsPath = resolved;
-                SaveConfigFile();
+                SaveConfigFile($"Path resolved: {resolved},");
             }
 
             return resolved;
@@ -287,7 +319,7 @@ namespace ModHearth
             Config.DFEXEPath = path;
             Config.DFFolderPathOverride = string.Empty;
             Config.ModsPathOverride = string.Empty;
-            SaveConfigFile();
+            SaveConfigFile($"Path resolved: {path},");
         }
 
         public static void SetDwarfFortressFolderPath(string path)
@@ -296,19 +328,19 @@ namespace ModHearth
             if (!string.IsNullOrWhiteSpace(path))
                 Config.DFEXEPath = string.Empty;
             Config.ModsPathOverride = string.Empty;
-            SaveConfigFile();
+            SaveConfigFile($"Path resolved: {path},");
         }
 
         public static void SetInstalledModsPath(string path)
         {
             Config.InstalledModsPath = ResolveExistingDirectoryPath(path) ?? path;
-            SaveConfigFile();
+            SaveConfigFile($"Path resolved: {path},");
         }
 
         public static void SetDFHackFolderPath(string path)
         {
             Config.DFHackFolderPath = ResolveExistingDirectoryPath(path) ?? path;
-            SaveConfigFile();
+            SaveConfigFile($"Path resolved: {path},");
         }
 
         public static void AutoDiscoverConfigPaths()
@@ -392,7 +424,7 @@ namespace ModHearth
             }
 
             if (updated)
-                SaveConfigFile();
+                SaveConfigFile($"Path autodiscover");
         }
 
         public static string? TryFindSteamDwarfFortressFolder()
@@ -888,14 +920,15 @@ namespace ModHearth
         }
 
         // Detects Dwarf Fortress's own Steam-integration habit of materializing a workshop mod's content directly into the Mods\ folder, named after
-        // its numeric Steam Workshop file id, with a trailing " (<version>)" suffix, ex: "Mods\3445635304 (20)" or "Mods\3445635304"
-        // see steam discussion https://steamcommunity.com/app/975370/discussions/0/599642674183563431/ as reference of this (likely unpatched) bug
+        // its numeric Steam Workshop file id, with a trailing " (<version>)" suffix, ex: "Mods\3445635304 (20)" or "Mods\3445635304".
+        // See steam discussion https://steamcommunity.com/app/975370/discussions/0/599642674183563431/ as reference of this (likely unpatched) bug
         public static bool IsLikelySteamShadowCopy(string? folderPath, out string workshopId)
         {
             workshopId = string.Empty;
             if (string.IsNullOrWhiteSpace(folderPath))
                 return false;
 
+            string normalizedFolderPath = NormalizeFileSystemPath(folderPath);
             string folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
             Match match = SteamShadowCopyFolderNameRegex.Match(folderName);
             if (!match.Success)
@@ -904,7 +937,12 @@ namespace ModHearth
             string candidateId = match.Groups["id"].Value;
             foreach (string workshopContentRoot in GetSteamWorkshopContentPaths())
             {
-                if (Directory.Exists(Path.Combine(workshopContentRoot, candidateId)))
+                string canonicalPath = NormalizeFileSystemPath(Path.Combine(workshopContentRoot, candidateId));
+
+                if (string.Equals(normalizedFolderPath, canonicalPath, GetFileSystemPathComparison()))
+                    continue;
+
+                if (Directory.Exists(canonicalPath))
                 {
                     workshopId = candidateId;
                     return true;

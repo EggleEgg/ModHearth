@@ -33,8 +33,8 @@ public partial class ModSearchBar : UserControl
         public bool IsPressed { get; set; }
     }
 
-    public static readonly StyledProperty<string?> WatermarkProperty =
-        AvaloniaProperty.Register<ModSearchBar, string?>(nameof(Watermark), "Search");
+    public static readonly StyledProperty<string?> PlaceholderTextProperty =
+        AvaloniaProperty.Register<ModSearchBar, string?>(nameof(PlaceholderText), "Search");
 
     public static readonly StyledProperty<bool> HideFilteredProperty =
         AvaloniaProperty.Register<ModSearchBar, bool>(nameof(HideFiltered));
@@ -83,8 +83,8 @@ public partial class ModSearchBar : UserControl
 
         PropertyChanged += (_, args) =>
         {
-            if (args.Property == WatermarkProperty)
-                SearchBox.Watermark = Watermark;
+            if (args.Property == PlaceholderTextProperty)
+                SearchBox.PlaceholderText = PlaceholderText;
             else if (args.Property == HideFilteredProperty)
                 UpdateToggleIcon();
             else if (args.Property == SearchModeProperty)
@@ -108,7 +108,7 @@ public partial class ModSearchBar : UserControl
                 searchModeFlyout = null;
             }
         };
-        SearchBox.Watermark = Watermark;
+        SearchBox.PlaceholderText = PlaceholderText;
         UpdateToggleIcon();
         UpdateSearchModeIcon();
         UpdateSearchModeButtonTooltip();
@@ -136,10 +136,10 @@ public partial class ModSearchBar : UserControl
         set => SearchBox.Text = value;
     }
 
-    public string? Watermark
+    public string? PlaceholderText
     {
-        get => GetValue(WatermarkProperty);
-        set => SetValue(WatermarkProperty, value);
+        get => GetValue(PlaceholderTextProperty);
+        set => SetValue(PlaceholderTextProperty, value);
     }
 
     public bool HideFiltered
@@ -460,7 +460,6 @@ public partial class ModSearchBar : UserControl
         string directionIconName = SortDescending ? "sortDownIcon.svg" : "sortUpIcon.svg";
         SortDirectionIcon.Source = ImageSourceLoader.LoadFromAssetUri(directionIconName)
             ?? SortDirectionIcon.Source;
-        SortDirectionIcon.IsVisible = IsSortingEnabled;
         SearchModeButton.Width = IsSortingEnabled ? 30 : 22;
 
         if (!IsSortingEnabled)
@@ -501,4 +500,20 @@ public partial class ModSearchBar : UserControl
     }
 
 
+    public string GetStringState()
+    {
+        return $"{Text}|{HideFiltered}|{SearchMode}|{SortDescending}";
+    }
+
+    public void SetStringState(string state)
+    {
+        string[] parts = state.Split('|');
+        if (parts.Length == 4)
+        {
+            Text = parts[0];
+            HideFiltered = bool.Parse(parts[1]);
+            SearchMode = Enum.Parse<SearchFilterMode>(parts[2]);
+            SortDescending = bool.Parse(parts[3]);
+        }
+    }
 }

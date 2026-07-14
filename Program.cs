@@ -9,35 +9,37 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-            if (OperatingSystem.IsWindows())
-            {
-                string scriptPath = Path.Combine(AppContext.BaseDirectory, "InstallDotNetRuntime.ps1");
-                if (File.Exists(scriptPath))
-                {
-                    ProcessStartInfo startInfo = new ProcessStartInfo
-                    {
-                        FileName = "powershell.exe",
-                        Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\"",
-                        UseShellExecute = true,
-                        CreateNoWindow = false,
-                        Verb = "runas"
-                    };
+        RegisterSteamApiResolver();
 
-                    try
+        if (OperatingSystem.IsWindows())
+        {
+            string scriptPath = Path.Combine(AppContext.BaseDirectory, "scripts", "InstallDotNetRuntime.ps1");
+            if (File.Exists(scriptPath))
+            {
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\"",
+                    UseShellExecute = true,
+                    CreateNoWindow = false,
+                    Verb = "runas"
+                };
+
+                try
+                {
+                    using (Process? process = Process.Start(startInfo))
                     {
-                        using (Process? process = Process.Start(startInfo))
-                        {
-                            process?.WaitForExit();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error running runtime check script: {ex.Message}");
+                        process?.WaitForExit();
                     }
                 }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error running runtime check script: {ex.Message}");
+                }
             }
+        }
 
-            RuntimeBootstrap.Initialize();
+        RuntimeBootstrap.Initialize();
         ConfigManager.AttemptLoadConfig(false);
 
         if (OperatingSystem.IsLinux() && !ModHearthManager.Config.showConsole)
@@ -104,4 +106,42 @@ internal static class Program
     private static string[] StripArgs(string[] args, params string[] toRemove)
         => args.Where(arg => !toRemove.Any(remove => string.Equals(arg, remove, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
+
+    private static void RegisterSteamApiResolver()
+    {
+        System.Runtime.InteropServices.NativeLibrary.SetDllImportResolver(
+            typeof(Steamworks.SteamAPI).Assembly,
+            (libraryName, assembly, searchPath) =>
+            {
+                if (libraryName.Contains("steam_api"))
+                {
+                    string fileName = string.Empty;
+                    if (OperatingSystem.IsWindows())
+                    {
+                        fileName = "steam_api64.dll";
+                    }
+                    else if (OperatingSystem.IsLinux())
+                    {
+                        fileName = "libsteam_api.so";
+                    }
+                    else if (OperatingSystem.IsMacOS())
+                    {
+                        fileName = "libsteam_api.dylib";
+                    }
+
+                    if (!string.IsNullOrEmpty(fileName))
+                    {
+                        string libPath = Path.Combine(AppContext.BaseDirectory, "libs", fileName);
+                        if (File.Exists(libPath))
+                        {
+                            if (System.Runtime.InteropServices.NativeLibrary.TryLoad(libPath, out IntPtr handle))
+                            {
+                                return handle;
+                            }
+                        }
+                    }
+                }
+                return IntPtr.Zero;
+            });
+    }
 }

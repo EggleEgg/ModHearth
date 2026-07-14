@@ -56,7 +56,7 @@
       "dependsOn": "build"
     },
     {
-      "label": "dotnet: clean",
+      "label": "clean projects",
       "command": "powershell",
       "type": "process",
       "args": [

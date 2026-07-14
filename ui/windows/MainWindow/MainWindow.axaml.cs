@@ -35,6 +35,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    public bool IsOpenSteamInClientEnabled
+    {
+        get => ConfigManager.GetOpenSteamInClient();
+        set
+        {
+            if (value != ConfigManager.GetOpenSteamInClient())
+            {
+                ConfigManager.SetOpenSteamInClient(value);
+                NotifyOfPropertyChange();
+            }
+        }
+    }
+
+    public bool IsCopySteamFileIdEnabled
+    {
+        get => ConfigManager.GetCopySteamFileId();
+        set
+        {
+            if (value != ConfigManager.GetCopySteamFileId())
+            {
+                ConfigManager.SetCopySteamFileId(value);
+                NotifyOfPropertyChange();
+            }
+        }
+    }
+
     private readonly ObservableCollection<ModRefViewModel> inactiveMods = new();
     private readonly ObservableCollection<ModRefViewModel> activeMods = new();
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
@@ -130,6 +156,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ApplySearchFilter();
         };
 
+        leftSearchBar.SetStringState(ConfigManager.GetLeftSearchBarState());
+        rightSearchBar.SetStringState(ConfigManager.GetRightSearchBarState());
+
+        leftSearchBar.SearchTextChanged += (_, _) => OnSearchBarStateChanged();
+        leftSearchBar.HideFilteredToggled += (_, _) => OnSearchBarStateChanged();
+        leftSearchBar.SearchModeChanged += (_, _) => OnSearchBarStateChanged();
+        leftSearchBar.SortOrderChanged += (_, _) => OnSearchBarStateChanged();
+
+        rightSearchBar.SearchTextChanged += (_, _) => OnSearchBarStateChanged();
+        rightSearchBar.HideFilteredToggled += (_, _) => OnSearchBarStateChanged();
+        rightSearchBar.SearchModeChanged += (_, _) => OnSearchBarStateChanged();
+        rightSearchBar.SortOrderChanged += (_, _) => OnSearchBarStateChanged();
+
         leftSearchBar.HideFiltered = true;
         rightSearchBar.HideFiltered = true;
         rightSearchBar.IsSortingEnabled = false;
@@ -174,6 +213,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             SaveModDataPanelLayout();
             SaveModPreviewPanelLayout();
+            SaveSearchBarStates();
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();
             dfHackStatusTimer?.Stop();
@@ -185,5 +225,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         InitializeDfHackStatusTimer();
         InitializeAutoReloadTimer();
+    }
+
+    private void OnSearchBarStateChanged()
+    {
+        SaveSearchBarStates();
+    }
+
+    private void SaveSearchBarStates()
+    {
+        ConfigManager.SetLeftSearchBarState(leftSearchBar.GetStringState());
+        ConfigManager.SetRightSearchBarState(rightSearchBar.GetStringState());
     }
 }

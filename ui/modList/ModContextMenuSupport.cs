@@ -312,11 +312,15 @@ internal static class ModContextMenuSupport
     {
         if (!ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId))
         {
-            await DialogService.ShowMessageAsync(owner, "Steam ID not available for this mod.", "Open Steam Page (browser)");
+            string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open in Steam" : "Open Steam Page (browser)";
+            await DialogService.ShowMessageAsync(owner, "Steam ID not available for this mod.", actionTitle);
             return;
         }
 
-        string url = $"https://steamcommunity.com/sharedfiles/filedetails/?id={steamId}";
+        string url = ConfigManager.GetOpenSteamInClient()
+            ? $"steam://url/CommunityFilePage/{steamId}"
+            : $"https://steamcommunity.com/sharedfiles/filedetails/?id={steamId}";
+
         try
         {
             Process.Start(new ProcessStartInfo
@@ -327,15 +331,25 @@ internal static class ModContextMenuSupport
         }
         catch (Exception ex)
         {
-            await DialogService.ShowMessageAsync(owner, ex.Message, "Open Steam Page (browser)");
+            string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open in Steam" : "Open Steam Page (browser)";
+            await DialogService.ShowMessageAsync(owner, ex.Message, actionTitle);
         }
     }
 
     public static async Task CopyModIdAsync(Window owner, ModReference modref)
     {
-        string? id = modref.ID;
+        string? id = ConfigManager.GetCopySteamFileId()
+            ? (ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId) ? steamId : string.Empty)
+            : modref.ID;
+
         if (string.IsNullOrWhiteSpace(id))
+        {
+            if (ConfigManager.GetCopySteamFileId())
+            {
+                await DialogService.ShowMessageAsync(owner, "Steam ID not available for this mod.", "Copy Steam File Id");
+            }
             return;
+        }
 
         IClipboard? clipboard = TopLevel.GetTopLevel(owner)?.Clipboard;
         if (clipboard != null)

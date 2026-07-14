@@ -347,7 +347,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
 
         ModSearchBar searchBar = new ModSearchBar
         {
-            Watermark = "Filter mods...",
+            PlaceholderText = "Filter mods...",
             Height = 28,
             HideFiltered = true
         };
@@ -1982,7 +1982,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
     {
         if (communityRulesUrlTextBox != null)
             ConfigManager.Config.CommunitySortRulesUrl = communityRulesUrlTextBox.Text?.Trim() ?? string.Empty;
-        ConfigManager.SaveConfigFile();
+        ConfigManager.SaveConfigFile("Url");
     }
 
     private async Task FetchCommunityRulesAsync()

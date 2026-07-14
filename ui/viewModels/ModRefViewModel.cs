@@ -496,7 +496,6 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     }
 
     private IBrush? colorUnderlayBrush;
-
     public IBrush? ColorUnderlayBrush
     {
         get => colorUnderlayBrush;
@@ -506,8 +505,11 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
                 return;
             colorUnderlayBrush = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(HasColorUnderlay));
+            Console.WriteLine($"changed color {HasColorUnderlay}");
         }
     }
+    public bool HasColorUnderlay => ColorUnderlayBrush != null;
 
     private static Color LightenColor(Color baseColor, float amount)
     {

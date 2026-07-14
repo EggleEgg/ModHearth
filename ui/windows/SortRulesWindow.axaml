@@ -27,8 +27,8 @@
   <Grid Margin="12" RowDefinitions="Auto,*,160,Auto" ColumnDefinitions="*,*" ColumnSpacing="12"
         RowSpacing="10">
     <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-      <ui:ModSearchBar x:Name="modTreeSearchBar" Watermark="Search mods" Height="28" />
-      <ui:ModSearchBar x:Name="rulesSearchBar" Grid.Column="1" Watermark="Search rules" Height="28" />
+      <ui:ModSearchBar x:Name="modTreeSearchBar" PlaceholderText="Search mods" Height="28" />
+      <ui:ModSearchBar x:Name="rulesSearchBar" Grid.Column="1" PlaceholderText="Search rules" Height="28" />
       <Button x:Name="saveButton" Grid.Column="2" Content="Save" Width="100" Height="28"
               HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
               ToolTip.Tip="Save changes. Right click to open rules file." />
@@ -39,7 +39,7 @@
       <ListBox x:Name="modTreeList" Grid.Row="1" SelectionMode="Multiple" Margin="0,6,0,0"
                AutoScrollToSelectedItem="False">
         <ListBox.ItemContainerTheme>
-          <ControlTheme TargetType="ListBoxItem">
+          <ControlTheme TargetType="ListBoxItem" x:DataType="ui:ModRefViewModel">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -55,7 +55,7 @@
       <ListBox x:Name="rulesList" Grid.Row="1" SelectionMode="Multiple" Margin="0,6,0,0"
                Padding="0,0,0,120" AutoScrollToSelectedItem="False">
         <ListBox.ItemContainerTheme>
-          <ControlTheme TargetType="ListBoxItem">
+          <ControlTheme TargetType="ListBoxItem" x:DataType="ui:ModRefViewModel">
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -75,7 +75,7 @@
       <Border x:Name="lineBreak" Grid.Row="0" Grid.ColumnSpan="3" Height="2" HorizontalAlignment="Stretch" Margin="25,0,25,10" />
       <Button x:Name="fetchCommunityRulesButton" Grid.Row="1" Grid.Column="0" Content="Fetch Rules" Margin="0,0,6,0" Height="32"
               HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-      <TextBox x:Name="communityRulesUrlTextBox" Grid.Row="1" Grid.Column="1" Watermark="GitHub repository URL with modsort_rules.json"
+      <TextBox x:Name="communityRulesUrlTextBox" Grid.Row="1" Grid.Column="1" PlaceholderText="GitHub repository URL with modsort_rules.json"
                MinHeight="0" Height="28" Padding="8,0" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Stretch" />
       <TextBlock x:Name="communityRulesStatusTextBlock" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center"
                  HorizontalAlignment="Left" Margin="22,0,22,0" Text="Ready" FontSize="12"/>

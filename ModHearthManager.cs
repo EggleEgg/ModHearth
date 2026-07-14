@@ -387,7 +387,7 @@ namespace ModHearth
         public void SetCommunitySortRulesUrl(string repositoryUrl)
         {
             ConfigManager.Config.CommunitySortRulesUrl = repositoryUrl?.Trim() ?? string.Empty;
-            ConfigManager.SaveConfigFile();
+            ConfigManager.SaveConfigFile("Url");
         }
 
         private void LoadCommunitySortRules()

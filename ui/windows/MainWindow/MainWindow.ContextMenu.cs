@@ -21,9 +21,29 @@ public partial class MainWindow : IModRefContextMenuProvider
     {
         foreach (var item in menu.Items)
         {
-            if (item is MenuItem menuItem && string.Equals(menuItem.Tag?.ToString(), "add-required-root", StringComparison.Ordinal))
+            if (item is MenuItem menuItem)
             {
-                menuItem.IsVisible = false;
+                string? tag = menuItem.Tag?.ToString();
+                if (string.Equals(tag, "add-required-root", StringComparison.Ordinal))
+                {
+                    menuItem.IsVisible = false;
+                }
+                else if (string.Equals(tag, "open-steam", StringComparison.Ordinal))
+                {
+                    var textBlock = menuItem.FindControl<TextBlock>("OpenSteamText");
+                    if (textBlock != null)
+                    {
+                        textBlock.Text = ConfigManager.GetOpenSteamInClient() ? "Open in Steam" : "Open Steam Page (browser)";
+                    }
+                }
+                else if (string.Equals(tag, "copy-id", StringComparison.Ordinal))
+                {
+                    var textBlock = menuItem.FindControl<TextBlock>("CopyIdText");
+                    if (textBlock != null)
+                    {
+                        textBlock.Text = ConfigManager.GetCopySteamFileId() ? "Copy Steam File Id" : "Copy Mod ID";
+                    }
+                }
             }
             else if (item is Separator separator)
             {
@@ -57,11 +77,7 @@ public partial class MainWindow : IModRefContextMenuProvider
             case "copy-id":
                 ModContextCopyId(item, new RoutedEventArgs());
                 break;
-                /* TODO Fix this!!!!!
-                case "set-mod-color":
-                    ConfigureModColorSubmenu(item);
-                    break;
-                */
+
         }
     }
 
@@ -206,6 +222,10 @@ public partial class MainWindow : IModRefContextMenuProvider
             : new List<ModRefViewModel> { contextVm };
         List<ModReference> modReferences = targets.Select(t => t.ModReference).ToList();
 
+        colorRoot.Header = targets.Count > 1
+            ? $"Set ({targets.Count}) Mods Color"
+            : $"Set Mod Color";
+
         ModColor currentColor = contextVm.ModReference.AssignedColor;
 
         // Compute the optimal column count using the square root
@@ -247,6 +267,7 @@ public partial class MainWindow : IModRefContextMenuProvider
             StaysOpenOnClick = true,
             Focusable = false
         };
+        swatchHost.Classes.Add("color-grid");
 
         colorRoot.ItemsSource = new[] { swatchHost };
     }

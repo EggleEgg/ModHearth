@@ -16,23 +16,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.11" />
-    <PackageReference Include="Avalonia.Svg.Skia" Version="11.3.0" />
-    <PackageReference Include="Dock.Avalonia" Version="11.3.2" />
-    <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="11.3.2" />
-    <PackageReference Include="Dock.Model.Avalonia" Version="11.3.2" />
-    <PackageReference Include="SkiaSharp" Version="3.116.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.116.1" />
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.11" />
-    <PackageReference Include="Avalonia.HtmlRenderer" Version="11.3.0" />
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageReference Include="SkiaSharp" Version="4.150.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.150.0" />
+    <PackageReference Include="Dock.Avalonia" Version="12.0.0.2" />
+    <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.0.0.2" />
+    <PackageReference Include="Dock.Model.Avalonia" Version="12.0.0.2" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
+    <PackageReference Include="Avalonia.HtmlRenderer" Version="12.0.0" />
 
-    <PackageReference Include="CodeKicker.BBCode" Version="5.0.*">
+    <PackageReference Include="CodeKicker.BBCode" Version="5.0.0">
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
 
     <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
+
+    <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.13" />
   </ItemGroup>
 
   <ItemGroup>
@@ -71,6 +72,11 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
+    <None Update="scripts\\InstallDotNetRuntime.ps1" Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <!-- TODO Remove these once the steam api can run outside of the source directory -->
     <None Update="libs\\steam_api64.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
@@ -97,23 +103,12 @@
     <RemoveDir Directories="@(IntermediateSubDirs)" />
   </Target>
 
-  <Target Name="MoveOutputDlls" AfterTargets="Build"
-    Condition="'$(DesignTimeBuild)' != 'true' and '$(IsPublishing)' != 'true' and '$(MoveOutputDlls)' == 'true'">
+  <Target Name="MoveOutputDlls" AfterTargets="Build" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsPublishing)' != 'true' and '$(MoveOutputDlls)' == 'true'">
     <ItemGroup>
       <OutputDlls Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(AssemblyName).dll" />
     </ItemGroup>
     <MakeDir Directories="$(OutputPath)$(DllOutputFolder)" />
-    <Move SourceFiles="@(OutputDlls)" DestinationFolder="$(OutputPath)$(DllOutputFolder)"
-      Condition="@(OutputDlls) != ''" />
-  </Target>
-
-  <Target Name="EnsureSteamApiDllInRoot" AfterTargets="MoveOutputDlls">
-    <Copy SourceFiles="libs\steam_api64.dll" DestinationFolder="$(OutputPath)"
-      Condition="Exists('libs\steam_api64.dll')" />
-    <Copy SourceFiles="libs\libsteam_api.so" DestinationFolder="$(OutputPath)"
-      Condition="Exists('libs\libsteam_api.so')" />
-    <Copy SourceFiles="libs\libsteam_api.dylib" DestinationFolder="$(OutputPath)"
-      Condition="Exists('libs\libsteam_api.dylib')" />
+    <Move SourceFiles="@(OutputDlls)" DestinationFolder="$(OutputPath)$(DllOutputFolder)" Condition="@(OutputDlls) != ''" />
   </Target>
 
   <Target Name="MovePublishDlls" AfterTargets="Publish" Condition="'$(SelfContained)' != 'true'">
@@ -121,17 +116,13 @@
       <PublishDlls Include="$(PublishDir)*.dll" Exclude="$(PublishDir)$(AssemblyName).dll" />
     </ItemGroup>
     <MakeDir Directories="$(PublishDir)$(DllOutputFolder)" />
-    <Move SourceFiles="@(PublishDlls)" DestinationFolder="$(PublishDir)$(DllOutputFolder)"
-      Condition="@(PublishDlls) != ''" />
+    <Move SourceFiles="@(PublishDlls)" DestinationFolder="$(PublishDir)$(DllOutputFolder)" Condition="@(PublishDlls) != ''" />
   </Target>
 
   <Target Name="EnsureSteamApiDllInRootPublish" AfterTargets="MovePublishDlls">
-    <Copy SourceFiles="libs\steam_api64.dll" DestinationFolder="$(PublishDir)"
-      Condition="Exists('libs\steam_api64.dll')" />
-    <Copy SourceFiles="libs\libsteam_api.so" DestinationFolder="$(PublishDir)"
-      Condition="Exists('libs\libsteam_api.so')" />
-    <Copy SourceFiles="libs\libsteam_api.dylib" DestinationFolder="$(PublishDir)"
-      Condition="Exists('libs\libsteam_api.dylib')" />
+    <Copy SourceFiles="libs\steam_api64.dll" DestinationFolder="$(PublishDir)" Condition="Exists('libs\steam_api64.dll')" />
+    <Copy SourceFiles="libs\libsteam_api.so" DestinationFolder="$(PublishDir)" Condition="Exists('libs\libsteam_api.so')" />
+    <Copy SourceFiles="libs\libsteam_api.dylib" DestinationFolder="$(PublishDir)" Condition="Exists('libs\libsteam_api.dylib')" />
   </Target>
 
   <Target Name="MarkPublishing" BeforeTargets="Publish">
@@ -140,8 +131,7 @@
     </PropertyGroup>
   </Target>
 
-  <Target Name="CleanPublishDir"
-    BeforeTargets="_CopyResolvedFilesToPublishPreserveNewest;_CopyResolvedFilesToPublishAlways">
+  <Target Name="CleanPublishDir" BeforeTargets="_CopyResolvedFilesToPublishPreserveNewest;_CopyResolvedFilesToPublishAlways">
     <PropertyGroup>
       <EffectivePublishDir Condition="'$(PublishDir)' != ''">$(PublishDir)</EffectivePublishDir>
       <EffectivePublishDir Condition="'$(PublishDir)' == ''">$(OutputPath)publish\</EffectivePublishDir>
@@ -159,8 +149,7 @@
     <ItemGroup>
       <PublishStateFiles Include="$(IntermediateOutputPath)PublishOutputs*.txt" />
     </ItemGroup>
-    <RemoveDir Directories="$(PublishDirFull)"
-      Condition="Exists('$(PublishDirFull)') and '$(ShouldCleanPublishDir)' == 'true'" />
+    <RemoveDir Directories="$(PublishDirFull)" Condition="Exists('$(PublishDirFull)') and '$(ShouldCleanPublishDir)' == 'true'" />
     <Delete Files="@(PublishStateFiles)" Condition="'@(PublishStateFiles)' != ''" />
   </Target>
 
@@ -172,7 +161,6 @@
       <PublishNativeLibs Include="$(PublishDir)runtimes\**\native\*.dylib" />
     </ItemGroup>
     <MakeDir Directories="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
-    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native"
-      Condition="@(PublishNativeLibs) != ''" />
+    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
   </Target>
 </Project>

@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:ModHearth.UI"
         x:Class="ModHearth.UI.ModUpdateLogWindow"
+        x:DataType="ui:ModUpdateLogWindow"
         Title="Mod Update Log"
         Width="980"
         Height="560"
@@ -11,13 +12,14 @@
   <Grid Margin="12" RowDefinitions="Auto,*">
 
     <DataGrid x:Name="logList" Grid.Row="1"
+              x:DataType="ui:ModUpdateLogItemViewModel"
               CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
               IsReadOnly="True" GridLinesVisibility="None" LoadingRow="LogListLoadingRow">
       <DataGrid.Styles>
         <Style Selector="DataGridRow:selected /template/ Rectangle">
           <Setter Property="Fill" Value="Transparent" />
         </Style>
-        <Style Selector="DataGridCell TextBlock">
+        <Style Selector="DataGridCell TextBlock" x:DataType="ui:ModUpdateLogItemViewModel">
           <Setter Property="Foreground" Value="{Binding RowBrush}" />
         </Style>
       </DataGrid.Styles>

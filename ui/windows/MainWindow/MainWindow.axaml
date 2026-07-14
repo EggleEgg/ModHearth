@@ -4,13 +4,14 @@
         xmlns:ui="clr-namespace:ModHearth.UI"
         xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
         x:Class="ModHearth.UI.MainWindow"
+        x:DataType="ui:MainWindow"
         Title="Mod Hearth"
         Width="1264"
         Height="828"
         MinWidth="1020"
         MinHeight="640">
   <Window.DataTemplates>
-    <DataTemplate DataType="ui:ModRefViewModel">
+    <DataTemplate DataType="ui:ModRefViewModel" x:DataType="ui:ModRefViewModel">
       <ui:ModRefControl ShowColorUnderlay="True" Padding="0" Margin="0,0,-3,0"
                         HorizontalAlignment="Stretch" ToolTip.Tip="{Binding HoverTooltip}" />
     </DataTemplate>
@@ -64,7 +65,7 @@
         <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
 
           <Grid.Styles>
-            <Style Selector="ListBoxItem">
+            <Style Selector="ListBoxItem" x:DataType="ui:ModRefViewModel">
               <Setter Property="Padding" Value="0,0,3,0" />
               <Setter Property="Margin" Value="0" />
               <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -83,7 +84,7 @@
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
 
             <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1"
-                             Watermark="Search" Height="28" />
+                             PlaceholderText="Search" Height="28" />
 
             <ListBox x:Name="leftModlist" Grid.Row="2" SelectionMode="Multiple"
                      AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -97,7 +98,7 @@
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
 
             <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1"
-                             Watermark="Search" Height="28" />
+                             PlaceholderText="Search" Height="28" />
 
             <ListBox x:Name="rightModlist" Grid.Row="2" SelectionMode="Multiple"
                      AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
