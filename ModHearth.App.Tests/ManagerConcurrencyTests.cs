@@ -44,7 +44,7 @@ public class ManagerConcurrencyTests
             () => Hammer(() => manager.GetInstalledCacheModIds(), cheapIterations),
             () => Hammer(() => manager.RefreshInstalledCacheModIds(), cheapIterations),
             () => Hammer(() => manager.FindModlistProblems(), cheapIterations),
-            () => Hammer(() => manager.AutoSortEnabledMods(), cheapIterations),
+            () => Hammer(() => manager.ModSortEnabledMods(), cheapIterations),
             () => Hammer(() => manager.FindAllModsFromDisk(), expensiveIterations),
             () => Hammer(() => manager.EnsureModRawDependencyCacheAsync().GetAwaiter().GetResult(), expensiveIterations)
         ));

@@ -4,7 +4,7 @@ namespace ModHearth.Utilities;
 
 /// <summary>
 /// Scans a single mod's objects/ folder to extract the DF raw-file relationships
-/// AutoSort's dependency graph needs. The scanner is data-driven: it derives the
+/// ModSort's dependency graph needs. The scanner is data-driven: it derives the
 /// active object type from [OBJECT:TYPE] blocks and treats SELECT_*, CUT_*, and
 /// CUT as generic operations, so it works with new or modded object types without
 /// an explicit whitelist.

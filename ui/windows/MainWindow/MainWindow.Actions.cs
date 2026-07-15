@@ -58,10 +58,10 @@ public partial class MainWindow
         _ = dialog.ShowDialog(this);
     }
 
-    private async Task AutoSortAsync()
+    private async Task ModSortAsync()
     {
         await manager.EnsureModRawDependencyCacheAsync();
-        bool changed = manager.AutoSortEnabledMods();
+        bool changed = manager.ModSortEnabledMods();
         if (changed)
             SetAndMarkChanges(true);
         RefreshModlistPanels();

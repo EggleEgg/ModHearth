@@ -97,7 +97,7 @@ public sealed class RawDatabase
 
     /// <summary>
     /// Projects this raw database into the legacy <see cref="ModRawDependencyInfo"/>
-    /// DTO used by AutoSort and the persistent cache.
+    /// DTO used by ModSort and the persistent cache.
     /// </summary>
     public ModRawDependencyInfo ToDependencyInfo(
         string modId,

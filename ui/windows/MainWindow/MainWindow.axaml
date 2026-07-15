@@ -167,7 +167,7 @@
           </Grid>
 
           <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Height="28">
-            <Button x:Name="autoSortButton" Content="Auto Sort"
+            <Button x:Name="sortButton" Content="Sort"
                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
             <Button x:Name="sortRulesButton" Grid.Column="1"
                     ToolTip.Tip="Custom sorting rules. These override automatic sorting">

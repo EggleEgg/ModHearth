@@ -82,7 +82,7 @@ public partial class MainWindow
             deleteListButton,
             importButton,
             exportButton,
-            autoSortButton,
+            sortButton,
             sortRulesButton,
             updateLogButton,
             redoConfigButton,

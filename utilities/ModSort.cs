@@ -5,7 +5,7 @@ namespace ModHearth
     // Uses a raw-file dependency scan (CUT/SELECT/COPY_TAGS_FROM) plus mod-author-declared hints (info.txt before/after/requires, sort rules) to build a dependency graph, then
     // topologically sorts it. Edges are added in strict priority order — sort rules, then info.txt declarations, then vanilla-conflict structural edges, then raw-scan-derived
     //edges — and every edge is checked against the graph as it currently stands before being added, so a lower-priority source can never override or contradict a
-    //higher-priority one; it can only fill in relationships nothing else addressed. Coarse trait-based grouping (GetAutoSortGroup) only breaks ties among mods with no
+    //higher-priority one; it can only fill in relationships nothing else addressed. Coarse trait-based grouping (GetModSortGroup) only breaks ties among mods with no
     //actual graph relationship to anything else.
     public partial class ModHearthManager
     {
@@ -72,7 +72,7 @@ namespace ModHearth
         }
 
         // Adds a "fromId must come before toId" edge, unless it's a self-edge, already present, or would create a cycle with edges already in the
-        // graph — in which case it's silently dropped rather than corrupting the sort. Every edge added anywhere in AutoSortEnabledMods goes
+        // graph — in which case it's silently dropped rather than corrupting the sort. Every edge added anywhere in ModSortEnabledMods goes
         // through this.
         private static bool TryAddEdge(Dictionary<string, List<string>> edges, Dictionary<string, int> indegree, string fromId, string toId)
         {
@@ -98,7 +98,7 @@ namespace ModHearth
         // with no CUT involved).
         private int CompareForBestEffortOrder(ModReference a, ModReference b, Dictionary<string, int> originalIndex)
         {
-            int groupCompare = GetAutoSortGroup(a).CompareTo(GetAutoSortGroup(b));
+            int groupCompare = GetModSortGroup(a).CompareTo(GetModSortGroup(b));
             if (groupCompare != 0)
                 return groupCompare;
 
@@ -119,7 +119,7 @@ namespace ModHearth
             return comparison < 0 ? a.ID : b.ID;
         }
 
-        public bool AutoSortEnabledMods()
+        public bool ModSortEnabledMods()
         {
             Dictionary<string, ModReference> idMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
             foreach (ModReference modref in modrefMap.Values)
@@ -210,7 +210,7 @@ namespace ModHearth
             // Used as: the final "everything failed" fallback, the tie-break for Kahn's algorithm's frontier selection, and the signal
             // best-effort edges are derived from.
             List<ModReference> baseOrder = allEnabled
-                .OrderBy(m => GetAutoSortGroup(m))
+                .OrderBy(m => GetModSortGroup(m))
                 .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
                 .ThenBy(m => m.name ?? m.ID)
                 .ToList();
@@ -508,7 +508,7 @@ namespace ModHearth
                     .Select(id => idMap.TryGetValue(id, out ModReference? m) ? m : null)
                     .Where(m => m != null)
                     .Cast<ModReference>()
-                    .OrderBy(m => GetAutoSortGroup(m))
+                    .OrderBy(m => GetModSortGroup(m))
                     .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
                     .ThenBy(m => m.name ?? m.ID, StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -523,7 +523,7 @@ namespace ModHearth
 
             if (conflictingKeys.Any())
             {
-                Console.WriteLine($"[AutoSort] Warning: \'{string.Join(", ", conflictingKeys)}\' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
+                Console.WriteLine($"[ModSort] Warning: \'{string.Join(", ", conflictingKeys)}\' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
             }
 
             List<string> available = new List<string>();
@@ -574,7 +574,7 @@ namespace ModHearth
         }
 
         // Coarse tie-breaker for mods with no explicit graph relationship to anything else.
-        private int GetAutoSortGroup(ModReference modref)
+        private int GetModSortGroup(ModReference modref)
         {
             ModRawDependencyInfo? traits = GetRawDependencyInfo(modref);
             if (traits == null)
