@@ -92,12 +92,12 @@ jobs:
           print(f"Computed build number: {final_version}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
               handle.write(f"build_number={final_version}\n")
-                        print("Raw bleeding tag:", repr(be_tag))
-                        print("Pattern:", pattern)
-                        print("Match:", re.match(pattern, be_tag))
-                        print("Release name:", data.get("name"))
-                        print("Tag:", repr(data.get("tag_name")))
-                        print("Prerelease:", data.get("prerelease"))
+              print("Raw bleeding tag:", repr(be_tag))
+              print("Pattern:", pattern)
+              print("Match:", re.match(pattern, be_tag))
+              print("Release name:", data.get("name"))
+              print("Tag:", repr(data.get("tag_name")))
+              print("Prerelease:", data.get("prerelease"))
           PY
 
   build-test-publish:
