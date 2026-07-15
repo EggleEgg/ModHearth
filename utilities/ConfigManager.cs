@@ -79,11 +79,9 @@ namespace ModHearth
         {
             lock (configGate)
             {
-                if (message != null)
+                if (!String.IsNullOrEmpty(message))
                     Console.WriteLine($"{message} config saved.");
 
-                else
-                    Console.WriteLine("Config saved.");
                 try
                 {
                     JsonSerializerOptions options = new JsonSerializerOptions
@@ -222,14 +220,14 @@ namespace ModHearth
         public static void SetLeftSearchBarState(string state)
         {
             Config.LeftSearchBarState = state;
-            SaveConfigFile("Search filter");
+            SaveConfigFile();
         }
 
         public static string GetRightSearchBarState() => Config.RightSearchBarState;
         public static void SetRightSearchBarState(string state)
         {
             Config.RightSearchBarState = state;
-            SaveConfigFile("Search filter");
+            SaveConfigFile();
         }
 
         public static bool GetOpenSteamInClient() => Config.OpenSteamInClient;

@@ -6,6 +6,10 @@ using Avalonia.Reactive;
 using Avalonia.Layout;
 using System.Diagnostics;
 using ModHearth.Utilities.Logging;
+using ModHearth.Models;
+using System.Collections.Generic;
+using System;
+using System.Linq;
 
 namespace ModHearth.UI;
 
@@ -51,6 +55,8 @@ public partial class ModSearchBar : UserControl
     public event EventHandler? HideFilteredToggled;
     public event EventHandler? SearchModeChanged;
     public event EventHandler? SortOrderChanged;
+    public event EventHandler? ColorPickerClicked;
+
     private readonly Dictionary<Button, SearchButtonState> searchButtonStates = new();
     private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = new();
     private Flyout? searchModeFlyout;
@@ -61,7 +67,18 @@ public partial class ModSearchBar : UserControl
 
         SearchBox.TextChanged += (_, _) =>
         {
+            if (SearchMode != SearchFilterMode.Color)
+            {
+                SearchTextChanged?.Invoke(this, EventArgs.Empty);
+            }
+        };
+        ColorPicker.SelectionChanged += (_, _) =>
+        {
             SearchTextChanged?.Invoke(this, EventArgs.Empty);
+        };
+        ColorPicker.PickerClicked += (_, e) =>
+        {
+            ColorPickerClicked?.Invoke(this, e);
         };
         SearchModeButton.Click += (s, e) =>
         {
@@ -78,7 +95,14 @@ public partial class ModSearchBar : UserControl
         ClearButton.Click += (s, e) =>
         {
             e.Handled = true;
-            SearchBox.Text = string.Empty;
+            if (SearchMode == SearchFilterMode.Color)
+            {
+                ColorPicker.ClearSelection();
+            }
+            else
+            {
+                SearchBox.Text = string.Empty;
+            }
         };
 
         PropertyChanged += (_, args) =>
@@ -130,10 +154,58 @@ public partial class ModSearchBar : UserControl
         InitializeSearchButtonState(ClearButton);
     }
 
+    public void SetAvailableColors(IEnumerable<ModColor> colors)
+    {
+        // Snapshot the current selection
+        var currentSelection = ColorPicker.SelectedColors.Select(c => c.ModColor).ToList();
+
+        ColorPicker.AvailableColors.Clear();
+        ColorPicker.SelectedColors.Clear();
+
+        foreach (var colorEnum in colors.Where(c => c != ModColor.None).Distinct())
+        {
+            var info = new ModColorInfo
+            {
+                ModColor = colorEnum,
+                Name = ModColorMap.ColorNames.TryGetValue(colorEnum, out var name) ? name : colorEnum.ToString(),
+                Color = ModColorMap.GetColor(colorEnum),
+                IsSelected = currentSelection.Contains(colorEnum)
+            };
+            ColorPicker.AvailableColors.Add(info);
+            if (info.IsSelected)
+                ColorPicker.SelectedColors.Add(info);
+        }
+    }
+
     public string Text
     {
-        get => SearchBox.Text ?? string.Empty;
-        set => SearchBox.Text = value;
+        get => SearchMode == SearchFilterMode.Color
+            ? string.Join(",", ColorPicker.SelectedColors.Select(c => c.ModColor.ToString()))
+            : SearchBox.Text ?? string.Empty;
+        set
+        {
+            if (SearchMode != SearchFilterMode.Color)
+            {
+                SearchBox.Text = value;
+            }
+            else
+            {
+                ColorPicker.ClearSelection();
+                var colorStrings = (value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
+                foreach (var s in colorStrings)
+                {
+                    if (Enum.TryParse(s, out ModColor modColor) && modColor != ModColor.None)
+                    {
+                        var colorInfo = ColorPicker.AvailableColors.FirstOrDefault(c => c.ModColor == modColor);
+                        if (colorInfo != null)
+                        {
+                            colorInfo.IsSelected = true;
+                            ColorPicker.SelectedColors.Add(colorInfo);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public string? PlaceholderText
@@ -168,11 +240,20 @@ public partial class ModSearchBar : UserControl
 
     public bool ClearSearchSelection()
     {
-        bool hadSelection = !string.IsNullOrEmpty(SearchBox.SelectedText);
-        int caret = SearchBox.CaretIndex;
-        SearchBox.SelectionStart = caret;
-        SearchBox.SelectionEnd = caret;
-        return hadSelection;
+        if (SearchMode == SearchFilterMode.Color)
+        {
+            bool hadSelection = ColorPicker.SelectedColors.Any();
+            ColorPicker.ClearSelection();
+            return hadSelection;
+        }
+        else
+        {
+            bool hadSelection = !string.IsNullOrEmpty(SearchBox.SelectedText);
+            int caret = SearchBox.CaretIndex;
+            SearchBox.SelectionStart = caret;
+            SearchBox.SelectionEnd = caret;
+            return hadSelection;
+        }
     }
 
     public void ApplyStyle(Style style)
@@ -194,10 +275,10 @@ public partial class ModSearchBar : UserControl
 
         Button[] buttons =
         {
-        SearchModeButton,
-        ToggleButton,
-        ClearButton
-    };
+            SearchModeButton,
+            ToggleButton,
+            ClearButton
+        };
 
         foreach (Button button in buttons)
         {
@@ -450,7 +531,6 @@ public partial class ModSearchBar : UserControl
             : GetSearchModeLabel(SearchMode));
     }
 
-    //make sure to change these if the asociated axaml template ever changes
     private void UpdateSearchModeIcon()
     {
         string iconName = GetSearchModeIconName(SearchMode);
@@ -510,10 +590,10 @@ public partial class ModSearchBar : UserControl
         string[] parts = state.Split('|');
         if (parts.Length == 4)
         {
-            Text = parts[0];
             HideFiltered = bool.Parse(parts[1]);
-            SearchMode = Enum.Parse<SearchFilterMode>(parts[2]);
             SortDescending = bool.Parse(parts[3]);
+            SearchMode = Enum.Parse<SearchFilterMode>(parts[2]);
+            Text = parts[0];
         }
     }
 }

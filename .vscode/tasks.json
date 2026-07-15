@@ -8,7 +8,6 @@
       "default": "local-dev"
     }
   ],
-
   "tasks": [
     {
       "label": "build",
@@ -21,6 +20,12 @@
         "/consoleloggerparameters:NoSummary;ForceNoAlign"
       ],
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet clean & restore",
+      "type": "shell",
+      "command": "dotnet clean \"${workspaceFolder}/ModHearth.csproj\" && dotnet restore \"${workspaceFolder}/ModHearth.csproj\"",
+      "problemMatcher": []
     },
     {
       "label": "watch",
@@ -38,7 +43,11 @@
       "label": "run",
       "command": "dotnet",
       "type": "process",
-      "args": ["run", "--project", "${workspaceFolder}/ModHearth.csproj"],
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/ModHearth.csproj"
+      ],
       "problemMatcher": "$msCompile",
       "dependsOn": "build"
     },
@@ -56,7 +65,7 @@
       "dependsOn": "build"
     },
     {
-      "label": "clean projects",
+      "label": "clean releases",
       "command": "powershell",
       "type": "process",
       "args": [
@@ -64,10 +73,11 @@
         "-Command",
         "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Remove-Item -Path $dir -Recurse -Force } }"
       ],
-      "problemMatcher": ["$esbuild-watch"],
+      "problemMatcher": [
+        "$esbuild-watch"
+      ],
       "isBackground": true
     },
-
     {
       "label": "build linux release (WSL)",
       "type": "process",

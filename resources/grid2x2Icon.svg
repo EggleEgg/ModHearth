@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   width="800"
+   height="800"
+   viewBox="0 0 28 28"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="grid2x2Icon.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.2521875"
+     inkscape:cx="745.47707"
+     inkscape:cy="29.739777"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <title
+     id="title1">grid</title>
+  <desc
+     id="desc1">Created with Sketch Beta.</desc>
+  <defs
+     id="defs1" />
+  <g
+     id="Page-1"
+     stroke="none"
+     stroke-width="1"
+     fill="none"
+     fill-rule="evenodd"
+     sketch:type="MSPage">
+    <g
+       id="Icon-Set-Filled"
+       sketch:type="MSLayerGroup"
+       transform="translate(-104,-935)"
+       fill="#000000">
+      <path
+         d="m 128,935 h -4 c -2.209,0 -4,1.791 -4,4 v 4 c 0,2.209 1.791,4 4,4 h 4 c 2.209,0 4,-1.791 4,-4 v -4 c 0,-2.209 -1.791,-4 -4,-4 z m 0,16 h -4 c -2.209,0 -4,1.791 -4,4 v 4 c 0,2.209 1.791,4 4,4 h 4 c 2.209,0 4,-1.791 4,-4 v -4 c 0,-2.209 -1.791,-4 -4,-4 z m -16,0 h -4 c -2.209,0 -4,1.791 -4,4 v 4 c 0,2.209 1.791,4 4,4 h 4 c 2.209,0 4,-1.791 4,-4 v -4 c 0,-2.209 -1.791,-4 -4,-4 z m 0,-16 h -4 c -2.209,0 -4,1.791 -4,4 v 4 c 0,2.209 1.791,4 4,4 h 4 c 2.209,0 4,-1.791 4,-4 v -4 c 0,-2.209 -1.791,-4 -4,-4 z"
+         id="grid"
+         sketch:type="MSShapeGroup" />
+    </g>
+  </g>
+</svg>

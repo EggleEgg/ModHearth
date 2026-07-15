@@ -15,6 +15,14 @@ internal static class UpdateService
     private const string UpdateRepoName = "ModHearth";
     private static readonly HttpClient UpdateHttpClient = CreateUpdateHttpClient();
 
+    // List of legacy, non-self-contained files and folders to clean up. Paths should be relative to the installation root directory.
+    private static readonly (string Path, bool IsDirectory)[] LegacyPathsToClean = new[]
+    {
+        ("libsteam_api.dylib", false),
+        ("libsteam_api.so", false),
+        ("steam_api64.dll", false)
+    };
+
     public static async Task<bool> TryRunUpdateAsync(Window owner, string currentBuild)
     {
         UpdateLogger.Log("Update check started.");
@@ -296,6 +304,38 @@ internal static class UpdateService
         return StartUnixUpdateScript(sourceDir, destinationDir, configBackup, pid, out error);
     }
 
+    private static void AppendLegacyCleanupCommands(StringBuilder script, bool isWindows, string destVarName)
+    {
+        if (isWindows)
+        {
+            script.AppendLine($"echo [%date% %time%] Cleaning legacy framework-dependent files>>\"%LOG%\"");
+            foreach (var (path, isDir) in LegacyPathsToClean)
+            {
+                // Normalize slashes to Windows backslashes
+                string winPath = path.Replace('/', '\\');
+                if (isDir)
+                {
+                    script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" rmdir /s /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
+                }
+                else
+                {
+                    script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" del /f /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
+                }
+            }
+        }
+        else // Unix / Linux / macOS
+        {
+            script.AppendLine($"echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Cleaning legacy framework-dependent files\" >> \"$LOG\"");
+            foreach (var (path, _) in LegacyPathsToClean)
+            {
+                // Normalize slashes to Unix forward slashes
+                string unixPath = path.Replace('\\', '/');
+                // 'rm -rf' recursively deletes files and directories alike on Unix
+                script.AppendLine($"rm -rf \"${destVarName}/{unixPath}\" >> \"$LOG\" 2>&1");
+            }
+        }
+    }
+
     private static bool StartWindowsUpdateScript(string sourceDir, string destinationDir, string? configBackup, int pid, out string? error)
     {
         error = null;
@@ -322,6 +362,9 @@ internal static class UpdateService
             script.AppendLine("  timeout /t 1 /nobreak >nul");
             script.AppendLine("  goto wait");
             script.AppendLine(")");
+
+            AppendLegacyCleanupCommands(script, isWindows: true, destVarName: "DEST");
+
             script.AppendLine("echo [%date% %time%] Copying update files>>\"%LOG%\"");
             script.AppendLine("robocopy \"%SRC%\" \"%DEST%\" /E /COPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XF config.json >>\"%LOG%\" 2>&1");
             if (!string.IsNullOrWhiteSpace(configBackup))
@@ -372,6 +415,9 @@ internal static class UpdateService
             script.AppendLine("mkdir -p \"$DEST/logs\"");
             script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater started\" >> \"$LOG\"");
             script.AppendLine("while kill -0 \"$PID\" 2>/dev/null; do sleep 0.2; done");
+
+            AppendLegacyCleanupCommands(script, isWindows: false, destVarName: "DEST");
+
             script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Copying update files\" >> \"$LOG\"");
             script.AppendLine("cp -a \"$SRC/.\" \"$DEST/\" >> \"$LOG\" 2>&1");
             if (!string.IsNullOrWhiteSpace(configBackup))

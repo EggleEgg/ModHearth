@@ -11,6 +11,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ModHearth.Models;
 
 
 namespace ModHearth.UI;
@@ -226,10 +227,19 @@ public partial class MainWindow : IModRefContextMenuProvider
             ? $"Set ({targets.Count}) Mods Color"
             : $"Set Mod Color";
 
-        ModColor currentColor = contextVm.ModReference.AssignedColor;
+        // Get all available colors as ModColorInfo objects
+        var allColorInfos = Enum.GetValues<ModColor>()
+            .Where(c => c != ModColor.None)
+            .Select(c => new ModColorInfo
+            {
+                ModColor = c,
+                Name = ModColorMap.ColorNames[c],
+                Color = ModColorMap.GetColor(c),
+                IsSelected = (contextVm.ModReference.AssignedColor == c)
+            }).ToList();
 
         // Compute the optimal column count using the square root
-        int targetColumns = (int)Math.Sqrt(Enum.GetValues<ModColor>().Length);
+        int targetColumns = (int)Math.Sqrt(allColorInfos.Count + 1); // +1 for the "None" option
         if (targetColumns < 1) targetColumns = 1; // Safety fallback
 
         UniformGrid swatchPanel = new UniformGrid
@@ -250,12 +260,18 @@ public partial class MainWindow : IModRefContextMenuProvider
             ContextMenuCoordinator.DismissActive();
         }
 
-        swatchPanel.Children.Add(CreateColorSwatchButton(ModColor.None, currentColor, ApplyColor));
-        foreach (ModColor color in Enum.GetValues<ModColor>())
+        // Add the "None" option first
+        swatchPanel.Children.Add(CreateColorSwatchButton(new ModColorInfo
         {
-            if (color == ModColor.None)
-                continue;
-            swatchPanel.Children.Add(CreateColorSwatchButton(color, currentColor, ApplyColor));
+            ModColor = ModColor.None,
+            Name = "None (clear color)",
+            Color = Colors.Transparent,
+            IsSelected = (contextVm.ModReference.AssignedColor == ModColor.None)
+        }, ApplyColor));
+
+        foreach (ModColorInfo colorInfo in allColorInfos)
+        {
+            swatchPanel.Children.Add(CreateColorSwatchButton(colorInfo, ApplyColor));
         }
 
         // Same trick SortRulesWindow's "Add required mod" submenu uses to host a live search box: a single submenu row whose Header is an arbitrary
@@ -272,22 +288,19 @@ public partial class MainWindow : IModRefContextMenuProvider
         colorRoot.ItemsSource = new[] { swatchHost };
     }
 
-    private static Button CreateColorSwatchButton(ModColor color, ModColor currentColor, Action<ModColor> onSelected)
+    private static Button CreateColorSwatchButton(ModColorInfo colorInfo, Action<ModColor> onSelected)
     {
-        bool isSelected = color == currentColor;
-        bool isClearOption = color == ModColor.None;
-
         Border swatch = new Border
         {
             Width = 30,
             Height = 30,
             CornerRadius = new CornerRadius(3),
-            Background = isClearOption ? Brushes.Transparent : BrushCache.GetBrush(ModColorMap.GetColor(color)),
-            BorderBrush = isSelected ? Brushes.White : Brushes.Gray,
-            BorderThickness = new Thickness(isSelected ? 4 : 1)
+            Background = (colorInfo.ModColor == ModColor.None) ? Brushes.Transparent : BrushCache.GetBrush(colorInfo.Color),
+            BorderBrush = colorInfo.IsSelected ? BrushCache.GetBrush(Style.instance!.buttonSelectionColor.ToAvaloniaColor()) : Brushes.Gray,
+            BorderThickness = new Thickness(colorInfo.IsSelected ? 4 : 1)
         };
 
-        if (isClearOption)
+        if (colorInfo.ModColor == ModColor.None)
         {
             swatch.Child = new TextBlock
             {
@@ -308,8 +321,8 @@ public partial class MainWindow : IModRefContextMenuProvider
             BorderThickness = new Thickness(0)
         };
 
-        ToolTip.SetTip(button, isClearOption ? "None (clear color)" : ModColorMap.ColorNames[color]);
-        button.Click += (_, _) => onSelected(color);
+        ToolTip.SetTip(button, colorInfo.Name);
+        button.Click += (_, _) => onSelected(colorInfo.ModColor);
 
         return button;
     }
@@ -323,6 +336,8 @@ public partial class MainWindow : IModRefContextMenuProvider
             if (modViewMap.TryGetValue(key, out ModRefViewModel? vm) && vm != null)
                 vm.RefreshBackground();
         }
+        UpdateSearchBarAvailableColors();
+        ApplySearchFilterImmediately();
     }
 
     private bool TryGetContextModReferences(object? sender, out List<ModReference> modReferences)

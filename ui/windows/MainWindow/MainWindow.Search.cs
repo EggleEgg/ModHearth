@@ -1,8 +1,12 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
 using System.Collections.ObjectModel;
 using ModHearth.Utilities;
+using ModHearth.Models;
 using ModHearth.Utilities.Logging;
+using Avalonia.Media;
 
 namespace ModHearth.UI;
 
@@ -55,6 +59,23 @@ public partial class MainWindow
 
         SearchLogging.Log("ApplySearchFilter end");
         LogVisualFilterState("ApplySearchFilter");
+    }
+
+    private void UpdateSearchBarAvailableColors()
+    {
+        if (leftSearchBar == null || rightSearchBar == null) return;
+
+        var leftColors = inactiveMods
+            .Select(m => m.ModReference.AssignedColor)
+            .Where(c => c != ModColor.None)
+            .Distinct();
+        leftSearchBar.SetAvailableColors(leftColors);
+
+        var rightColors = activeMods
+            .Select(m => m.ModReference.AssignedColor)
+            .Where(c => c != ModColor.None)
+            .Distinct();
+        rightSearchBar.SetAvailableColors(rightColors);
     }
 
     private void OnSearchInputChanged(object? sender, EventArgs e)
@@ -111,6 +132,93 @@ public partial class MainWindow
         }
 
         ApplySearchFilterImmediately();
+    }
+
+    private void OnColorPickerClicked(object? sender, EventArgs e)
+    {
+        if (sender is not ModSearchBar searchBar) return;
+
+        // Use available colors from the search bar (which are restricted to the current list)
+        // or union them if that's what's preferred. But let's stay consistent with the bar.
+        var availableColors = searchBar.ColorPicker.AvailableColors.Select(c => c.ModColor).ToList();
+
+        if (availableColors.Count == 0)
+        {
+            // Fallback: if no colors are in the list, maybe show all colors that HAVE been used globally?
+            // But let's stick to the bar's logic for now.
+        }
+
+        var grid = new UniformGrid
+        {
+            Columns = (int)Math.Sqrt(availableColors.Count + 1)
+        };
+
+        void RefreshGrid()
+        {
+            grid.Children.Clear();
+            
+            // Add "Clear" option
+            grid.Children.Add(CreateColorSwatchButton(new ModColorInfo
+            {
+                ModColor = ModColor.None,
+                Name = "Clear all filters",
+                Color = Colors.Transparent,
+                IsSelected = false
+            }, _ => {
+                searchBar.Text = string.Empty;
+                ApplySearchFilterImmediately();
+                RefreshGrid();
+            }));
+
+            var currentSelection = searchBar.Text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            foreach (var color in availableColors)
+            {
+                var info = new ModColorInfo
+                {
+                    ModColor = color,
+                    Name = ModColorMap.ColorNames.TryGetValue(color, out var name) ? name : color.ToString(),
+                    Color = ModColorMap.GetColor(color),
+                    IsSelected = currentSelection.Contains(color.ToString())
+                };
+                grid.Children.Add(CreateColorSwatchButton(info, c => {
+                    ToggleColor(c);
+                    RefreshGrid();
+                }));
+            }
+        }
+
+        void ToggleColor(ModColor color)
+        {
+            var text = searchBar.Text;
+            var selectedColors = text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            var colorStr = color.ToString();
+            if (selectedColors.Contains(colorStr))
+                selectedColors.Remove(colorStr);
+            else
+                selectedColors.Add(colorStr);
+
+            searchBar.Text = string.Join(",", selectedColors);
+            ApplySearchFilterImmediately();
+        }
+
+        RefreshGrid();
+
+        var flyout = new Flyout
+        {
+            Content = new Border
+            {
+                Padding = new Thickness(4),
+                Child = grid
+            }
+        };
+
+        flyout.ShowAt(searchBar);
     }
 
     private void ApplyFilterFlags(

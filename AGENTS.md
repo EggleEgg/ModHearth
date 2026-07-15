@@ -2,7 +2,7 @@
 # General
 
 - Code must be thread safe and compatible with both linux and windows os
-
+- Debugging logs/lines must be locked behind DevMode.IsEnabled or their devmode alternatives in utilities\logging\, specially verbose ones
 
 ## Git Workflow
 

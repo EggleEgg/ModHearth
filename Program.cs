@@ -10,35 +10,6 @@ internal static class Program
     public static void Main(string[] args)
     {
         RegisterSteamApiResolver();
-
-        if (OperatingSystem.IsWindows())
-        {
-            string scriptPath = Path.Combine(AppContext.BaseDirectory, "scripts", "InstallDotNetRuntime.ps1");
-            if (File.Exists(scriptPath))
-            {
-                ProcessStartInfo startInfo = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\"",
-                    UseShellExecute = true,
-                    CreateNoWindow = false,
-                    Verb = "runas"
-                };
-
-                try
-                {
-                    using (Process? process = Process.Start(startInfo))
-                    {
-                        process?.WaitForExit();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error running runtime check script: {ex.Message}");
-                }
-            }
-        }
-
         RuntimeBootstrap.Initialize();
         ConfigManager.AttemptLoadConfig(false);
 

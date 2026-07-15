@@ -53,7 +53,7 @@ namespace ModHearth.UI
     }
 
     /// <summary>
-    /// Central style stuff
+    /// Central style stuff from the json styles
     /// </summary>
     public class Style
     {
@@ -86,6 +86,7 @@ namespace ModHearth.UI
         public SimpleColor searchButtonColor { get; set; } = null!;
         public SimpleColor searchButtonHoverColor { get; set; } = null!;
         public SimpleColor searchButtonPressedColor { get; set; } = null!;
+        public SimpleColor buttonSelectionColor { get; set; } = null!;
 
         // Default style.
         public Style()

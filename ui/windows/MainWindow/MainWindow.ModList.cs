@@ -19,6 +19,7 @@ public partial class MainWindow
         UpdateProblemIndicators();
         UpdateDuplicateWarningIndicators();
         UpdateModlistHeaders();
+        UpdateSearchBarAvailableColors();
         ApplySearchFilter();
     }
 

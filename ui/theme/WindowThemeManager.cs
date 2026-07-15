@@ -74,6 +74,9 @@ public static class WindowThemeManager
         foreach (ModSearchBar searchBar in window.GetVisualDescendants().OfType<ModSearchBar>())
             searchBar.ApplyStyle(style);
 
+        foreach (ModColorPicker colorPicker in window.GetVisualDescendants().OfType<ModColorPicker>())
+            colorPicker.ApplyStyle(style);
+
         IBrush formBrush = BrushCache.GetBrush(style.formColor.ToAvaloniaColor());
         IBrush textBrush = BrushCache.GetBrush(style.textColor.ToAvaloniaColor());
         IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());

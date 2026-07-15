@@ -15,8 +15,8 @@
       <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <Separator Tag="separator-1" />
-      <MenuItem Header="Open Folder" Tag="open" />
-      <MenuItem Tag="open-steam" Classes = "remove-arrow-row" IsEnabled="False">
+      <MenuItem Header="Open Folder" Tag="open" Click="OnContextMenuItemClick" />
+      <MenuItem Tag="open-steam" Classes="remove-arrow-row" IsEnabled="False" Click="OnContextMenuItemClick">
         <MenuItem.Header>
           <TextBlock x:Name="OpenSteamText" Text="Open Steam Page (browser)" VerticalAlignment="Center" />
         </MenuItem.Header>
@@ -24,12 +24,12 @@
           <ToggleSwitch x:Name="OpenSteamInClientCheckBox" Grid.Column="1" IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}" />
         </MenuItem.Icon>
       </MenuItem>
-      <MenuItem Tag="copy-id" Classes = "remove-arrow-row">
+      <MenuItem Tag="copy-id" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
         <MenuItem.Header>
           <TextBlock x:Name="CopyIdText" Text="Copy Mod ID" VerticalAlignment="Center" />
         </MenuItem.Header>
         <MenuItem.Icon>
-          <ToggleSwitch x:Name="CopySteamFileIdCheckBox" Grid.Column="1" IsChecked="{Binding $parent[ui:MainWindow].IsCopySteamFileIdEnabled, FallbackValue=False}" />
+          <CheckBox x:Name="CopySteamFileIdCheckBox" Grid.Column="1" IsChecked="{Binding $parent[ui:MainWindow].IsCopySteamFileIdEnabled, FallbackValue=False}" />
         </MenuItem.Icon>
       </MenuItem>
       <MenuItem Header="Set Mod Color" Tag="set-mod-color-root" />

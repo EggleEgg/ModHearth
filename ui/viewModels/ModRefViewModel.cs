@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
 using ModHearth.Metadata;
+using System.Linq;
 
 namespace ModHearth.UI;
 
@@ -444,13 +445,17 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 
         if (mode == SearchFilterMode.Color)
         {
-            if (modref.AssignedColor == ModColor.None)
-                return false;
+            // Filter is a comma-separated string of selected ModColor names
+            // If we're here, filter is not null or whitespace (checked at top)
+            var selectedColorNames = filter.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+            
+            if (selectedColorNames.Count == 0)
+                return true;
 
-            string colorName = ModColorMap.ColorNames.TryGetValue(modref.AssignedColor, out string? name)
-                ? name
-                : modref.AssignedColor.ToString();
-            return colorName.Contains(filter, StringComparison.OrdinalIgnoreCase);
+            return selectedColorNames.Any(name =>
+                string.Equals(name, modref.AssignedColor.ToString(), StringComparison.OrdinalIgnoreCase));
         }
 
         string? candidate = mode switch
@@ -506,7 +511,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             colorUnderlayBrush = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasColorUnderlay));
-            Console.WriteLine($"changed color {HasColorUnderlay}");
+            InfoLogger.Log($"changed color {HasColorUnderlay}");
         }
     }
     public bool HasColorUnderlay => ColorUnderlayBrush != null;
@@ -532,4 +537,3 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         BelowSelection
     }
 }
-

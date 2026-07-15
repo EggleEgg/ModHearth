@@ -45,10 +45,10 @@ namespace ModHearth.Utilities
                 if (magic != "DFHack!\n" || version != 1)
                 {
                     error = "Invalid handshake reply from DFHack";
-                    Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
+                    Console.WriteLine($"DFHackRpcClient: {error}");
                     return null;
                 }
-                if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Handshake successful. Magic: {magic}, Version: {version}");
+                LogRpcClient($"Handshake successful. Magic: {magic}, Version: {version}");
 
                 // 2. Serialize RunCommand request payload (CoreRunCommandRequest protobuf)
                 byte[] rpcPayload = SerializeRunCommandRequest(command, args);
@@ -64,7 +64,7 @@ namespace ModHearth.Utilities
                 {
                     stream.Write(rpcPayload, 0, rpcPayload.Length);
                 }
-                if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Sent RunCommand request. Command: {command}, Args: {string.Join(", ", args)}");
+                LogRpcClient($"Sent RunCommand request. Command: {command}, Args: {string.Join(", ", args)}");
 
                 // 4. Read response loop
                 StringBuilder outputSb = new StringBuilder();
@@ -80,23 +80,23 @@ namespace ModHearth.Utilities
                     {
                         string text = DecodeTextNotification(payload);
                         outputSb.Append(text);
-                        if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Received text fragment: {text.TrimEnd()}");
+                        LogRpcClient($"Received text fragment: {text.TrimEnd()}");
                     }
                     else if (id == -1) // RPC_REPLY_RESULT (success / completion)
                     {
-                        if (DevMode.IsEnabled) Console.WriteLine("[DEBUG] DFHackRpcClient: Received RPC_REPLY_RESULT (Success).");
+                        LogRpcClient("Received RPC_REPLY_RESULT (Success).");
                         break;
                     }
                     else if (id == -2) // RPC_REPLY_FAIL
                     {
                         error = "DFHack RPC command execution failed";
-                        Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
+                        Console.WriteLine($"DFHackRpcClient: {error}");
                         return null;
                     }
                     else
                     {
                         error = $"Unexpected DFHack RPC reply ID: {id}";
-                        Console.WriteLine($"[DEBUG] DFHackRpcClient: {error}");
+                        Console.WriteLine($"DFHackRpcClient: {error}");
                         return null;
                     }
                 }
@@ -106,7 +106,7 @@ namespace ModHearth.Utilities
             catch (Exception ex)
             {
                 error = ex.Message;
-                Console.WriteLine($"[DEBUG] DFHackRpcClient: Exception - {ex.Message}");
+                Console.WriteLine($"DFHackRpcClient: Exception - {ex.Message}");
                 return null;
             }
         }
@@ -276,7 +276,7 @@ namespace ModHearth.Utilities
             string? envPort = Environment.GetEnvironmentVariable("DFHACK_PORT");
             if (!string.IsNullOrWhiteSpace(envPort) && int.TryParse(envPort, out int p))
             {
-                if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Resolved port from env var DFHACK_PORT: {p}");
+                LogRpcClient($"Resolved port from env var DFHACK_PORT: {p}");
                 return p;
             }
 
@@ -292,18 +292,26 @@ namespace ModHearth.Utilities
                     if (doc.RootElement.TryGetProperty("port", out JsonElement portElem) && portElem.ValueKind == JsonValueKind.Number)
                     {
                         int getInt = portElem.GetInt32();
-                        //if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Resolved port from {remoteServerJsonPath}: {getInt}");
+                        // Comented out to avoid spamming logs
+                        //LogRpcClient(" Resolved port from {remoteServerJsonPath}: {getInt}");
                         return getInt;
                     }
                 }
                 catch (Exception ex)
                 {
-                    if (DevMode.IsEnabled) Console.WriteLine($"[DEBUG] DFHackRpcClient: Error reading {remoteServerJsonPath}: {ex.Message}");
+                    LogRpcClient($"Error reading {remoteServerJsonPath}: {ex.Message}");
                     // Ignore parsing errors and fallback
                 }
             }
-            if (DevMode.IsEnabled) Console.WriteLine("[DEBUG] DFHackRpcClient: Falling back to default port 5000.");
+            LogRpcClient(" Falling back to default port 5000.");
             return 5000;
         }
+
+        private static void LogRpcClient(string message)
+        {
+            if (!DevMode.IsEnabled)
+                Console.WriteLine($"[DEBUG] DFHackRpcClient: {message}");
+        }
     }
+
 }

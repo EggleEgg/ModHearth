@@ -181,6 +181,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         leftSearchBar.SortOrderChanged += OnSearchModeChanged;
         rightSearchBar.SortOrderChanged += OnSearchModeChanged;
 
+        leftSearchBar.ColorPickerClicked += OnColorPickerClicked;
+        rightSearchBar.ColorPickerClicked += OnColorPickerClicked;
+
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);
         runDwarfFortressButton.Click += async (_, _) => await RunDwarfFortressAsync();
