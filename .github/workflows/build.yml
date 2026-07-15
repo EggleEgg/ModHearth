@@ -257,3 +257,4 @@ jobs:
             fi
             echo "Bleeding Edge Release created successfully!"
           fi
+
