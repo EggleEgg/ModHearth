@@ -30,6 +30,7 @@ jobs:
           import re
           import traceback
           import urllib.request
+          import urllib.error
 
           repo = os.environ["GITHUB_REPOSITORY"]
           token = os.environ.get("GITHUB_TOKEN")
@@ -52,18 +53,42 @@ jobs:
               print("URL:", url)
               print("Using token:", bool(token_to_use))
 
+              body = None
               try:
                   req = urllib.request.Request(url, headers=headers)
                   with urllib.request.urlopen(req) as resp:
                       body = resp.read().decode("utf-8")
-              except ValueError:
-                  # Invalid Authorization header; retry anonymously.
-                  headers.pop("Authorization", None)
+              except urllib.error.HTTPError as e:
+                  # If there are no releases yet (404), return empty gracefully
+                  if e.code == 404:
+                      print(f"No releases found for {repo_name} (404).")
+                      return {}
+                  
+                  # If token was bad (401/403), retry anonymously
+                  elif e.code in (401, 403) and "Authorization" in headers:
+                      print(f"Auth failed with status {e.code}. Retrying anonymously...")
+                      headers.pop("Authorization", None)
+                      try:
+                          req = urllib.request.Request(url, headers=headers)
+                          with urllib.request.urlopen(req) as resp:
+                              body = resp.read().decode("utf-8")
+                      except Exception as retry_err:
+                          print(f"Anonymous retry failed: {retry_err}")
+                          return {}
+                  else:
+                      print(f"HTTP Error {e.code}: {e.reason}")
+                      return {}
+              except Exception as e:
+                  print(f"Unexpected connection error: {e}")
+                  return {}
 
-                  req = urllib.request.Request(url, headers=headers)
-                  with urllib.request.urlopen(req) as resp:
-                      body = resp.read().decode("utf-8")
-
+              if body:
+                  try:
+                      return json.loads(body)
+                  except Exception as parse_err:
+                      print(f"Failed to parse JSON response: {parse_err}")
+                      return {}
+              return {}
 
           # --------------------------
           # Production
@@ -71,6 +96,7 @@ jobs:
 
           main_release = fetch_latest_release(repo, token, "Production")
 
+          # Safe fallback to empty string if no release or tag is found
           main_tag = main_release.get("tag_name") or ""
 
           match_main = re.match(r"build-(\d+)", main_tag)
@@ -90,7 +116,7 @@ jobs:
 
           else:
               be_release = fetch_latest_release("EggleEgg/ModHearth-Builds", 
-                be_token or token, "Bleeding Edge")
+                                                be_token or token, "Bleeding Edge")
 
               be_tag = be_release.get("tag_name") or ""
 
@@ -114,7 +140,6 @@ jobs:
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
               handle.write(f"build_number={final_version}\n")
-          
           PY
 
   build-test-publish:
