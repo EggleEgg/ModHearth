@@ -36,7 +36,6 @@ jobs:
           be_token = os.environ.get("BLEEDING_EDGE_TOKEN")
           event_name = os.environ["GITHUB_EVENT_NAME"]
 
-
           def fetch_latest_release(repo_name, token_to_use, label):
               url = f"https://api.github.com/repos/{repo_name}/releases/latest"
 
@@ -55,25 +54,15 @@ jobs:
 
               try:
                   req = urllib.request.Request(url, headers=headers)
-
                   with urllib.request.urlopen(req) as resp:
                       body = resp.read().decode("utf-8")
+              except ValueError:
+                  # Invalid Authorization header; retry anonymously.
+                  headers.pop("Authorization", None)
 
-                  print("HTTP:", resp.status)
-                  print("Body:")
-                  print(body)
-
-                  release = json.loads(body)
-
-                  print("Release name:", repr(release.get("name")))
-                  print("Tag:", repr(release.get("tag_name")))
-                  print("Prerelease:", release.get("prerelease"))
-
-                  return release
-
-              except Exception:
-                  traceback.print_exc()
-                  return {}
+                  req = urllib.request.Request(url, headers=headers)
+                  with urllib.request.urlopen(req) as resp:
+                      body = resp.read().decode("utf-8")
 
 
           # --------------------------
@@ -100,11 +89,8 @@ jobs:
               final_version = str(main_build)
 
           else:
-              be_release = fetch_latest_release(
-                  "EggleEgg/ModHearth-Builds",
-                  be_token or token,
-                  "Bleeding Edge"
-              )
+              be_release = fetch_latest_release("EggleEgg/ModHearth-Builds", 
+                be_token or token, "Bleeding Edge")
 
               be_tag = be_release.get("tag_name") or ""
 
