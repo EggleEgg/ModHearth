@@ -161,7 +161,7 @@ namespace ModHearth
         // Paths.
         private static readonly string baseDir = AppContext.BaseDirectory;
         private static readonly string modSortRulesPath = Path.Combine(baseDir, "modsort_rules.json");
-        private static readonly string localFallbackModpacksPath = Path.Combine(baseDir, "modpacks.local.json");
+        private static readonly string localFallbackModpacksPath = Path.Combine(baseDir, "metadata", "modpacks.local.json");
         private static readonly Regex DuplicateWarningRegex = new("^Duplicate Object:\\s*(?<object>.+?);\\s*Offending mods are\\s*(?<mods>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -204,9 +204,33 @@ namespace ModHearth
             Console.WriteLine($"Crafting Hearth v{GetBuildVersionString()}");
 
             // Get and load Config file, fix if needed.
+            MigrateLocalModpacks();
             ConfigManager.AttemptLoadConfigAndDiscover();
             LoadSortRules();
             LoadCommunitySortRules();
+        }
+
+        private void MigrateLocalModpacks()
+        {
+            string oldPath = Path.Combine(baseDir, "modpacks.local.json");
+            string newPath = localFallbackModpacksPath;
+
+            if (File.Exists(oldPath) && !File.Exists(newPath))
+            {
+                try
+                {
+                    string? directory = Path.GetDirectoryName(newPath);
+                    if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
+                        Directory.CreateDirectory(directory);
+                    
+                    File.Move(oldPath, newPath);
+                    Console.WriteLine($"Moved modpacks.local.json to {newPath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to migrate modpacks.local.json: {ex.Message}");
+                }
+            }
         }
 
         public bool Initialize(string? preferredModlistName = null)

@@ -79,7 +79,7 @@ jobs:
                   be_tag = ""
               
               # Check if the latest bleeding edge build belongs to the current main_build block
-              pattern = rf"build-{main_build}\.(\d+)"
+              pattern = rf"^build-{main_build}\.(\d+)$"
               match_be = re.match(pattern, be_tag)
               if match_be:
                   sub_build = int(match_be.group(1)) + 1
