@@ -16,59 +16,15 @@ jobs:
     outputs:
       build_number: ${{ steps.compute.outputs.build_number }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Compute build number
         id: compute
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          import re
-          import urllib.request
-          import urllib.error
-
-          repo = os.environ.get("GITHUB_REPOSITORY")
-          token = os.environ.get("GITHUB_TOKEN")
-          url = f"https://api.github.com/repos/{repo}/releases/latest"
-
-          # GitHub API requires a User-Agent, especially for anonymous requests
-          headers = {
-              "Accept": "application/vnd.github+json",
-              "User-Agent": "ModHearth-GitHub-Actions"
-          }
-          if token:
-              headers["Authorization"] = f"Bearer {token}"
-
-          data = {}
-          try:
-              req = urllib.request.Request(url, headers=headers)
-              with urllib.request.urlopen(req) as resp:
-                  data = json.load(resp)
-          except Exception as e:
-              # If authorized request fails, attempt an anonymous retry
-              if token:
-                  print(f"Authorized request failed: {e}. Retrying anonymously...")
-                  headers.pop("Authorization", None)
-                  try:
-                      req = urllib.request.Request(url, headers=headers)
-                      with urllib.request.urlopen(req) as resp:
-                          data = json.load(resp)
-                  except Exception as retry_err:
-                      print(f"Anonymous retry also failed: {retry_err}")
-              else:
-                  print(f"Request failed: {e}")
-
-          tag = data.get("tag_name") or ""
-          match = re.match(r"build-(\d+)", tag)
-          default_start = 28
-          build = int(match.group(1)) + 1 if match else default_start
-          if build < default_start:
-              build = default_start
-          print(f"Computed build number: {build}")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
-              handle.write(f"build_number={build}\n")
-          PY
+          BLEEDING_EDGE_TOKEN: ${{ secrets.BLEEDING_EDGE_TOKEN }}
+        run: python .github/scripts/compute-version.py
 
   build-test-publish:
     runs-on: ${{ matrix.os }}
