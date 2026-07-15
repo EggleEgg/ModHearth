@@ -24,6 +24,7 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         # TODO Move this to its own file
         run: |
+          python - <<'PY'
           import json
           import os
           import re
