@@ -28,14 +28,6 @@ if [ -d "$runtimes_dir" ]; then
   done
 fi
 
-native_dir="${publish_dir}/native"
-if [ -d "$native_dir" ]; then
-  case "$rid" in
-    linux-*) find "$native_dir" -maxdepth 1 -type f -name "*.dylib" -delete ;;
-    osx-*) find "$native_dir" -maxdepth 1 -type f -name "*.so" -delete ;;
-  esac
-fi
-
 if [ ! -d "$publish_dir" ]; then
   echo "Publish directory not found: $publish_dir"
   exit 1

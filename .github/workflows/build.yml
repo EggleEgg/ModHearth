@@ -287,6 +287,9 @@ jobs:
             echo "$body_content"
             echo "EOF"
           } >> $GITHUB_OUTPUT
+          print("Raw bleeding tag:", repr(be_tag))
+          print("Pattern:", pattern)
+          print("Match:", re.match(pattern, be_tag))
 
       - name: Download compiled build artifacts
         uses: actions/download-artifact@v4
@@ -334,3 +337,11 @@ jobs:
             fi
             echo "Bleeding Edge Release created successfully!"
           fi
+
+          print(f"Production repository: {repo}")
+          print(f"Production latest tag: {main_tag}")
+          print(f"Bleeding latest tag: {be_tag}")
+          print(f"Computed main build: {main_build}")
+          print(f"Pattern: {pattern}")
+          print(f"Regex match: {match_be.groups() if match_be else None}")
+          print(f"Final version: {final_version}")

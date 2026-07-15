@@ -23,12 +23,6 @@ if (Test-Path $runtimesDir) {
     }
 }
 
-$nativeDir = Join-Path $publishDir "native"
-if (Test-Path $nativeDir) {
-    Get-ChildItem -Path $nativeDir -File -Include *.so, *.dylib -ErrorAction SilentlyContinue |
-    Remove-Item -Force -ErrorAction SilentlyContinue
-}
-
 if (-not (Test-Path $publishDir)) {
     throw "Publish directory not found: $publishDir"
 }

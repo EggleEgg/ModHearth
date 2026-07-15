@@ -36,11 +36,11 @@ fi
 
 echo "== Building publish runtime target (${RID}, version=${VERSION}) =="
 dotnet build ModHearth.csproj -c Release -r "$RID" --no-restore \
-  /p:MoveOutputDlls=false /p:InformationalVersion="$VERSION"
+  /p:InformationalVersion="$VERSION"
 
 echo "== Publishing =="
 dotnet publish ModHearth.csproj -c Release -r "$RID" --self-contained false \
-  /p:UseAppHost=true /p:MoveOutputDlls=false --no-build --no-restore
+  /p:UseAppHost=true --no-build --no-restore
 
 echo "== Pruning + packaging =="
 bash ./.github/scripts/prune-package.sh "$RID" "$EXT"
