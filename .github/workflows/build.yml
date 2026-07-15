@@ -72,10 +72,8 @@ jobs:
       - name: Test (Windows)
         if: matrix.os != 'ubuntu-latest'
         run: dotnet test ModHearth.sln -c Release --no-build --no-restore
-      - name: Build publish runtime target
-        run: dotnet build ModHearth.csproj -c Release -r ${{ matrix.rid }} --no-restore /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
       - name: Publish
-        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:UseAppHost=true --no-build --no-restore
+        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
       - name: Prune + verify + package (Windows)
         if: matrix.os == 'windows-latest'
         run: ./.github/scripts/prune-package.ps1 -Rid "${{ matrix.rid }}" -Ext "${{ matrix.ext }}"
