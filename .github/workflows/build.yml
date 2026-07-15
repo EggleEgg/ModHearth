@@ -24,83 +24,109 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
         # TODO Move this to its own file
         run: |
-          python - <<'PY'
           import json
           import os
           import re
-          import urllib.request
           import traceback
+          import urllib.request
 
-          repo = os.environ.get("GITHUB_REPOSITORY")
+          repo = os.environ["GITHUB_REPOSITORY"]
           token = os.environ.get("GITHUB_TOKEN")
           be_token = os.environ.get("BLEEDING_EDGE_TOKEN")
-          event_name = os.environ.get("GITHUB_EVENT_NAME")
+          event_name = os.environ["GITHUB_EVENT_NAME"]
 
-          # 1. Fetch latest release from the main production repository
-          url_main = f"https://api.github.com/repos/{repo}/releases/latest"
-          headers_main = {"Accept": "application/vnd.github+json"}
-          if token:
-              headers_main["Authorization"] = f"Bearer {token}"
 
-          main_tag = ""
-          try:
-              req = urllib.request.Request(url_main, headers=headers_main)
-              with urllib.request.urlopen(req) as resp:
-                  data = json.load(resp)
-                  main_tag = data.get("tag_name") or ""
-          except Exception:
-              traceback.print_exc()
-              be_tag = ""
+          def fetch_latest_release(repo_name, token_to_use, label):
+              url = f"https://api.github.com/repos/{repo_name}/releases/latest"
+
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "ModHearth-GitHub-Actions"
+              }
+
+              if token_to_use:
+                  headers["Authorization"] = f"Bearer {token_to_use}"
+
+              print(f"\n===== {label} =====")
+              print("Repository:", repo_name)
+              print("URL:", url)
+              print("Using token:", bool(token_to_use))
+
+              try:
+                  req = urllib.request.Request(url, headers=headers)
+
+                  with urllib.request.urlopen(req) as resp:
+                      body = resp.read().decode("utf-8")
+
+                  print("HTTP:", resp.status)
+                  print("Body:")
+                  print(body)
+
+                  release = json.loads(body)
+
+                  print("Release name:", repr(release.get("name")))
+                  print("Tag:", repr(release.get("tag_name")))
+                  print("Prerelease:", release.get("prerelease"))
+
+                  return release
+
+              except Exception:
+                  traceback.print_exc()
+                  return {}
+
+
+          # --------------------------
+          # Production
+          # --------------------------
+
+          main_release = fetch_latest_release(repo, token, "Production")
+
+          main_tag = main_release.get("tag_name") or ""
 
           match_main = re.match(r"build-(\d+)", main_tag)
+
           default_start = 28
           main_build = int(match_main.group(1)) + 1 if match_main else default_start
-          if main_build < default_start:
-              main_build = default_start
+          main_build = max(main_build, default_start)
 
-          # 2. Determine final version string based on execution trigger
+          print("Computed main build:", main_build)
+
+          # --------------------------
+          # Version computation
+          # --------------------------
+
           if event_name == "workflow_dispatch":
-              # Production releases get standard clean integer versions (e.g., "45")
               final_version = str(main_build)
+
           else:
-              # Bleeding edge pushes get fractional version formatting (e.g., "45.1")
-              be_repo = "EggleEgg/ModHearth-Builds"
-              url_be = f"https://api.github.com/repos/{be_repo}/releases/latest"
-              headers_be = {"Accept": "application/vnd.github+json"}
-              use_token = be_token or token
-              if use_token:
-                  headers_be["Authorization"] = f"Bearer {use_token}"
-              
-              be_tag = ""
-              try:
-                  req_be = urllib.request.Request(url_be, headers=headers_be)
-                  with urllib.request.urlopen(req_be) as resp:
-                      data = json.load(resp)
-                      be_tag = data.get("tag_name") or ""
-              except Exception:
-                  be_tag = ""
-              
-              # Check if the latest bleeding edge build belongs to the current main_build block
+              be_release = fetch_latest_release(
+                  "EggleEgg/ModHearth-Builds",
+                  be_token or token,
+                  "Bleeding Edge"
+              )
+
+              be_tag = be_release.get("tag_name") or ""
+
               pattern = rf"^build-{main_build}\.(\d+)$"
+
+              print("Regex pattern:", pattern)
+              print("Regex input:", repr(be_tag))
+
               match_be = re.match(pattern, be_tag)
+
+              print("Regex matched:", bool(match_be))
+
               if match_be:
                   sub_build = int(match_be.group(1)) + 1
               else:
-                  # Reset back to .1 if the main build incremented or no releases exist
                   sub_build = 1
-              
+
               final_version = f"{main_build}.{sub_build}"
 
-          print(f"Computed build number: {final_version}")
+          print("\nFinal version:", final_version)
+
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
               handle.write(f"build_number={final_version}\n")
-              print("Raw bleeding tag:", repr(be_tag))
-              print("Pattern:", pattern)
-              print("Match:", re.match(pattern, be_tag))
-              print("Release name:", data.get("name"))
-              print("Tag:", repr(data.get("tag_name")))
-              print("Prerelease:", data.get("prerelease"))
-          PY
 
   build-test-publish:
     runs-on: ${{ matrix.os }}
