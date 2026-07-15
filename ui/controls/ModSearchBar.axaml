@@ -10,11 +10,11 @@
   <Border x:Name="SearchBorder" CornerRadius="6" BorderThickness="1">
     <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
       <TextBox x:Name="SearchBox" Grid.Column="0" BorderThickness="0" Background="Transparent"
-               Margin="1,0,0,0" Padding="6" VerticalContentAlignment="Center"
+               Margin="1,0,2,0" Padding="6" VerticalContentAlignment="Center"
                IsVisible="{Binding $parent[ui:ModSearchBar].SearchMode, Converter={StaticResource SearchFilterModeToVisibilityConverter}, ConverterParameter=!Color}"/>
       <ui:ModColorPicker x:Name="ColorPicker" Grid.Column="0" IsVisible="{Binding $parent[ui:ModSearchBar].SearchMode, Converter={StaticResource SearchFilterModeToVisibilityConverter}, ConverterParameter=Color}"/>
       <Button x:Name="SearchModeButton" Grid.Column="1" Height="22" Padding="-1"
-              Margin="2" VerticalAlignment="Center">
+              Margin="0,2,2,2" VerticalAlignment="Center">
         <Panel>
           <Image x:Name="SearchModeIcon" Width="15" Height="15"
                  Stretch="Uniform"

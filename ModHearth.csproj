@@ -83,14 +83,14 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
-    <None Update="libs\steam_api64.dll" Link="steam_api64.dll">
+    <None Include="libs\\steam_api64.dll" Link="steam_api64.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
-    <None Update="libs\libsteam_api.so" Link="libsteam_api.so">
+    <None Include="libs\\libsteam_api.so" Link="libsteam_api.so">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>
@@ -98,7 +98,7 @@
 
   <ItemGroup
     Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
-    <None Update="libs\libsteam_api.dylib" Link="libsteam_api.dylib">
+    <None Include="libs\\libsteam_api.dylib" Link="libsteam_api.dylib">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>

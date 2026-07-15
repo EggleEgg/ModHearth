@@ -1,5 +1,3 @@
-# Used for removing unused runtimes. Mostly useless now but it doesnt hurt
-
 param(
     [Parameter(Mandatory = $true)]
     [string]$Rid,
@@ -11,17 +9,6 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $publishDir = "artifacts\$Rid"
-$runtimesDir = Join-Path $publishDir "runtimes"
-if (Test-Path $runtimesDir) {
-    $removePatterns = switch -Wildcard ($Rid) {
-        "linux-*" { @("win*", "osx*", "maccatalyst*", "android*", "ios*", "tvos*", "browser*") }
-        "osx-*" { @("win*", "linux*", "android*", "ios*", "tvos*", "browser*") }
-        default { @("linux*", "osx*", "maccatalyst*", "android*", "ios*", "tvos*", "browser*") } # Windows
-    }    foreach ($pattern in $removePatterns) {
-        Get-ChildItem -Path $runtimesDir -Directory -Filter $pattern -ErrorAction SilentlyContinue |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
 
 if (-not (Test-Path $publishDir)) {
     throw "Publish directory not found: $publishDir"

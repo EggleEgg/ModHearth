@@ -21,7 +21,7 @@
           <TextBlock x:Name="OpenSteamText" Text="Open Steam Page (browser)" VerticalAlignment="Center" />
         </MenuItem.Header>
         <MenuItem.Icon>
-          <ToggleSwitch x:Name="OpenSteamInClientCheckBox" Grid.Column="1" IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}" />
+          <CheckBox x:Name="OpenSteamInClientCheckBox" Grid.Column="1" IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}" />
         </MenuItem.Icon>
       </MenuItem>
       <MenuItem Tag="copy-id" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
