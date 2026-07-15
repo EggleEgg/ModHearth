@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="using:ModHearth.UI"
+        xmlns:viewmodels="using:ModHearth.UI.ViewModels"
         x:Class="ModHearth.UI.UpdateDialog"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
@@ -10,7 +10,7 @@
     <TextBlock x:Name="HeaderText" TextWrapping="Wrap" />
     <ItemsControl x:Name="ReleaseList">
       <ItemsControl.ItemTemplate>
-        <DataTemplate x:DataType="ui:ReleaseEntry">
+        <DataTemplate x:DataType="viewmodels:ReleaseEntry">
           <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,*" Margin="0,4">
             <Border Grid.Row="0" Grid.ColumnSpan="2" Height="2" HorizontalAlignment="Stretch" Margin="0,0,0,8" IsVisible="{Binding IsNotFirstItem}" />
             <StackPanel Grid.Row="1">

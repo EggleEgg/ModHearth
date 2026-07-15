@@ -22,6 +22,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BLEEDING_EDGE_TOKEN: ${{ secrets.BLEEDING_EDGE_TOKEN }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
+        # TODO Move this to its own file
         run: |
           python - <<'PY'
           import json
@@ -140,9 +141,16 @@ jobs:
         if: matrix.os != 'ubuntu-latest'
         run: dotnet test ModHearth.sln -c Release --no-build --no-restore
       - name: Build publish runtime target
-        run: dotnet build ModHearth.csproj -c Release -r ${{ matrix.rid }} --no-restore /p:MoveOutputDlls=false /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
+        run: dotnet build ModHearth.csproj -c Release -r ${{ matrix.rid }} --no-restore /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
       - name: Publish
-        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained false /p:UseAppHost=true /p:MoveOutputDlls=false --no-build --no-restore
+        run: >
+          dotnet publish ModHearth.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained false
+          --no-build
+          --no-restore
+          -o artifacts/${{ matrix.rid }}
       - name: Prune + verify + package (Windows)
         if: matrix.os == 'windows-latest'
         run: ./.github/scripts/prune-package.ps1 -Rid "${{ matrix.rid }}" -Ext "${{ matrix.ext }}"

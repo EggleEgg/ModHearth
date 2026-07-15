@@ -8,6 +8,15 @@ using System.Text.Json;
 
 namespace ModHearth.UI;
 
+[Flags]
+internal enum CleanupPlatforms
+{
+    Windows = 1 << 0,
+    Linux = 1 << 1,
+    macOS = 1 << 2,
+    All = Windows | Linux | macOS
+}
+
 internal static class UpdateService
 {
     private const int RecentBuildCount = 5;
@@ -16,11 +25,18 @@ internal static class UpdateService
     private static readonly HttpClient UpdateHttpClient = CreateUpdateHttpClient();
 
     // List of legacy, non-self-contained files and folders to clean up. Paths should be relative to the installation root directory.
-    private static readonly (string Path, bool IsDirectory)[] LegacyPathsToClean = new[]
+    // Examples:
+    //   - ("libs", true, CleanupPlatforms.All) -> Cleaned on Windows, Linux, and macOS
+    //   - ("libs", true, CleanupPlatforms.Linux | CleanupPlatforms.macOS) -> "" Linux AND MacOs. Logical or operations are not possible
+    private static readonly (string Path, bool IsDirectory, CleanupPlatforms Platform)[] LegacyPathsToClean =
     {
-        ("libsteam_api.dylib", false),
-        ("libsteam_api.so", false),
-        ("steam_api64.dll", false)
+        ("libs", true, CleanupPlatforms.All),
+        ("native", true, CleanupPlatforms.All),
+        ("runtimes", true, CleanupPlatforms.All),
+        ("dlls", true, CleanupPlatforms.All),
+        ("libsteam_api.dylib", false, CleanupPlatforms.Windows | CleanupPlatforms.Linux),
+        ("libsteam_api.so", false, CleanupPlatforms.Windows | CleanupPlatforms.macOS),
+        ("steam_api64.dll", false, CleanupPlatforms.Linux | CleanupPlatforms.macOS )
     };
 
     public static async Task<bool> TryRunUpdateAsync(Window owner, string currentBuild)
@@ -309,8 +325,12 @@ internal static class UpdateService
         if (isWindows)
         {
             script.AppendLine($"echo [%date% %time%] Cleaning legacy framework-dependent files>>\"%LOG%\"");
-            foreach (var (path, isDir) in LegacyPathsToClean)
+            foreach (var (path, isDir, platform) in LegacyPathsToClean)
             {
+                // Only clean if this item is targeted for Windows
+                if (!platform.HasFlag(CleanupPlatforms.Windows))
+                    continue;
+
                 // Normalize slashes to Windows backslashes
                 string winPath = path.Replace('/', '\\');
                 if (isDir)
@@ -326,8 +346,12 @@ internal static class UpdateService
         else // Unix / Linux / macOS
         {
             script.AppendLine($"echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Cleaning legacy framework-dependent files\" >> \"$LOG\"");
-            foreach (var (path, _) in LegacyPathsToClean)
+            foreach (var (path, _, platform) in LegacyPathsToClean)
             {
+                // Verify if the item targets the active operating system environment
+                if (!((OperatingSystem.IsLinux() && platform.HasFlag(CleanupPlatforms.Linux)) || (OperatingSystem.IsMacOS() && platform.HasFlag(CleanupPlatforms.macOS))))
+                    continue;
+
                 // Normalize slashes to Unix forward slashes
                 string unixPath = path.Replace('\\', '/');
                 // 'rm -rf' recursively deletes files and directories alike on Unix

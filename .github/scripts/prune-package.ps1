@@ -1,3 +1,5 @@
+# Used for removing unused runtimes. Mostly useless now but it doesnt hurt
+
 param(
     [Parameter(Mandatory = $true)]
     [string]$Rid,
@@ -8,20 +10,23 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$publishDir = "bin\Release\net8.0\$Rid\publish"
+$publishDir = "artifacts\$Rid"
 $runtimesDir = Join-Path $publishDir "runtimes"
 if (Test-Path $runtimesDir) {
-    $removePatterns = @("linux*", "osx*", "maccatalyst*", "android*", "ios*", "tvos*", "browser*")
-    foreach ($pattern in $removePatterns) {
+    $removePatterns = switch -Wildcard ($Rid) {
+        "linux-*" { @("win*", "osx*", "maccatalyst*", "android*", "ios*", "tvos*", "browser*") }
+        "osx-*" { @("win*", "linux*", "android*", "ios*", "tvos*", "browser*") }
+        default { @("linux*", "osx*", "maccatalyst*", "android*", "ios*", "tvos*", "browser*") } # Windows
+    }    foreach ($pattern in $removePatterns) {
         Get-ChildItem -Path $runtimesDir -Directory -Filter $pattern -ErrorAction SilentlyContinue |
-            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
 $nativeDir = Join-Path $publishDir "native"
 if (Test-Path $nativeDir) {
     Get-ChildItem -Path $nativeDir -File -Include *.so, *.dylib -ErrorAction SilentlyContinue |
-        Remove-Item -Force -ErrorAction SilentlyContinue
+    Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
 if (-not (Test-Path $publishDir)) {

@@ -84,34 +84,38 @@ internal static class Program
             typeof(Steamworks.SteamAPI).Assembly,
             (libraryName, assembly, searchPath) =>
             {
-                if (libraryName.Contains("steam_api"))
-                {
-                    string fileName = string.Empty;
-                    if (OperatingSystem.IsWindows())
-                    {
-                        fileName = "steam_api64.dll";
-                    }
-                    else if (OperatingSystem.IsLinux())
-                    {
-                        fileName = "libsteam_api.so";
-                    }
-                    else if (OperatingSystem.IsMacOS())
-                    {
-                        fileName = "libsteam_api.dylib";
-                    }
+                if (!libraryName.Contains("steam_api", StringComparison.OrdinalIgnoreCase))
+                    return IntPtr.Zero;
 
-                    if (!string.IsNullOrEmpty(fileName))
+                string? fileName;
+
+                if (OperatingSystem.IsWindows())
+                    fileName = "steam_api64.dll";
+                else if (OperatingSystem.IsLinux())
+                    fileName = "libsteam_api.so";
+                else if (OperatingSystem.IsMacOS())
+                    fileName = "libsteam_api.dylib";
+                else
+                    fileName = null;
+
+                if (fileName == null)
+                    return IntPtr.Zero;
+
+                string[] candidates =
+                {
+                Path.Combine(AppContext.BaseDirectory, "libs", fileName),
+                Path.Combine(AppContext.BaseDirectory, fileName)
+                };
+
+                foreach (string candidate in candidates)
+                {
+                    if (File.Exists(candidate) &&
+                        System.Runtime.InteropServices.NativeLibrary.TryLoad(candidate, out IntPtr handle))
                     {
-                        string libPath = Path.Combine(AppContext.BaseDirectory, "libs", fileName);
-                        if (File.Exists(libPath))
-                        {
-                            if (System.Runtime.InteropServices.NativeLibrary.TryLoad(libPath, out IntPtr handle))
-                            {
-                                return handle;
-                            }
-                        }
+                        return handle;
                     }
                 }
+
                 return IntPtr.Zero;
             });
     }

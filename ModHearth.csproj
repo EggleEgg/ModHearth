@@ -6,9 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationIcon>resources\\modhearth_icon_v1.ico</ApplicationIcon>
-    <DllOutputFolder>dlls</DllOutputFolder>
-    <IsPublishing>false</IsPublishing>
-    <MoveOutputDlls>true</MoveOutputDlls>
+    <IsPublishing>true</IsPublishing>
+    <PublishDir>artifacts\$(RuntimeIdentifier)\</PublishDir>
 
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
@@ -80,19 +79,29 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
-    <None Update="libs\\steam_api64.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-    </None>
-    <None Update="libs\\libsteam_api.so">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-    </None>
-    <None Update="libs\\libsteam_api.dylib">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-    </None>
     <!-- Icon is embedded as AvaloniaResource; no need to copy to output/publish. -->
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <None Update="libs\steam_api64.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+    <None Update="libs\libsteam_api.so">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup
+    Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
+    <None Update="libs\libsteam_api.dylib">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
   <Target Name="CleanOutputDirectories" AfterTargets="Clean">
@@ -126,13 +135,19 @@
       Condition="@(PublishDlls) != ''" />
   </Target>
 
-  <Target Name="EnsureSteamApiDllInRootPublish" AfterTargets="MovePublishDlls">
-    <Copy SourceFiles="libs\steam_api64.dll" DestinationFolder="$(PublishDir)"
-      Condition="Exists('libs\steam_api64.dll')" />
-    <Copy SourceFiles="libs\libsteam_api.so" DestinationFolder="$(PublishDir)"
-      Condition="Exists('libs\libsteam_api.so')" />
-    <Copy SourceFiles="libs\libsteam_api.dylib" DestinationFolder="$(PublishDir)"
-      Condition="Exists('libs\libsteam_api.dylib')" />
+  <Target Name="EnsureSteamApiDllInRootPublish" AfterTargets="Publish">
+    <Copy
+      SourceFiles="libs\steam_api64.dll"
+      DestinationFolder="$(PublishDir)"
+      Condition="'$(RuntimeIdentifier)' == 'win-x64' and Exists('libs\steam_api64.dll')" />
+    <Copy
+      SourceFiles="libs\libsteam_api.so"
+      DestinationFolder="$(PublishDir)"
+      Condition="'$(RuntimeIdentifier)' == 'linux-x64' and Exists('libs\libsteam_api.so')" />
+    <Copy
+      SourceFiles="libs\libsteam_api.dylib"
+      DestinationFolder="$(PublishDir)"
+      Condition="('$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64') and Exists('libs\libsteam_api.dylib')" />
   </Target>
 
   <Target Name="MarkPublishing" BeforeTargets="Publish">
@@ -166,14 +181,25 @@
   </Target>
 
   <Target Name="OrganizePublishNativeLibraries" AfterTargets="Publish">
-    <ItemGroup>
+
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
       <PublishNativeLibs Include="$(PublishDir)*.so" />
-      <PublishNativeLibs Include="$(PublishDir)*.dylib" />
       <PublishNativeLibs Include="$(PublishDir)runtimes\**\native\*.so" />
+    </ItemGroup>
+
+    <ItemGroup
+      Condition="'$(RuntimeIdentifier)' == 'osx-x64' Or '$(RuntimeIdentifier)' == 'osx-arm64'">
+      <PublishNativeLibs Include="$(PublishDir)*.dylib" />
       <PublishNativeLibs Include="$(PublishDir)runtimes\**\native\*.dylib" />
     </ItemGroup>
+
     <MakeDir Directories="$(PublishDir)native" Condition="@(PublishNativeLibs) != ''" />
-    <Copy SourceFiles="@(PublishNativeLibs)" DestinationFolder="$(PublishDir)native"
+
+    <Copy
+      SourceFiles="@(PublishNativeLibs)"
+      DestinationFolder="$(PublishDir)native"
+      SkipUnchangedFiles="true"
       Condition="@(PublishNativeLibs) != ''" />
+
   </Target>
 </Project>

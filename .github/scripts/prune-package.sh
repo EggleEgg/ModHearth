@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+
+# Used for removing unused runtimes. Mostly useless now but it doesnt hurt
+
 set -euo pipefail
 
 rid="${1:?missing rid}"
 ext="${2:?missing ext}"
 
-publish_dir="bin/Release/net8.0/${rid}/publish"
+publish_dir="artifacts/${rid}"
 runtimes_dir="${publish_dir}/runtimes"
 
 if [ -d "$runtimes_dir" ]; then

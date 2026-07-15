@@ -6,6 +6,16 @@
       "type": "promptString",
       "description": "Version string to embed (InformationalVersion)",
       "default": "local-dev"
+    },
+    {
+      "id": "rid",
+      "type": "pickString",
+      "description": "Select target runtime",
+      "options": [
+        "win-x64",
+        "linux-x64",
+      ],
+      "default": "win-x64"
     }
   ],
   "tasks": [
@@ -19,6 +29,27 @@
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary;ForceNoAlign"
       ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "publish",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "${workspaceFolder}/ModHearth.csproj",
+        "-c",
+        "Release",
+        "-r",
+        "${input:rid}",
+        "--self-contained",
+        "false",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "group": {
+        "kind": "build"
+      },
       "problemMatcher": "$msCompile"
     },
     {
@@ -71,7 +102,7 @@
       "args": [
         "-NoProfile",
         "-Command",
-        "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release'); foreach ($dir in $dirs) { if (Test-Path $dir) { Remove-Item -Path $dir -Recurse -Force } }"
+        "$ErrorActionPreference='Stop'; $dirs = @('bin\\Debug','bin\\Release','artifacts'); foreach ($dir in $dirs) { if (Test-Path $dir) { Remove-Item -Path $dir -Recurse -Force } }"
       ],
       "problemMatcher": [
         "$esbuild-watch"
