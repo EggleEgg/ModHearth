@@ -127,6 +127,8 @@ jobs:
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
               handle.write(f"build_number={final_version}\n")
+          
+          PY
 
   build-test-publish:
     runs-on: ${{ matrix.os }}
