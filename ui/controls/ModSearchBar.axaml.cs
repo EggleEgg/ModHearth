@@ -467,7 +467,7 @@ public partial class ModSearchBar : UserControl
 
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://www3.ntu.edu.sg/home/ehchua/programming/howto/Regexe.html",
+                    FileName = "https://regex101.com/",
                     UseShellExecute = true
                 });
             };

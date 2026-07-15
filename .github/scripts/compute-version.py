@@ -89,7 +89,7 @@ def main():
         be_release = fetch_latest_release("EggleEgg/ModHearth-Builds", 
                                           be_token or token, "Bleeding Edge")
         be_tag = be_release.get("tag_name") or ""
-        pattern = rf"^build-{main_build}\.(\d+)$"
+        pattern = rf"^{main_build}\.(\d+)$"
 
         print("Regex pattern:", pattern)
         print("Regex input:", repr(be_tag))
