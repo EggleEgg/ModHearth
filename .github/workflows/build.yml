@@ -1,5 +1,7 @@
 name: Build & Release
 
+# yaml-embedded-languages: python
+
 on:
   push:
     branches: ["main"]
@@ -18,6 +20,8 @@ jobs:
         id: compute
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BLEEDING_EDGE_TOKEN: ${{ secrets.BLEEDING_EDGE_TOKEN }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: |
           python - <<'PY'
           import json
@@ -27,26 +31,66 @@ jobs:
 
           repo = os.environ.get("GITHUB_REPOSITORY")
           token = os.environ.get("GITHUB_TOKEN")
-          url = f"https://api.github.com/repos/{repo}/releases/latest"
-          headers = {"Accept": "application/vnd.github+json"}
+          be_token = os.environ.get("BLEEDING_EDGE_TOKEN")
+          event_name = os.environ.get("GITHUB_EVENT_NAME")
+
+          # 1. Fetch latest release from the main production repository
+          url_main = f"https://api.github.com/repos/{repo}/releases/latest"
+          headers_main = {"Accept": "application/vnd.github+json"}
           if token:
-              headers["Authorization"] = f"Bearer {token}"
-          req = urllib.request.Request(url, headers=headers)
-          tag = ""
+              headers_main["Authorization"] = f"Bearer {token}"
+
+          main_tag = ""
           try:
+              req = urllib.request.Request(url_main, headers=headers_main)
               with urllib.request.urlopen(req) as resp:
                   data = json.load(resp)
-                  tag = data.get("tag_name") or ""
+                  main_tag = data.get("tag_name") or ""
           except Exception:
-              tag = ""
-          match = re.match(r"build-(\d+)", tag)
+              main_tag = ""
+
+          match_main = re.match(r"build-(\d+)", main_tag)
           default_start = 28
-          build = int(match.group(1)) + 1 if match else default_start
-          if build < default_start:
-              build = default_start
-          print(f"Computed build number: {build}")
+          main_build = int(match_main.group(1)) + 1 if match_main else default_start
+          if main_build < default_start:
+              main_build = default_start
+
+          # 2. Determine final version string based on execution trigger
+          if event_name == "workflow_dispatch":
+              # Production releases get standard clean integer versions (e.g., "45")
+              final_version = str(main_build)
+          else:
+              # Bleeding edge pushes get fractional version formatting (e.g., "45.1")
+              be_repo = "EggleEgg/ModHearth-Builds"
+              url_be = f"https://api.github.com/repos/{be_repo}/releases/latest"
+              headers_be = {"Accept": "application/vnd.github+json"}
+              use_token = be_token or token
+              if use_token:
+                  headers_be["Authorization"] = f"Bearer {use_token}"
+              
+              be_tag = ""
+              try:
+                  req_be = urllib.request.Request(url_be, headers=headers_be)
+                  with urllib.request.urlopen(req_be) as resp:
+                      data = json.load(resp)
+                      be_tag = data.get("tag_name") or ""
+              except Exception:
+                  be_tag = ""
+              
+              # Check if the latest bleeding edge build belongs to the current main_build block
+              pattern = rf"build-{main_build}\.(\d+)"
+              match_be = re.match(pattern, be_tag)
+              if match_be:
+                  sub_build = int(match_be.group(1)) + 1
+              else:
+                  # Reset back to .1 if the main build incremented or no releases exist
+                  sub_build = 1
+              
+              final_version = f"{main_build}.{sub_build}"
+
+          print(f"Computed build number: {final_version}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
-              handle.write(f"build_number={build}\n")
+              handle.write(f"build_number={final_version}\n")
           PY
 
   build-test-publish:
@@ -199,7 +243,7 @@ jobs:
             exit 1
           fi
           echo "tag=build-$raw" >> $GITHUB_OUTPUT
-          echo "name=Bleeding Edge Build $raw" >> $GITHUB_OUTPUT
+          echo "name=BE Build $raw" >> $GITHUB_OUTPUT
 
       - name: Checkout Git history only
         uses: actions/checkout@v4
@@ -254,7 +298,7 @@ jobs:
           file_glob: true
           overwrite: true
 
-    # --- Status reporting ---
+  # --- Status reporting ---
   release-status:
     runs-on: ubuntu-latest
     needs: [build-test-publish, compute-version, release, bleeding-edge-push]
