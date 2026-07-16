@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ModHearth.UI"
+             x:Class="ModHearth.UI.ModPreviewPanelView"
+             x:DataType="ui:ModPreviewPanelViewModel">
+       <Image Source="{Binding PreviewImage}"
+              Stretch="Uniform"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Margin="10,4,10,4" />
+</UserControl>

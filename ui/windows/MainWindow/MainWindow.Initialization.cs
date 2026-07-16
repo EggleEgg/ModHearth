@@ -12,7 +12,7 @@ public partial class MainWindow
     {
         modTitleLabel.Text = "Welcome to ModHearth!";
         currentDescriptionBBCode = null;
-        modDescriptionHtml.Text = BBCodeRenderer.PlainTextToHtml(
+        modDescriptionPanelViewModel.DescriptionHtml = BBCodeRenderer.PlainTextToHtml(
             MainWindowHelpContent.GetHelpText(), GetDescriptionTextColor(), "transparent");
         buildVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
     }

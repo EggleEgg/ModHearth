@@ -8,6 +8,7 @@ namespace ModHearth.UI;
 
 public partial class MainWindow
 {
+
     private void ShowFallbackInfo()
     {
         leftModlist.SelectedItems?.Clear();
@@ -23,9 +24,6 @@ public partial class MainWindow
 
     private void RefreshDescriptionHtml()
     {
-        if (modDescriptionHtml == null)
-            return;
-
         string? sanitizedBBCode = currentDescriptionBBCode;
         if (string.IsNullOrWhiteSpace(sanitizedBBCode))
             sanitizedBBCode = MainWindowHelpContent.GetCachedReadmeText();
@@ -35,7 +33,7 @@ public partial class MainWindow
             sanitizedBBCode = Regex.Replace(sanitizedBBCode, @"\[[a-zA-Z0-9_]+(?![^\]]*\])$", "", RegexOptions.RightToLeft);
         }
 
-        modDescriptionHtml.Text = BBCodeRenderer.ToHtml(
+        modDescriptionPanelViewModel.DescriptionHtml = BBCodeRenderer.ToHtml(
             sanitizedBBCode, GetDescriptionTextColor(), "transparent");
     }
 
@@ -45,7 +43,6 @@ public partial class MainWindow
     private void ShowModInfo(ModReference modref)
     {
         modTitleLabel.Text = modref.name ?? string.Empty;
-        modDescriptionHtml.Text = modref.description ?? string.Empty;
 
         currentDescriptionBBCode = modref.description ?? string.Empty;
         RefreshDescriptionHtml();
@@ -125,6 +122,6 @@ public partial class MainWindow
         if (currentPreview is IDisposable disposable)
             disposable.Dispose();
         currentPreview = image;
-        modPreviewImage.Source = image;
+        modPreviewPanelViewModel.PreviewImage = image;
     }
 }

@@ -123,11 +123,19 @@ public partial class MainWindow
         newListButton.IsEnabled = !made;
     }
 
-    //for autosave
+    //for automatic actions
     private void SetAndMarkChanges(bool made)
     {
         if (made && !isRedoing)
             ClearRedo();
+
+        if (made && ConfigManager.IsAutoSortEnabled())
+        {
+            bool sorted = manager.ModSortEnabledMods();
+            if (sorted)
+                ShowNotification("Modlist Autosorted", "sortBorderIcon.svg");
+            RefreshModlistPanels();
+        }
 
         bool autoSaved = false;
         if (made && ConfigManager.IsAutoSaveEnabled())

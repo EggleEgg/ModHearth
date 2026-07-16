@@ -216,6 +216,14 @@ namespace ModHearth
             SaveConfigFile("Autosave");
         }
 
+        public static bool IsAutoSortEnabled() => Config.IsAutoSortEnabled;
+
+        public static void SetAutoSortEnabled(bool enabled)
+        {
+            Config.IsAutoSortEnabled = enabled;
+            SaveConfigFile("Autosort");
+        }
+
         public static string GetLeftSearchBarState() => Config.LeftSearchBarState;
         public static void SetLeftSearchBarState(string state)
         {

@@ -1,89 +1,51 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Input;
-using Avalonia.Input.Platform;
-using Avalonia.Layout;
-using Avalonia.Media;
-using Dock.Model.Avalonia;
-using Dock.Model.Avalonia.Controls;
+using Dock.Model.Mvvm;
+using Dock.Model.Mvvm.Controls;
 using Dock.Model.Core;
-using TheArtOfDev.HtmlRenderer.Avalonia;
 using DockOrientation = Dock.Model.Core.Orientation;
 
 namespace ModHearth.UI;
 
 public partial class MainWindow
 {
-    private HtmlPanel modDescriptionHtml = null!;
-    private Image modPreviewImage = null!;
+    private readonly ModPreviewPanelViewModel modPreviewPanelViewModel = new();
+    private readonly ModDataPanelViewModel modDataPanelViewModel = new();
+    private readonly ModDescriptionPanelViewModel modDescriptionPanelViewModel = new();
+
     private Tool? modPreviewTool;
     private Tool? modDataTool;
     private Tool? descriptionTool;
-    private StackPanel modDataPanelContent = null!;
     private ModReference? currentModDataModRef;
-
+    private class ModInfoDockFactory : Factory { }
+    ModInfoDockFactory factory = new ModInfoDockFactory();
     private void InitializeModInfoDock()
     {
-        modDescriptionHtml = new HtmlPanel();
+        // Configure properties directly on your panel view models since they are now Tools!
+        modPreviewPanelViewModel.Id = "ModPreviewTool";
+        modPreviewPanelViewModel.Title = "Preview";
+        modPreviewPanelViewModel.CanClose = true;
+        modPreviewPanelViewModel.CanFloat = true;
+        modPreviewPanelViewModel.CanPin = true;
+        modPreviewPanelViewModel.CanDrag = true;
 
-        ScrollViewer modDescriptionScrollViewer = new ScrollViewer
-        {
-            Content = modDescriptionHtml,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
-        };
+        modDataPanelViewModel.Id = "ModDataTool";
+        modDataPanelViewModel.Title = "Mod Data";
+        modDataPanelViewModel.CanClose = true;
+        modDataPanelViewModel.CanFloat = true;
+        modDataPanelViewModel.CanPin = true;
+        modDataPanelViewModel.CanDrag = true;
 
-        modDataPanelContent = new StackPanel
-        {
-            Spacing = 2,
-            Margin = new Thickness(6, 4, 6, 4)
-        };
-        ScrollViewer modDataScrollViewer = new ScrollViewer
-        {
-            Content = modDataPanelContent,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
-        };
+        modDescriptionPanelViewModel.Id = "DescriptionTool";
+        modDescriptionPanelViewModel.Title = "Description";
+        modDescriptionPanelViewModel.CanClose = true;
+        modDescriptionPanelViewModel.CanFloat = true;
+        modDescriptionPanelViewModel.CanPin = true;
+        modDescriptionPanelViewModel.CanDrag = true;
 
-        modPreviewImage = new Image
-        {
-            Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 4, 10, 4)
-        };
-
-        Factory factory = new Factory();
-
-        modPreviewTool = new Tool
-        {
-            Id = "ModPreviewTool",
-            Title = "Preview",
-            Content = modPreviewImage,
-            CanClose = false,
-            CanFloat = false,
-            CanPin = false
-        };
-        modDataTool = new Tool
-        {
-            Id = "ModDataTool",
-            Title = "Mod Data",
-            Content = modDataScrollViewer,
-            CanClose = false,
-            CanFloat = false,
-            CanPin = false
-        };
-        descriptionTool = new Tool
-        {
-            Id = "DescriptionTool",
-            Title = "Description",
-            Content = modDescriptionScrollViewer,
-            CanClose = false,
-            CanFloat = false,
-            CanPin = false,
-            CanDrag = false
-        };
+        modPreviewTool = modPreviewPanelViewModel;
+        modDataTool = modDataPanelViewModel;
+        descriptionTool = modDescriptionPanelViewModel;
 
         double proportion = ConfigManager.GetModDataPanelProportion();
         if (double.IsNaN(proportion) || proportion < 0.05 || proportion > 0.95)
@@ -93,6 +55,7 @@ public partial class MainWindow
             : DockOrientation.Vertical;
         bool modDataFirst = ConfigManager.GetModDataPanelFirst();
 
+        // The parent dock group
         ToolDock modDataDock = new ToolDock
         {
             Id = "ModDataDock",
@@ -239,28 +202,17 @@ public partial class MainWindow
     private void PopulateModDataViewer(ModReference? modref)
     {
         currentModDataModRef = modref;
-        modDataPanelContent.Children.Clear();
-
-        IBrush textBrush = Style.instance != null
-            ? BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor())
-            : Brushes.Black;
+        modDataPanelViewModel.Entries.Clear();
 
         if (modref == null)
         {
-            modDataPanelContent.Children.Add(new TextBlock
-            {
-                Text = "Select a mod to view its data.",
-                FontSize = 12,
-                FontStyle = FontStyle.Italic,
-                Foreground = textBrush,
-                Opacity = 0.7,
-                Margin = new Thickness(2)
-            });
+            modDataPanelViewModel.HasSelection = false;
             return;
         }
 
+        modDataPanelViewModel.HasSelection = true;
         foreach ((string label, string value) in GetModDataEntries(modref))
-            modDataPanelContent.Children.Add(CreateModDataRow(label, value, textBrush));
+            modDataPanelViewModel.Entries.Add(new ModDataEntryViewModel(label, value));
     }
 
     private static IEnumerable<(string label, string value)> GetModDataEntries(ModReference modref)
@@ -293,67 +245,6 @@ public partial class MainWindow
 
     private static string? JoinList(List<string>? values)
         => values == null || values.Count == 0 ? null : string.Join(", ", values);
-
-    private Control CreateModDataRow(string label, string value, IBrush textBrush)
-    {
-        Grid rowGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*")
-        };
-
-        TextBlock labelBlock = new TextBlock
-        {
-            Text = label,
-            FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = textBrush,
-            Opacity = 0.75,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 0, 8, 0),
-            MinWidth = 110
-        };
-        TextBlock valueBlock = new TextBlock
-        {
-            Text = value,
-            FontSize = 12,
-            Foreground = textBrush,
-            TextWrapping = TextWrapping.Wrap,
-            VerticalAlignment = VerticalAlignment.Top
-        };
-        Grid.SetColumn(valueBlock, 1);
-        rowGrid.Children.Add(labelBlock);
-        rowGrid.Children.Add(valueBlock);
-
-        IBrush hoverBrush = Style.instance != null
-            ? BrushCache.GetBrush(Style.instance.modRefPanelColor.ToAvaloniaColor())
-            : BrushCache.GetBrush(Color.Parse("#22888888"));
-
-        Border row = new Border
-        {
-            Child = rowGrid,
-            Background = Brushes.Transparent,
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(4, 2, 4, 2),
-            Cursor = new Cursor(StandardCursorType.Hand)
-        };
-        ToolTip.SetTip(row, $"Click to copy {label}");
-        row.PointerEntered += (_, _) => row.Background = hoverBrush;
-        row.PointerExited += (_, _) => row.Background = Brushes.Transparent;
-        row.PointerPressed += async (_, e) =>
-        {
-            if (!e.GetCurrentPoint(row).Properties.IsLeftButtonPressed)
-                return;
-
-            IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            if (clipboard == null)
-                return;
-
-            await clipboard.SetTextAsync(value);
-            ShowNotification($"Copied {label}", "copyIcon.svg");
-        };
-
-        return row;
-    }
 
     private void RefreshModDataViewer()
     {

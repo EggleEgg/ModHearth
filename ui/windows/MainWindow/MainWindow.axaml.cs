@@ -35,6 +35,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    public bool IsAutoSortEnabled
+    {
+        get => ConfigManager.IsAutoSortEnabled();
+        set
+        {
+            if (value != ConfigManager.IsAutoSortEnabled())
+            {
+                ConfigManager.SetAutoSortEnabled(value);
+                NotifyOfPropertyChange();
+            }
+        }
+    }
+
     public bool IsOpenSteamInClientEnabled
     {
         get => ConfigManager.GetOpenSteamInClient();
@@ -112,6 +125,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         InitializeModInfoDock();
         saveButton.DataContext = this;
+        sortButton.DataContext = this;
         SetWindowIcon();
         SetPreviewImage(LoadFallbackPreview());
         ShowFallbackHelpText();
@@ -189,6 +203,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         runDwarfFortressButton.Click += async (_, _) => await RunDwarfFortressAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
         sortButton.Click += async (_, _) => await ModSortAsync();
+        sortButton.AddHandler(InputElement.PointerPressedEvent, SortButtonPointerPressed, RoutingStrategies.Tunnel, true);
         sortRulesButton.Click += async (_, _) => await OpenSortRulesAsync();
         clearInstalledModsButton.Click += async (_, _) => await ClearInstalledModsAsync();
         clearInstalledModsButton.AddHandler(InputElement.PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);

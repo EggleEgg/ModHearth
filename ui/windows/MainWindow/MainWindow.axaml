@@ -15,6 +15,15 @@
       <ui:ModRefControl ShowColorUnderlay="True" Padding="0" Margin="0,0,-3,0"
                         HorizontalAlignment="Stretch" ToolTip.Tip="{Binding HoverTooltip}" />
     </DataTemplate>
+    <DataTemplate DataType="ui:ModPreviewPanelViewModel" x:DataType="ui:ModPreviewPanelViewModel">
+      <ui:ModPreviewPanelView />
+    </DataTemplate>
+    <DataTemplate DataType="ui:ModDataPanelViewModel" x:DataType="ui:ModDataPanelViewModel">
+      <ui:ModDataPanelView />
+    </DataTemplate>
+    <DataTemplate DataType="ui:ModDescriptionPanelViewModel" x:DataType="ui:ModDescriptionPanelViewModel">
+      <ui:ModDescriptionPanelView />
+    </DataTemplate>
   </Window.DataTemplates>
 
   <Panel>
@@ -68,11 +77,13 @@
             <Style Selector="ListBoxItem" x:DataType="ui:ModRefViewModel">
               <Setter Property="Padding" Value="0,0,3,0" />
               <Setter Property="Margin" Value="0" />
-              <Setter Property="HorizontalAlignment" Value="Stretch" />
-              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
               <Setter Property="Background" Value="Transparent" />
               <Setter Property="BorderThickness" Value="0" />
               <Setter Property="IsVisible" Value="{Binding IsVisible}" />
+              <Setter Property="HorizontalAlignment" Value="Stretch" />
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+              <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Hidden" />
+              <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
             </Style>
             <Style Selector="ui|ModSearchBar">
               <Setter Property="Margin" Value="-2,0,-2,0" />
@@ -87,9 +98,7 @@
                              PlaceholderText="Search" Height="28" />
 
             <ListBox x:Name="leftModlist" Grid.Row="2" SelectionMode="Multiple"
-                     AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     Margin="0,6,0,0">
+                     AutoScrollToSelectedItem="False" Margin="0,6,0,0">
             </ListBox>
           </Grid>
 
@@ -101,9 +110,7 @@
                              PlaceholderText="Search" Height="28" />
 
             <ListBox x:Name="rightModlist" Grid.Row="2" SelectionMode="Multiple"
-                     AutoScrollToSelectedItem="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                     Margin="0,6,0,0">
+                     AutoScrollToSelectedItem="False" Margin="0,6,0,0">
             </ListBox>
           </Grid>
 
@@ -167,8 +174,14 @@
           </Grid>
 
           <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Height="28">
-            <Button x:Name="sortButton" Content="Sort"
-                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            <Button x:Name="sortButton" HorizontalContentAlignment="Stretch">
+              <Grid>
+                <TextBlock Text="Sort" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <Image x:Name="autoSortIndicator"
+                       Source="{ui:AssetImage updateBorderIcon}" Width="16" Height="16"
+                       HorizontalAlignment="Left" VerticalAlignment="Center" Margin="6,0,0,0"/>
+              </Grid>
+            </Button>
             <Button x:Name="sortRulesButton" Grid.Column="1"
                     ToolTip.Tip="Custom sorting rules. These override automatic sorting">
               <Image Source="{ui:AssetImage gearIcon}" />

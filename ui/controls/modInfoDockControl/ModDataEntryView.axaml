@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ModHearth.UI"
+             x:Class="ModHearth.UI.ModDataEntryView"
+             x:DataType="ui:ModDataEntryViewModel">
+  <Border Background="{Binding Background}"
+          CornerRadius="3"
+          Padding="4,2,4,2"
+          Cursor="Hand"
+          PointerEntered="RowPointerEntered"
+          PointerExited="RowPointerExited"
+          PointerPressed="RowPointerPressed"
+          ToolTip.Tip="{Binding Label, StringFormat='Click to copy {0}'}">
+    <Grid ColumnDefinitions="Auto,*">
+      <TextBlock Text="{Binding Label}"
+                 FontSize="12"
+                 FontWeight="SemiBold"
+                 Opacity="0.75"
+                 VerticalAlignment="Top"
+                 Margin="0,0,8,0"
+                 MinWidth="110" />
+      <TextBlock Grid.Column="1"
+                 Text="{Binding Value}"
+                 FontSize="12"
+                 TextWrapping="Wrap"
+                 VerticalAlignment="Top" />
+    </Grid>
+  </Border>
+</UserControl>

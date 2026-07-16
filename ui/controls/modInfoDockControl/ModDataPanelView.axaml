@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ModHearth.UI"
+             x:Class="ModHearth.UI.ModDataPanelView"
+             x:DataType="ui:ModDataPanelViewModel">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="ui:ModDataEntryViewModel">
+      <ui:ModDataEntryView />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <Grid Margin="6,4,6,4">
+      <TextBlock Text="Select a mod to view its data."
+                 FontSize="12"
+                 FontStyle="Italic"
+                 Opacity="0.7"
+                 Margin="2"
+                 IsVisible="{Binding !HasSelection}" />
+      <ItemsControl ItemsSource="{Binding Entries}" IsVisible="{Binding HasSelection}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Spacing="2" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+    </Grid>
+  </ScrollViewer>
+</UserControl>

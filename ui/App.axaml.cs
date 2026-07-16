@@ -3,7 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 
-namespace ModHearth;
+namespace ModHearth.UI;
 
 public partial class App : Application
 {

@@ -57,6 +57,9 @@ namespace ModHearth
         // Automatically save modlist changes.
         public bool IsAutoSaveEnabled { get; set; } = false;
 
+        // Automatically sort modlist changes.
+        public bool IsAutoSortEnabled { get; set; } = false;
+
         // Optional GitHub repository URL from which to load community modsort_rules.json.
         public string CommunitySortRulesUrl { get; set; } = string.Empty;
 

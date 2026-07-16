@@ -132,6 +132,25 @@ public partial class MainWindow
         }
     }
 
+    private void SortButtonPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(sortButton).Properties.IsRightButtonPressed)
+            return;
+
+        e.Handled = true;
+        IsAutoSortEnabled = !IsAutoSortEnabled;
+
+        if (IsAutoSortEnabled)
+        {
+            ShowNotification("Autosort enabled", "sortBorderIcon.svg");
+            _ = ModSortAsync();
+        }
+        else
+        {
+            ShowNotification("Autosort disabled", "sortCancelIcon.svg");
+        }
+    }
+
     private async Task RevealInstalledModsFolderAsync()
     {
         string installedModsPath = ConfigManager.GetInstalledModsPath();
