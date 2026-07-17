@@ -11,7 +11,7 @@ namespace ModHearth.UI;
 /// Supported tags:
 ///   Formatting : [b] [i] [u] [s] [strike]
 ///   Headings   : [h1] [h2] [h3]
-///   Lists      : [list] [olist] [*]    — [*] does not need [/*]
+///   Lists      : [list] [olist] [*]      [*] does not need [/*]
 ///   Blocks     : [code] [quote] [spoiler] [noparse]
 ///   Alignment  : [center] [left] [right]
 ///   Inline     : [color=] [size=]
@@ -22,8 +22,8 @@ namespace ModHearth.UI;
 /// </summary>
 public static class BBCodeRenderer
 {
-    // Avalonia.HtmlRenderer has a rendering quirk where the document's true first line gets correct positioning, but every line after it —
-    // whether from a literal newline or the engine's own automatic word- wrap — renders with an unwanted left offset. Confirmed via testing
+    // Avalonia.HtmlRenderer has a rendering quirk where the document's true first line gets correct positioning, but every line after it; 
+    // whether from a literal newline or the engine's own automatic word- wrap. Renders with an unwanted left offset. Confirmed via testing
     // that this isn't CSS-controllable (text-indent:0 has zero effect), so this works around it instead of trying to fix it
 
     // This value is hand-tuned, not computed
@@ -179,8 +179,7 @@ public static class BBCodeRenderer
     }
 
     /// <summary>
-    /// Converts plain text (no BBCode) to HTML — escapes entities and maps newlines
-    /// to &lt;br/&gt;. Used for the readme-based fallback help text.
+    /// Converts plain text (no BBCode) to HTML. Escapes entities and maps newlines to &lt;br/&gt;. Used for the readme-based fallback help text.
     /// </summary>
     public static string PlainTextToHtml(
         string? text,

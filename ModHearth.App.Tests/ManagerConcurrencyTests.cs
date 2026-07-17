@@ -16,7 +16,7 @@ public class ManagerConcurrencyTests
 
         const int cheapIterations = 2000;
         const int expensiveIterations = 500;
-        const int initializeIterations = 5; // keep this low — it's expensive by design, not by bug
+        const int initializeIterations = 5; // keep this low, it's expensive by design, not by bug
 
         Exception? captured = null;
         object captureLock = new object();

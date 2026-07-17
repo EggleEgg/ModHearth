@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using ModHearth.UI;
 using ModHearth.Utilities;
+using System.Collections.Concurrent;
 
 namespace ModHearth
 {
@@ -151,7 +152,6 @@ namespace ModHearth
         public static string GetModsPath() => ConfigManager.GetModsPath();
         public static string GetInstalledModsPath() => ConfigManager.GetInstalledModsPath();
         public static string GetVanillaModsPath() => ConfigManager.GetVanillaModsPath();
-        public static string GetErrorLogPath() => ConfigManager.GetErrorLogPath();
         public static string GetModManagerConfigPath() => ConfigManager.GetModManagerConfigPath();
         public static string GetDfhackRunPath() => ConfigManager.GetDfhackRunPath();
         public static string NormalizeFileSystemPath(string path) => ConfigManager.NormalizeFileSystemPath(path);
@@ -169,7 +169,9 @@ namespace ModHearth
         public volatile List<ModProblem> modproblems = new();
         private volatile Dictionary<string, List<ModReference>> duplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
         private volatile Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
+        private volatile Dictionary<string, List<string>> cacheDuplicateMap = new(StringComparer.OrdinalIgnoreCase);
         private volatile List<HashSet<string>> duplicateWarningGroups = new();
+        private volatile List<HashSet<string>> cacheDuplicateGroups = new();
         private DateTime savingModpacksCooldownUntilUtc = DateTime.MinValue;
         public bool IsSavingModpacks
         {
@@ -210,7 +212,7 @@ namespace ModHearth
             LoadCommunitySortRules();
         }
 
-        private void MigrateLocalModpacks()
+        private static void MigrateLocalModpacks()
         {
             string oldPath = Path.Combine(baseDir, "modpacks.local.json");
             string newPath = localFallbackModpacksPath;
@@ -222,7 +224,7 @@ namespace ModHearth
                     string? directory = Path.GetDirectoryName(newPath);
                     if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
                         Directory.CreateDirectory(directory);
-                    
+
                     File.Move(oldPath, newPath);
                     Console.WriteLine($"Moved modpacks.local.json to {newPath}");
                 }
@@ -408,7 +410,7 @@ namespace ModHearth
             }
         }
 
-        public void SetCommunitySortRulesUrl(string repositoryUrl)
+        public static void SetCommunitySortRulesUrl(string repositoryUrl)
         {
             ConfigManager.Config.CommunitySortRulesUrl = repositoryUrl?.Trim() ?? string.Empty;
             ConfigManager.SaveConfigFile("Url");
@@ -675,7 +677,6 @@ namespace ModHearth
 
         private static HashSet<string> BuildInstalledCacheModIds()
         {
-            HashSet<string> ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             List<string> roots = new List<string>();
 
             string installedModsPath = GetInstalledModsPath();
@@ -689,35 +690,45 @@ namespace ModHearth
                     roots.Add(ResolveExistingDirectoryPath(vanillaPath) ?? vanillaPath);
             }
 
+            List<string> candidateDirs = new List<string>();
             foreach (string root in roots)
             {
                 if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                     continue;
 
-                foreach (string dir in EnumerateModDirectoriesWithInfo(root))
-                {
-                    string? infoPath = ResolveInfoFilePath(dir);
-                    if (string.IsNullOrWhiteSpace(infoPath))
-                        continue;
-                    try
-                    {
-                        string info = File.ReadAllText(infoPath);
-                        Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
-                        if (idMatch.Success)
-                        {
-                            string id = idMatch.Groups[1].Value.Trim();
-                            if (!string.IsNullOrEmpty(id))
-                                ids.Add(id);
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore unreadable info files.
-                    }
-                }
+                candidateDirs.AddRange(EnumerateModDirectoriesWithInfo(root));
             }
 
-            return ids;
+            // A plain membership set has no "which duplicate wins" concern (unlike BuildModIdPathMap's
+            // dir-per-id map), so a ConcurrentDictionary-backed set is enough
+            ConcurrentDictionary<string, byte> ids = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+            Parallel.ForEach(candidateDirs, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, dir =>
+            {
+                string? infoPath = ResolveInfoFilePath(dir);
+                if (string.IsNullOrWhiteSpace(infoPath))
+                    return;
+
+                try
+                {
+                    string info = File.ReadAllText(infoPath);
+                    Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
+                    if (idMatch.Success)
+                    {
+                        string id = idMatch.Groups[1].Value.Trim();
+                        if (!string.IsNullOrEmpty(id))
+                            ids.TryAdd(id, 0);
+                    }
+                }
+                catch
+                {
+                    // Ignore unreadable info files.
+                }
+            });
+
+            return new HashSet<string>(ids.Keys, StringComparer.OrdinalIgnoreCase);
         }
 
         private static string scrDir = "src_dir";
@@ -733,10 +744,6 @@ namespace ModHearth
                 FindAllModsFromDisk();
                 return;
             }
-
-            Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
-            HashSet<DFHMod> newModPool = new();
 
             Console.WriteLine("Finding all mods... ");
 
@@ -761,16 +768,36 @@ namespace ModHearth
             Console.WriteLine($"DFHack memory mod entries received: {modData.Count}.");
             Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
 
-            foreach (Dictionary<string, string> modDataEntry in modData)
+            // Enumerate. Pin down an explicit order, so the parallel compute and sequential merge phases below are deterministic
+            List<Dictionary<string, string>> modDataList = modData.ToList();
+
+            // Parallel compute. Path resolution, ModReference construction and LastModifiedTime stamp are all independent per entry work
+            ModReference?[] results = new ModReference?[modDataList.Count];
+            Parallel.For(0, modDataList.Count, new ParallelOptions
             {
-                // Directory correction.
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, i =>
+            {
+                Dictionary<string, string> modDataEntry = modDataList[i];
                 modDataEntry[scrDir] = ResolveModPath(modDataEntry, modIdPathMap);
 
                 // Mod setup and registry.
                 ModReference modRef = new ModReference(modDataEntry);
-                modRef.LastModifiedTime = GetLatestModifiedTimestamp(modDataEntry["src_dir"]);
-                string key = modRef.DFHackCompatibleString();
+                modRef.LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"]);
+                results[i] = modRef;
+            });
 
+            // Sequential merge. Preserves "first occurrence wins" for duplicates, same as before.
+            Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<DFHMod> newModPool = new();
+
+            foreach (ModReference? modRef in results)
+            {
+                if (modRef == null)
+                    continue;
+
+                string key = modRef.DFHackCompatibleString();
                 if (newModrefMap.ContainsKey(key))
                 {
                     if (!newDuplicateModRefs.TryGetValue(key, out var list))
@@ -876,7 +903,9 @@ namespace ModHearth
 
             InfoLogger.Log($"Disk mod scan completed. Total registered mods={newModrefMap.Count}.");
         }
-        private static ModReference? TryBuildModReferenceFromDirectory(string dir)
+
+        // Parallel safe
+        private ModReference? TryBuildModReferenceFromDirectory(string dir)
         {
             string? infoPath = ResolveInfoFilePath(dir);
             if (string.IsNullOrWhiteSpace(infoPath))
@@ -889,7 +918,7 @@ namespace ModHearth
             return new ModReference(modData)
             {
                 MissingVersion = missingVersion,
-                LastModifiedTime = GetLatestModifiedTimestamp(dir)
+                LastModifiedTime = GetLatestModifiedTimestampCached(dir)
             };
         }
 
@@ -908,6 +937,11 @@ namespace ModHearth
             }
         }
 
+        // Thread-safe: written to concurrently from FindAllModsFromDisk's Parallel.For
+        private readonly ConcurrentDictionary<string, (string QuickStamp, DateTime? LastModified)> lastModifiedTimestampCache =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        // Call GetLatestModifiedTimestampCached instead of this
         private static DateTime? GetLatestModifiedTimestamp(string directoryPath)
         {
             DateTime? result = FolderTimestampHelper.GetLatestModifiedTimeUtc(
@@ -916,7 +950,26 @@ namespace ModHearth
             return result ?? (Directory.Exists(directoryPath) ? Directory.GetLastWriteTimeUtc(directoryPath) : null);
         }
 
+        // Cached wrapper around GetLatestModifiedTimestamp
+        private DateTime? GetLatestModifiedTimestampCached(string directoryPath)
+        {
+            string canonicalPath = ConfigManager.ResolveCanonicalPath(directoryPath ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(canonicalPath) && !string.IsNullOrEmpty(directoryPath))
+                return GetLatestModifiedTimestamp(directoryPath);
 
+            string quickStamp = ModUpdateLogger.BuildLocalQuickStamp(canonicalPath);
+            if (!string.IsNullOrEmpty(quickStamp) &&
+                lastModifiedTimestampCache.TryGetValue(canonicalPath, out (string QuickStamp, DateTime? LastModified) cached) &&
+                cached.QuickStamp == quickStamp)
+            {
+                return cached.LastModified;
+            }
+
+            DateTime? computed = GetLatestModifiedTimestamp(canonicalPath);
+            if (!string.IsNullOrEmpty(quickStamp))
+                lastModifiedTimestampCache[canonicalPath] = (quickStamp, computed);
+            return computed;
+        }
 
         private static IEnumerable<string> EnumerateModDirectoriesWithInfo(string root)
         {
@@ -1130,36 +1183,54 @@ namespace ModHearth
 
         private static Dictionary<string, string> BuildModIdPathMap()
         {
-            Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
+            // Enumerate phase: preserve root/dir order so the merge below reproduces the original "first occurrence wins" semantics.
+            List<string> candidateDirs = new List<string>();
             foreach (string root in EnumerateModRoots())
             {
                 if (!Directory.Exists(root))
                     continue;
 
                 foreach (string dir in EnumerateModDirectoriesWithInfo(root))
+                    candidateDirs.Add(dir);
+            }
+
+            // Parallel-compute phase: reading + regex-matching each info.txt is independent per directory.
+            (string? Id, string Dir)?[] results = new (string?, string)?[candidateDirs.Count];
+            Parallel.For(0, candidateDirs.Count, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, i =>
+            {
+                string dir = candidateDirs[i];
+                string? infoPath = ResolveInfoFilePath(dir);
+                if (string.IsNullOrWhiteSpace(infoPath))
+                    return;
+
+                try
                 {
-                    string? infoPath = ResolveInfoFilePath(dir);
-                    if (string.IsNullOrWhiteSpace(infoPath))
-                        continue;
-                    try
+                    string info = File.ReadAllText(infoPath);
+                    Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
+                    if (idMatch.Success)
                     {
-                        string info = File.ReadAllText(infoPath);
-                        Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
-                        if (idMatch.Success)
-                        {
-                            string id = idMatch.Groups[1].Value.Trim();
-                            if (!string.IsNullOrEmpty(id) && !map.ContainsKey(id))
-                            {
-                                map[id] = dir;
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore unreadable info files.
+                        string id = idMatch.Groups[1].Value.Trim();
+                        if (!string.IsNullOrEmpty(id))
+                            results[i] = (id, dir);
                     }
                 }
+                catch
+                {
+                    // Ignore unreadable info files.
+                }
+            });
+
+            // Sequential-merge phase: same "first occurrence across roots/dirs wins" as the original loop.
+            Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach ((string? Id, string Dir)? entry in results)
+            {
+                if (entry == null || string.IsNullOrEmpty(entry.Value.Id))
+                    continue;
+                if (!map.ContainsKey(entry.Value.Id))
+                    map[entry.Value.Id] = entry.Value.Dir;
             }
 
             InfoLogger.Log($"Mod ID path map entries: {map.Count}.");
@@ -1902,18 +1973,36 @@ namespace ModHearth
         public IReadOnlyDictionary<string, List<string>> GetDuplicateWarningMap()
         {
             EnsureDuplicateWarningCache(logFound: true);
-            return duplicateWarningMap;
+
+            Dictionary<string, List<string>> combinedMap = new(duplicateWarningMap, StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in cacheDuplicateMap)
+            {
+                if (combinedMap.TryGetValue(kvp.Key, out var list))
+                {
+                    list.AddRange(kvp.Value);
+                }
+                else
+                {
+                    combinedMap[kvp.Key] = new List<string>(kvp.Value);
+                }
+            }
+            return combinedMap;
         }
 
         public IReadOnlyList<HashSet<string>> GetDuplicateWarningGroups()
         {
             EnsureDuplicateWarningCache(logFound: true);
-            return duplicateWarningGroups;
+
+            List<HashSet<string>> combinedGroups = new(duplicateWarningGroups);
+            combinedGroups.AddRange(cacheDuplicateGroups);
+            return combinedGroups;
         }
 
         private void EnsureDuplicateWarningCache(bool logFound)
         {
-            string errorLogPath = GetErrorLogPath();
+            RefreshCacheDuplicateMap();
+
+            string errorLogPath = ConfigManager.GetErrorLogPath();
             bool exists = File.Exists(errorLogPath);
             if (logFound && exists &&
                 (!string.Equals(lastLoggedErrorLogPath, errorLogPath, StringComparison.OrdinalIgnoreCase) || !lastLoggedErrorLogExists))
@@ -2021,6 +2110,52 @@ namespace ModHearth
             groups = groupList;
         }
 
+        private void RefreshCacheDuplicateMap()
+        {
+            var cache = ModRawDependencyCacheStore.Load();
+            Dictionary<string, List<string>> newMap = new(StringComparer.OrdinalIgnoreCase);
+            List<HashSet<string>> newGroups = new();
+            Dictionary<string, List<string>> definitionToMods = new(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in cache.Values)
+            {
+                foreach (var defId in entry.DirectDefinitionIds)
+                {
+                    if (!definitionToMods.TryGetValue(defId, out var mods))
+                    {
+                        mods = new List<string>();
+                        definitionToMods[defId] = mods;
+                    }
+                    mods.Add(entry.ModId);
+                }
+            }
+
+            foreach (var kvp in definitionToMods)
+            {
+                if (kvp.Value.Count > 1)
+                {
+                    HashSet<string> group = new HashSet<string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
+                    newGroups.Add(group);
+
+                    foreach (var modId in kvp.Value)
+                    {
+                        if (!newMap.TryGetValue(modId, out var objects))
+                        {
+                            objects = new List<string>();
+                            newMap[modId] = objects;
+                        }
+                        objects.Add($"[Cache] Duplicate raw definition: {kvp.Key} (also in: {string.Join(", ", kvp.Value.Where(id => !string.Equals(id, modId, StringComparison.OrdinalIgnoreCase)))})");
+                    }
+                }
+            }
+
+            lock (stateGate)
+            {
+                cacheDuplicateMap = newMap;
+                cacheDuplicateGroups = newGroups;
+            }
+        }
+
         private Dictionary<string, string> BuildDuplicateWarningAliasMap()
         {
             Dictionary<string, string> aliasMap = new(StringComparer.OrdinalIgnoreCase);
@@ -2125,7 +2260,7 @@ namespace ModHearth
                 missingMessage = messageBuilder.ToString();
 
                 // modlist isn't published anywhere yet, so replacing its .modlist with a trimmed copy (instead of mutating the shared List<DFHMod>
-                // in place via .Remove()) is just cheap extra insurance, not a hard requirement — keeps the habit consistent though.
+                // in place via .Remove()) is just cheap extra insurance, not a hard requiremen. Keeps the habit consistent though.
                 if (thisListMissingMods.Count > 0)
                     modlist.modlist = modlist.modlist.Where(m => !thisListMissingMods.Contains(m)).ToList();
 
@@ -2171,7 +2306,7 @@ namespace ModHearth
                 indexToSelect = 0;
             }
 
-            // Single publish point — modpacks becomes visible to every other reader
+            // Single publish point, modpacks becomes visible to every other reader
             // only once loading, trimming, and defaulting are fully done.
             lock (stateGate)
                 modpacks = newModpacks;

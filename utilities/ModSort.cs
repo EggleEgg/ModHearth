@@ -3,8 +3,8 @@
 namespace ModHearth
 {
     // Uses a raw-file dependency scan (CUT/SELECT/COPY_TAGS_FROM) plus mod-author-declared hints (info.txt before/after/requires, sort rules) to build a dependency graph, then
-    // topologically sorts it. Edges are added in strict priority order — sort rules, then info.txt declarations, then vanilla-conflict structural edges, then raw-scan-derived
-    //edges — and every edge is checked against the graph as it currently stands before being added, so a lower-priority source can never override or contradict a
+    // topologically sorts it. Edges are added in strict priority order: sort rules, then info.txt declarations, then vanilla-conflict structural edges, then raw-scan-derived
+    //edges. And every edge is checked against the graph as it currently stands before being added, so a lower-priority source can never override or contradict a
     //higher-priority one; it can only fill in relationships nothing else addressed. Coarse trait-based grouping (GetModSortGroup) only breaks ties among mods with no
     //actual graph relationship to anything else.
     public partial class ModHearthManager
@@ -39,7 +39,7 @@ namespace ModHearth
 
         // True if adding fromId -> toId would create a cycle given the edges already in the graph (i.e. toId can already reach fromId). This is
         // what makes tiered priority work: since tiers are added in priority order, a lower-priority edge that contradicts a higher-priority one
-        // always fails this check and gets dropped — never the reverse.
+        // always fails this check and gets dropped, never the reverse.
         private static bool WouldCreateCycle(Dictionary<string, List<string>> edges, string fromId, string toId)
         {
             if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
@@ -72,7 +72,7 @@ namespace ModHearth
         }
 
         // Adds a "fromId must come before toId" edge, unless it's a self-edge, already present, or would create a cycle with edges already in the
-        // graph — in which case it's silently dropped rather than corrupting the sort. Every edge added anywhere in ModSortEnabledMods goes
+        // graph, in which case it's silently dropped rather than corrupting the sort. Every edge added anywhere in ModSortEnabledMods goes
         // through this.
         private static bool TryAddEdge(Dictionary<string, List<string>> edges, Dictionary<string, int> indegree, string fromId, string toId)
         {
@@ -90,12 +90,9 @@ namespace ModHearth
             return true;
         }
 
-        // Same three signals baseOrder itself is sorted by (coarse trait
-        // group, original list position, then name) — used to give a
-        // deterministic best-effort order between mods with no principled
-        // dependency relationship at all (e.g. two mods that both cut the
-        // same raw target, or two mods that both directly define the same ID
-        // with no CUT involved).
+        // Same three signals baseOrder itself is sorted by (coarse trait group, original list position, then name). Used to give a
+        // deterministic best-effort order between mods with no principled dependency relationship at all (e.g. two mods that both cut the
+        // same raw target, or two mods that both directly define the same ID with no CUT involved).
         private int CompareForBestEffortOrder(ModReference a, ModReference b, Dictionary<string, int> originalIndex)
         {
             int groupCompare = GetModSortGroup(a).CompareTo(GetModSortGroup(b));
@@ -290,7 +287,7 @@ namespace ModHearth
             }
 
             // --- Tier 3: vanilla-base structural edges. A mod sharing a raw definition with a vanilla object (per DF's own errorlog.txt) is
-            // almost always intended to patch/extend it, not replace it silently — so vanilla goes first. ---
+            // almost always intended to patch/extend it, not replace it silently, so vanilla goes first. ---
             foreach (HashSet<string> group in GetDuplicateWarningGroups())
             {
                 List<string> vanillaIds = new List<string>();
@@ -330,8 +327,7 @@ namespace ModHearth
                 }
             }
 
-            // --- Tier 4: raw-scan-derived edges (lowest priority — mechanically
-            // inferred, not declared by anyone) ---
+            // --- Tier 4: raw-scan-derived edges (lowest priority mechanically inferred, not declared by anyone) ---
             Dictionary<string, List<string>> directDefiners = new(StringComparer.OrdinalIgnoreCase);
             foreach (string id in enabledIds)
             {
@@ -353,8 +349,8 @@ namespace ModHearth
             }
 
             // CUT-before-SELECT: if mod A cuts target T and mod B separately SELECTs (patches) T without also cutting it, A must load before
-            // B — otherwise A's CUT silently erases B's additions. If both A and B cut the same target, there's no principled correct order
-            // (whichever cuts last is the one whose CUT sticks) — rather than leave that undetermined, a deterministic best-effort order is
+            // B. Otherwise A's CUT silently erases B's additions. If both A and B cut the same target, there's no principled correct order
+            // (whichever cuts last is the one whose CUT sticks). Rather than leave that undetermined, a deterministic best-effort order is
             // assigned using the same signal baseOrder itself is built from.
             foreach (string cutterId in enabledIds)
             {
@@ -401,8 +397,7 @@ namespace ModHearth
                 }
             }
 
-            // COPY_TAGS_FROM: a hard dependency — whoever directly defines the
-            // source ID must load before anything that copies its tags.
+            // COPY_TAGS_FROM: a hard dependency. Whoever directly defines the source ID must load before anything that copies its tags.
             foreach (string copierId in enabledIds)
             {
                 if (!idMap.TryGetValue(copierId, out ModReference? copierRef) || copierRef == null)
@@ -431,12 +426,10 @@ namespace ModHearth
                 }
             }
 
-            // Mod-vs-mod duplicate warnings (from DF's own errorlog.txt) where
-            // none of the conflicting mods are vanilla — if some are cutters
-            // and some aren't, put non-cutters first. Complementary to the
-            // CUT-before-SELECT pass above: this comes from DF's actual
-            // reported conflicts rather than requiring the scan to match a
-            // specific SELECT target ID.
+            // Mod-vs-mod duplicate warnings (from DF's own errorlog.txt) where none of the conflicting mods are vanilla. 
+            // If some are cutters and some aren't, put non-cutters first. 
+            // Complementary to the CUT-before-SELECT pass above: this comes from DF's actual
+            // reported conflicts rather than requiring the scan to match a specific SELECT target ID.
             foreach (HashSet<string> group in GetDuplicateWarningGroups())
             {
                 List<string> modIds = group.Where(id =>
@@ -479,8 +472,8 @@ namespace ModHearth
                 }
             }
 
-            // Two or more enabled mods directly defining the same raw ID with no CUT relationship between them is a genuine conflict — no
-            // order makes it correct, DF will silently misbehave regardless. Still assign a deterministic best-effort order (chained through
+            // Two or more enabled mods directly defining the same raw ID with no CUT relationship between them is a genuine conflict. 
+            // No order makes it correct, DF will silently misbehave regardless. Still assign a deterministic best-effort order (chained through
             // the whole group) rather than leave it to incidental Kahn's-algorithm frontier timing, and surface it so it's at least traceable.
             List<string> conflictingKeys = new List<string>();
             foreach (KeyValuePair<string, List<string>> kvp in directDefiners)
@@ -545,8 +538,8 @@ namespace ModHearth
                 }
             }
 
-            // With every edge added through TryAddEdge's cycle check, the graph should always be acyclic by construction — this remains
-            // only as a defensive fallback.
+            // With every edge added through TryAddEdge's cycle check, the graph should always be acyclic by construction. 
+            // This remains only as a defensive fallback.
             if (sortedIds.Count != enabledIds.Count)
                 sortedIds = baseOrder.Select(m => m.ID).ToList();
 

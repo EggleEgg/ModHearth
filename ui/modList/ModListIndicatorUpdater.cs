@@ -95,10 +95,23 @@ internal static class ModListIndicatorUpdater
 
     public static string BuildDuplicateWarningTooltip(ModHearthManager? manager, string modId, IEnumerable<string> duplicates)
     {
-        string errorLogPath = ConfigManager.GetErrorLogPath() ?? "errorlog.txt";
         StringBuilder builder = new StringBuilder();
 
-        builder.Append($"Duplicate raw definitions ({errorLogPath}):").AppendLine().AppendLine();
+        bool hasCache = duplicates.Any(d => d.Contains("[Cache]"));
+        bool hasErrorLog = File.Exists(ConfigManager.GetErrorLogPath());
+
+        if (hasErrorLog)
+        {
+            string errorLogPath = ConfigManager.GetErrorLogPath() ?? "errorlog.txt";
+            builder.Append($"Duplicate raw definitions ({errorLogPath}):");
+        }
+        else if (hasCache)
+        {
+            string cachePath = ModRawDependencyCacheStore.CachePath ?? "mod_raw_dependency_cache.json";
+            builder.Append($"Potential duplicate raw definitions ({cachePath}):");
+        }
+
+        builder.AppendLine().AppendLine();
 
         if (manager != null)
         {

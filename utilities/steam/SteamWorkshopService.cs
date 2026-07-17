@@ -25,7 +25,7 @@ public sealed class SteamWorkshopService
             bool completed = false;
             EResult result = EResult.k_EResultFail;
 
-            CallResult<RemoteStorageSubscribePublishedFileResult_t> callResult = CallResult<RemoteStorageSubscribePublishedFileResult_t>.Create((res, failure) =>
+            using CallResult<RemoteStorageSubscribePublishedFileResult_t> callResult = CallResult<RemoteStorageSubscribePublishedFileResult_t>.Create((res, failure) =>
             {
                 completed = true;
                 if (!failure)
@@ -43,9 +43,6 @@ public sealed class SteamWorkshopService
                 SteamAPI.RunCallbacks();
                 Thread.Sleep(50);
             }
-
-            // Keep the CallResult alive until completion to prevent premature GC.
-            GC.KeepAlive(callResult);
 
             return completed && result == EResult.k_EResultOK;
         }
@@ -66,7 +63,7 @@ public sealed class SteamWorkshopService
             bool completed = false;
             EResult result = EResult.k_EResultFail;
 
-            CallResult<RemoteStorageUnsubscribePublishedFileResult_t> callResult = CallResult<RemoteStorageUnsubscribePublishedFileResult_t>.Create((res, failure) =>
+            using CallResult<RemoteStorageUnsubscribePublishedFileResult_t> callResult = CallResult<RemoteStorageUnsubscribePublishedFileResult_t>.Create((res, failure) =>
             {
                 completed = true;
                 if (!failure)
@@ -84,9 +81,6 @@ public sealed class SteamWorkshopService
                 SteamAPI.RunCallbacks();
                 Thread.Sleep(50);
             }
-
-            // Keep the CallResult alive until completion to prevent premature GC.
-            GC.KeepAlive(callResult);
 
             return completed && result == EResult.k_EResultOK;
         }

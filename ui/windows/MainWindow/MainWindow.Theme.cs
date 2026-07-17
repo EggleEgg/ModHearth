@@ -27,9 +27,15 @@ public partial class MainWindow
         modTitleLabel.Foreground = textBrush;
         buildVersionLabel.Foreground = textBrush;
 
+        //Avalonia DynamicResource
+        Application? app = Application.Current;
+        if (app != null)
+        {
+            app.Resources["SeparatorBrush"] = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
+        }
+
         RefreshDescriptionHtml();
         RefreshModDataViewer();
-        BrushCache.Clear();
 
         var notificationContainer = this.FindControl<StackPanel>("notificationContainer");
         if (notificationContainer != null)
@@ -53,7 +59,6 @@ public partial class MainWindow
         }
 
         dfhackStatusLabel.Foreground = textBrush;
-        modInfoTopBorder.Background = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
 
         leftModlist.Background = panelBrush;
         rightModlist.Background = panelBrush;

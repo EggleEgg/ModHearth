@@ -78,7 +78,7 @@ public partial class MainWindow
             if (choice == UnsavedChangesChoice.Save)
                 await SaveCurrentModpackAsync();
             else
-                SetAndMarkChanges(false);
+                await SetAndMarkChangesAsync(false);
 
             bypassUnsavedClosePrompt = true;
             Close();

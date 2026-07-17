@@ -22,28 +22,40 @@ public partial class MainWindow
         dfHackStatusTimer.Start();
     }
 
+    private volatile bool dfHackStatusCheckInFlight;
     private async Task UpdateDfHackStatusAsync()
     {
-        if (dfhackStatusLabel == null)
+        if (dfHackStatusCheckInFlight)
             return;
+        dfHackStatusCheckInFlight = true;
+        try
+        {
+            if (dfhackStatusLabel == null)
+                return;
 
-        if (TryShowTransientStatusNotice())
-            return;
+            if (TryShowTransientStatusNotice())
+                return;
 
-        (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
-            await Task.Run(() => (
-                ModHearthManager.DwarfFortressRunning(),
-                ModHearthManager.IsDwarfFortressFound(),
-                ModHearthManager.HasDfhackExecutable(),
-                ModHearthManager.IsDfhackRpcRunning(),
-                ModHearthManager.IsDFHackInstalled()));
+            (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
+                await Task.Run(() => (
+                    ModHearthManager.DwarfFortressRunning(),
+                    ModHearthManager.IsDwarfFortressFound(),
+                    ModHearthManager.HasDfhackExecutable(),
+                    ModHearthManager.IsDfhackRpcRunning(),
+                    ModHearthManager.IsDFHackInstalled()));
 
-        if (dfhackStatusLabel == null)
-            return;
+            if (dfhackStatusLabel == null)
+                return;
 
-        ApplyDfHackStatusToLabel(dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
-        ApplyDwarfFortressButtonStatus(dfRunning, dfFound);
+            ApplyDfHackStatusToLabel(dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+            ApplyDwarfFortressButtonStatus(dfRunning, dfFound);
+        }
+        finally
+        {
+            dfHackStatusCheckInFlight = false;
+        }
     }
+
 
     private void ApplyDfHackStatusToLabel(bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
     {

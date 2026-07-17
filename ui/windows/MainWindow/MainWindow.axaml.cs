@@ -10,6 +10,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ModHearth.Utilities.Logging;
+using System.Collections.Generic;
+using System.Linq;
+using ModHearth.Models;
+using ModHearth.Utilities;
+using ModHearth.UI;
 
 namespace ModHearth.UI;
 
@@ -79,6 +84,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ModListDragDropController modListController;
     private readonly ShortcutKeyHandler shortcutKeyHandler;
+    private readonly SemaphoreSlim autoActionGate = new SemaphoreSlim(1, 1); // lives with SetAndMarkChangesAsync's other state
+    private bool autoActionRerunRequested;
 
     private ModHearthManager manager;
     private bool changesMade;
@@ -143,7 +150,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             () => undoChangesButton.IsEnabled,
             () => UndoChangesAsync(),
             () => redoAvailable,
-            () => RedoListChanges(),
+            () => RedoListChangesAsync(),
             saveAsync: () => SaveCurrentModpackAsync());
         shortcutKeyHandler.Attach(this);
 
@@ -154,8 +161,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         leftModlist.SelectionChanged += ModlistSelectionChanged;
         rightModlist.SelectionChanged += ModlistSelectionChanged;
-        leftModlist.DoubleTapped += (_, _) => MoveSelectedBetweenLists(true);
-        rightModlist.DoubleTapped += (_, _) => MoveSelectedBetweenLists(false);
+        leftModlist.DoubleTapped += async (_, _) => await MoveSelectedBetweenListsAsync(true);
+        rightModlist.DoubleTapped += async (_, _) => await MoveSelectedBetweenListsAsync(false);
         AddHandler(InputElement.PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
         KeyDown += MainWindowKeyDown;
 

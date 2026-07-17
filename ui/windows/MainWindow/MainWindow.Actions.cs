@@ -37,7 +37,7 @@ public partial class MainWindow
             {
                 bool success = await manager.FetchCommunitySortRulesAsync(url);
                 if (success)
-                    manager.SetCommunitySortRulesUrl(url);
+                    ModHearthManager.SetCommunitySortRulesUrl(url);
                 IReadOnlyList<ModSortRule> rules = manager.GetCommunitySortRules();
                 return (success, success ? $"Loaded {rules.Count} community rules." : "Failed to load community rules.", rules);
             },
@@ -58,12 +58,14 @@ public partial class MainWindow
         _ = dialog.ShowDialog(this);
     }
 
+    // TODO This still triggers a second ModSortEnabledMods() pass inside SetAndMarkChangesAsync. 
+    // Also mark this for multithreading and make its children thread safe
     private async Task ModSortAsync()
     {
         await manager.EnsureModRawDependencyCacheAsync();
-        bool changed = manager.ModSortEnabledMods();
+        bool changed = await Task.Run(() => manager.ModSortEnabledMods());
         if (changed)
-            SetAndMarkChanges(true);
+            await SetAndMarkChangesAsync(true);
         RefreshModlistPanels();
     }
 
@@ -162,7 +164,7 @@ public partial class MainWindow
 
         try
         {
-            Process.Start(new ProcessStartInfo
+            using Process? process = Process.Start(new ProcessStartInfo
             {
                 FileName = installedModsPath,
                 UseShellExecute = true

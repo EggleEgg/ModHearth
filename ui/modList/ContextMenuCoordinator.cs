@@ -6,16 +6,20 @@ namespace ModHearth.UI;
 internal static class ContextMenuCoordinator
 {
     private static readonly object gate = new();
-    private static ContextMenu? activeMenu;
+
+    // Weak so a menu that never fires closed doesn't keep itself and everything it's rooted to (the avalonia visual tree)
+    // alive for the rest of the app's lifetime via this static field
+    private static WeakReference<ContextMenu>? activeMenuRef;
 
     public static void Activate(ContextMenu menu)
     {
         lock (gate)
         {
-            if (activeMenu != null && !ReferenceEquals(activeMenu, menu))
+            ContextMenu? current = GetActiveLocked();
+            if (current != null && !ReferenceEquals(current, menu))
                 DismissActiveLocked();
 
-            activeMenu = menu;
+            activeMenuRef = new WeakReference<ContextMenu>(menu);
             menu.Closed -= OnMenuClosed;
             menu.Closed += OnMenuClosed;
         }
@@ -27,13 +31,19 @@ internal static class ContextMenuCoordinator
             DismissActiveLocked();
     }
 
+    private static ContextMenu? GetActiveLocked()
+    {
+        return activeMenuRef != null && activeMenuRef.TryGetTarget(out ContextMenu? menu) ? menu : null;
+    }
+
     private static void DismissActiveLocked()
     {
-        if (activeMenu == null)
+        ContextMenu? menu = GetActiveLocked();
+        activeMenuRef = null;
+
+        if (menu == null)
             return;
 
-        ContextMenu menu = activeMenu;
-        activeMenu = null;
         menu.Closed -= OnMenuClosed;
         menu.Close();
     }
@@ -46,8 +56,8 @@ internal static class ContextMenuCoordinator
         lock (gate)
         {
             menu.Closed -= OnMenuClosed;
-            if (ReferenceEquals(activeMenu, menu))
-                activeMenu = null;
+            if (ReferenceEquals(GetActiveLocked(), menu))
+                activeMenuRef = null;
         }
     }
 }

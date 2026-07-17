@@ -1,5 +1,6 @@
 ﻿using Avalonia.Platform.Storage;
 using System.Text.Json;
+using System.Threading;
 
 namespace ModHearth.UI;
 
@@ -7,10 +8,9 @@ public partial class MainWindow
 {
     private async Task SaveCurrentModpackAsync()
     {
-        ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
-        SetAndMarkChanges(false);
+        ModHearthManager.ModpackSaveResult result = await Task.Run(() => manager.SaveCurrentModpack());
+        await SetAndMarkChangesAsync(false);
         ShowModpackSaveNotice(result);
-        await Task.CompletedTask;
     }
 
     private void ShowModpackSaveNotice(ModHearthManager.ModpackSaveResult result)
@@ -36,29 +36,37 @@ public partial class MainWindow
         if (!confirm)
             return;
 
-        UndoListChanges();
+        await UndoListChangesAsync();
     }
 
-    private void UndoListChanges()
+    private async Task UndoListChangesAsync()
     {
         redoMods = new List<DFHMod>(manager.enabledMods);
         redoAvailable = true;
 
         manager.SetSelectedModpack(lastIndex);
         RefreshModlistPanels();
-        SetAndMarkChanges(false);
+        await SetAndMarkChangesAsync(false);
     }
 
-    private void RedoListChanges()
+    private async Task RedoListChangesAsync()
     {
         if (!redoAvailable || redoMods.Count == 0)
             return;
 
         isRedoing = true;
-        manager.SetActiveMods(new List<DFHMod>(redoMods));
-        RefreshModlistPanels();
-        SetAndMarkChanges(true);
-        isRedoing = false;
+        try
+        {
+            manager.SetActiveMods(new List<DFHMod>(redoMods));
+            RefreshModlistPanels();
+            await SetAndMarkChangesAsync(true);
+        }
+        finally
+        {
+            // Always reset, even if the sort/save pass above throws. SetAndMarkChanges's own ClearRedo() guard depends on isRedoing
+            // being accurate, and a stale "true" here would defeat it on the next unrelated change.
+            isRedoing = false;
+        }
 
         redoAvailable = false;
         redoMods.Clear();
@@ -123,27 +131,68 @@ public partial class MainWindow
         newListButton.IsEnabled = !made;
     }
 
-    //for automatic actions
-    private void SetAndMarkChanges(bool made)
+    // At most one autosort+autosave pass runs at a time. If a trigger arrives while a pass is already running, we don't start a second overlapping one (which could finish out of order
+    // and silently clobber the more recent state with a stale sort/save), 
+    // we just flag that the in-flight pass should run once more after it finishes, reflecting whatever the latest state is by then. 
+    // Made=false calls skip this gate entirely, matching original behavior where they never triggered sort/save in the first place.
+    private async Task SetAndMarkChangesAsync(bool made)
     {
         if (made && !isRedoing)
             ClearRedo();
 
-        if (made && ConfigManager.IsAutoSortEnabled())
+        if (!made || (!ConfigManager.IsAutoSortEnabled() && !ConfigManager.IsAutoSaveEnabled()))
         {
-            bool sorted = manager.ModSortEnabledMods();
+            FinishSetAndMarkChanges(made, autoSaved: false);
+            return;
+        }
+
+        if (!await autoActionGate.WaitAsync(0))
+        {
+            autoActionRerunRequested = true;
+            return;
+        }
+
+        try
+        {
+            bool autoSaved;
+            do
+            {
+                autoActionRerunRequested = false;
+                autoSaved = await RunAutoSortAndAutoSaveAsync();
+            }
+            while (autoActionRerunRequested);
+
+            FinishSetAndMarkChanges(made, autoSaved);
+        }
+        finally
+        {
+            autoActionGate.Release();
+        }
+    }
+
+    private async Task<bool> RunAutoSortAndAutoSaveAsync()
+    {
+        if (ConfigManager.IsAutoSortEnabled())
+        {
+            bool sorted = await Task.Run(() => manager.ModSortEnabledMods());
             if (sorted)
                 ShowNotification("Modlist Autosorted", "sortBorderIcon.svg");
             RefreshModlistPanels();
         }
 
         bool autoSaved = false;
-        if (made && ConfigManager.IsAutoSaveEnabled())
+        if (ConfigManager.IsAutoSaveEnabled())
         {
-            ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
+            ModHearthManager.ModpackSaveResult result = await Task.Run(() => manager.SaveCurrentModpack());
             ShowModpackSaveNotice(result);
             autoSaved = true;
         }
+
+        return autoSaved;
+    }
+
+    private void FinishSetAndMarkChanges(bool made, bool autoSaved)
+    {
         SetChangesMade(!autoSaved && made);
 
         if (made && !autoSaved)
@@ -163,10 +212,10 @@ public partial class MainWindow
             return;
 
         DFHModpack newPack = new DFHModpack(false, manager.GenerateVanillaModlist(), newName);
-        RegisterNewModpack(newPack);
+        await RegisterNewModpackAsync(newPack);
     }
 
-    private void RegisterNewModpack(DFHModpack newList)
+    private async Task RegisterNewModpackAsync(DFHModpack newList)
     {
         modifyingComboBox = true;
 
@@ -179,7 +228,7 @@ public partial class MainWindow
 
         manager.SetSelectedModpack(modpackComboBox.SelectedIndex);
         RefreshModlistPanels();
-        SetAndMarkChanges(false);
+        await SetAndMarkChangesAsync(false);
 
         modifyingComboBox = false;
     }
@@ -202,7 +251,7 @@ public partial class MainWindow
 
         ModHearthManager.ModpackSaveResult saveResult = manager.SaveCurrentModpack();
         ShowModpackSaveNotice(saveResult);
-        SetAndMarkChanges(false);
+        await SetAndMarkChangesAsync(false);
 
         modifyingComboBox = false;
     }
@@ -215,7 +264,7 @@ public partial class MainWindow
         if (!confirm)
             return;
 
-        SetAndMarkChanges(false);
+        await SetAndMarkChangesAsync(false);
 
         if (manager.modpacks.Count == 1)
         {
@@ -281,7 +330,7 @@ public partial class MainWindow
                 }
             }
 
-            RegisterNewModpack(importedList);
+            await RegisterNewModpackAsync(importedList);
         }
         catch (Exception ex)
         {

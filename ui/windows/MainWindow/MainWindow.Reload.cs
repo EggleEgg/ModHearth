@@ -23,7 +23,7 @@ public partial class MainWindow
             if (choice == UnsavedChangesChoice.Save)
                 await SaveCurrentModpackAsync();
             else
-                SetAndMarkChanges(false);
+                await SetAndMarkChangesAsync(true);
         }
 
         await ReloadModpacksFromDisk();
@@ -87,10 +87,6 @@ public partial class MainWindow
         _ = UpdateDfHackStatusAsync();
         ResetModManagerWatcher();
 
-        BuildModViewModels();
-        _ = UpdateDfHackStatusAsync();
-        ResetModManagerWatcher();
-
         modifyingComboBox = true;
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();
 
@@ -108,11 +104,12 @@ public partial class MainWindow
         modifyingComboBox = false;
 
         SearchLogging.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
+
         RestoreSearchFilterStateSnapshot(filterStateSnapshot);
         RefreshModlistPanels();
-        SetAndMarkChanges(false);
+        await SetAndMarkChangesAsync(false);
         RestoreSelectionSnapshot(selectionSnapshot);
-        ApplySearchFilterImmediately();
+
         SearchLogging.Log("ReloadModpacksFromDisk end");
 
         if (!string.IsNullOrWhiteSpace(manager.LastMissingModsMessage))
@@ -176,9 +173,8 @@ public partial class MainWindow
 
         StackPanel panel = new StackPanel
         {
-            Margin = new Thickness(10),
+            Margin = new Thickness(2),
             Spacing = 8,
-            MinWidth = 220
         };
         panel.Children.Add(autoReloadEnabledCheckBox);
         panel.Children.Add(secondsRow);
@@ -342,17 +338,18 @@ public partial class MainWindow
         if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName) || !Directory.Exists(directory))
             return;
 
-        modManagerReloadTimer = new DispatcherTimer
+        DispatcherTimer newReloadTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };
-        modManagerReloadTimer.Tick += async (_, _) =>
+        newReloadTimer.Tick += async (_, _) =>
         {
-            modManagerReloadTimer.Stop();
+            newReloadTimer.Stop();
             if (manager.IsSavingModpacks)
                 return;
             await ReloadModpacksFromDisk();
         };
+        modManagerReloadTimer = newReloadTimer;
 
         modManagerWatcher = new FileSystemWatcher(directory, fileName)
         {

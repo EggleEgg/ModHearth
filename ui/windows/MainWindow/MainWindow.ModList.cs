@@ -2,6 +2,12 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using System.Collections;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
+using System.Linq;
+using ModHearth.Models;
+using ModHearth.Utilities;
+using ModHearth.Utilities.Logging;
+using ModHearth.UI;
 
 namespace ModHearth.UI;
 
@@ -27,8 +33,8 @@ public partial class MainWindow
     {
         List<ModRefViewModel> newInactive = MainWindowModListBuilder.BuildInactiveList(manager, modViewMap);
         List<ModRefViewModel> newActive = MainWindowModListBuilder.BuildActiveList(manager, modViewMap);
-        ReplaceCollection(inactiveMods, newInactive);
-        ReplaceCollection(activeMods, newActive);
+        SearchFilterHelper.ReplaceCollection(inactiveMods, newInactive);
+        SearchFilterHelper.ReplaceCollection(activeMods, newActive);
     }
 
     private void SelectModsInList(bool destinationLeft, IEnumerable<DFHMod> mods)
@@ -71,28 +77,7 @@ public partial class MainWindow
         rightHeaderLabel.Text = $"Active [{manager?.enabledMods?.Count ?? 0}]";
     }
 
-    private static void ReplaceCollection(ObservableCollection<ModRefViewModel> target, List<ModRefViewModel> items)
-    {
-        if (target.Count == items.Count)
-        {
-            bool same = true;
-            for (int i = 0; i < target.Count; i++)
-            {
-                if (!ReferenceEquals(target[i], items[i]))
-                {
-                    same = false;
-                    break;
-                }
-            }
 
-            if (same)
-                return;
-        }
-
-        target.Clear();
-        foreach (ModRefViewModel vm in items)
-            target.Add(vm);
-    }
 
     private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -122,7 +107,7 @@ public partial class MainWindow
         }
     }
 
-    private void ModlistDropped(ModListDropContext context)
+    private async void ModlistDropped(ModListDropContext context)
     {
         if (context.Items.Count == 0)
             return;
@@ -137,22 +122,18 @@ public partial class MainWindow
 
         List<DFHMod> mods = context.Items.Select(vm => vm.DfMod).ToList();
 
-        // context.InsertIndex is a position within the filtered/displayed
-        // activeMods collection, not a raw index into manager.enabledMods.
-        // disabledMods is an unordered HashSet, so no translation is
-        // needed/possible when the destination is the left (inactive) list.
         int insertIndex = destinationLeft
             ? context.InsertIndex
             : MapFilteredToMasterIndex(activeMods, BuildEnabledOrderViewModels(), context.InsertIndex);
 
         manager.MoveMods(mods, insertIndex, sourceLeft, destinationLeft);
-        SetAndMarkChanges(true);
+        await SetAndMarkChangesAsync(true);
         RefreshModlistPanels();
         if (sourceLeft != destinationLeft)
             SelectModsInList(destinationLeft, mods);
     }
 
-    // The real, order-defining sequence backing the active list — built by
+    // The real, order-defining sequence backing the active list. Built by
     // walking manager.enabledMods (the source of truth for order) through
     // modViewMap, rather than trusting activeMods' displayed order directly.
     private List<ModRefViewModel> BuildEnabledOrderViewModels()
@@ -190,7 +171,7 @@ public partial class MainWindow
         return idx >= 0 ? idx : master.Count;
     }
 
-    private void MoveSelectedBetweenLists(bool sourceLeft)
+    private async Task MoveSelectedBetweenListsAsync(bool sourceLeft)
     {
         ListBox source = sourceLeft ? leftModlist : rightModlist;
         if (source.SelectedItems == null || source.SelectedItems.Count == 0)
@@ -200,7 +181,7 @@ public partial class MainWindow
         List<DFHMod> mods = selected.Select(vm => vm.DfMod).ToList();
         int index = manager.enabledMods.Count;
         manager.MoveMods(mods, index, sourceLeft, !sourceLeft);
-        SetAndMarkChanges(true);
+        await SetAndMarkChangesAsync(true);
         RefreshModlistPanels();
         SelectModsInList(!sourceLeft, mods);
     }

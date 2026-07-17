@@ -1,16 +1,22 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Collections.Generic;
+using System.Linq;
+using ModHearth.Models;
 using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
+using ModHearth.UI;
 
 namespace ModHearth.UI;
 
@@ -176,7 +182,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             () => changesMade,
             () => UndoChangesAsync(),
             () => redoAvailable,
-            () => RedoChanges(),
+            () => { RedoChanges(); return Task.CompletedTask; },
             canSave: () => changesMade,
             saveAsync: () =>
             {
@@ -186,11 +192,139 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         shortcutKeyHandler.Attach(this);
         Closed += (_, _) => searchDebounceTimer.Stop();
 
+        modTreeSearchBar.ColorPickerClicked += OnColorPickerClicked;
+        rulesSearchBar.ColorPickerClicked += OnColorPickerClicked;
+
         ApplySearchBarStyles();
+        UpdateSearchBarAvailableColors();
         ApplySearchFilter();
         UpdateRuleReferenceOverlay();
         UpdateRuleGapVisuals();
         UpdateRulesJsonPreview();
+    }
+
+    private void UpdateSearchBarAvailableColors()
+    {
+        if (modTreeSearchBar == null || rulesSearchBar == null) return;
+
+        var availableColors = modIdMap.Values
+            .Select(m => m.ModReference.AssignedColor)
+            .Where(c => c != ModColor.None)
+            .Distinct()
+            .ToList();
+
+        modTreeSearchBar.SetAvailableColors(availableColors);
+        rulesSearchBar.SetAvailableColors(availableColors);
+    }
+
+    private void OnColorPickerClicked(object? sender, EventArgs e)
+    {
+        if (sender is not ModSearchBar searchBar) return;
+
+        var availableColors = searchBar.ColorPicker.AvailableColors.Select(c => c.ModColor).ToList();
+
+        var grid = new UniformGrid
+        {
+            Columns = (int)Math.Sqrt(availableColors.Count + 1)
+        };
+
+        void RefreshGrid()
+        {
+            grid.Children.Clear();
+
+            // Add "Clear" option
+            grid.Children.Add(CreateColorSwatchButton(new ModColorInfo
+            {
+                ModColor = ModColor.None,
+                Name = "Clear all filters",
+                Color = Colors.Transparent,
+                IsSelected = false
+            }, _ =>
+            {
+                searchBar.Text = string.Empty;
+                ApplySearchFilter();
+                RefreshGrid();
+            }));
+
+            var currentSelection = searchBar.Text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            foreach (var color in availableColors)
+            {
+                var info = new ModColorInfo
+                {
+                    ModColor = color,
+                    Name = ModColorMap.ColorNames.TryGetValue(color, out var name) ? name : color.ToString(),
+                    Color = ModColorMap.GetColor(color),
+                    IsSelected = currentSelection.Contains(color.ToString())
+                };
+                grid.Children.Add(CreateColorSwatchButton(info, c =>
+                {
+                    ToggleColor(c);
+                    RefreshGrid();
+                }));
+            }
+        }
+
+        void ToggleColor(ModColor color)
+        {
+            var text = searchBar.Text;
+            var selectedColors = text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            var colorStr = color.ToString();
+            if (selectedColors.Contains(colorStr))
+                selectedColors.Remove(colorStr);
+            else
+                selectedColors.Add(colorStr);
+
+            searchBar.Text = string.Join(",", selectedColors);
+            ApplySearchFilter();
+        }
+
+        RefreshGrid();
+
+        var flyout = new Flyout
+        {
+            Content = new Border
+            {
+                Padding = new Thickness(4),
+                Child = grid
+            }
+        };
+
+        flyout.ShowAt(searchBar);
+    }
+
+    private Button CreateColorSwatchButton(ModColorInfo info, Action<ModColor> onClick)
+    {
+        var button = new Button
+        {
+            Width = 24,
+            Height = 24,
+            Padding = new Thickness(0),
+            Margin = new Thickness(2),
+            Background = info.ModColor == ModColor.None ? Brushes.Transparent : BrushCache.GetBrush(info.Color),
+            BorderBrush = info.IsSelected ? Brushes.White : Brushes.Gray,
+            BorderThickness = new Thickness(info.IsSelected ? 2 : 1)
+        };
+
+        ToolTip.SetTip(button, info.Name);
+
+        if (info.ModColor == ModColor.None)
+        {
+            button.Content = new Image
+            {
+                Source = ImageSourceLoader.LoadFromAssetUri("cancelIcon"),
+                Width = 16,
+                Height = 16
+            };
+        }
+
+        button.Click += (_, _) => onClick(info.ModColor);
+        return button;
     }
 
     private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -1100,8 +1234,8 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
                 masterRuleList.Add(vm);
         }
 
-        ReplaceCollection(availableMods, GetMasterAvailable().ToList());
-        ReplaceCollection(ruleMods, masterRuleList);
+        SearchFilterHelper.ReplaceCollection(availableMods, GetMasterAvailable().ToList());
+        SearchFilterHelper.ReplaceCollection(ruleMods, masterRuleList);
 
         initialRuleOrder.Clear();
         initialRuleOrder.AddRange(masterRuleList
@@ -1316,7 +1450,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
              modTreeSearchBar.SearchMode,
              modTreeSearchBar.HideFiltered,
              modTreeSearchBar.SortDescending,
-             modTreeList);
+             modTreeList, true);
         ApplyFilterFlags(
             ruleMods,
             masterRuleList,
@@ -1324,7 +1458,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             rulesSearchBar.SearchMode,
             rulesSearchBar.HideFiltered,
             rulesSearchBar.SortDescending,
-            rulesList);
+            rulesList, false);
     }
 
     private void ScheduleSearchFilter()
@@ -1347,51 +1481,20 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         SearchFilterMode searchMode,
         bool hideFiltered,
         bool sortDescending,
-        ListBox list)
+        ListBox list, bool isSortingEnabled)
     {
-        string trimmed = filter?.Trim() ?? string.Empty;
-        bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
-
-        List<ModRefViewModel> ordered = ApplySortToViewModels(source, searchMode, sortDescending).ToList();
-
-        List<ModRefViewModel> displayItems = ordered.Where(vm =>
-        {
-            bool match = !hasFilter || vm.MatchesFilter(trimmed, searchMode);
-            vm.IsFilteredOut = hasFilter && !match;
-            vm.IsVisible = !hideFiltered || match;
-            return vm.IsVisible;
-        }).ToList();
-
-        ReplaceCollection(targetCollection, displayItems);
-        DropNonDisplayedSelections(list, displayItems);
-    }
-
-    private void DropNonDisplayedSelections(ListBox list, IReadOnlyCollection<ModRefViewModel> displayItems)
-    {
-        if (list.SelectedItems == null || list.SelectedItems.Count == 0)
-            return;
-
-        HashSet<ModRefViewModel> visibleSet = new HashSet<ModRefViewModel>(displayItems);
-        List<ModRefViewModel> retained = list.SelectedItems.OfType<ModRefViewModel>().Where(visibleSet.Contains).ToList();
-        if (retained.Count == list.SelectedItems.Count) return;
-
-        list.SelectedItems.Clear();
-        foreach (ModRefViewModel vm in retained) list.SelectedItems.Add(vm);
-        modListController.UpdateSelectionState(list);
-    }
-
-    //TODO try to merge with ApplyFilterAndSort() from MainWindow
-    private IEnumerable<ModRefViewModel> ApplySortToViewModels(IEnumerable<ModRefViewModel> source, SearchFilterMode mode, bool sortDescending)
-    {
-        return (mode, sortDescending) switch
-        {
-            (SearchFilterMode.Name, true) => source.OrderByDescending(vm => vm.ModReference.name ?? string.Empty),
-            (SearchFilterMode.Name, false) => source.OrderBy(vm => vm.ModReference.name ?? string.Empty),
-            (SearchFilterMode.ModifiedTime, true) => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-            (SearchFilterMode.ModifiedTime, false) => source.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-            (_, true) => source.OrderByDescending(vm => vm.ModReference.name ?? string.Empty), // Default to sorting by name
-            (_, false) => source.OrderBy(vm => vm.ModReference.name ?? string.Empty)
-        };
+        SearchFilterHelper.ApplyFilterFlags(
+            targetCollection,
+            source,
+            filter,
+            searchMode,
+            hideFiltered,
+            sortDescending,
+            list,
+            modListController,
+            isSortingEnabled: isSortingEnabled, // Sorting is handled by the rules themselves
+            msg => SearchLogging.Log($"ApplyFilterFlags list={list.Name} " + msg)
+        );
     }
 
     private void ApplySearchBarStyles()
@@ -1895,25 +1998,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         }
     }
 
-    private static void ReplaceCollection(ObservableCollection<ModRefViewModel> target, List<ModRefViewModel> items)
-    {
-        if (target.Count == items.Count)
-        {
-            bool same = true;
-            for (int i = 0; i < target.Count; i++)
-            {
-                if (!ReferenceEquals(target[i], items[i]))
-                {
-                    same = false;
-                    break;
-                }
-            }
-            if (same) return;
-        }
 
-        target.Clear();
-        foreach (ModRefViewModel vm in items) target.Add(vm);
-    }
 
     private List<ModSortRule> MergeRules(IEnumerable<ModSortRule> userRules, IEnumerable<ModSortRule> communityRules)
     {
@@ -1949,13 +2034,8 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             }
 
             // Check for RequiresId conflict
-            if (!string.IsNullOrWhiteSpace(communityRule.RequiresId))
-            {
-                if (userRequiredIds.Contains(communityRule.RequiresId))
-                {
-                    conflict = true;
-                }
-            }
+            if (!string.IsNullOrWhiteSpace(communityRule.RequiresId) && userRequiredIds.Contains(communityRule.RequiresId))
+                conflict = true;
 
             if (!conflict)
             {
@@ -2046,7 +2126,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
 
         try
         {
-            Process.Start(new ProcessStartInfo
+            using Process? process = Process.Start(new ProcessStartInfo
             {
                 FileName = rulesFilePath,
                 UseShellExecute = true

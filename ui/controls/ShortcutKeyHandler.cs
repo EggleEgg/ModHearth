@@ -9,7 +9,7 @@ public sealed class ShortcutKeyHandler
     private readonly Func<bool> canUndo;
     private readonly Func<Task> undoAsync;
     private readonly Func<bool> canRedo;
-    private readonly Action redo;
+    private readonly Func<Task> redoAsync;
     private readonly Func<bool>? canSave;
     private readonly Func<Task>? saveAsync;
 
@@ -17,14 +17,14 @@ public sealed class ShortcutKeyHandler
         Func<bool> canUndo,
         Func<Task> undoAsync,
         Func<bool> canRedo,
-        Action redo,
+        Func<Task> redoAsync,
         Func<bool>? canSave = null,
         Func<Task>? saveAsync = null)
     {
         this.canUndo = canUndo ?? throw new ArgumentNullException(nameof(canUndo));
         this.undoAsync = undoAsync ?? throw new ArgumentNullException(nameof(undoAsync));
         this.canRedo = canRedo ?? throw new ArgumentNullException(nameof(canRedo));
-        this.redo = redo ?? throw new ArgumentNullException(nameof(redo));
+        this.redoAsync = redoAsync ?? throw new ArgumentNullException(nameof(redoAsync));
         this.canSave = canSave;
         this.saveAsync = saveAsync;
     }
@@ -61,18 +61,15 @@ public sealed class ShortcutKeyHandler
             if (e.Key == Key.Y)
             {
                 if (canRedo())
-                    redo();
+                    _ = redoAsync();
                 e.Handled = true;
                 return;
             }
 
-            if (e.Key == Key.S)
+            if (e.Key == Key.S && saveAsync != null && (canSave == null || canSave()))
             {
-                if (saveAsync != null && (canSave == null || canSave()))
-                {
-                    _ = saveAsync();
-                    e.Handled = true;
-                }
+                _ = saveAsync();
+                e.Handled = true;
             }
         }
     }

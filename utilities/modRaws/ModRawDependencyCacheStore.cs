@@ -6,7 +6,7 @@ namespace ModHearth.Utilities
     // hasn't changed since the last scan (same modId + numericVersion + folder LastWriteTimeUtc) skip re-scanning.
     internal static class ModRawDependencyCacheStore
     {
-        private static readonly string CachePath = Path.Combine(AppContext.BaseDirectory, "metadata", "mod_raw_dependency_cache.json");
+        public static readonly string CachePath = Path.Combine(AppContext.BaseDirectory, "metadata", "mod_raw_dependency_cache.json");
         private static readonly object gate = new();
 
         public static Dictionary<string, ModRawDependencyInfo> Load()
@@ -54,7 +54,7 @@ namespace ModHearth.Utilities
                 }
                 catch
                 {
-                    // Ignore cache save failures — worst case, the next run rescans.
+                    // Ignore cache save failures. Worst case, the next run rescans.
                 }
             }
         }

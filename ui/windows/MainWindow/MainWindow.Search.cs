@@ -7,6 +7,7 @@ using ModHearth.Utilities;
 using ModHearth.Models;
 using ModHearth.Utilities.Logging;
 using Avalonia.Media;
+using ModHearth.UI;
 
 namespace ModHearth.UI;
 
@@ -231,76 +232,18 @@ public partial class MainWindow
         ListBox list,
         bool isSortingEnabled = true)
     {
-        string trimmed = filter?.Trim() ?? string.Empty;
-
-        List<ModRefViewModel> displayItems = ApplyFilterAndSort(
+        SearchFilterHelper.ApplyFilterFlags(
+            targetCollection,
             sourceMods.Select(m => modViewMap[m.ToString()]),
-            trimmed,
+            filter,
             searchMode,
             hideFiltered,
             sortDescending,
-            isSortingEnabled);
-
-        ReplaceCollection(targetCollection, displayItems);
-
-        SearchLogging.Log(
-            $"ApplyFilterFlags list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={DescribeSearchMode(searchMode)} hideFiltered={hideFiltered} sortDescending={sortDescending} total={sourceMods.Count()} visible={displayItems.Count}");
-
-        DropNonDisplayedSelections(list, displayItems);
-    }
-
-    private List<ModRefViewModel> ApplyFilterAndSort(
-        IEnumerable<ModRefViewModel> source,
-        string filter,
-        SearchFilterMode searchMode,
-        bool hideFiltered,
-        bool sortDescending,
-        bool isSortingEnabled = true)
-    {
-        bool hasFilter = !string.IsNullOrWhiteSpace(filter);
-
-        // handles sorting
-        IEnumerable<ModRefViewModel> sorted = (!isSortingEnabled)
-            ? source
-            : (searchMode, sortDescending) switch
-            {
-                (SearchFilterMode.ModifiedTime, true) => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-                (SearchFilterMode.ModifiedTime, false) => source.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-                (_, true) => source.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase),
-                (_, false) => source.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
-            };
-
-        // handles filtering
-        return sorted.Where(vm =>
-        {
-            bool match = !hasFilter || vm.MatchesFilter(filter, searchMode);
-            vm.IsFilteredOut = hasFilter && !match;
-            vm.IsVisible = !hideFiltered || match;
-            return vm.IsVisible;
-        }).ToList();
-    }
-
-    private void DropNonDisplayedSelections(ListBox list, IReadOnlyCollection<ModRefViewModel> displayItems)
-    {
-        if (list.SelectedItems == null || list.SelectedItems.Count == 0)
-            return;
-
-        HashSet<ModRefViewModel> visibleSet = new HashSet<ModRefViewModel>(displayItems);
-        int before = list.SelectedItems.Count;
-        List<ModRefViewModel> retained = list.SelectedItems
-            .OfType<ModRefViewModel>()
-            .Where(vm => visibleSet.Contains(vm))
-            .ToList();
-
-        if (retained.Count == list.SelectedItems.Count)
-            return;
-
-        list.SelectedItems.Clear();
-        foreach (ModRefViewModel vm in retained)
-            list.SelectedItems.Add(vm);
-
-        modListController.UpdateSelectionState(list);
-        SearchLogging.Log($"DropNonDisplayedSelections list={DescribeList(list)} before={before} after={retained.Count}");
+            list,
+            modListController,
+            isSortingEnabled,
+            msg => SearchLogging.Log($"ApplyFilterFlags list={DescribeList(list)} " + msg)
+        );
     }
 
     private void ScheduleSearchFilter()

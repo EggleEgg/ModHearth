@@ -87,11 +87,17 @@ public static class WindowThemeManager
         IBrush dataGridBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
 
         window.Background = formBrush;
+        IBrush inputTextBrush = IsDark(style.formColor) ? Brushes.White : Brushes.Black;
 
         ThemeVariant? ownerVariant = window.Owner?.RequestedThemeVariant;
         window.RequestedThemeVariant = ownerVariant ?? (IsDark(style.formColor) ? ThemeVariant.Dark : ThemeVariant.Light);
 
-        IBrush inputTextBrush = IsDark(style.formColor) ? Brushes.White : Brushes.Black;
+        //Avalonia DynamicResource
+        Application? app = Application.Current;
+        if (app != null)
+        {
+            app.Resources["SeparatorBrush"] = borderPanelBrush;
+        }
 
         foreach (Visual visual in window.GetVisualDescendants())
         {
@@ -99,13 +105,6 @@ public static class WindowThemeManager
             {
                 if (!border.IsSet(Border.BackgroundProperty))
                     border.Background = borderPanelBrush;
-                continue;
-            }
-            if (visual is Border lineBreak && lineBreak.Name == "lineBreak")
-            {
-                if (!lineBreak.IsSet(Border.BackgroundProperty))
-                    lineBreak.Background = borderPanelBrush;
-
                 continue;
             }
             if (visual is TextBlock textBlock)

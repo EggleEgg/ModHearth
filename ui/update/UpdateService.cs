@@ -403,7 +403,7 @@ internal static class UpdateService
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
 
-            Process.Start(new ProcessStartInfo
+            using Process? process = Process.Start(new ProcessStartInfo
             {
                 FileName = scriptPath,
                 UseShellExecute = true,
@@ -455,7 +455,7 @@ internal static class UpdateService
             script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater finished\" >> \"$LOG\"");
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
-            Process.Start(new ProcessStartInfo
+            using Process? process = Process.Start(new ProcessStartInfo
             {
                 FileName = "/bin/sh",
                 Arguments = scriptPath,

@@ -88,7 +88,7 @@ public partial class MainWindow
 
     private static IImage LoadFallbackPreview()
     {
-        IImage? fallback = ImageSourceLoader.LoadFromAssetUri("43G6tag.png");
+        IImage? fallback = ImageSourceLoader.LoadFromAssetUriUncached("43G6tag.png");
         if (fallback != null)
             return fallback;
 

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Avalonia;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -32,26 +33,74 @@ public sealed class AssetImageExtension : MarkupExtension
     }
 }
 
+/// <summary>
+/// Normalizes image formats from the uri and caches them
+/// </summary>
 internal static class ImageSourceLoader
 {
     private const string DefaultResourcesBaseUri = "avares://ModHearth/resources/";
     private const string AlternateResourcesBaseUri = "avares://ModHearth/Resources/";
 
+    // Using Lazy<IImage?> guarantees the factory logic runs exactly once per unique key
+    private static readonly ConcurrentDictionary<string, Lazy<IImage?>> imageCache = new();
+
     public static IImage? LoadFromAssetUri(string assetUri)
     {
-        string normalizedAssetUri = NormalizeAssetUri(assetUri);
-        if (string.IsNullOrWhiteSpace(normalizedAssetUri))
+        string normalized = NormalizeAssetUri(assetUri);
+        if (string.IsNullOrWhiteSpace(normalized))
             return null;
 
-        IImage? primary = LoadFromNormalizedAssetUri(normalizedAssetUri);
-        if (primary != null)
-            return primary;
+        // GetOrAdd is fast because creating Lazy is cheap.
+        // The heavy loading inside Lazy only happens when .Value is accessed.
+        return imageCache.GetOrAdd(normalized, key => new Lazy<IImage?>(() =>
+        {
+            // Try primary URI
+            IImage? primary = LoadFromNormalizedAssetUri(key);
+            if (primary != null)
+                return primary;
 
-        string? alternate = TrySwapResourcesBase(normalizedAssetUri);
-        if (string.IsNullOrWhiteSpace(alternate))
+            // Try swap alternate base URI
+            string? alternate = TrySwapResourcesBase(key);
+            if (string.IsNullOrWhiteSpace(alternate))
+                return null;
+
+            // Load alternate
+            return LoadFromNormalizedAssetUri(alternate);
+        })).Value;
+    }
+
+    public static IImage? LoadFromAssetUriUncached(string assetUri)
+    {
+        string normalized = NormalizeAssetUri(assetUri);
+        if (string.IsNullOrWhiteSpace(normalized))
             return null;
 
-        return LoadFromNormalizedAssetUri(alternate);
+        return LoadFromNormalizedAssetUri(normalized);
+    }
+
+    // Bypasses caching entirely. This is fine for mod previews or anything that isnt called that often
+    public static IImage? LoadFromFilePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            if (IsSvgPath(path))
+                return LoadSvgImage(new Uri(fullPath, UriKind.Absolute).ToString());
+
+            string svgCandidate = ReplaceExtension(fullPath, ".svg");
+            IImage? svgCandidateImage = LoadSvgImage(new Uri(svgCandidate, UriKind.Absolute).ToString());
+            if (svgCandidateImage != null)
+                return svgCandidateImage;
+
+            return new Bitmap(fullPath);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static IImage? LoadFromNormalizedAssetUri(string normalizedAssetUri)
@@ -90,30 +139,6 @@ internal static class ImageSourceLoader
             return DefaultResourcesBaseUri + normalizedAssetUri.Substring(AlternateResourcesBaseUri.Length);
 
         return null;
-    }
-
-    public static IImage? LoadFromFilePath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            return null;
-
-        try
-        {
-            string fullPath = Path.GetFullPath(path);
-            if (IsSvgPath(path))
-                return LoadSvgImage(new Uri(fullPath, UriKind.Absolute).ToString());
-
-            string svgCandidate = ReplaceExtension(fullPath, ".svg");
-            IImage? svgCandidateImage = LoadSvgImage(new Uri(svgCandidate, UriKind.Absolute).ToString());
-            if (svgCandidateImage != null)
-                return svgCandidateImage;
-
-            return new Bitmap(fullPath);
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     public static string NormalizeAssetUri(string assetUri)
@@ -270,5 +295,9 @@ internal static class ImageSourceLoader
         {
             return null;
         }
+    }
+    public static void ClearCache()
+    {
+        imageCache.Clear();
     }
 }

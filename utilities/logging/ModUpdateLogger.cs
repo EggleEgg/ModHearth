@@ -371,7 +371,7 @@ public static class ModUpdateLogger
         return string.Equals(sourceType?.Trim(), "Local", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string BuildLocalQuickStamp(string? modPath)
+    internal static string BuildLocalQuickStamp(string? modPath)
     {
         string normalizedPath = ResolveCanonicalPath(modPath ?? string.Empty);
         if (string.IsNullOrWhiteSpace(normalizedPath) || !Directory.Exists(normalizedPath))

@@ -127,6 +127,10 @@ public partial class ModSearchBar : UserControl
             }
             else if (args.Property == IsSortingEnabledProperty)
             {
+                if (!IsSortingEnabled && SearchMode == SearchFilterMode.ModifiedTime)
+                {
+                    SearchMode = SearchFilterMode.Name;
+                }
                 UpdateSearchModeIcon();
                 UpdateSearchModeButtonTooltip();
                 searchModeFlyout = null;
@@ -360,11 +364,6 @@ public partial class ModSearchBar : UserControl
             targetBrush = state.NormalBrush;
 
         button.Background = targetBrush;
-
-        if (button.Content is Panel contentPanel)
-            foreach (Control child in contentPanel.Children)
-                if (child is Border contentBorder)
-                    contentBorder.Background = targetBrush;
     }
 
     private void UpdateToggleIcon()
@@ -465,7 +464,7 @@ public partial class ModSearchBar : UserControl
             {
                 e.Handled = true;
 
-                Process.Start(new ProcessStartInfo
+                using Process? process = Process.Start(new ProcessStartInfo
                 {
                     FileName = "https://regex101.com/",
                     UseShellExecute = true

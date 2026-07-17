@@ -296,7 +296,7 @@ internal static class ModContextMenuSupport
 
         try
         {
-            Process.Start(new ProcessStartInfo
+            using Process? process = Process.Start(new ProcessStartInfo
             {
                 FileName = path,
                 UseShellExecute = true
@@ -323,7 +323,7 @@ internal static class ModContextMenuSupport
 
         try
         {
-            Process.Start(new ProcessStartInfo
+            using Process? process = Process.Start(new ProcessStartInfo
             {
                 FileName = url,
                 UseShellExecute = true

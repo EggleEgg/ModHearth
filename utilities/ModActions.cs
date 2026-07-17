@@ -14,6 +14,35 @@ namespace ModHearth
         private static readonly TimeSpan SteamActionGap = TimeSpan.FromMilliseconds(500);
         private static readonly TimeSpan SteamResubscribeUnsubscribeWait = TimeSpan.FromSeconds(4);
         private static readonly TimeSpan SteamResubscribeSubscribeWait = TimeSpan.FromSeconds(2);
+        private static int workshopAuditInProgress;
+
+
+        // To avoid spamming audit calls on autoreload
+        public static void AuditWorkshopManifests()
+        {
+            if (Interlocked.CompareExchange(ref workshopAuditInProgress, 1, 0) != 0)
+            {
+                SteamConnectionLogger.LogInfo("Workshop manifest audit skipped: a previous audit is still running.");
+                return;
+            }
+
+            try
+            {
+                if (!TryEnsureSteamSession(new List<string>()))
+                    return;
+
+                SteamManager.Initialize();
+                SteamWorkshopService steam = new SteamWorkshopService();
+                if (!steam.IsAvailable)
+                    return;
+
+                SteamManifestAuditor.Audit(steam);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref workshopAuditInProgress, 0);
+            }
+        }
 
         public static bool TryGetSteamWorkshopItemId(ModReference? modref, out string steamItemId)
         {
@@ -93,19 +122,6 @@ namespace ModHearth
 
             message = failures[0];
             return false;
-        }
-
-        public static void AuditWorkshopManifests()
-        {
-            if (!TryEnsureSteamSession(new List<string>()))
-                return;
-
-            SteamManager.Initialize();
-            SteamWorkshopService steam = new SteamWorkshopService();
-            if (!steam.IsAvailable)
-                return;
-
-            SteamManifestAuditor.Audit(steam);
         }
 
         public List<string> UnsubscribeSteamMods(IEnumerable<ModReference>? mods)
@@ -387,26 +403,26 @@ namespace ModHearth
             return true;
         }
 
-private static void TryAddSteamActionableMod(
-    ModReference modref,
-    HashSet<string> uniqueSteamIds,
-    List<ModReference> steamActionableMods)
-{
-    if (ConfigManager.IsLikelySteamShadowCopy(modref.path, out _))
-        return;
+        private static void TryAddSteamActionableMod(
+            ModReference modref,
+            HashSet<string> uniqueSteamIds,
+            List<ModReference> steamActionableMods)
+        {
+            if (ConfigManager.IsLikelySteamShadowCopy(modref.path, out _))
+                return;
 
-    (_, _, bool isSteam) = ModSourceClassifier.Classify(
-        modref,
-        ConfigManager.Config.ModsPath,
-        ConfigManager.GetVanillaModsPath());
-    if (!isSteam)
-        return;
-    if (!TryGetSteamWorkshopItemId(modref, out string steamId))
-        return;
+            (_, _, bool isSteam) = ModSourceClassifier.Classify(
+                modref,
+                ConfigManager.Config.ModsPath,
+                ConfigManager.GetVanillaModsPath());
+            if (!isSteam)
+                return;
+            if (!TryGetSteamWorkshopItemId(modref, out string steamId))
+                return;
 
-    if (uniqueSteamIds.Add(steamId))
-        steamActionableMods.Add(modref);
-}
+            if (uniqueSteamIds.Add(steamId))
+                steamActionableMods.Add(modref);
+        }
 
         private static string BuildLocalActionKey(ModReference modref)
         {
