@@ -101,6 +101,10 @@ public static class WindowThemeManager
 
         foreach (Visual visual in window.GetVisualDescendants())
         {
+            // ModSearchBar (and nested ModColorPicker) fully style themselves via ApplyStyle()
+            if (visual is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
+                continue;
+
             if (visual is Border border)
             {
                 if (!border.IsSet(Border.BackgroundProperty))
@@ -116,8 +120,6 @@ public static class WindowThemeManager
 
             if (visual is TextBox textBox)
             {
-                if (textBox.FindAncestorOfType<ModSearchBar>() != null)
-                    continue;
                 if (!textBox.IsSet(TextBox.BackgroundProperty))
                     textBox.Background = panelBrush;
                 if (!textBox.IsSet(TextBox.ForegroundProperty))

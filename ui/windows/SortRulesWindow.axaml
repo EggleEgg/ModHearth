@@ -17,11 +17,6 @@
         <Border Background="{Binding LineBrush}" Height="2" VerticalAlignment="Center" Margin="4,0" />
       </Grid>
     </DataTemplate>
-    <DataTemplate DataType="sys:String">
-      <Border Padding="4,0" MinHeight="8">
-        <TextBlock Text="{Binding}" />
-      </Border>
-    </DataTemplate>
   </Window.DataTemplates>
 
   <Grid Margin="12" RowDefinitions="Auto,*,160,Auto" ColumnDefinitions="*,*" ColumnSpacing="12"
