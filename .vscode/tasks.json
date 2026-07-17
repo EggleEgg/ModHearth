@@ -13,7 +13,7 @@
       "description": "Select target runtime",
       "options": [
         "win-x64",
-        "linux-x64",
+        "linux-x64"
       ],
       "default": "win-x64"
     }
@@ -28,6 +28,21 @@
         "${workspaceFolder}/ModHearth.csproj",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary;ForceNoAlign"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build (WSL)",
+      "type": "process",
+      "command": "wsl.exe",
+      "args": [
+        "--cd",
+        "${workspaceFolder}",
+        "dotnet",
+        "build",
+        "ModHearth.csproj",
+        "-p:GenerateFullPaths=true",
+        "-clp:NoSummary,ForceNoAlign"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -83,6 +98,21 @@
       "dependsOn": "build"
     },
     {
+      "label": "run (WSL)",
+      "type": "process",
+      "command": "wsl.exe",
+      "args": [
+        "--cd",
+        "${workspaceFolder}",
+        "dotnet",
+        "run",
+        "--project",
+        "ModHearth.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "build (WSL)"
+    },
+    {
       "label": "run --dev",
       "command": "dotnet",
       "type": "process",
@@ -94,6 +124,22 @@
       ],
       "problemMatcher": "$msCompile",
       "dependsOn": "build"
+    },
+    {
+      "label": "run --dev (WSL)",
+      "type": "process",
+      "command": "wsl.exe",
+      "args": [
+        "--cd",
+        "${workspaceFolder}",
+        "dotnet",
+        "run",
+        "--project",
+        "ModHearth.csproj",
+        "--devmode"
+      ],
+      "problemMatcher": "$msCompile",
+      "dependsOn": "build (WSL)"
     },
     {
       "label": "clean releases",
@@ -120,25 +166,6 @@
         ".vscode/build-linux-local.sh",
         "--version",
         "${input:linuxBuildVersion}"
-      ],
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated"
-      }
-    },
-    {
-      "label": "build linux release (WSL, skip tests)",
-      "type": "process",
-      "command": "wsl.exe",
-      "args": [
-        "--cd",
-        "${workspaceFolder}",
-        "bash",
-        ".vscode/build-linux-local.sh",
-        "--version",
-        "${input:linuxBuildVersion}",
-        "--skip-tests"
       ],
       "problemMatcher": [],
       "presentation": {

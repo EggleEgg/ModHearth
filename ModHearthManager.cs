@@ -1427,30 +1427,70 @@ namespace ModHearth
             Process started;
             try
             {
-                ProcessStartInfo startInfo = new ProcessStartInfo
-                {
-                    FileName = executablePath,
-                    WorkingDirectory = dfFolderPath,
-                    UseShellExecute = true
-                };
+                // Check if Dwarf Fortress is a Steam installation
+                bool isSteamInstallation = !string.IsNullOrWhiteSpace(ConfigManager.TryFindSteamDwarfFortressFolder());
 
-                if (OperatingSystem.IsLinux() &&
-                    string.Equals(Path.GetFileName(executablePath), "dwarfort", StringComparison.Ordinal))
+                if (isSteamInstallation)
                 {
-                    string? bundledLibs = DwarfFortressExecutableLocator.TryResolveBundledLibraryPath(dfFolderPath);
-                    if (!string.IsNullOrWhiteSpace(bundledLibs))
+                    InfoLogger.LogRunDf("Launching Dwarf Fortress through Steam (App ID: 975370)");
+                    ProcessStartInfo startInfo = new ProcessStartInfo
                     {
-                        string existing = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? string.Empty;
-                        startInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(existing)
-                            ? bundledLibs
-                            : $"{bundledLibs}:{existing}";
+                        FileName = "steam",
+                        Arguments = "steam://run/975370",
+                        UseShellExecute = true // Must be true for URI schemes
+                    };
+                    started = Process.Start(startInfo) ?? throw new Exception("Failed to launch Dwarf Fortress via Steam: process did not start.");
+                }
+                else
+                {
+                    InfoLogger.LogRunDf($"Launching Dwarf Fortress executable directly: {executablePath}");
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = executablePath,
+                        WorkingDirectory = dfFolderPath,
+                        UseShellExecute = false
+                    };
+
+                    if (OperatingSystem.IsLinux() &&
+                        string.Equals(Path.GetFileName(executablePath), "dwarfort", StringComparison.Ordinal))
+                    {
+                        string? bundledLibs = DwarfFortressExecutableLocator.TryResolveBundledLibraryPath(dfFolderPath);
+                        if (!string.IsNullOrWhiteSpace(bundledLibs))
+                        {
+                            string existing = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? string.Empty;
+                            startInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(existing)
+                                ? bundledLibs
+                                : $"{bundledLibs}:{existing}";
+                            InfoLogger.LogRunDf($"LD_LIBRARY_PATH: {existing}");
+                        }
                     }
+                    started = Process.Start(startInfo) ?? throw new Exception("Failed to launch Dwarf Fortress directly: process did not start.");
                 }
 
-                Process? process = Process.Start(startInfo);
-                if (process == null)
-                    return (false, "Failed to launch Dwarf Fortress: process did not start.");
-                started = process;
+                InfoLogger.LogRunDf($"Started PID = {started.Id}");
+
+                await Task.Delay(2000);
+
+                InfoLogger.LogRunDf($"HasExited = {started.HasExited}");
+
+                if (started.HasExited)
+                {
+                    InfoLogger.LogRunDf($"ExitCode = {started.ExitCode}");
+                }
+
+                foreach (Process p in Process.GetProcesses())
+                {
+                    try
+                    {
+                        if (p.ProcessName.Contains("dwar", StringComparison.OrdinalIgnoreCase))
+                            InfoLogger.LogRunDf($"{p.Id} {p.ProcessName}");
+                    }
+                    catch
+                    {
+                        // Ignored
+                    }
+                }
+                
             }
             catch (Exception ex)
             {
