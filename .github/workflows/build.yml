@@ -1,6 +1,6 @@
 name: Build & Release
 
-# yaml-embedded-languages: python
+# yaml-embedded-languages: shell
 
 on:
   push:
@@ -121,9 +121,11 @@ jobs:
 
       - name: Set release body
         id: set_release_body
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           body_content=""
-          if [[ "${{ steps.get_commit_message.outputs.commit_message }}" == Merge* ]]; then
+          if [[ "$COMMIT_MESSAGE" == Merge* ]]; then
             parent_shas=$(git log -1 --pretty=%P)
             for parent_sha in $parent_shas;
             do
@@ -133,7 +135,7 @@ jobs:
               body_content+=$(git log --format=%B -n 1 $parent_sha)
             done
           else
-            body_content="${{ steps.get_commit_message.outputs.commit_message }}"
+            body_content="$COMMIT_MESSAGE"
           fi
           {
             echo "body<<EOF"
@@ -191,9 +193,11 @@ jobs:
 
       - name: Set release body
         id: set_release_body
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           body_content=""
-          if [[ "${{ steps.get_commit_message.outputs.commit_message }}" == Merge* ]]; then
+          if [[ "$COMMIT_MESSAGE" == Merge* ]]; then
             parent_shas=$(git log -1 --pretty=%P)
             for parent_sha in $parent_shas;
             do
@@ -203,7 +207,7 @@ jobs:
               body_content+=$(git log --format=%B -n 1 $parent_sha)
             done
           else
-            body_content="${{ steps.get_commit_message.outputs.commit_message }}"
+            body_content="$COMMIT_MESSAGE"
           fi
           {
             echo "body<<EOF"
@@ -257,4 +261,3 @@ jobs:
             fi
             echo "Bleeding Edge Release created successfully!"
           fi
-
