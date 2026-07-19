@@ -161,6 +161,7 @@ namespace ModHearth
         // Paths.
         private static readonly string baseDir = AppContext.BaseDirectory;
         private static readonly string modSortRulesPath = Path.Combine(baseDir, "modsort_rules.json");
+        private static readonly string modRelationshipRulesPath = Path.Combine(baseDir, "modrules.json");
         private static readonly string localFallbackModpacksPath = Path.Combine(baseDir, "metadata", "modpacks.local.json");
         private static readonly Regex DuplicateWarningRegex = new("^Duplicate Object:\\s*(?<object>.+?);\\s*Offending mods are\\s*(?<mods>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -184,6 +185,7 @@ namespace ModHearth
 
         private readonly object installedCacheGate = new();
         private HashSet<string>? installedCacheModIds;
+        private Dictionary<string, ModRelationshipRule> relationshipRules = new(StringComparer.OrdinalIgnoreCase);
         private List<ModSortRule> sortRules = new();
         private List<ModSortRule> communitySortRules = new();
         public string LastMissingModsMessage { get; private set; } = string.Empty;
@@ -282,11 +284,159 @@ namespace ModHearth
             return sortRules;
         }
         public static string GetSortRulesPath() => modSortRulesPath;
+        public static string GetModRelationshipRulesPath() => modRelationshipRulesPath;
+
+        public IReadOnlyDictionary<string, ModRelationshipRule> GetModRelationshipRules()
+        {
+            return CloneRelationshipRules(relationshipRules);
+        }
+
+        public void SetModRelationshipRules(IDictionary<string, ModRelationshipRule>? rules)
+        {
+            relationshipRules = NormalizeRelationshipRules(rules);
+            sortRules = RelationshipRulesToSortRules(relationshipRules);
+            SaveRelationshipRules();
+        }
+
+        public void SetModRelationshipRule(string modId, ModRelationshipRule? rule)
+        {
+            Dictionary<string, ModRelationshipRule> next = CloneRelationshipRules(relationshipRules);
+            string key = modId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+
+            if (rule == null || rule.IsEmpty)
+                next.Remove(key);
+            else
+                next[key] = rule.Clone();
+
+            SetModRelationshipRules(next);
+        }
+
+        public bool TryAddModRelationship(string modId, ModRelationshipKind kind, string targetId)
+        {
+            string key = modId?.Trim() ?? string.Empty;
+            string target = targetId?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key) ||
+                string.IsNullOrWhiteSpace(target) ||
+                string.Equals(key, target, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            Dictionary<string, ModRelationshipRule> next = CloneRelationshipRules(relationshipRules);
+            if (!next.TryGetValue(key, out ModRelationshipRule? rule))
+            {
+                rule = new ModRelationshipRule();
+                next[key] = rule;
+            }
+
+            List<string> list = GetRelationshipList(rule, kind);
+            if (list.Any(id => string.Equals(id, target, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            list.Add(target);
+            SetModRelationshipRules(next);
+            return true;
+        }
 
         public void SetSortRules(IEnumerable<ModSortRule> rules)
         {
             sortRules = NormalizeSortRules(rules);
             SaveSortRules();
+        }
+
+        private static Dictionary<string, ModRelationshipRule> CloneRelationshipRules(
+            IDictionary<string, ModRelationshipRule>? rules)
+        {
+            Dictionary<string, ModRelationshipRule> clone = new(StringComparer.OrdinalIgnoreCase);
+            if (rules == null)
+                return clone;
+
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
+            {
+                string key = kvp.Key?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(key) || kvp.Value == null)
+                    continue;
+                clone[key] = kvp.Value.Clone();
+            }
+
+            return clone;
+        }
+
+        private static List<string> GetRelationshipList(ModRelationshipRule rule, ModRelationshipKind kind)
+        {
+            return kind switch
+            {
+                ModRelationshipKind.Before => rule.BeforeIds,
+                ModRelationshipKind.After => rule.AfterIds,
+                ModRelationshipKind.Required => rule.RequiredIds,
+                ModRelationshipKind.Incompatible => rule.IncompatibleIds,
+                _ => rule.BeforeIds
+            };
+        }
+
+        private static Dictionary<string, ModRelationshipRule> NormalizeRelationshipRules(
+            IDictionary<string, ModRelationshipRule>? rules)
+        {
+            Dictionary<string, ModRelationshipRule> normalized = new(StringComparer.OrdinalIgnoreCase);
+            if (rules == null)
+                return normalized;
+
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
+            {
+                string key = kvp.Key?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(key) || kvp.Value == null)
+                    continue;
+
+                ModRelationshipRule rule = new ModRelationshipRule
+                {
+                    BeforeIds = NormalizeIdList(kvp.Value.BeforeIds),
+                    AfterIds = NormalizeIdList(kvp.Value.AfterIds),
+                    RequiredIds = NormalizeIdList(kvp.Value.RequiredIds),
+                    IncompatibleIds = NormalizeIdList(kvp.Value.IncompatibleIds)
+                };
+
+                if (!rule.IsEmpty)
+                    normalized[key] = rule;
+            }
+
+            return normalized;
+        }
+
+        private static List<string> NormalizeIdList(IEnumerable<string>? ids)
+        {
+            List<string> normalized = new();
+            HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+            if (ids == null)
+                return normalized;
+
+            foreach (string id in ids)
+            {
+                string trimmed = id?.Trim() ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(trimmed) && seen.Add(trimmed))
+                    normalized.Add(trimmed);
+            }
+
+            return normalized;
+        }
+
+        private static List<ModSortRule> RelationshipRulesToSortRules(
+            IDictionary<string, ModRelationshipRule> rules)
+        {
+            List<ModSortRule> converted = new();
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
+            {
+                string ownerId = kvp.Key.Trim();
+                foreach (string targetId in kvp.Value.BeforeIds)
+                    converted.Add(new ModSortRule { BeforeId = ownerId, AfterId = targetId });
+                foreach (string targetId in kvp.Value.AfterIds)
+                    converted.Add(new ModSortRule { BeforeId = targetId, AfterId = ownerId });
+                foreach (string targetId in kvp.Value.RequiredIds)
+                    converted.Add(new ModSortRule { BeforeId = targetId, AfterId = ownerId });
+            }
+
+            return NormalizeSortRules(converted);
         }
 
         private static List<ModSortRule> NormalizeSortRules(IEnumerable<ModSortRule>? rules)
@@ -341,6 +491,13 @@ namespace ModHearth
 
         private void LoadSortRules()
         {
+            relationshipRules = LoadRelationshipRules();
+            if (File.Exists(modRelationshipRulesPath))
+            {
+                sortRules = RelationshipRulesToSortRules(relationshipRules);
+                return;
+            }
+
             sortRules = new List<ModSortRule>();
             if (!File.Exists(modSortRulesPath))
                 return;
@@ -351,10 +508,69 @@ namespace ModHearth
                 List<ModSortRule>? loadedRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent);
                 if (loadedRules != null)
                     sortRules = NormalizeSortRules(loadedRules);
+                relationshipRules = LegacySortRulesToRelationshipRules(sortRules);
             }
             catch
             {
                 sortRules = new List<ModSortRule>();
+                relationshipRules = new Dictionary<string, ModRelationshipRule>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        private static Dictionary<string, ModRelationshipRule> LoadRelationshipRules()
+        {
+            if (!File.Exists(modRelationshipRulesPath))
+                return new Dictionary<string, ModRelationshipRule>(StringComparer.OrdinalIgnoreCase);
+
+            try
+            {
+                string jsonContent = File.ReadAllText(modRelationshipRulesPath);
+                Dictionary<string, ModRelationshipRule>? loadedRules =
+                    JsonSerializer.Deserialize<Dictionary<string, ModRelationshipRule>>(jsonContent);
+                return NormalizeRelationshipRules(loadedRules);
+            }
+            catch
+            {
+                return new Dictionary<string, ModRelationshipRule>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        private static Dictionary<string, ModRelationshipRule> LegacySortRulesToRelationshipRules(IEnumerable<ModSortRule> rules)
+        {
+            Dictionary<string, ModRelationshipRule> converted = new(StringComparer.OrdinalIgnoreCase);
+            foreach (ModSortRule rule in NormalizeSortRules(rules))
+            {
+                string before = rule.BeforeId?.Trim() ?? string.Empty;
+                string after = rule.AfterId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(before) || string.IsNullOrWhiteSpace(after))
+                    continue;
+
+                if (!converted.TryGetValue(before, out ModRelationshipRule? relationshipRule))
+                {
+                    relationshipRule = new ModRelationshipRule();
+                    converted[before] = relationshipRule;
+                }
+
+                relationshipRule.BeforeIds.Add(after);
+            }
+
+            return NormalizeRelationshipRules(converted);
+        }
+
+        private void SaveRelationshipRules()
+        {
+            try
+            {
+                JsonSerializerOptions options = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+                string jsonContent = JsonSerializer.Serialize(relationshipRules, options);
+                File.WriteAllText(modRelationshipRulesPath, jsonContent);
+            }
+            catch
+            {
+                // Ignore relationship rule save failures.
             }
         }
 
@@ -1999,6 +2215,57 @@ namespace ModHearth
                             InfoLogger.Log("Problem found: missing required mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
 
+                    }
+                }
+
+                if (relationshipRules.TryGetValue(currentDFM.id, out ModRelationshipRule? customRule))
+                {
+                    foreach (string beforeID in customRule.BeforeIds)
+                    {
+                        string trimmedId = beforeID?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(trimmedId) || !allEnabledIDs.Contains(trimmedId))
+                            continue;
+                        if (!unscannedModIDs.Contains(trimmedId))
+                        {
+                            newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingAfter));
+                            InfoLogger.Log("Problem found: custom before rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                        }
+                    }
+
+                    foreach (string afterID in customRule.AfterIds)
+                    {
+                        string trimmedId = afterID?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(trimmedId) || !allEnabledIDs.Contains(trimmedId))
+                            continue;
+                        if (!scannedModIDs.Contains(trimmedId))
+                        {
+                            newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingBefore));
+                            InfoLogger.Log("Problem found: custom after rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                        }
+                    }
+
+                    foreach (string conflictID in customRule.IncompatibleIds)
+                    {
+                        string trimmedId = conflictID?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(trimmedId))
+                            continue;
+                        if (allEnabledIDs.Contains(trimmedId))
+                        {
+                            newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.ConflictPresent));
+                            InfoLogger.Log("Problem found: custom incompatible rule present for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                        }
+                    }
+
+                    foreach (string requiredID in customRule.RequiredIds)
+                    {
+                        string trimmedId = requiredID?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(trimmedId))
+                            continue;
+                        if (!allEnabledIDs.Contains(trimmedId))
+                        {
+                            newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingRequired));
+                            InfoLogger.Log("Problem found: custom required mod missing with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                        }
                     }
                 }
 

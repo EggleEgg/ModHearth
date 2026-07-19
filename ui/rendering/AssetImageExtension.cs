@@ -1,5 +1,10 @@
 using System.Collections.Concurrent;
+using System.IO;
+using System.Xml.Linq;
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Data.Converters;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -41,32 +46,111 @@ internal static class ImageSourceLoader
     private const string DefaultResourcesBaseUri = "avares://ModHearth/resources/";
     private const string AlternateResourcesBaseUri = "avares://ModHearth/Resources/";
 
+    /// <summary>
+    /// Use this in your avalonia element constructor. String input as resource path
+    /// </summary>
+    public static Image CreateAvaloniaImage(string iconResourceName, int width = 16, int height = 16)
+    {
+        var image = new Image
+        {
+            Width = width,
+            Height = height,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Source = LoadFromAssetUri(iconResourceName)
+        };
+
+        return image;
+    }
+
     // Using Lazy<IImage?> guarantees the factory logic runs exactly once per unique key
     private static readonly ConcurrentDictionary<string, Lazy<IImage?>> imageCache = new();
 
-    public static IImage? LoadFromAssetUri(string assetUri)
+    public static IImage? LoadFromAssetUri(string assetUri, Color? tint = null)
     {
         string normalized = NormalizeAssetUri(assetUri);
         if (string.IsNullOrWhiteSpace(normalized))
             return null;
 
+        string key = tint.HasValue ? $"{normalized}|{tint.Value}" : normalized;
+
         // GetOrAdd is fast because creating Lazy is cheap.
         // The heavy loading inside Lazy only happens when .Value is accessed.
-        return imageCache.GetOrAdd(normalized, key => new Lazy<IImage?>(() =>
+        return imageCache.GetOrAdd(key, k => new Lazy<IImage?>(() =>
         {
+            if (tint.HasValue && IsSvgPath(normalized))
+            {
+                return LoadTintedSvg(normalized, tint.Value);
+            }
+
             // Try primary URI
-            IImage? primary = LoadFromNormalizedAssetUri(key);
+            IImage? primary = LoadFromNormalizedAssetUri(normalized);
             if (primary != null)
                 return primary;
 
             // Try swap alternate base URI
-            string? alternate = TrySwapResourcesBase(key);
+            string? alternate = TrySwapResourcesBase(normalized);
             if (string.IsNullOrWhiteSpace(alternate))
                 return null;
 
             // Load alternate
             return LoadFromNormalizedAssetUri(alternate);
         })).Value;
+    }
+
+    private static IImage? LoadTintedSvg(string assetUri, Color tint)
+    {
+        try
+        {
+            Uri uri = new Uri(assetUri, UriKind.Absolute);
+            using Stream stream = AssetLoader.Open(uri);
+            var xdoc = XDocument.Load(stream);
+            var hexColor = $"#{tint.R:X2}{tint.G:X2}{tint.B:X2}";
+            
+            // Replace all fill and stroke attributes that are not 'none'
+            foreach (var element in xdoc.Descendants())
+            {
+                var name = element.Name.LocalName.ToLowerInvariant();
+                if (name is not ("path" or "rect" or "circle" or "ellipse" or "line" or "polyline" or "polygon" or "text"))
+                    continue;
+
+                var fillAttr = element.Attribute("fill");
+                var strokeAttr = element.Attribute("stroke");
+                var styleAttr = element.Attribute("style");
+
+                // If it has NO attributes related to color, it defaults to black fill in SVG.
+                // We force a fill attribute here to apply our tint.
+                if (fillAttr == null && strokeAttr == null && styleAttr == null)
+                {
+                    element.SetAttributeValue("fill", hexColor);
+                    continue;
+                }
+
+                if (fillAttr != null && fillAttr.Value != "none")
+                    fillAttr.Value = hexColor;
+
+                if (strokeAttr != null && strokeAttr.Value != "none")
+                    strokeAttr.Value = hexColor;
+
+                if (styleAttr != null)
+                {
+                    var val = styleAttr.Value;
+                    // Replace fill: and stroke: values if they are present and not 'none'
+                    val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=fill:)(?!none)[^;]+", hexColor);
+                    val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=stroke:)(?!none)[^;]+", hexColor);
+                    styleAttr.Value = val;
+                }
+            }
+
+            using var memoryStream = new MemoryStream();
+            xdoc.Save(memoryStream);
+            memoryStream.Position = 0;
+            return RenderSvgStream(memoryStream);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public static IImage? LoadFromAssetUriUncached(string assetUri)
@@ -299,5 +383,26 @@ internal static class ImageSourceLoader
     public static void ClearCache()
     {
         imageCache.Clear();
+    }
+}
+public sealed class TintedAssetConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+    {
+        if (parameter is not string assetName)
+            return null;
+
+        Color? tint = null;
+        if (value is ISolidColorBrush brush)
+            tint = brush.Color;
+        else if (value is Color color)
+            tint = color;
+
+        return ImageSourceLoader.LoadFromAssetUri(assetName, tint);
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotSupportedException();
     }
 }

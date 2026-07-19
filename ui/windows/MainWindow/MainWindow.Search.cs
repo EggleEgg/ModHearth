@@ -151,13 +151,13 @@ public partial class MainWindow
 
         var grid = new UniformGrid
         {
-            Columns = (int)Math.Sqrt(availableColors.Count + 1)
+            Columns = (int)Math.Sqrt(availableColors.Count + 1),
         };
 
         void RefreshGrid()
         {
             grid.Children.Clear();
-            
+
             // Add "Clear" option
             grid.Children.Add(CreateColorSwatchButton(new ModColorInfo
             {
@@ -165,7 +165,8 @@ public partial class MainWindow
                 Name = "Clear all filters",
                 Color = Colors.Transparent,
                 IsSelected = false
-            }, _ => {
+            }, _ =>
+            {
                 searchBar.Text = string.Empty;
                 ApplySearchFilterImmediately();
                 RefreshGrid();
@@ -184,7 +185,8 @@ public partial class MainWindow
                     Color = ModColorMap.GetColor(color),
                     IsSelected = currentSelection.Contains(color.ToString())
                 };
-                grid.Children.Add(CreateColorSwatchButton(info, c => {
+                grid.Children.Add(CreateColorSwatchButton(info, c =>
+                {
                     ToggleColor(c);
                     RefreshGrid();
                 }));
@@ -210,11 +212,13 @@ public partial class MainWindow
 
         RefreshGrid();
 
+        // The actual color picker filer submenu
         var flyout = new Flyout
         {
+            FlyoutPresenterClasses = { "compact-flyout" },
             Content = new Border
             {
-                Padding = new Thickness(4),
+                Padding = new Thickness(0),
                 Child = grid
             }
         };
@@ -234,7 +238,10 @@ public partial class MainWindow
     {
         SearchFilterHelper.ApplyFilterFlags(
             targetCollection,
-            sourceMods.Select(m => modViewMap[m.ToString()]),
+            sourceMods
+                .Select(m => modViewMap.TryGetValue(m.ToString(), out ModRefViewModel? vm) ? vm : null)
+                .Where(vm => vm != null)
+                .Cast<ModRefViewModel>(),
             filter,
             searchMode,
             hideFiltered,

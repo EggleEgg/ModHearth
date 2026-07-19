@@ -46,7 +46,7 @@ public partial class ModSearchBar : UserControl
         AvaloniaProperty.Register<ModSearchBar, SearchFilterMode>(nameof(SearchMode), SearchFilterMode.Name);
 
     public static readonly StyledProperty<bool> SortDescendingProperty =
-        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(SortDescending), true);
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(SortDescending), false);
 
     public static readonly StyledProperty<bool> IsSortingEnabledProperty =
         AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsSortingEnabled), true);
@@ -216,6 +216,14 @@ public partial class ModSearchBar : UserControl
     {
         get => GetValue(PlaceholderTextProperty);
         set => SetValue(PlaceholderTextProperty, value);
+    }
+
+    public void FocusSearchBox()
+    {
+        if (SearchMode == SearchFilterMode.Color)
+            return;
+
+        SearchBox.Focus();
     }
 
     public bool HideFiltered
@@ -392,10 +400,10 @@ public partial class ModSearchBar : UserControl
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name, "Search by name"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex, "Search by regex"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color, "Search by color"));
+
         if (IsSortingEnabled)
-        {
             panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime, "Sort by modified time"));
-        }
+
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id, "Search by mod id"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId, "Search by steam file id"));
         UpdateSearchModeOptionLabels();
@@ -539,6 +547,8 @@ public partial class ModSearchBar : UserControl
         string directionIconName = SortDescending ? "sortDownIcon.svg" : "sortUpIcon.svg";
         SortDirectionIcon.Source = ImageSourceLoader.LoadFromAssetUri(directionIconName)
             ?? SortDirectionIcon.Source;
+        // If searchbar button size changes, also modify this
+        //TODO Get ToggleButton width to set the width value (IsSortingEnabled == false)
         SearchModeButton.Width = IsSortingEnabled ? 30 : 22;
 
         if (!IsSortingEnabled)

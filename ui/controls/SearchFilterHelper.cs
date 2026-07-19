@@ -25,8 +25,8 @@ public static class SearchFilterHelper
             ? source
             : (searchMode, sortDescending) switch
             {
-                (SearchFilterMode.ModifiedTime, true) => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-                (SearchFilterMode.ModifiedTime, false) => source.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue),
+                (SearchFilterMode.ModifiedTime, true) => source.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue),
+                (SearchFilterMode.ModifiedTime, false) => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
                 (_, true) => source.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase),
                 (_, false) => source.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
             };

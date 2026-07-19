@@ -8,9 +8,20 @@
              x:DataType="ui:ModRefViewModel"
              Background="{Binding BackgroundBrush}"
              MinHeight="20">
+
+  <UserControl.Resources>
+    <ui:TintedAssetConverter x:Key="TintedAssetConverter" />
+  </UserControl.Resources>
+
   <UserControl.ContextMenu>
     <ContextMenu Opened="OnContextMenuOpened">
       <MenuItem Header="Add required mod" Tag="add-required-root" />
+      <MenuItem Header="Relations" Tag="relations-root">
+        <MenuItem Header="Add Before..." Tag="relation-before" Click="OnContextMenuItemClick" />
+        <MenuItem Header="Add After..." Tag="relation-after" Click="OnContextMenuItemClick" />
+        <MenuItem Header="Require..." Tag="relation-required" Click="OnContextMenuItemClick" />
+        <MenuItem Header="Mark Incompatible..." Tag="relation-incompatible" Click="OnContextMenuItemClick" />
+      </MenuItem>
       <MenuItem Header="Delete local mod" Tag="delete-mod" Click="OnContextMenuItemClick" />
       <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnContextMenuItemClick" />
@@ -35,14 +46,14 @@
       <MenuItem Header="Set Mod Color" Tag="set-mod-color-root" />
     </ContextMenu>
   </UserControl.ContextMenu>
-  <Grid IsHitTestVisible="False">
+  <Grid>
 
     <Grid IsHitTestVisible="False" IsVisible="{Binding $parent[ui:ModRefControl].ShowColorUnderlay}">
       <ui:ModBackground Grid.Column="1"
                         UnderlayBrush="{Binding #Root.((ui:ModRefViewModel)DataContext).ColorUnderlayBrush}" />
     </Grid>
 
-    <Grid ColumnDefinitions="Auto,Auto,*" Margin="2,0,5,0">
+    <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="2,0,5,0">
 
       <Grid.Styles>
         <Style Selector="Image">
@@ -90,6 +101,36 @@
         </TextBlock.Styles>
 
       </TextBlock>
+      <ItemsControl x:Name="DetailedBadgesControl"
+                    Grid.Column="3"
+                    ItemsSource="{Binding RuleBadges}"
+                    ToolTip.Tip="{Binding RuleBadgesTooltip}"
+                    Foreground="{Binding TextBrush}"
+                    Margin="4,0,0,0"
+                    VerticalAlignment="Center">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+      </ItemsControl>
+      <StackPanel x:Name="SimpleBadgeControl"
+                  Grid.Column="3"
+                  Orientation="Horizontal"
+                  Spacing="1.5"
+                  VerticalAlignment="Center"
+                  Margin="4,0,0,0"
+                  ToolTip.Tip="{Binding RelationshipTooltipText}">
+
+        <Image Width="10" Height="10" Margin="0"
+               VerticalAlignment="Center"
+               Source="{Binding TextBrush, Converter={StaticResource TintedAssetConverter}, ConverterParameter=filterIcon.svg}" />
+        <TextBlock Text="{Binding RelationshipCount}"
+                   FontSize="11"
+                   FontWeight="Medium"
+                   VerticalAlignment="Center"
+                   Foreground="{Binding TextBrush}" />
+      </StackPanel>
     </Grid>
     <Border Height="2"
             Background="{Binding DropHighlightBrush}"

@@ -65,7 +65,8 @@ public partial class MainWindow
             VisibleDockables = factory.CreateList<IDockable>(modDataTool),
             ActiveDockable = modDataTool,
             CanClose = false,
-            CanFloat = false
+            CanFloat = false,
+            IsCollapsable = false
         };
         ToolDock descriptionDock = new ToolDock
         {
@@ -77,16 +78,19 @@ public partial class MainWindow
             ActiveDockable = descriptionTool,
             CanClose = false,
             CanFloat = false,
-            CanDrag = false
+            IsCollapsable = false
         };
+
         ProportionalDockSplitter splitter = new ProportionalDockSplitter
         {
             Id = "ModInfoSplitter"
         };
+
         ProportionalDock layoutDock = new ProportionalDock
         {
             Id = "ModInfoLayout",
             Orientation = orientation,
+            IsCollapsable = false,
             VisibleDockables = modDataFirst
                 ? factory.CreateList<IDockable>(modDataDock, splitter, descriptionDock)
                 : factory.CreateList<IDockable>(descriptionDock, splitter, modDataDock)
@@ -109,7 +113,8 @@ public partial class MainWindow
             VisibleDockables = factory.CreateList<IDockable>(modPreviewTool),
             ActiveDockable = modPreviewTool,
             CanClose = false,
-            CanFloat = false
+            CanFloat = false,
+            IsCollapsable = false,
         };
         layoutDock.Proportion = 1 - previewProportion;
         ProportionalDockSplitter previewSplitter = new ProportionalDockSplitter
@@ -120,6 +125,7 @@ public partial class MainWindow
         {
             Id = "ModInfoOuterLayout",
             Orientation = previewOrientation,
+            IsCollapsable = false,
             VisibleDockables = previewFirst
                 ? factory.CreateList<IDockable>(previewDock, previewSplitter, layoutDock)
                 : factory.CreateList<IDockable>(layoutDock, previewSplitter, previewDock)
@@ -146,6 +152,8 @@ public partial class MainWindow
     {
         if (modDataTool?.Owner is not IDock dataDock)
             return;
+        if (!string.Equals(dataDock.Id, "ModDataDock", StringComparison.Ordinal))
+            return; // modDataTool was merged into a different dock via drag. Don't overwrite saved layout with data describing the wrong dock
 
         double proportion = dataDock.Proportion;
         if (double.IsNaN(proportion) || proportion < 0.05 || proportion > 0.95)
@@ -170,6 +178,8 @@ public partial class MainWindow
     private void SaveModPreviewPanelLayout()
     {
         if (modPreviewTool?.Owner is not IDock previewDock)
+            return;
+        if (!string.Equals(previewDock.Id, "ModPreviewDock", StringComparison.Ordinal))
             return;
 
         double proportion = previewDock.Proportion;

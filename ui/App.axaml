@@ -4,12 +4,13 @@
              x:Class="ModHearth.UI.App"
              xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia">
 
+  <!-- Stick default style replacements in here -->
+
   <Application.Styles>
     <FluentTheme />
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     <DockFluentTheme />
 
-    <!-- Stick default style replacements in here -->
     <Style Selector="Button Image">
       <Setter Property="Margin" Value="4" />
     </Style>
@@ -30,6 +31,11 @@
       <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource SystemControlElevationBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- Used for small submenus. By default, the padding is 12px -->
+    <Style Selector="FlyoutPresenter.compact-flyout">
+      <Setter Property="Padding" Value="2"/>
     </Style>
 
   </Application.Styles>

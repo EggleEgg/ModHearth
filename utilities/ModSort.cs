@@ -184,7 +184,15 @@ namespace ModHearth
             while (queue.Count > 0)
             {
                 ModReference current = queue.Dequeue();
-                foreach (string dep in current.require_before_me.Concat(current.require_after_me).Concat(current.require_ids))
+                IEnumerable<string> declaredDependencies = current.require_before_me
+                    .Concat(current.require_after_me)
+                    .Concat(current.require_ids);
+
+                IEnumerable<string> customRequiredIds = relationshipRules.TryGetValue(current.ID, out ModRelationshipRule? customRule)
+                    ? customRule.RequiredIds
+                    : Enumerable.Empty<string>();
+
+                foreach (string dep in declaredDependencies.Concat(customRequiredIds))
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId))
@@ -224,7 +232,39 @@ namespace ModHearth
                 indegree[modref.ID] = 0;
             }
 
-            // --- Tier 1: user-defined sort rules ---
+            // --- Tier 1: per-mod relationship rules ---
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in relationshipRules)
+            {
+                string ownerId = kvp.Key?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(ownerId) || !enabledIds.Contains(ownerId))
+                    continue;
+
+                foreach (string target in kvp.Value.BeforeIds)
+                {
+                    string targetId = target?.Trim() ?? string.Empty;
+                    if (!enabledIds.Contains(targetId))
+                        continue;
+                    TryAddEdge(edges, indegree, ownerId, targetId);
+                }
+
+                foreach (string target in kvp.Value.AfterIds)
+                {
+                    string targetId = target?.Trim() ?? string.Empty;
+                    if (!enabledIds.Contains(targetId))
+                        continue;
+                    TryAddEdge(edges, indegree, targetId, ownerId);
+                }
+
+                foreach (string target in kvp.Value.RequiredIds)
+                {
+                    string targetId = target?.Trim() ?? string.Empty;
+                    if (!enabledIds.Contains(targetId))
+                        continue;
+                    TryAddEdge(edges, indegree, targetId, ownerId);
+                }
+            }
+
+            // --- Tier 1.1: legacy user-defined sort rules ---
             foreach (ModSortRule rule in sortRules)
             {
                 if (rule == null)

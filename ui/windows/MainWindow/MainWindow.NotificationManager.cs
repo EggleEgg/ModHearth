@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Layout;
 using Avalonia.Threading;
 namespace ModHearth.UI;
 
@@ -33,8 +34,8 @@ public partial class MainWindow
 
             var border = new Border
             {
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
                 Padding = new Thickness(6, 5.5, 20, 5.5),
                 CornerRadius = new CornerRadius(0, 4, 4, 0),
                 BorderThickness = new Thickness(0, 1, 1, 1),
@@ -65,7 +66,7 @@ public partial class MainWindow
 
             var stackPanel = new StackPanel
             {
-                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Orientation = Orientation.Horizontal,
                 Spacing = 6
             };
 
@@ -73,7 +74,7 @@ public partial class MainWindow
             {
                 Width = 16,
                 Height = 16,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
                 Source = ImageSourceLoader.LoadFromAssetUri(iconResourceName)
             };
 
@@ -82,7 +83,7 @@ public partial class MainWindow
                 Text = message,
                 FontSize = 12,
                 FontWeight = FontWeight.SemiBold,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
                 Foreground = textBrush
             };
 

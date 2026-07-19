@@ -1,2122 +1,681 @@
-﻿using Avalonia;
+using System;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
+using ModHearth.Utilities;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Text.Json;
-using System.Collections.Generic;
-using System.Linq;
-using ModHearth.Models;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
-using ModHearth.UI;
 
 namespace ModHearth.UI;
 
 public partial class SortRulesWindow : Window, IModRefContextMenuProvider
 {
-    private readonly ObservableCollection<ModRefViewModel> availableMods = new();
-    private readonly ObservableCollection<ModRefViewModel> ruleMods = new();
-    private readonly List<ModSortRule> _userRules = new();
-    private List<ModSortRule> _communityRules = new();
-    private readonly List<ModRefViewModel> masterRuleList = new();
-    private readonly ObservableCollection<object> ruleJsonLines = new();
-
-    private readonly Dictionary<string, ModRefViewModel> modKeyMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ObservableCollection<ModRefViewModel> visibleMods = new();
+    private readonly List<ModRefViewModel> allMods = new();
     private readonly Dictionary<string, ModRefViewModel> modIdMap = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, RuleLineIndices> ruleLineIndices = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<RuleGap> ruleGaps = new(RuleGapComparer.Instance);
-    private readonly HashSet<RuleGap> initialRuleGaps = new(RuleGapComparer.Instance);
-    private readonly HashSet<RuleEdge> explicitRequiredRules = new(RuleEdgeComparer.Instance);
-    private readonly HashSet<RuleEdge> initialExplicitRequiredRules = new(RuleEdgeComparer.Instance);
-    private readonly HashSet<string> explicitRequiredIds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> initialExplicitRequiredIds = new(StringComparer.OrdinalIgnoreCase);
-    private HashSet<RuleGap> redoRuleGaps = new(RuleGapComparer.Instance);
-    private HashSet<RuleEdge> redoExplicitRequiredRules = new(RuleEdgeComparer.Instance);
-    private HashSet<string> redoExplicitRequiredIds = new(StringComparer.OrdinalIgnoreCase);
-
-    private readonly ModListDragDropController modListController;
-    private readonly ShortcutKeyHandler shortcutKeyHandler;
-    private readonly string modsFolderPath;
-    private readonly string vanillaFolderPath;
+    private readonly Dictionary<string, ModRelationshipRule> rules = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Stack<Dictionary<string, ModRelationshipRule>> undoStack = new();
     private readonly string rulesFilePath;
-    private readonly Action<List<ModSortRule>>? onSave;
-    private readonly string? initialCommunityRulesUrl;
-    private readonly Func<string, Task<(bool success, string message, IReadOnlyList<ModSortRule>? rules)>>? fetchCommunityRules;
-    private readonly DispatcherTimer searchDebounceTimer;
-    private readonly IEnumerable<ModReference> modRefs;
-
-    private readonly List<string> initialRuleOrder = new();
-    private bool changesMade;
-    private bool redoAvailable;
-    private bool isRedoing;
-    private bool bypassUnsavedClosePrompt;
-    private bool unsavedClosePromptInFlight;
-    private List<string> redoRuleOrder = new();
-    private string? lastJumpModId;
-    private int lastJumpIndex;
-    private readonly int emptyRuleGapSize = 12;
+    private readonly Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged;
+    private ModRefViewModel? selectedMod;
+    private bool applyingUndo;
+    private readonly ListSelectionController<ModRefViewModel> selectionController = new();
+    private readonly ModSearchController searchController;
 
     public SortRulesWindow()
-        : this(Array.Empty<ModSortRule>(), Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null, null)
-    {
-    }
-
-    public SortRulesWindow(IEnumerable<ModSortRule> existingRules)
-        : this(existingRules, Array.Empty<ModReference>(), string.Empty, string.Empty, string.Empty, null, null, null, null)
-    {
-    }
-
-    public SortRulesWindow(IEnumerable<ModSortRule> existingRules, IEnumerable<ModReference> modRefs)
-        : this(existingRules, modRefs, string.Empty, string.Empty, string.Empty, null, null, null, null)
+        : this(new Dictionary<string, ModRelationshipRule>(), Array.Empty<ModReference>(), string.Empty, null)
     {
     }
 
     public SortRulesWindow(
-        IEnumerable<ModSortRule> existingRules,
+        IReadOnlyDictionary<string, ModRelationshipRule> existingRules,
         IEnumerable<ModReference> modRefs,
-        string? modsFolderPath,
-        string? vanillaFolderPath,
         string? rulesFilePath,
-        Action<List<ModSortRule>>? onSave = null,
-        string? communityRulesUrl = null,
-        Func<string, Task<(bool success, string message, IReadOnlyList<ModSortRule>? rules)>>? fetchCommunityRules = null,
-        IEnumerable<ModSortRule>? communityRules = null)
+        Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged = null)
     {
         InitializeComponent();
         WindowThemeManager.Register(this);
-        this.modsFolderPath = modsFolderPath ?? string.Empty;
-        this.vanillaFolderPath = vanillaFolderPath ?? string.Empty;
         this.rulesFilePath = rulesFilePath ?? string.Empty;
-        this.onSave = onSave;
-        this.initialCommunityRulesUrl = communityRulesUrl;
-        this.fetchCommunityRules = fetchCommunityRules;
-        this.modRefs = modRefs ?? Array.Empty<ModReference>();
+        this.onRulesChanged = onRulesChanged;
 
-        _userRules.AddRange(existingRules ?? Array.Empty<ModSortRule>());
-        _communityRules = communityRules?.ToList() ?? new List<ModSortRule>();
-        BuildViewModels(this.modRefs);
+        foreach (KeyValuePair<string, ModRelationshipRule> kvp in existingRules ?? new Dictionary<string, ModRelationshipRule>())
+            rules[kvp.Key] = kvp.Value.Clone();
 
-        modTreeList.ItemsSource = availableMods;
-        rulesList.ItemsSource = ruleMods;
-        selectedRulesList.ItemsSource = ruleJsonLines;
+        BuildViewModels(modRefs ?? Array.Empty<ModReference>());
+        ModListIndicatorUpdater.UpdateRelationshipBadges(allMods, rules);
+        modTreeList.ItemsSource = visibleMods;
+        modTreeList.SelectionChanged += ModTreeSelectionChanged;
+        selectionController.RegisterList(modTreeList);
 
-        modListController = new ModListDragDropController(
-            this,
-            () => modIdMap.Values,
-            key => modKeyMap.TryGetValue(key, out ModRefViewModel? vm) ? vm : null,
-            vm => vm.DfMod.ToString());
-        modListController.RegisterList(modTreeList, allowReorder: false);
-        modListController.RegisterList(rulesList, allowReorder: true);
-        modListController.Dropped += HandleDrop;
-
-        modTreeList.SelectionChanged += ModlistSelectionChanged;
-        rulesList.SelectionChanged += ModlistSelectionChanged;
-        modTreeList.DoubleTapped += (_, _) => MoveSelectedBetweenLists(sourceModTree: true);
-        rulesList.AddHandler(InputElement.PointerPressedEvent, RulesListPointerPressed, RoutingStrategies.Bubble, true);
-
-        modTreeSearchBar.HideFiltered = true;
-        rulesSearchBar.HideFiltered = true;
-        searchDebounceTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(140)
-        };
-        searchDebounceTimer.Tick += (_, _) =>
-        {
-            searchDebounceTimer.Stop();
-            ApplySearchFilter();
-        };
-
-        modTreeSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
-        rulesSearchBar.SearchTextChanged += (_, _) => ScheduleSearchFilter();
-        modTreeSearchBar.SearchModeChanged += (_, _) =>
-        {
-            searchDebounceTimer.Stop();
-            ApplySearchFilter();
-        };
-        rulesSearchBar.SearchModeChanged += (_, _) =>
-        {
-            searchDebounceTimer.Stop();
-            ApplySearchFilter();
-        };
-        modTreeSearchBar.SortOrderChanged += (_, _) =>
-        {
-            searchDebounceTimer.Stop();
-            ApplySearchFilter();
-        };
-        rulesSearchBar.SortOrderChanged += (_, _) =>
-        {
-            searchDebounceTimer.Stop();
-            ApplySearchFilter();
-        };
-        modTreeSearchBar.HideFilteredToggled += (_, _) =>
-        {
-            searchDebounceTimer.Stop();
-            ApplySearchFilter();
-        };
-        rulesSearchBar.HideFilteredToggled += (_, _) =>
-        {
-            searchDebounceTimer.Stop();
-            ApplySearchFilter();
-        };
-
-        saveButton.Click += (_, _) => SaveRules();
-        saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Bubble, true);
-
-        if (communityRulesUrlTextBox != null)
-            communityRulesUrlTextBox.Text = communityRulesUrl ?? string.Empty;
-
-        fetchCommunityRulesButton.Click += async (_, _) => await FetchCommunityRulesAsync();
+        // Orchestrate search and filtering
+        searchController = new ModSearchController(modSearchBar, visibleMods, allMods, modTreeList, selectionController);
 
         KeyDown += SortRulesWindowKeyDown;
-        Closing += SortRulesWindowClosing;
 
-        shortcutKeyHandler = new ShortcutKeyHandler(
-            () => changesMade,
-            () => UndoChangesAsync(),
-            () => redoAvailable,
-            () => { RedoChanges(); return Task.CompletedTask; },
-            canSave: () => changesMade,
-            saveAsync: () =>
-            {
-                SaveRules();
-                return Task.CompletedTask;
-            });
-        shortcutKeyHandler.Attach(this);
-        Closed += (_, _) => searchDebounceTimer.Stop();
+        ApplyModFilter();
+        selectedMod = visibleMods.FirstOrDefault();
+        if (selectedMod != null)
+            modTreeList.SelectedItem = selectedMod;
+        selectionController.UpdateSelectionState(modTreeList);
+        RefreshEditor();
 
-        modTreeSearchBar.ColorPickerClicked += OnColorPickerClicked;
-        rulesSearchBar.ColorPickerClicked += OnColorPickerClicked;
-
-        ApplySearchBarStyles();
-        UpdateSearchBarAvailableColors();
-        ApplySearchFilter();
-        UpdateRuleReferenceOverlay();
-        UpdateRuleGapVisuals();
-        UpdateRulesJsonPreview();
+        clearAllRelationshipsButton.Click += async (_, _) => await ClearAllRelationshipsAsync();
     }
 
-    private void UpdateSearchBarAvailableColors()
+    private void BuildViewModels(IEnumerable<ModReference> modRefs)
     {
-        if (modTreeSearchBar == null || rulesSearchBar == null) return;
+        string modsFolderPath = ConfigManager.GetModsPath();
+        string vanillaFolderPath = ConfigManager.GetVanillaModsPath();
 
-        var availableColors = modIdMap.Values
-            .Select(m => m.ModReference.AssignedColor)
-            .Where(c => c != ModColor.None)
-            .Distinct()
-            .ToList();
-
-        modTreeSearchBar.SetAvailableColors(availableColors);
-        rulesSearchBar.SetAvailableColors(availableColors);
-    }
-
-    private void OnColorPickerClicked(object? sender, EventArgs e)
-    {
-        if (sender is not ModSearchBar searchBar) return;
-
-        var availableColors = searchBar.ColorPicker.AvailableColors.Select(c => c.ModColor).ToList();
-
-        var grid = new UniformGrid
+        foreach (ModReference modref in modRefs
+            .Where(m => !string.IsNullOrWhiteSpace(m.ID))
+            .GroupBy(m => m.ID.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .OrderBy(m => DisplayNameFor(m), StringComparer.OrdinalIgnoreCase))
         {
-            Columns = (int)Math.Sqrt(availableColors.Count + 1)
-        };
-
-        void RefreshGrid()
-        {
-            grid.Children.Clear();
-
-            // Add "Clear" option
-            grid.Children.Add(CreateColorSwatchButton(new ModColorInfo
-            {
-                ModColor = ModColor.None,
-                Name = "Clear all filters",
-                Color = Colors.Transparent,
-                IsSelected = false
-            }, _ =>
-            {
-                searchBar.Text = string.Empty;
-                ApplySearchFilter();
-                RefreshGrid();
-            }));
-
-            var currentSelection = searchBar.Text.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .ToList();
-
-            foreach (var color in availableColors)
-            {
-                var info = new ModColorInfo
-                {
-                    ModColor = color,
-                    Name = ModColorMap.ColorNames.TryGetValue(color, out var name) ? name : color.ToString(),
-                    Color = ModColorMap.GetColor(color),
-                    IsSelected = currentSelection.Contains(color.ToString())
-                };
-                grid.Children.Add(CreateColorSwatchButton(info, c =>
-                {
-                    ToggleColor(c);
-                    RefreshGrid();
-                }));
-            }
+            ModRefViewModel vm = new ModRefViewModel(modref);
+            (bool isVanilla, bool isLocal, bool isSteam) = ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
+            vm.IsVanillaModSource = isVanilla;
+            vm.IsLocalModSource = isLocal;
+            vm.IsSteamModSource = isSteam;
+            vm.RefreshStyle();
+            allMods.Add(vm);
+            modIdMap[modref.ID.Trim()] = vm;
         }
-
-        void ToggleColor(ModColor color)
-        {
-            var text = searchBar.Text;
-            var selectedColors = text.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .ToList();
-
-            var colorStr = color.ToString();
-            if (selectedColors.Contains(colorStr))
-                selectedColors.Remove(colorStr);
-            else
-                selectedColors.Add(colorStr);
-
-            searchBar.Text = string.Join(",", selectedColors);
-            ApplySearchFilter();
-        }
-
-        RefreshGrid();
-
-        var flyout = new Flyout
-        {
-            Content = new Border
-            {
-                Padding = new Thickness(4),
-                Child = grid
-            }
-        };
-
-        flyout.ShowAt(searchBar);
     }
 
-    private Button CreateColorSwatchButton(ModColorInfo info, Action<ModColor> onClick)
+    private void ApplyModFilter()
     {
-        var button = new Button
-        {
-            Width = 24,
-            Height = 24,
-            Padding = new Thickness(0),
-            Margin = new Thickness(2),
-            Background = info.ModColor == ModColor.None ? Brushes.Transparent : BrushCache.GetBrush(info.Color),
-            BorderBrush = info.IsSelected ? Brushes.White : Brushes.Gray,
-            BorderThickness = new Thickness(info.IsSelected ? 2 : 1)
-        };
-
-        ToolTip.SetTip(button, info.Name);
-
-        if (info.ModColor == ModColor.None)
-        {
-            button.Content = new Image
-            {
-                Source = ImageSourceLoader.LoadFromAssetUri("cancelIcon"),
-                Width = 16,
-                Height = 16
-            };
-        }
-
-        button.Click += (_, _) => onClick(info.ModColor);
-        return button;
+        searchController.ApplyFilterImmediately();
     }
 
-    private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void ModTreeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (sender is not ListBox list)
+        if (selectionController.HandleSelectionChanged(modTreeList))
             return;
 
-        if (modListController.HandleSelectionChanged(list))
-            return;
+        selectionController.UpdateSelectionState(modTreeList);
 
-        if (sender == modTreeList && modTreeList.SelectedItems?.Count > 0)
-            rulesList.SelectedItems?.Clear();
-        if (sender == rulesList && rulesList.SelectedItems?.Count > 0)
-            modTreeList.SelectedItems?.Clear();
-
-        modListController.UpdateSelectionState(modTreeList);
-        modListController.UpdateSelectionState(rulesList);
-        UpdateRuleReferenceOverlay();
-
-        if (sender == rulesList)
-        {
-            ModRefViewModel? added = e.AddedItems?.OfType<ModRefViewModel>().FirstOrDefault();
-            if (added != null)
-                JumpToRuleLine(added);
-        }
-
-        if (rulesList.SelectedItems == null || rulesList.SelectedItems.Count == 0)
-            ClearJsonSelection();
-    }
-
-    private void RulesListPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (sender is not ListBox list)
-            return;
-
-        PointerPoint point = e.GetCurrentPoint(list);
-        if (!point.Properties.IsLeftButtonPressed)
-            return;
-
-        if (IsPointerOverScrollBar(list, point.Position))
-            return;
-
-        ModRefViewModel? hit = GetItemAtPoint(list, point.Position);
-        if (hit == null)
-            return;
-
-        if (list.SelectedItems != null && list.SelectedItems.Contains(hit))
-            JumpToRuleLine(hit);
+        selectedMod = modTreeList.SelectedItem as ModRefViewModel;
+        RefreshEditor();
     }
 
     public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
     {
-        foreach (var item in menu.Items)
+        foreach (object? item in menu.Items)
         {
             if (item is MenuItem menuItem)
             {
-                if (string.Equals(menuItem.Tag?.ToString(), "add-required-root", StringComparison.Ordinal))
-                {
-                    menuItem.IsVisible = true;
-                }
-                else
-                {
-                    menuItem.IsVisible = false;
-                }
+                string tag = menuItem.Tag?.ToString() ?? string.Empty;
+                menuItem.IsVisible = tag.StartsWith("relation-", StringComparison.Ordinal) ||
+                                     string.Equals(tag, "relations-root", StringComparison.Ordinal);
             }
             else if (item is Separator separator)
             {
                 separator.IsVisible = false;
             }
         }
-
-        SortRuleContextMenuOpened(menu, new RoutedEventArgs());
     }
 
-    public void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+    public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
     {
+        ModRelationshipKind? kind = RelationshipKindFromTag(item.Tag?.ToString());
+        if (kind == null)
+            return;
+
+        selectedMod = vm;
+        modTreeList.SelectedItem = vm;
+        await AddRelationshipAsync(kind.Value);
     }
 
-    private void SortRuleContextMenuOpened(object? sender, RoutedEventArgs e)
+    private void RefreshEditor()
     {
-        if (sender is not ContextMenu menu)
-            return;
+        sectionsPanel.Children.Clear();
 
-        ContextMenuCoordinator.Activate(menu);
-
-        ModRefViewModel? contextVm = ResolveContextMenuMod(menu);
-        if (contextVm == null)
-            return;
-
-        ListBox? contextList = GetListForMod(contextVm);
-        if (contextList != null)
+        if (selectedMod == null)
         {
-            modListController.TryRestoreContextSelection(contextList, contextVm);
-            if (contextList.SelectedItems == null || contextList.SelectedItems.Count == 0 || !contextList.SelectedItems.Contains(contextVm))
-            {
-                contextList.SelectedItems?.Clear();
-                contextList.SelectedItems?.Add(contextVm);
-            }
-
-            if (contextList == modTreeList)
-                rulesList.SelectedItems?.Clear();
-            else if (contextList == rulesList)
-                modTreeList.SelectedItems?.Clear();
-
-            modListController.UpdateSelectionState(modTreeList);
-            modListController.UpdateSelectionState(rulesList);
-            UpdateRuleReferenceOverlay();
+            selectedTitleText.Text = "Select a mod";
+            selectedSubtitleText.Text = "Choose a mod to edit its relationships.";
+            summaryText.Text = "Before: 0   After: 0   Required: 0   Incompatible: 0";
+            validationText.Text = string.Empty;
+            previewText.Text = string.Empty;
+            return;
         }
 
-        ConfigureAddRequiredSubmenu(menu);
+        ModRelationshipRule rule = GetRule(selectedMod.ModReference.ID);
+        selectedTitleText.Text = selectedMod.ModReference.name ?? selectedMod.ModReference.ID;
+        selectedSubtitleText.Text = $"{selectedMod.ModReference.author}   {selectedMod.ModReference.ID}";
+        summaryText.Text =
+            $"Before: {rule.BeforeIds.Count}   After: {rule.AfterIds.Count}   Required: {rule.RequiredIds.Count}   Incompatible: {rule.IncompatibleIds.Count}";
+
+        ValidationResult validation = ValidateRules();
+        validationText.Text = validation.Message;
+        validationText.Foreground = validation.HasError
+            ? Brushes.IndianRed
+            : validation.HasWarning ? Brushes.Goldenrod : Brushes.SeaGreen;
+        previewText.Text = validation.HasError ? "Sorting conflict" : "AutoSort preview updated";
+
+        sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Before, "Before", "This mod must load before these mods.", rule.BeforeIds));
+        sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));
+        sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Required, "Required", "These mods are required when this mod is enabled.", rule.RequiredIds));
+        sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Incompatible, "Incompatible", "These mods should not be enabled together.", rule.IncompatibleIds));
     }
 
-    private ModRefViewModel? ResolveContextMenuMod(ContextMenu menu)
+    private Control CreateSection(ModRelationshipKind kind, string title, string description, IReadOnlyList<string> ids)
     {
-        Control? placementControl = menu.PlacementTarget as Control;
-        return placementControl?.DataContext as ModRefViewModel ??
-               menu.DataContext as ModRefViewModel ??
-               menu.Items.OfType<MenuItem>()
-                   .Select(item => item.DataContext)
-                   .OfType<ModRefViewModel>()
-                   .FirstOrDefault() ??
-               rulesList.SelectedItems?.OfType<ModRefViewModel>().FirstOrDefault() ??
-               modTreeList.SelectedItems?.OfType<ModRefViewModel>().FirstOrDefault();
-    }
-
-    private void ConfigureAddRequiredSubmenu(ContextMenu menu)
-    {
-        MenuItem? addRequiredRoot = menu.Items
-            .OfType<MenuItem>()
-            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), "add-required-root", StringComparison.Ordinal));
-        if (addRequiredRoot == null)
-            return;
-
-        List<MenuItem> allModItems = modIdMap.Values
-            .Where(candidate =>
-            {
-                string id = candidate.ModReference.ID?.Trim() ?? string.Empty;
-                return !string.IsNullOrWhiteSpace(id);
-            })
-            .OrderBy(candidate => candidate.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(candidate => candidate.ModReference.ID, StringComparer.OrdinalIgnoreCase)
-            .Select(candidate =>
-            {
-                string requiredId = candidate.ModReference.ID?.Trim() ?? string.Empty;
-                MenuItem item = new MenuItem
-                {
-                    Header = StringFormatter.TruncateForDisplay($"{candidate.DisplayName} ({requiredId})", 50),
-                    Tag = new RequiredMenuPayload(requiredId)
-                };
-                item.Click += AddRequiredMenuItemClick;
-                return item;
-            })
-            .ToList();
-
-        ModSearchBar searchBar = new ModSearchBar
+        StackPanel panel = new() { Spacing = 6 };
+        Border border = new()
         {
-            PlaceholderText = "Filter mods...",
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10),
+            Child = panel
+        };
+
+        Grid header = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 8 };
+        Border accent = new()
+        {
+            Width = 5,
+            Height = 22,
+            CornerRadius = new CornerRadius(2),
+            Background = ModListIndicatorUpdater.RelationshipBrush(kind),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        DockPanel titleContainer = new()
+        {
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        Image? icon = IconFor(kind);
+        if (icon != null)
+        {
+            icon.Width = 14;
+            icon.Height = 14;
+            icon.Margin = new Thickness(0, 0, 6, 0);
+            titleContainer.Children.Add(icon);
+        }
+
+        TextBlock titleText = new()
+        {
+            Text = title,
+            FontWeight = FontWeight.Bold,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        titleContainer.Children.Add(titleText);
+
+        Button addButton = new()
+        {
+            Content = $"Add {title}",
+            MinWidth = 94,
             Height = 28,
-            HideFiltered = true
+            HorizontalContentAlignment = HorizontalAlignment.Center
+        };
+        Button clearButton = new()
+        {
+            Content = $"Clear {title}",
+            MinWidth = 96,
+            Height = 28,
+            IsEnabled = ids.Count > 0,
+            HorizontalContentAlignment = HorizontalAlignment.Center
         };
 
-        if (Style.instance != null)
-            searchBar.ApplyStyle(Style.instance);
+        Grid.SetColumn(titleContainer, 1);
+        Grid.SetColumn(addButton, 2);
+        Grid.SetColumn(clearButton, 3);
+        header.Children.Add(accent);
+        header.Children.Add(titleContainer);
+        header.Children.Add(addButton);
+        header.Children.Add(clearButton);
+        panel.Children.Add(header);
+        panel.Children.Add(new TextBlock { Text = description, FontSize = 12, Opacity = 0.72 });
 
-        searchBar.SearchTextChanged += (sender, e) =>
+        if (ids.Count == 0)
         {
-            string filter = searchBar.Text.Trim();
-            foreach (MenuItem item in allModItems)
+            panel.Children.Add(new TextBlock
             {
-                // This is a bit hacky, but accessing the DisplayName from the Tag is not direct, but the Header is a string.
-                item.IsVisible = string.IsNullOrWhiteSpace(filter) || item.Header?.ToString()?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true;
-            }
-        };
-
-        MenuItem searchMenuItem = new MenuItem
-        {
-            Header = searchBar,
-            StaysOpenOnClick = true,
-            Focusable = false // Try to prevent the MenuItem from trying to gain focus
-        };
-
-        List<object> items = new List<object> { searchMenuItem };
-        items.AddRange(allModItems);
-
-        if (allModItems.Count == 0)
-        {
-            addRequiredRoot.ItemsSource = new[]
-            {
-                new MenuItem
-                {
-                    Header = "No mods available",
-                    IsEnabled = false
-                }
-            };
-            addRequiredRoot.IsEnabled = false;
-            return;
-        }
-
-        addRequiredRoot.IsEnabled = true;
-        addRequiredRoot.ItemsSource = items;
-    }
-
-    private void AddRequiredMenuItemClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuItem menuItem)
-            return;
-        if (menuItem.Tag is not RequiredMenuPayload payload)
-            return;
-
-        if (!modIdMap.TryGetValue(payload.RequiresId, out ModRefViewModel? requiredVm) || requiredVm == null)
-            return;
-
-        AddRequiredRule(requiredVm);
-    }
-
-    private void AddRequiredRule(ModRefViewModel requiredVm)
-    {
-        string requiredId = requiredVm.ModReference.ID?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(requiredId))
-            return;
-
-        EnsureModPresentInRuleList(requiredVm);
-        explicitRequiredIds.Add(requiredId);
-
-        modTreeList.SelectedItems?.Clear();
-        rulesList.SelectedItems?.Clear();
-        rulesList.SelectedItems?.Add(requiredVm);
-        rulesList.ScrollIntoView(requiredVm);
-        modListController.UpdateSelectionState(modTreeList);
-        modListController.UpdateSelectionState(rulesList);
-
-        NormalizeGaps();
-        NormalizeExplicitRules();
-        NormalizeExplicitRequiredIds();
-        MarkChanged();
-        RefreshRuleState(true);
-    }
-
-    private void EnsureModPresentInRuleList(ModRefViewModel vm, int? preferredIndex = null)
-    {
-        if (masterRuleList.Contains(vm))
-            return;
-
-        int index = preferredIndex.HasValue
-            ? Math.Max(0, Math.Min(preferredIndex.Value, masterRuleList.Count))
-            : masterRuleList.Count;
-        masterRuleList.Insert(index, vm);
-        ApplySearchFilter();
-    }
-
-    private void UpdateRuleReferenceOverlay()
-    {
-        foreach (ModRefViewModel vm in availableMods)
-            vm.ReferenceOverlay = ModRefViewModel.ReferenceOverlayKind.None;
-
-        foreach (ModRefViewModel vm in ruleMods)
-            vm.ReferenceOverlay = ModRefViewModel.ReferenceOverlayKind.None;
-
-        List<ModRefViewModel> selected = rulesList.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-        if (selected.Count == 0)
-            return;
-
-        HashSet<ModRefViewModel> selectedSet = new HashSet<ModRefViewModel>(selected);
-        int segmentStart = 0;
-        for (int i = 0; i < ruleMods.Count; i++)
-        {
-            bool segmentEndsHere = (i == ruleMods.Count - 1) ||
-                                   HasGapBetween(ruleMods[i].ModReference.ID, ruleMods[i + 1].ModReference.ID);
-            if (!segmentEndsHere)
-                continue;
-
-            int segmentEnd = i;
-            ApplyReferenceOverlayToSegment(segmentStart, segmentEnd, selectedSet);
-            segmentStart = i + 1;
-        }
-    }
-
-    private void ApplyReferenceOverlayToSegment(
-        int segmentStart,
-        int segmentEnd,
-        HashSet<ModRefViewModel> selectedSet)
-    {
-        int firstSelected = -1;
-        int lastSelected = -1;
-        for (int i = segmentStart; i <= segmentEnd; i++)
-        {
-            if (!selectedSet.Contains(ruleMods[i]))
-                continue;
-            if (firstSelected < 0)
-                firstSelected = i;
-            lastSelected = i;
-        }
-
-        if (firstSelected < 0)
-            return;
-
-        for (int i = segmentStart; i < firstSelected; i++)
-            ruleMods[i].ReferenceOverlay = ModRefViewModel.ReferenceOverlayKind.AboveSelection;
-        for (int i = lastSelected + 1; i <= segmentEnd; i++)
-            ruleMods[i].ReferenceOverlay = ModRefViewModel.ReferenceOverlayKind.BelowSelection;
-    }
-
-    private void MoveSelectedBetweenLists(bool sourceModTree)
-    {
-        ListBox source = sourceModTree ? modTreeList : rulesList;
-        if (source.SelectedItems == null || source.SelectedItems.Count == 0)
-            return;
-
-        List<ModRefViewModel> selected = source.SelectedItems.Cast<ModRefViewModel>().ToList();
-        if (selected.Count == 0)
-            return;
-
-        if (sourceModTree)
-        {
-            // Capture the last item currently in the rules list before we add new ones
-            ModRefViewModel? lastBeforeInsert = masterRuleList.LastOrDefault();
-
-            MoveToRuleMods(selected, ruleMods.Count);
-
-            // If there were already items in the list, force a gap before the newly added block
-            if (lastBeforeInsert != null)
-            {
-                List<ModRefViewModel> unique = Deduplicate(selected);
-                if (unique.Count > 0)
-                {
-                    SetGapBetween(lastBeforeInsert.ModReference.ID, unique[0].ModReference.ID, true);
-                    NormalizeGaps();
-                }
-            }
-
-            MarkChanged();
-            SelectItemsInList(rulesList, selected);
-            RefreshRuleState(true);
-            return;
-        }
-
-        MoveToAvailableMods(selected);
-        NormalizeGaps();
-        MarkChanged();
-        SelectItemsInList(modTreeList, selected);
-        RefreshRuleState(true);
-    }
-
-    private void HandleDrop(ModListDropContext context)
-    {
-        if (context.Items.Count == 0)
-            return;
-
-        bool gapDrop = context.GapDrop;
-        bool sourceRight = context.SourceList == rulesList;
-        if (context.SourceList == null)
-            sourceRight = context.Items.Any(vm => ruleMods.Contains(vm));
-
-        bool destinationRight = context.DestinationList == rulesList;
-
-        if (!sourceRight && !destinationRight)
-            return;
-
-        if (sourceRight && destinationRight)
-        {
-            ReorderRuleMods(context.Items, context.InsertIndex);
-            ApplyGapFromDrop(context, gapDrop);
-            MarkChanged();
-            SelectItemsInList(rulesList, context.Items);
-            RefreshRuleState(true);
-            return;
-        }
-
-        if (!sourceRight && destinationRight)
-        {
-            MoveToRuleMods(context.Items, context.InsertIndex);
-            ApplyGapFromDrop(context, gapDrop);
-            MarkChanged();
-            SelectItemsInList(rulesList, context.Items);
-            RefreshRuleState(true);
-            return;
-        }
-
-        if (sourceRight && !destinationRight)
-        {
-            MoveToAvailableMods(context.Items);
-            NormalizeGaps();
-            MarkChanged();
-            SelectItemsInList(modTreeList, context.Items);
-            RefreshRuleState(true);
-        }
-    }
-
-    private void MoveToRuleMods(List<ModRefViewModel> items, int insertIndex)
-    {
-        // Map insert index from filtered ruleMods to masterRuleList
-        int masterIdx = MapFilteredToMasterIndex(ruleMods, masterRuleList, insertIndex);
-
-        List<ModRefViewModel> unique = Deduplicate(items);
-        if (unique.Count == 0)
-            return;
-
-        foreach (ModRefViewModel vm in unique)
-            availableMods.Remove(vm);
-
-        int clamped = Math.Max(0, Math.Min(masterIdx, masterRuleList.Count));
-        for (int i = 0; i < unique.Count; i++)
-            masterRuleList.Insert(clamped + i, unique[i]);
-
-        ApplySearchFilter();
-    }
-
-    private void MoveToAvailableMods(List<ModRefViewModel> items)
-    {
-        List<ModRefViewModel> unique = Deduplicate(items);
-        if (unique.Count == 0)
-            return;
-
-        foreach (ModRefViewModel vm in unique)
-            masterRuleList.Remove(vm);
-
-        ApplySearchFilter();
-    }
-
-    private void ReorderRuleMods(List<ModRefViewModel> items, int insertIndex)
-    {
-        // Map insert index from filtered ruleMods to masterRuleList
-        int masterIdx = MapFilteredToMasterIndex(ruleMods, masterRuleList, insertIndex);
-
-        HashSet<ModRefViewModel> selectedSet = new HashSet<ModRefViewModel>(items);
-        List<ModRefViewModel> selectedInOrder = masterRuleList.Where(m => selectedSet.Contains(m)).ToList();
-        if (selectedInOrder.Count == 0)
-            return;
-
-        int clampedIndex = Math.Max(0, Math.Min(masterIdx, masterRuleList.Count));
-        int selectedBefore = masterRuleList.Take(clampedIndex).Count(m => selectedSet.Contains(m));
-        int targetIndex = clampedIndex - selectedBefore;
-
-        List<ModRefViewModel> remaining = masterRuleList.Where(m => !selectedSet.Contains(m)).ToList();
-        targetIndex = Math.Max(0, Math.Min(targetIndex, remaining.Count));
-
-        List<ModRefViewModel> newList = new List<ModRefViewModel>();
-        newList.AddRange(remaining.Take(targetIndex));
-        newList.AddRange(selectedInOrder);
-        newList.AddRange(remaining.Skip(targetIndex));
-
-        masterRuleList.Clear();
-        masterRuleList.AddRange(newList);
-    }
-
-    private void SelectItemsInList(ListBox list, IEnumerable<ModRefViewModel> items)
-    {
-        if (list.SelectedItems == null)
-            return;
-
-        list.SelectedItems.Clear();
-        foreach (ModRefViewModel vm in items)
-            list.SelectedItems.Add(vm);
-
-        modListController.UpdateSelectionState(list);
-    }
-
-    private void RefreshRuleState(bool rulesChanged)
-    {
-        if (rulesChanged)
-        {
-            NormalizeExplicitRules();
-            NormalizeExplicitRequiredIds();
-        }
-        UpdateRuleReferenceOverlay();
-        UpdateRuleGapVisuals();
-        if (rulesChanged)
-            UpdateRulesJsonPreview();
-    }
-
-
-    private void UpdateRuleGapVisuals()
-    {
-        foreach (ModRefViewModel vm in modIdMap.Values)
-            vm.RuleGapMargin = new Thickness(0);
-
-        for (int i = 0; i < masterRuleList.Count; i++)
-        {
-            bool hasGapAbove = i > 0 &&
-                               HasGapBetween(masterRuleList[i - 1].ModReference.ID, masterRuleList[i].ModReference.ID);
-            bool hasGapBelow = i < masterRuleList.Count - 1 &&
-                               HasGapBetween(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
-
-            double top = hasGapAbove ? emptyRuleGapSize : 0;
-            double bottom = hasGapBelow ? emptyRuleGapSize : 0;
-            masterRuleList[i].RuleGapMargin = new Thickness(0, top, 0, bottom);
-        }
-    }
-
-    private void UpdateRulesJsonPreview()
-    {
-        ruleLineIndices.Clear();
-        ruleJsonLines.Clear();
-
-        IBrush gapBrush = GetGapLineBrush();
-        List<PreviewRuleToken> tokens = BuildPreviewTokens(gapBrush);
-        int totalRules = tokens.Count(token => token.Edge != null || !string.IsNullOrWhiteSpace(token.RequiresId));
-        if (totalRules == 0)
-        {
-            ruleJsonLines.Add("[]");
-            SyncJsonSelectionToRulesSelection();
-            return;
-        }
-
-        ruleJsonLines.Add("[");
-        int remainingRules = totalRules;
-        foreach (PreviewRuleToken token in tokens)
-        {
-            if (token.Edge == null && string.IsNullOrWhiteSpace(token.RequiresId))
-            {
-                ruleJsonLines.Add(new RuleGapMarker(token.MarkerBrush ?? gapBrush));
-                continue;
-            }
-
-            remainingRules--;
-            bool isLast = remainingRules == 0;
-
-            ruleJsonLines.Add("  {");
-            if (token.Edge != null)
-            {
-                string beforeId = token.Edge.Value.BeforeId;
-                string afterId = token.Edge.Value.AfterId;
-                int beforeIndex = ruleJsonLines.Count;
-                ruleJsonLines.Add($"    \"BeforeId\": {JsonSerializer.Serialize(beforeId)},");
-                int afterIndex = ruleJsonLines.Count;
-                ruleJsonLines.Add($"    \"AfterId\": {JsonSerializer.Serialize(afterId)}");
-
-                RegisterRuleLine(beforeId, beforeIndex, "BeforeId");
-                RegisterRuleLine(afterId, afterIndex, "AfterId");
-            }
-            else
-            {
-                string requiresId = token.RequiresId.Trim();
-                int requiresIndex = ruleJsonLines.Count;
-                ruleJsonLines.Add($"    \"RequiresId\": {JsonSerializer.Serialize(requiresId)}");
-                RegisterRuleLine(requiresId, requiresIndex, "RequiresId");
-            }
-
-            ruleJsonLines.Add(isLast ? "  }" : "  },");
-        }
-        ruleJsonLines.Add("]");
-
-        SyncJsonSelectionToRulesSelection();
-    }
-
-    private static IBrush GetGapLineBrush()
-    {
-        if (Style.instance != null)
-            return BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
-        return Brushes.White;
-    }
-
-    private List<PreviewRuleToken> BuildPreviewTokens(IBrush gapBrush)
-    {
-        List<PreviewRuleToken> tokens = new List<PreviewRuleToken>();
-        HashSet<RuleEdge> adjacencyEdges = new HashSet<RuleEdge>(RuleEdgeComparer.Instance);
-        HashSet<string> ruleIds = new HashSet<string>(
-            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
-                .Where(id => !string.IsNullOrWhiteSpace(id)),
-            StringComparer.OrdinalIgnoreCase);
-
-        int pairCount = Math.Max(0, masterRuleList.Count - 1);
-        for (int i = 0; i < pairCount; i++)
-        {
-            RuleEdge edge = CreateEdge(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
-            if (!IsValidEdge(edge))
-                continue;
-
-            if (HasGapBetween(edge.BeforeId, edge.AfterId))
-            {
-                tokens.Add(PreviewRuleToken.Marker(gapBrush));
-                continue;
-            }
-
-            adjacencyEdges.Add(edge);
-            tokens.Add(PreviewRuleToken.EdgeToken(edge));
-        }
-
-        List<RuleEdge> extraEdges = explicitRequiredRules
-            .Where(IsValidEdge)
-            .Where(edge => ruleIds.Contains(edge.BeforeId) && ruleIds.Contains(edge.AfterId))
-            .Where(edge => !adjacencyEdges.Contains(edge))
-            .OrderBy(edge => edge.BeforeId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(edge => edge.AfterId, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (extraEdges.Count > 0)
-        {
-            if (tokens.Count > 0)
-                tokens.Add(PreviewRuleToken.Marker(gapBrush));
-            tokens.AddRange(extraEdges.Select(PreviewRuleToken.EdgeToken));
-        }
-
-        List<string> requiredIds = explicitRequiredIds
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Where(ruleIds.Contains)
-            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (requiredIds.Count > 0)
-        {
-            if (tokens.Count > 0)
-                tokens.Add(PreviewRuleToken.Marker(gapBrush));
-            tokens.AddRange(requiredIds.Select(PreviewRuleToken.RequiresToken));
-        }
-
-        return tokens;
-    }
-
-    private void ApplyGapFromDrop(ModListDropContext context, bool addGap)
-    {
-        if (context.DestinationList != rulesList)
-            return;
-
-        List<ModRefViewModel> inserted = context.Items.Where(masterRuleList.Contains).ToList();
-        if (inserted.Count == 0)
-        {
-            NormalizeGaps();
-            return;
-        }
-
-        int minIndex = masterRuleList.Count;
-        int maxIndex = -1;
-        foreach (ModRefViewModel vm in inserted)
-        {
-            int index = masterRuleList.IndexOf(vm);
-            if (index < 0)
-                continue;
-            if (index < minIndex)
-                minIndex = index;
-            if (index > maxIndex)
-                maxIndex = index;
-        }
-
-        if (minIndex > maxIndex)
-        {
-            NormalizeGaps();
-            return;
-        }
-
-        int aboveIndex = minIndex - 1;
-        if (aboveIndex >= 0)
-        {
-            ModRefViewModel before = masterRuleList[aboveIndex];
-            ModRefViewModel after = masterRuleList[minIndex];
-            bool sideAddGap = addGap || !context.DropAfter;
-            SetGapBetween(before.ModReference.ID, after.ModReference.ID, sideAddGap);
-        }
-
-        int belowIndex = maxIndex + 1;
-        if (belowIndex < masterRuleList.Count)
-        {
-            ModRefViewModel before = masterRuleList[maxIndex];
-            ModRefViewModel after = masterRuleList[belowIndex];
-            bool sideAddGap = addGap || context.DropAfter;
-            SetGapBetween(before.ModReference.ID, after.ModReference.ID, sideAddGap);
-        }
-
-        NormalizeGaps();
-    }
-
-    private void NormalizeGaps()
-    {
-        if (masterRuleList.Count < 2)
-        {
-            ruleGaps.Clear();
-            return;
-        }
-
-        HashSet<RuleGap> valid = new HashSet<RuleGap>(RuleGapComparer.Instance);
-        for (int i = 0; i < masterRuleList.Count - 1; i++)
-        {
-            RuleGap gap = CreateGap(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
-            if (!IsValidGap(gap))
-                continue;
-            if (ruleGaps.Contains(gap))
-                valid.Add(gap);
-        }
-
-        ruleGaps.Clear();
-        foreach (RuleGap gap in valid)
-            ruleGaps.Add(gap);
-    }
-
-    private bool HasGapBetween(string beforeId, string afterId)
-    {
-        RuleGap gap = CreateGap(beforeId, afterId);
-        return IsValidGap(gap) && ruleGaps.Contains(gap);
-    }
-
-    private void SetGapBetween(string beforeId, string afterId, bool addGap)
-    {
-        RuleGap gap = CreateGap(beforeId, afterId);
-        if (!IsValidGap(gap))
-            return;
-
-        if (addGap)
-            ruleGaps.Add(gap);
-        else
-            ruleGaps.Remove(gap);
-    }
-
-    private static RuleGap CreateGap(string? beforeId, string? afterId)
-    {
-        string before = beforeId?.Trim() ?? string.Empty;
-        string after = afterId?.Trim() ?? string.Empty;
-        return new RuleGap(before, after);
-    }
-
-    private static bool IsValidGap(RuleGap gap)
-    {
-        return !string.IsNullOrWhiteSpace(gap.BeforeId) &&
-               !string.IsNullOrWhiteSpace(gap.AfterId) &&
-               !string.Equals(gap.BeforeId, gap.AfterId, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void RegisterRuleLine(string? id, int index, string attribute)
-    {
-        string trimmed = id?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(trimmed))
-            return;
-
-        if (!ruleLineIndices.TryGetValue(trimmed, out RuleLineIndices? indices))
-        {
-            indices = new RuleLineIndices();
-            ruleLineIndices[trimmed] = indices;
-        }
-
-        indices.Occurrences.Add(new RuleLineOccurrence(attribute, index));
-    }
-
-    private void SyncJsonSelectionToRulesSelection()
-    {
-        List<ModRefViewModel> selected = rulesList.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-        if (selected.Count == 0)
-        {
-            ClearJsonSelection();
-            return;
-        }
-
-        ModRefViewModel target = selected[0];
-        int? requestedIndex = null;
-
-        if (!string.IsNullOrWhiteSpace(lastJumpModId))
-        {
-            ModRefViewModel? matching = selected.FirstOrDefault(vm =>
-                string.Equals(vm.ModReference.ID, lastJumpModId, StringComparison.OrdinalIgnoreCase));
-            if (matching != null)
-            {
-                target = matching;
-                requestedIndex = lastJumpIndex;
-            }
-        }
-
-        JumpToRuleLine(target, requestedIndex);
-    }
-
-    private void JumpToRuleLine(ModRefViewModel vm, int? indexOverride = null)
-    {
-        string id = vm.ModReference.ID?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            ClearJsonSelection();
-            return;
-        }
-
-        int targetIndex;
-        if (indexOverride.HasValue)
-        {
-            targetIndex = indexOverride.Value;
-        }
-        else if (!string.IsNullOrWhiteSpace(lastJumpModId) &&
-                 string.Equals(lastJumpModId, id, StringComparison.OrdinalIgnoreCase))
-        {
-            targetIndex = lastJumpIndex + 1;
+                Text = $"No {title.ToLowerInvariant()} mods.",
+                FontStyle = FontStyle.Italic,
+                Opacity = 0.65,
+                Margin = new Thickness(0, 5, 0, 2)
+            });
         }
         else
         {
-            targetIndex = 0;
+            foreach (string id in SortIdsForDisplay(ids))
+                panel.Children.Add(CreateRelationshipRow(kind, id));
         }
 
-        if (TrySelectRuleLine(id, targetIndex, out int actualIndex))
+        addButton.Click += async (_, _) => await AddRelationshipAsync(kind);
+        clearButton.Click += async (_, _) => await ClearRelationshipAsync(kind);
+        return border;
+    }
+
+    private Control CreateRelationshipRow(ModRelationshipKind kind, string id)
+    {
+        Grid row = new()
         {
-            lastJumpModId = id;
-            lastJumpIndex = actualIndex;
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 8,
+            Margin = new Thickness(0, 2)
+        };
+
+        Control content = modIdMap.TryGetValue(id, out ModRefViewModel? vm)
+            ? CreateKnownModRow(vm)
+            : CreateMissingModRow(id);
+
+        Button removeButton = new()
+        {
+            Content = new Image
+            {
+                Width = 12,
+                Height = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Source = ImageSourceLoader.LoadFromAssetUri("cancelIcon.svg")
+            },
+            Width = 24,
+            Height = 24,
+            Padding = new Thickness(6),
+            Margin = new Thickness(2, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+        ToolTip.SetTip(removeButton, "Remove relationship");
+        removeButton.Click += (_, _) => RemoveRelationship(kind, id);
+
+        Border accent = new()
+        {
+            Width = 3,
+            Background = ModListIndicatorUpdater.RelationshipBrush(kind),
+            CornerRadius = new CornerRadius(2)
+        };
+        Grid.SetColumn(content, 1);
+        Grid.SetColumn(removeButton, 2);
+        row.Children.Add(accent);
+        row.Children.Add(content);
+        row.Children.Add(removeButton);
+        return row;
+    }
+
+    private static Control CreateKnownModRow(ModRefViewModel vm)
+    {
+        Grid grid = new() { RowDefinitions = new RowDefinitions("Auto,Auto") };
+        ModRefControl modControl = new()
+        {
+            DataContext = vm,
+            ShowColorUnderlay = true,
+            AllowRelationshipEditing = true,
+            Padding = new Thickness(0)
+        };
+        TextBlock detail = new()
+        {
+            Text = $"{vm.ModReference.author}   {vm.ModReference.ID}",
+            FontSize = 11,
+            Opacity = 0.62,
+            Margin = new Thickness(24, 0, 0, 0)
+        };
+        Grid.SetRow(detail, 1);
+        grid.Children.Add(modControl);
+        grid.Children.Add(detail);
+        return grid;
+    }
+
+    private static Control CreateMissingModRow(string id)
+    {
+        StackPanel panel = new() { Spacing = 1 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Warning: Missing Mod",
+            FontWeight = FontWeight.Bold,
+            Foreground = Brushes.Goldenrod
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = id,
+            FontSize = 11,
+            Foreground = Brushes.Gray
+        });
+        return panel;
+    }
+
+    private async Task AddRelationshipAsync(ModRelationshipKind kind)
+    {
+        if (selectedMod == null)
             return;
+
+        string ownerId = selectedMod.ModReference.ID.Trim();
+        ModRelationshipRule rule = GetRule(ownerId);
+        HashSet<string> alreadyAdded = new(GetList(rule, kind), StringComparer.OrdinalIgnoreCase);
+        RelationshipPickerWindow picker = new(ownerId, kind, allMods, alreadyAdded)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+
+        string? selectedId = await picker.ShowDialog<string?>(this);
+        if (string.IsNullOrWhiteSpace(selectedId))
+            return;
+
+        PushUndo();
+        GetList(GetOrCreateRule(ownerId), kind).Add(selectedId.Trim());
+        CommitRulesChanged();
+    }
+
+    private async Task ClearRelationshipAsync(ModRelationshipKind kind)
+    {
+        if (selectedMod == null)
+            return;
+
+        string title = LabelFor(kind);
+        bool confirm = await DialogService.ShowConfirmAsync(this, $"Clear all {title.ToLowerInvariant()} relationships for this mod?", $"Clear {title}");
+        if (!confirm)
+            return;
+
+        PushUndo();
+        GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind).Clear();
+        CommitRulesChanged();
+    }
+
+    private void RemoveRelationship(ModRelationshipKind kind, string id)
+    {
+        if (selectedMod == null)
+            return;
+
+        PushUndo();
+        List<string> list = GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind);
+        list.RemoveAll(existing => string.Equals(existing, id, StringComparison.OrdinalIgnoreCase));
+        CommitRulesChanged();
+    }
+
+    private void CommitRulesChanged()
+    {
+        NormalizeRules();
+        ModListIndicatorUpdater.UpdateRelationshipBadges(allMods, rules);
+        onRulesChanged?.Invoke(CloneRules(rules));
+        RefreshEditor();
+    }
+
+    private void PushUndo()
+    {
+        if (!applyingUndo)
+            undoStack.Push(CloneRules(rules));
+    }
+
+    private void Undo()
+    {
+        if (undoStack.Count == 0)
+            return;
+
+        applyingUndo = true;
+        try
+        {
+            rules.Clear();
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in undoStack.Pop())
+                rules[kvp.Key] = kvp.Value.Clone();
+            onRulesChanged?.Invoke(CloneRules(rules));
+            RefreshEditor();
         }
-
-        ClearJsonSelection();
-        lastJumpModId = id;
-        lastJumpIndex = 0;
-    }
-
-    private bool TrySelectRuleLine(string id, int requestedIndex, out int actualIndex)
-    {
-        actualIndex = 0;
-        if (!ruleLineIndices.TryGetValue(id, out RuleLineIndices? indices) || indices.Occurrences.Count == 0)
-            return false;
-
-        actualIndex = requestedIndex % indices.Occurrences.Count;
-        int jsonLineIndex = indices.Occurrences[actualIndex].Index;
-
-        if (jsonLineIndex < 0 || jsonLineIndex >= ruleJsonLines.Count)
-            return false;
-
-        selectedRulesList.SelectedIndex = jsonLineIndex;
-        if (selectedRulesList.SelectedItem != null)
-            selectedRulesList.ScrollIntoView(selectedRulesList.SelectedItem);
-        return true;
-    }
-
-    private void ClearJsonSelection()
-    {
-        selectedRulesList.SelectedItem = null;
-        lastJumpModId = null;
-        lastJumpIndex = 0;
+        finally
+        {
+            applyingUndo = false;
+        }
     }
 
     private void SortRulesWindowKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Handled || e.Key != Key.Escape || e.KeyModifiers != KeyModifiers.None)
-            return;
-
-        if (!HandleEscapeKey(e.Source))
-            return;
-
-        e.Handled = true;
-    }
-
-    private bool HandleEscapeKey(object? source)
-    {
-        bool handled = false;
-
-        if ((modTreeList.SelectedItems?.Count ?? 0) > 0 || (rulesList.SelectedItems?.Count ?? 0) > 0)
+        if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            modTreeList.SelectedItems?.Clear();
-            rulesList.SelectedItems?.Clear();
-            modListController.UpdateSelectionState(modTreeList);
-            modListController.UpdateSelectionState(rulesList);
-            UpdateRuleReferenceOverlay();
-            ClearJsonSelection();
-            handled = true;
+            Undo();
+            e.Handled = true;
         }
-
-        if (modTreeSearchBar.ClearSearchSelection())
-            handled = true;
-        if (rulesSearchBar.ClearSearchSelection())
-            handled = true;
-
-        if (source is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
-        {
-            Focus();
-            handled = true;
-        }
-
-        return handled;
-    }
-
-    private void BuildViewModels(IEnumerable<ModReference> modRefs)
-    {
-        modKeyMap.Clear();
-        modIdMap.Clear();
-        availableMods.Clear();
-        ruleMods.Clear();
-
-        foreach (ModReference modref in modRefs)
-        {
-            if (modref == null)
-                continue;
-            string id = modref.ID?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-            if (modIdMap.ContainsKey(id))
-                continue;
-
-            ModRefViewModel vm = new ModRefViewModel(modref);
-            (bool isVanilla, bool isLocal, bool isSteam) = ModSourceClassifier.Classify(
-                modref,
-                modsFolderPath,
-                vanillaFolderPath);
-            vm.IsVanillaModSource = isVanilla;
-            vm.IsLocalModSource = isLocal;
-            vm.IsSteamModSource = isSteam;
-            vm.RefreshStyle();
-            modIdMap[id] = vm;
-            modKeyMap[vm.DfMod.ToString()] = vm;
-        }
-
-        List<ModSortRule> allRules = MergeRules(_userRules, _communityRules);
-
-        foreach (ModSortRule rule in allRules)
-        {
-            if (rule == null)
-                continue;
-            AddPlaceholderIfMissing(rule.BeforeId);
-            AddPlaceholderIfMissing(rule.AfterId);
-            AddPlaceholderIfMissing(rule.RequiresId);
-        }
-
-        masterRuleList.Clear();
-        List<string> orderedRuleIds = BuildRuleOrder(allRules, modIdMap.Keys);
-        foreach (string id in orderedRuleIds)
-        {
-            if (modIdMap.TryGetValue(id, out ModRefViewModel? vm))
-                masterRuleList.Add(vm);
-        }
-
-        SearchFilterHelper.ReplaceCollection(availableMods, GetMasterAvailable().ToList());
-        SearchFilterHelper.ReplaceCollection(ruleMods, masterRuleList);
-
-        initialRuleOrder.Clear();
-        initialRuleOrder.AddRange(masterRuleList
-            .Select(vm => vm.ModReference.ID)
-            .Where(id => !string.IsNullOrWhiteSpace(id)));
-
-        InitializeRuleGaps();
-    }
-
-    private void InitializeRuleGaps()
-    {
-        ruleGaps.Clear();
-        initialRuleGaps.Clear();
-        redoRuleGaps.Clear();
-        explicitRequiredRules.Clear();
-        initialExplicitRequiredRules.Clear();
-        redoExplicitRequiredRules.Clear();
-        explicitRequiredIds.Clear();
-        initialExplicitRequiredIds.Clear();
-        redoExplicitRequiredIds.Clear();
-
-        HashSet<RuleEdge> explicitRules = new HashSet<RuleEdge>(RuleEdgeComparer.Instance);
-        List<ModSortRule> allRules = MergeRules(_userRules, _communityRules);
-        foreach (ModSortRule rule in allRules)
-        {
-            if (rule == null)
-                continue;
-
-            string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(requiredId))
-                explicitRequiredIds.Add(requiredId);
-
-            RuleEdge edge = CreateEdge(rule.BeforeId, rule.AfterId);
-            if (!IsValidEdge(edge))
-                continue;
-            explicitRules.Add(edge);
-        }
-
-        for (int i = 0; i < masterRuleList.Count - 1; i++)
-        {
-            RuleEdge edge = CreateEdge(masterRuleList[i].ModReference.ID, masterRuleList[i + 1].ModReference.ID);
-            if (!IsValidEdge(edge))
-                continue;
-            if (!explicitRules.Contains(edge))
-                ruleGaps.Add(CreateGap(edge.BeforeId, edge.AfterId));
-        }
-
-        foreach (RuleEdge edge in explicitRules)
-            explicitRequiredRules.Add(edge);
-
-        NormalizeGaps();
-        NormalizeExplicitRules();
-        NormalizeExplicitRequiredIds();
-
-        foreach (RuleGap gap in ruleGaps)
-            initialRuleGaps.Add(gap);
-        foreach (RuleEdge edge in explicitRequiredRules)
-            initialExplicitRequiredRules.Add(edge);
-        foreach (string requiredId in explicitRequiredIds)
-            initialExplicitRequiredIds.Add(requiredId);
-    }
-
-    private void AddPlaceholderIfMissing(string? id)
-    {
-        string trimmed = id?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(trimmed))
-            return;
-        if (modIdMap.ContainsKey(trimmed))
-            return;
-
-        ModReference placeholder = new ModReference(
-            trimmed,
-            "0",
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            trimmed,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            ModSource.Local);
-
-        ModRefViewModel vm = new ModRefViewModel(placeholder);
-        (bool isVanilla, bool isLocal, bool isSteam) = ModSourceClassifier.Classify(
-            placeholder,
-            modsFolderPath,
-            vanillaFolderPath);
-        vm.IsVanillaModSource = isVanilla;
-        vm.IsLocalModSource = isLocal;
-        vm.IsSteamModSource = isSteam;
-        vm.RefreshStyle();
-        modIdMap[trimmed] = vm;
-        modKeyMap[vm.DfMod.ToString()] = vm;
-    }
-
-    private static List<string> BuildRuleOrder(IEnumerable<ModSortRule> rules, IEnumerable<string> candidateIds)
-    {
-        HashSet<string> candidates = new HashSet<string>(candidateIds, StringComparer.OrdinalIgnoreCase);
-        HashSet<string> ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (ModSortRule rule in rules)
-        {
-            if (rule == null)
-                continue;
-
-            string requires = rule.RequiresId?.Trim() ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(requires))
-                ids.Add(requires);
-
-            string before = rule.BeforeId?.Trim() ?? string.Empty;
-            string after = rule.AfterId?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(before) || string.IsNullOrWhiteSpace(after))
-                continue;
-            if (string.Equals(before, after, StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (!candidates.Contains(before) || !candidates.Contains(after))
-                continue;
-            ids.Add(before);
-            ids.Add(after);
-        }
-
-        if (ids.Count == 0)
-            return new List<string>();
-
-        Dictionary<string, List<string>> edges = new(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, int> indegree = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string id in ids)
-        {
-            edges[id] = new List<string>();
-            indegree[id] = 0;
-        }
-
-        foreach (ModSortRule rule in rules)
-        {
-            if (rule == null)
-                continue;
-            string before = rule.BeforeId?.Trim() ?? string.Empty;
-            string after = rule.AfterId?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(before) || string.IsNullOrWhiteSpace(after))
-                continue;
-            if (string.Equals(before, after, StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (!edges.ContainsKey(before) || !edges.ContainsKey(after))
-                continue;
-            if (edges[before].Contains(after))
-                continue;
-            edges[before].Add(after);
-            indegree[after]++;
-        }
-
-        List<string> available = indegree.Where(kv => kv.Value == 0)
-            .Select(kv => kv.Key)
-            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        List<string> ordered = new List<string>();
-        while (available.Count > 0)
-        {
-            string next = available[0];
-            available.RemoveAt(0);
-            ordered.Add(next);
-            foreach (string dest in edges[next])
-            {
-                indegree[dest]--;
-                if (indegree[dest] == 0)
-                {
-                    available.Add(dest);
-                    available.Sort(StringComparer.OrdinalIgnoreCase);
-                }
-            }
-        }
-
-        if (ordered.Count != ids.Count)
-        {
-            return ids.OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToList();
-        }
-
-        return ordered;
-    }
-
-    private IEnumerable<ModRefViewModel> GetMasterAvailable()
-    {
-        HashSet<ModRefViewModel> inRules = new HashSet<ModRefViewModel>(masterRuleList);
-        return modIdMap.Values
-            .Where(vm => !inRules.Contains(vm))
-            .OrderBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static int MapFilteredToMasterIndex(
-        IList<ModRefViewModel> filtered,
-        IList<ModRefViewModel> master,
-        int filteredIndex)
-    {
-        if (filteredIndex <= 0) return 0;
-        if (filteredIndex >= filtered.Count)
-        {
-            ModRefViewModel last = filtered[^1];
-            return master.IndexOf(last) + 1;
-        }
-        return master.IndexOf(filtered[filteredIndex]);
-    }
-
-    private void ApplySearchFilter()
-    {
-        ApplyFilterFlags(
-             availableMods,
-             GetMasterAvailable(),
-             modTreeSearchBar.Text,
-             modTreeSearchBar.SearchMode,
-             modTreeSearchBar.HideFiltered,
-             modTreeSearchBar.SortDescending,
-             modTreeList, true);
-        ApplyFilterFlags(
-            ruleMods,
-            masterRuleList,
-            rulesSearchBar.Text,
-            rulesSearchBar.SearchMode,
-            rulesSearchBar.HideFiltered,
-            rulesSearchBar.SortDescending,
-            rulesList, false);
-    }
-
-    private void ScheduleSearchFilter()
-    {
-        if (modIdMap.Count > 10)
-        {
-            SearchLogging.Log("ScheduleSearchFilter no-debounce -> immediate");
-            ApplySearchFilter();
-            return;
-        }
-
-        searchDebounceTimer.Stop();
-        searchDebounceTimer.Start();
-    }
-
-    private void ApplyFilterFlags(
-        ObservableCollection<ModRefViewModel> targetCollection,
-        IEnumerable<ModRefViewModel> source,
-        string filter,
-        SearchFilterMode searchMode,
-        bool hideFiltered,
-        bool sortDescending,
-        ListBox list, bool isSortingEnabled)
-    {
-        SearchFilterHelper.ApplyFilterFlags(
-            targetCollection,
-            source,
-            filter,
-            searchMode,
-            hideFiltered,
-            sortDescending,
-            list,
-            modListController,
-            isSortingEnabled: isSortingEnabled, // Sorting is handled by the rules themselves
-            msg => SearchLogging.Log($"ApplyFilterFlags list={list.Name} " + msg)
-        );
-    }
-
-    private void ApplySearchBarStyles()
-    {
-        if (Style.instance == null)
-            return;
-
-        modTreeSearchBar.ApplyStyle(Style.instance);
-        rulesSearchBar.ApplyStyle(Style.instance);
-    }
-
-    private void SaveRules(bool closeAfterSave = false)
-    {
-        List<ModSortRule> rules = BuildCurrentRules();
-        if (onSave == null)
-        {
-            changesMade = false;
-            bypassUnsavedClosePrompt = true;
-            try
-            {
-                Close(rules);
-            }
-            finally
-            {
-                bypassUnsavedClosePrompt = false;
-            }
-            return;
-        }
-
-        onSave(rules);
-        SaveCommunityRulesUrl();
-        CommitCurrentStateAsSaved();
-        if (!closeAfterSave)
-            return;
-
-        bypassUnsavedClosePrompt = true;
-        try
+        else if (e.Key == Key.Escape)
         {
             Close();
-        }
-        finally
-        {
-            bypassUnsavedClosePrompt = false;
+            e.Handled = true;
         }
     }
 
-    private async void SortRulesWindowClosing(object? sender, WindowClosingEventArgs e)
+    private void NormalizeRules()
     {
-        if (bypassUnsavedClosePrompt || !changesMade)
-            return;
-
-        e.Cancel = true;
-        if (unsavedClosePromptInFlight)
-            return;
-
-        unsavedClosePromptInFlight = true;
-        try
+        foreach (string key in rules.Keys.ToList())
         {
-            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                this,
-                "Sort Rules",
-                "exit");
-            if (choice == UnsavedChangesChoice.Cancel)
-                return;
+            ModRelationshipRule rule = rules[key];
+            rule.BeforeIds = NormalizeList(rule.BeforeIds);
+            rule.AfterIds = NormalizeList(rule.AfterIds);
+            rule.RequiredIds = NormalizeList(rule.RequiredIds);
+            rule.IncompatibleIds = NormalizeList(rule.IncompatibleIds);
+            if (rule.IsEmpty)
+                rules.Remove(key);
+        }
+    }
 
-            if (choice == UnsavedChangesChoice.Save)
-                SaveRules(closeAfterSave: true);
-            else
+    private static List<string> NormalizeList(IEnumerable<string> ids)
+    {
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        List<string> normalized = new();
+        foreach (string id in ids)
+        {
+            string trimmed = id?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(trimmed) && seen.Add(trimmed))
+                normalized.Add(trimmed);
+        }
+        return normalized;
+    }
+
+    private ModRelationshipRule GetRule(string id)
+    {
+        return rules.TryGetValue(id.Trim(), out ModRelationshipRule? rule)
+            ? rule
+            : new ModRelationshipRule();
+    }
+
+    private ModRelationshipRule GetOrCreateRule(string id)
+    {
+        string key = id.Trim();
+        if (!rules.TryGetValue(key, out ModRelationshipRule? rule))
+        {
+            rule = new ModRelationshipRule();
+            rules[key] = rule;
+        }
+        return rule;
+    }
+
+    private static List<string> GetList(ModRelationshipRule rule, ModRelationshipKind kind)
+    {
+        return kind switch
+        {
+            ModRelationshipKind.Before => rule.BeforeIds,
+            ModRelationshipKind.After => rule.AfterIds,
+            ModRelationshipKind.Required => rule.RequiredIds,
+            ModRelationshipKind.Incompatible => rule.IncompatibleIds,
+            _ => rule.BeforeIds
+        };
+    }
+
+    private IEnumerable<string> SortIdsForDisplay(IEnumerable<string> ids)
+    {
+        return ids
+            .OrderBy(id => modIdMap.TryGetValue(id, out ModRefViewModel? vm) ? vm.DisplayName : id, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(id => id, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private ValidationResult ValidateRules()
+    {
+        List<string> warnings = new();
+        List<string> errors = new();
+        Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
+        {
+            string ownerId = kvp.Key;
+            AddEdges(ownerId, kvp.Value.BeforeIds, ownerId, target => target, "before");
+            AddEdges(ownerId, kvp.Value.AfterIds, ownerId, target => ownerId, "after", targetIsSource: true);
+            AddEdges(ownerId, kvp.Value.RequiredIds, ownerId, target => ownerId, "required", targetIsSource: true);
+
+            foreach (string id in kvp.Value.IncompatibleIds)
             {
-                changesMade = false;
-                bypassUnsavedClosePrompt = true;
-                try
+                string target = id.Trim();
+                if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
+                    errors.Add($"{DisplayLabel(ownerId)} cannot be incompatible with itself.");
+                else if (!modIdMap.ContainsKey(target))
+                    warnings.Add($"{DisplayLabel(ownerId)} references missing mod {target}.");
+            }
+        }
+
+        foreach (KeyValuePair<string, HashSet<string>> kvp in graph)
+        {
+            foreach (string target in kvp.Value)
+            {
+                if (WouldCreateCycle(graph, kvp.Key, target))
                 {
-                    Close();
-                }
-                finally
-                {
-                    bypassUnsavedClosePrompt = false;
+                    errors.Add($"Circular dependency detected: {DisplayLabel(kvp.Key)} conflicts with {DisplayLabel(target)}.");
+                    return BuildValidationResult(errors, warnings);
                 }
             }
         }
-        finally
+
+        return BuildValidationResult(errors, warnings);
+
+        void AddEdges(
+            string ownerId,
+            IEnumerable<string> ids,
+            string source,
+            Func<string, string> destinationFactory,
+            string category,
+            bool targetIsSource = false)
         {
-            unsavedClosePromptInFlight = false;
-        }
-    }
-
-    private List<ModSortRule> BuildCurrentRules()
-    {
-        HashSet<string> ruleIds = new HashSet<string>(
-            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
-                .Where(id => !string.IsNullOrWhiteSpace(id)),
-            StringComparer.OrdinalIgnoreCase);
-
-        List<RuleCandidate> candidates = new List<RuleCandidate>();
-        int order = 0;
-
-        for (int i = 0; i < ruleMods.Count - 1; i++)
-        {
-            string before = ruleMods[i].ModReference.ID?.Trim() ?? string.Empty;
-            string after = ruleMods[i + 1].ModReference.ID?.Trim() ?? string.Empty;
-            RuleEdge edge = CreateEdge(before, after);
-            if (!IsValidEdge(edge))
-                continue;
-            if (HasGapBetween(before, after))
-                continue;
-
-            candidates.Add(new RuleCandidate(edge, 1, order++));
-        }
-
-        foreach (RuleEdge edge in explicitRequiredRules
-            .OrderBy(item => item.BeforeId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(item => item.AfterId, StringComparer.OrdinalIgnoreCase))
-        {
-            if (!IsValidEdge(edge))
-                continue;
-            if (!ruleIds.Contains(edge.BeforeId) || !ruleIds.Contains(edge.AfterId))
-                continue;
-
-            candidates.Add(new RuleCandidate(edge, 2, order++));
-        }
-
-        List<ModSortRule> resolved = ResolveConflicts(candidates);
-
-        foreach (string requiredId in explicitRequiredIds
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase))
-        {
-            if (!ruleIds.Contains(requiredId))
-                continue;
-
-            resolved.Add(new ModSortRule
+            foreach (string rawId in ids)
             {
-                RequiresId = requiredId
-            });
+                string target = rawId.Trim();
+                if (string.IsNullOrWhiteSpace(target))
+                    continue;
+
+                if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
+                {
+                    errors.Add(category == "required"
+                        ? $"{DisplayLabel(ownerId)} cannot require itself."
+                        : $"{DisplayLabel(ownerId)} cannot reference itself.");
+                    continue;
+                }
+
+                if (!modIdMap.ContainsKey(target))
+                    warnings.Add($"{DisplayLabel(ownerId)} references missing mod {target}.");
+
+                string from = targetIsSource ? target : source;
+                string to = destinationFactory(target);
+                if (!graph.TryGetValue(from, out HashSet<string>? destinations))
+                {
+                    destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    graph[from] = destinations;
+                }
+                destinations.Add(to);
+            }
         }
-
-        return resolved;
     }
 
-    private Task UndoChangesAsync()
+    private static ValidationResult BuildValidationResult(List<string> errors, List<string> warnings)
     {
-        UndoChanges();
-        return Task.CompletedTask;
+        if (errors.Count > 0)
+            return new ValidationResult(true, warnings.Count > 0, string.Join(Environment.NewLine, errors.Concat(warnings).Distinct()));
+        if (warnings.Count > 0)
+            return new ValidationResult(false, true, string.Join(Environment.NewLine, warnings.Distinct()));
+        return new ValidationResult(false, false, "No conflicts detected.");
     }
 
-    private void UndoChanges()
+    private static bool WouldCreateCycle(Dictionary<string, HashSet<string>> graph, string fromId, string toId)
     {
-        if (!changesMade)
-            return;
-
-        redoRuleOrder = GetRuleOrder();
-        redoRuleGaps = new HashSet<RuleGap>(ruleGaps, RuleGapComparer.Instance);
-        redoExplicitRequiredRules = new HashSet<RuleEdge>(explicitRequiredRules, RuleEdgeComparer.Instance);
-        redoExplicitRequiredIds = new HashSet<string>(explicitRequiredIds, StringComparer.OrdinalIgnoreCase);
-        redoAvailable = true;
-
-        isRedoing = true;
-        SetRuleOrder(initialRuleOrder);
-        ruleGaps.Clear();
-        foreach (RuleGap gap in initialRuleGaps)
-            ruleGaps.Add(gap);
-        explicitRequiredRules.Clear();
-        foreach (RuleEdge edge in initialExplicitRequiredRules)
-            explicitRequiredRules.Add(edge);
-        explicitRequiredIds.Clear();
-        foreach (string requiredId in initialExplicitRequiredIds)
-            explicitRequiredIds.Add(requiredId);
-        NormalizeGaps();
-        NormalizeExplicitRules();
-        NormalizeExplicitRequiredIds();
-        isRedoing = false;
-
-        changesMade = false;
-        RefreshRuleState(true);
-    }
-
-    private void RedoChanges()
-    {
-        if (!redoAvailable || redoRuleOrder.Count == 0)
-            return;
-
-        isRedoing = true;
-        SetRuleOrder(redoRuleOrder);
-        ruleGaps.Clear();
-        foreach (RuleGap gap in redoRuleGaps)
-            ruleGaps.Add(gap);
-        explicitRequiredRules.Clear();
-        foreach (RuleEdge edge in redoExplicitRequiredRules)
-            explicitRequiredRules.Add(edge);
-        explicitRequiredIds.Clear();
-        foreach (string requiredId in redoExplicitRequiredIds)
-            explicitRequiredIds.Add(requiredId);
-        NormalizeGaps();
-        NormalizeExplicitRules();
-        NormalizeExplicitRequiredIds();
-        isRedoing = false;
-
-        redoAvailable = false;
-        redoRuleOrder.Clear();
-        redoExplicitRequiredRules.Clear();
-        redoExplicitRequiredIds.Clear();
-        changesMade = true;
-        RefreshRuleState(true);
-    }
-
-    private void SetRuleOrder(IEnumerable<string> orderedIds)
-    {
-        masterRuleList.Clear();
-        HashSet<ModRefViewModel> used = new HashSet<ModRefViewModel>();
-        foreach (string id in orderedIds)
-        {
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-            if (!modIdMap.TryGetValue(id, out ModRefViewModel? vm))
-                continue;
-            if (!used.Add(vm))
-                continue;
-            masterRuleList.Add(vm);
-        }
-
-        ApplySearchFilter();
-        modTreeList.SelectedItems?.Clear();
-        rulesList.SelectedItems?.Clear();
-        modListController.UpdateSelectionState(modTreeList);
-        modListController.UpdateSelectionState(rulesList);
-    }
-
-    private List<string> GetRuleOrder()
-    {
-        return masterRuleList
-            .Select(vm => vm.ModReference.ID)
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .ToList();
-    }
-
-    private void CommitCurrentStateAsSaved()
-    {
-        initialRuleOrder.Clear();
-        initialRuleOrder.AddRange(GetRuleOrder());
-
-        initialRuleGaps.Clear();
-        foreach (RuleGap gap in ruleGaps)
-            initialRuleGaps.Add(gap);
-
-        initialExplicitRequiredRules.Clear();
-        foreach (RuleEdge edge in explicitRequiredRules)
-            initialExplicitRequiredRules.Add(edge);
-
-        initialExplicitRequiredIds.Clear();
-        foreach (string requiredId in explicitRequiredIds)
-            initialExplicitRequiredIds.Add(requiredId);
-
-        changesMade = false;
-        ClearRedo();
-    }
-
-    private void MarkChanged()
-    {
-        if (!isRedoing)
-            ClearRedo();
-        changesMade = true;
-    }
-
-    private void ClearRedo()
-    {
-        redoAvailable = false;
-        redoRuleOrder.Clear();
-        redoRuleGaps.Clear();
-        redoExplicitRequiredRules.Clear();
-        redoExplicitRequiredIds.Clear();
-    }
-
-    private static ModRefViewModel? GetItemAtPoint(ListBox list, Point point)
-    {
-        IInputElement? element = list.InputHitTest(point) as IInputElement;
-        Control? control = element as Control;
-        ListBoxItem? item = control?.FindAncestorOfType<ListBoxItem>();
-        return item?.DataContext as ModRefViewModel;
-    }
-
-    private static bool IsPointerOverScrollBar(ListBox list, Point point)
-    {
-        IInputElement? element = list.InputHitTest(point) as IInputElement;
-        if (element is not Control control)
-            return false;
-
-        if (control is ScrollBar)
+        if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        return control.FindAncestorOfType<ScrollBar>() != null;
-    }
-
-    private List<ModSortRule> ResolveConflicts(List<RuleCandidate> candidates)
-    {
-        Dictionary<RuleEdge, RuleCandidate> deduped = new Dictionary<RuleEdge, RuleCandidate>(RuleEdgeComparer.Instance);
-        foreach (RuleCandidate candidate in candidates)
-        {
-            if (!IsValidEdge(candidate.Edge))
-                continue;
-
-            if (!deduped.TryGetValue(candidate.Edge, out RuleCandidate existing))
-            {
-                deduped[candidate.Edge] = candidate;
-                continue;
-            }
-
-            if (candidate.Priority > existing.Priority ||
-                (candidate.Priority == existing.Priority && candidate.Order < existing.Order))
-            {
-                deduped[candidate.Edge] = candidate;
-            }
-        }
-
-        List<RuleCandidate> ordered = deduped.Values
-            .OrderByDescending(candidate => candidate.Priority)
-            .ThenBy(candidate => candidate.Order)
-            .ThenBy(candidate => candidate.Edge.BeforeId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(candidate => candidate.Edge.AfterId, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        Dictionary<string, HashSet<string>> graph = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-        List<ModSortRule> resolved = new List<ModSortRule>();
-        foreach (RuleCandidate candidate in ordered)
-        {
-            RuleEdge edge = candidate.Edge;
-            if (WouldCreateCycle(graph, edge))
-                continue;
-
-            if (!graph.TryGetValue(edge.BeforeId, out HashSet<string>? destinations))
-            {
-                destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                graph[edge.BeforeId] = destinations;
-            }
-
-            if (!destinations.Add(edge.AfterId))
-                continue;
-
-            resolved.Add(new ModSortRule
-            {
-                BeforeId = edge.BeforeId,
-                AfterId = edge.AfterId
-            });
-        }
-
-        return resolved;
-    }
-
-    private static bool WouldCreateCycle(Dictionary<string, HashSet<string>> graph, RuleEdge edge)
-    {
-        if (string.Equals(edge.BeforeId, edge.AfterId, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        if (!graph.ContainsKey(edge.AfterId))
-            return false;
-
-        HashSet<string> visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        Stack<string> stack = new Stack<string>();
-        stack.Push(edge.AfterId);
-
+        HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
+        Stack<string> stack = new();
+        stack.Push(toId);
         while (stack.Count > 0)
         {
             string current = stack.Pop();
             if (!visited.Add(current))
                 continue;
-
-            if (string.Equals(current, edge.BeforeId, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(current, fromId, StringComparison.OrdinalIgnoreCase))
                 return true;
-
             if (!graph.TryGetValue(current, out HashSet<string>? destinations))
                 continue;
-
             foreach (string destination in destinations)
                 stack.Push(destination);
         }
-
         return false;
     }
 
-    private void NormalizeExplicitRules()
+    private string DisplayLabel(string id)
     {
-        HashSet<string> ruleIds = new HashSet<string>(
-            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
-                .Where(id => !string.IsNullOrWhiteSpace(id)),
-            StringComparer.OrdinalIgnoreCase);
+        return modIdMap.TryGetValue(id, out ModRefViewModel? vm)
+            ? vm.DisplayName
+            : id;
+    }
 
-        HashSet<RuleEdge> normalized = new HashSet<RuleEdge>(RuleEdgeComparer.Instance);
-        foreach (RuleEdge edge in explicitRequiredRules)
+    private static Dictionary<string, ModRelationshipRule> CloneRules(IDictionary<string, ModRelationshipRule> source)
+    {
+        Dictionary<string, ModRelationshipRule> clone = new(StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, ModRelationshipRule> kvp in source)
+            clone[kvp.Key] = kvp.Value.Clone();
+        return clone;
+    }
+
+    private static IBrush AccentBrush(ModRelationshipKind kind)
+    {
+        return kind switch
         {
-            if (!IsValidEdge(edge))
-                continue;
-            if (!ruleIds.Contains(edge.BeforeId) || !ruleIds.Contains(edge.AfterId))
-                continue;
-            normalized.Add(edge);
-        }
-
-        explicitRequiredRules.Clear();
-        foreach (RuleEdge edge in normalized)
-            explicitRequiredRules.Add(edge);
+            ModRelationshipKind.Before => BrushCache.GetBrush(Color.Parse("#3B82F6")),
+            ModRelationshipKind.After => BrushCache.GetBrush(Color.Parse("#22C55E")),
+            ModRelationshipKind.Required => BrushCache.GetBrush(Color.Parse("#EAB308")),
+            ModRelationshipKind.Incompatible => BrushCache.GetBrush(Color.Parse("#EF4444")),
+            _ => Brushes.Gray
+        };
     }
 
-    private void NormalizeExplicitRequiredIds()
+    private static Image? IconFor(ModRelationshipKind kind)
     {
-        HashSet<string> ruleIds = new HashSet<string>(
-            masterRuleList.Select(vm => vm.ModReference.ID?.Trim() ?? string.Empty)
-                .Where(id => !string.IsNullOrWhiteSpace(id)),
-            StringComparer.OrdinalIgnoreCase);
-
-        HashSet<string> normalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (string requiredId in explicitRequiredIds)
+        return kind switch
         {
-            string id = requiredId?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-            if (!ruleIds.Contains(id))
-                continue;
-            normalized.Add(id);
-        }
-
-        explicitRequiredIds.Clear();
-        foreach (string id in normalized)
-            explicitRequiredIds.Add(id);
+            ModRelationshipKind.Before => ImageSourceLoader.CreateAvaloniaImage("arrowUpIcon.svg"),
+            ModRelationshipKind.After => ImageSourceLoader.CreateAvaloniaImage("arrowDownIcon.svg"),
+            ModRelationshipKind.Required => ImageSourceLoader.CreateAvaloniaImage("linkIcon.svg"),
+            ModRelationshipKind.Incompatible => ImageSourceLoader.CreateAvaloniaImage("cancelCircledIcon.svg"),
+            _ => null
+        };
     }
 
-    private static RuleEdge CreateEdge(string? beforeId, string? afterId)
+    private static string LabelFor(ModRelationshipKind kind)
     {
-        string before = beforeId?.Trim() ?? string.Empty;
-        string after = afterId?.Trim() ?? string.Empty;
-        return new RuleEdge(before, after);
-    }
-
-    private static bool IsValidEdge(RuleEdge edge)
-    {
-        return !string.IsNullOrWhiteSpace(edge.BeforeId) &&
-               !string.IsNullOrWhiteSpace(edge.AfterId) &&
-               !string.Equals(edge.BeforeId, edge.AfterId, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private ListBox? GetListForMod(ModRefViewModel vm)
-    {
-        if (ruleMods.Contains(vm))
-            return rulesList;
-        if (availableMods.Contains(vm))
-            return modTreeList;
-        return null;
-    }
-
-    private sealed class RuleLineIndices
-    {
-        public List<RuleLineOccurrence> Occurrences { get; } = new();
-    }
-
-    private readonly record struct RuleLineOccurrence(string Attribute, int Index);
-
-    private readonly record struct RequiredMenuPayload(string RequiresId);
-
-    private readonly record struct PreviewRuleToken(RuleEdge? Edge, string RequiresId, IBrush? MarkerBrush)
-    {
-        public static PreviewRuleToken EdgeToken(RuleEdge edge) => new(edge, string.Empty, null);
-        public static PreviewRuleToken RequiresToken(string requiresId) => new(null, requiresId, null);
-        public static PreviewRuleToken Marker(IBrush markerBrush) => new(null, string.Empty, markerBrush);
-    }
-    private readonly record struct RuleEdge(string BeforeId, string AfterId);
-    private readonly record struct RuleCandidate(RuleEdge Edge, int Priority, int Order);
-
-    private readonly record struct RuleGap(string BeforeId, string AfterId);
-
-    private sealed class RuleGapComparer : IEqualityComparer<RuleGap>
-    {
-        public static readonly RuleGapComparer Instance = new();
-
-        public bool Equals(RuleGap x, RuleGap y)
+        return kind switch
         {
-            return string.Equals(x.BeforeId, y.BeforeId, StringComparison.OrdinalIgnoreCase) &&
-                   string.Equals(x.AfterId, y.AfterId, StringComparison.OrdinalIgnoreCase);
-        }
-
-        public int GetHashCode(RuleGap obj)
-        {
-            return HashCode.Combine(
-                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.BeforeId ?? string.Empty),
-                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.AfterId ?? string.Empty));
-        }
+            ModRelationshipKind.Before => "Before",
+            ModRelationshipKind.After => "After",
+            ModRelationshipKind.Required => "Required",
+            ModRelationshipKind.Incompatible => "Incompatible",
+            _ => "Relationship"
+        };
     }
 
-    private sealed class RuleEdgeComparer : IEqualityComparer<RuleEdge>
+    private static ModRelationshipKind? RelationshipKindFromTag(string? tag)
     {
-        public static readonly RuleEdgeComparer Instance = new();
-
-        public bool Equals(RuleEdge x, RuleEdge y)
+        return tag switch
         {
-            return string.Equals(x.BeforeId, y.BeforeId, StringComparison.OrdinalIgnoreCase) &&
-                   string.Equals(x.AfterId, y.AfterId, StringComparison.OrdinalIgnoreCase);
-        }
-
-        public int GetHashCode(RuleEdge obj)
-        {
-            return HashCode.Combine(
-                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.BeforeId ?? string.Empty),
-                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.AfterId ?? string.Empty));
-        }
+            "relation-before" => ModRelationshipKind.Before,
+            "relation-after" => ModRelationshipKind.After,
+            "relation-required" => ModRelationshipKind.Required,
+            "relation-incompatible" => ModRelationshipKind.Incompatible,
+            _ => null
+        };
     }
 
-
-
-    private List<ModSortRule> MergeRules(IEnumerable<ModSortRule> userRules, IEnumerable<ModSortRule> communityRules)
+    private static string DisplayNameFor(ModReference modref)
     {
-        List<ModSortRule> merged = new(userRules);
-
-        HashSet<RuleEdge> userEdges = new(RuleEdgeComparer.Instance);
-        HashSet<string> userRequiredIds = new(StringComparer.OrdinalIgnoreCase);
-
-        foreach (ModSortRule rule in userRules)
-        {
-            if (!string.IsNullOrWhiteSpace(rule.BeforeId) && !string.IsNullOrWhiteSpace(rule.AfterId))
-            {
-                userEdges.Add(CreateEdge(rule.BeforeId, rule.AfterId));
-            }
-            if (!string.IsNullOrWhiteSpace(rule.RequiresId))
-            {
-                userRequiredIds.Add(rule.RequiresId);
-            }
-        }
-
-        foreach (ModSortRule communityRule in communityRules)
-        {
-            bool conflict = false;
-
-            // Check for BeforeId/AfterId conflict
-            if (!string.IsNullOrWhiteSpace(communityRule.BeforeId) && !string.IsNullOrWhiteSpace(communityRule.AfterId))
-            {
-                RuleEdge communityEdge = CreateEdge(communityRule.BeforeId, communityRule.AfterId);
-                if (userEdges.Contains(communityEdge))
-                {
-                    conflict = true;
-                }
-            }
-
-            // Check for RequiresId conflict
-            if (!string.IsNullOrWhiteSpace(communityRule.RequiresId) && userRequiredIds.Contains(communityRule.RequiresId))
-                conflict = true;
-
-            if (!conflict)
-            {
-                merged.Add(communityRule);
-            }
-        }
-
-        return merged;
-    }
-
-    private static List<ModRefViewModel> Deduplicate(IEnumerable<ModRefViewModel> items)
-    {
-        List<ModRefViewModel> unique = new List<ModRefViewModel>();
-        HashSet<ModRefViewModel> seen = new HashSet<ModRefViewModel>();
-        foreach (ModRefViewModel vm in items)
-        {
-            if (seen.Add(vm))
-                unique.Add(vm);
-        }
-        return unique;
-    }
-
-    private void SaveCommunityRulesUrl()
-    {
-        if (communityRulesUrlTextBox != null)
-            ConfigManager.Config.CommunitySortRulesUrl = communityRulesUrlTextBox.Text?.Trim() ?? string.Empty;
-        ConfigManager.SaveConfigFile("Url");
-    }
-
-    private async Task FetchCommunityRulesAsync()
-    {
-        if (fetchCommunityRules == null || communityRulesUrlTextBox == null)
-            return;
-
-        string url = communityRulesUrlTextBox.Text?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            SetCommunityRulesStatus("Enter a GitHub repository URL.");
-            return;
-        }
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out _))
-        {
-            SetCommunityRulesStatus("Invalid URL.");
-            return;
-        }
-
-        SetCommunityRulesStatus("Fetching...");
-        (bool success, string message, IReadOnlyList<ModSortRule>? rules) = await fetchCommunityRules(url);
-        SetCommunityRulesStatus(message);
-
-        if (!success || rules == null)
-            return;
-
-        _communityRules = new List<ModSortRule>(rules);
-
-        if (!changesMade)
-        {
-            BuildViewModels(modRefs);
-            ApplySearchFilter();
-            UpdateRuleReferenceOverlay();
-            UpdateRuleGapVisuals();
-            UpdateRulesJsonPreview();
-        }
-
-        MarkChanged();
-    }
-
-    private void SetCommunityRulesStatus(string message)
-    {
-        if (communityRulesStatusTextBlock != null)
-            communityRulesStatusTextBlock.Text = message;
-    }
-
-    private void SaveButtonPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(saveButton).Properties.IsRightButtonPressed)
-            return;
-
-        e.Handled = true;
-        OpenRulesFile();
+        return string.IsNullOrWhiteSpace(modref.name) ? modref.ID : modref.name;
     }
 
     private void OpenRulesFile()
@@ -2132,10 +691,36 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
                 UseShellExecute = true
             });
         }
-        catch (Exception)
+        catch
         {
-            // Ignored
+            // Ignore shell open failures.
         }
     }
 
+    private readonly record struct ValidationResult(bool HasError, bool HasWarning, string Message);
+
+    private async Task ClearAllRelationshipsAsync()
+    {
+        if (selectedMod == null)
+        {
+            return;
+        }
+
+        bool confirm = await DialogService.ShowConfirmAsync(this,
+            "Clear all relationships (Before, After, Required, Incompatible) for this mod?",
+            "Clear All Relationships");
+
+        if (!confirm)
+        {
+            return;
+        }
+
+        PushUndo();
+
+        foreach (ModRelationshipKind kind in Enum.GetValues<ModRelationshipKind>())
+        {
+            GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind).Clear();
+        }
+        CommitRulesChanged();
+    }
 }

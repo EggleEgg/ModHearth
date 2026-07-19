@@ -1,16 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Layout;
 using ModHearth.Metadata;
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using ModHearth.Models;
 
 
@@ -28,6 +23,11 @@ public partial class MainWindow : IModRefContextMenuProvider
                 if (string.Equals(tag, "add-required-root", StringComparison.Ordinal))
                 {
                     menuItem.IsVisible = false;
+                }
+                else if (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
+                         tag?.StartsWith("relation-", StringComparison.Ordinal) == true)
+                {
+                    // Visibility is now controlled by ModRefControl.AllowRelationshipEditing
                 }
                 else if (string.Equals(tag, "open-steam", StringComparison.Ordinal))
                 {
@@ -266,7 +266,7 @@ public partial class MainWindow : IModRefContextMenuProvider
             ModColor = ModColor.None,
             Name = "None (clear color)",
             Color = Colors.Transparent,
-            IsSelected = (contextVm.ModReference.AssignedColor == ModColor.None)
+            IsSelected = contextVm.ModReference.AssignedColor == ModColor.None
         }, ApplyColor));
 
         foreach (ModColorInfo colorInfo in allColorInfos)

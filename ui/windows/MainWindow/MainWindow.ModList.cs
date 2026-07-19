@@ -22,6 +22,7 @@ public partial class MainWindow
     {
         RebuildPanelCollectionsFromManager();
         UpdateCachedIndicators();
+        UpdateRelationshipBadges();
         UpdateProblemIndicators();
         UpdateDuplicateWarningIndicators();
         UpdateModlistHeaders();

@@ -70,7 +70,7 @@
     {
       "label": "dotnet clean & restore",
       "type": "shell",
-      "command": "dotnet clean \"${workspaceFolder}/ModHearth.csproj\" && dotnet restore \"${workspaceFolder}/ModHearth.csproj\"",
+      "command": "dotnet clean \"${workspaceFolder}/ModHearth.csproj\" ; dotnet restore \"${workspaceFolder}/ModHearth.csproj\"",
       "problemMatcher": []
     },
     {

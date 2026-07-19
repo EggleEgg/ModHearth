@@ -1,9 +1,25 @@
+<!-- Specifically used for the "search by color" filter in ModSearchBar -->
+
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:ModHearth.UI"
              xmlns:models="clr-namespace:ModHearth.Models"
              x:Class="ModHearth.UI.ModColorPicker"
-             x:DataType="ui:ModColorPicker">
+             x:Name="root">
+  <UserControl.Styles>
+    <Style Selector="Button#ClearSelectionButton">
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="Border.color-swatch">
+      <Setter Property="Width" Value="20"/>
+      <Setter Property="Height" Value="20"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+  </UserControl.Styles>
+
   <Border Background="Transparent" Tapped="Picker_Tapped">
     <Grid ColumnDefinitions="*,Auto">
       <ScrollViewer Name="ColorScrollViewer"
@@ -21,7 +37,7 @@
         </ScrollViewer.Styles>
 
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <ItemsControl ItemsSource="{Binding AvailableColors}">
+          <ItemsControl ItemsSource="{Binding #root.AvailableColors}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
                 <StackPanel Orientation="Horizontal" Spacing="4" Margin="4" />
@@ -29,11 +45,9 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="models:ModColorInfo">
-                <Border Width="20" Height="20" CornerRadius="10" BorderThickness="1"
-                        Cursor="Hand"
-                        BorderBrush="{Binding $parent[ui:ModColorPicker].BorderBrush}"
+                <Border Classes="color-swatch"
+                        BorderBrush="{Binding #root.BorderBrush}"
                         Background="{Binding Brush}"
-                        
                         Tapped="Color_Tapped"
                         ToolTip.Tip="{Binding Name}">
                   <Image IsVisible="{Binding IsSelected}" Source="{ui:AssetImage cancelBorderIcon.svg}"
@@ -44,10 +58,11 @@
           </ItemsControl>
         </StackPanel>
       </ScrollViewer>
-      <Button x:Name="ClearSelectionButton" Grid.Column="1" Command="{Binding ClearSelectionCommand}"
+      <Button x:Name="ClearSelectionButton" Grid.Column="1"
+              Command="{Binding #root.ClearSelectionCommand}"
               VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-              Margin="4,0,4,0" Width="24" Height="24" Padding="0"
-              IsVisible="{Binding HasSelectedColors}"
+              Margin="4,2,4,2" Width="22" Height="22"
+              IsVisible="{Binding #root.HasSelectedColors}"
               ToolTip.Tip="Clear color selection" >
         <Image Source="{ui:AssetImage grid2x2Icon.svg}"/>
       </Button>

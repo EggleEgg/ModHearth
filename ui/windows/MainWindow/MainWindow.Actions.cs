@@ -26,22 +26,15 @@ public partial class MainWindow
         }
 
         SortRulesWindow dialog = new SortRulesWindow(
-            manager.GetSortRules(),
+            manager.GetModRelationshipRules(),
             modRefs,
-            ConfigManager.GetModsPath(),
-            ConfigManager.GetVanillaModsPath(),
-            ModHearthManager.GetSortRulesPath(),
-            rules => manager.SetSortRules(rules),
-            ConfigManager.Config.CommunitySortRulesUrl,
-            async url =>
+            ModHearthManager.GetModRelationshipRulesPath(),
+            rules =>
             {
-                bool success = await manager.FetchCommunitySortRulesAsync(url);
-                if (success)
-                    ModHearthManager.SetCommunitySortRulesUrl(url);
-                IReadOnlyList<ModSortRule> rules = manager.GetCommunitySortRules();
-                return (success, success ? $"Loaded {rules.Count} community rules." : "Failed to load community rules.", rules);
-            },
-            manager.GetCommunitySortRules())
+                manager.SetModRelationshipRules(rules);
+                manager.FindModlistProblems();
+                RefreshModlistPanels();
+            })
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };

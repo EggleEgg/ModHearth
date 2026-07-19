@@ -1,11 +1,13 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
 using ModHearth.Metadata;
 using System.Linq;
+using Avalonia.Controls;
 
 namespace ModHearth.UI;
 
@@ -29,6 +31,9 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     private Thickness ruleGapMargin = new Thickness(0);
     private string? problemTooltip;
     private string? duplicateWarningTooltip;
+    private string ruleBadgesText = string.Empty;
+    private string? ruleBadgesTooltip;
+    private IEnumerable<Control> ruleBadges = Array.Empty<Control>();
 
     private IBrush backgroundBrush = Brushes.Transparent;
     private IBrush textBrush = Brushes.Black;
@@ -340,6 +345,134 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         }
     }
 
+    public string RuleBadgesText
+    {
+        get => ruleBadgesText;
+        set
+        {
+            if (ruleBadgesText == value)
+                return;
+            ruleBadgesText = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasRuleBadges));
+        }
+    }
+
+    public string? RuleBadgesTooltip
+    {
+        get => ruleBadgesTooltip;
+        set
+        {
+            if (ruleBadgesTooltip == value)
+                return;
+            ruleBadgesTooltip = value;
+            OnPropertyChanged();
+        }
+    }
+    public IEnumerable<Control> RuleBadges
+    {
+        get => ruleBadges;
+        set
+        {
+            if (ruleBadges == value)
+                return;
+            ruleBadges = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasRuleBadges));
+        }
+    }
+
+    public bool HasRuleBadges => RuleBadges.Any();
+
+    private int relationshipCount;
+    public int intBeforeCount;
+    public int intAfterCount;
+    public int intRequiredCount;
+    public int intIncompatibleCount;
+
+    public int RelationshipCount
+    {
+        get => relationshipCount;
+        set
+        {
+            if (relationshipCount == value)
+                return;
+            relationshipCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasRelationships));
+        }
+    }
+
+    public int BeforeCount
+    {
+        get => intBeforeCount;
+        set
+        {
+            if (intBeforeCount == value)
+                return;
+            intBeforeCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RelationshipTooltipText));
+        }
+    }
+
+    public int AfterCount
+    {
+        get => intAfterCount;
+        set
+        {
+            if (intAfterCount == value)
+                return;
+            intAfterCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RelationshipTooltipText));
+        }
+    }
+
+    public int RequiredCount
+    {
+        get => intRequiredCount;
+        set
+        {
+            if (intRequiredCount == value)
+                return;
+            intRequiredCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RelationshipTooltipText));
+        }
+    }
+
+    public int IncompatibleCount
+    {
+        get => intIncompatibleCount;
+        set
+        {
+            if (intIncompatibleCount == value)
+                return;
+            intIncompatibleCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RelationshipTooltipText));
+        }
+    }
+
+    public bool HasRelationships => RelationshipCount > 0;
+
+    public string? RelationshipTooltipText
+    {
+        get
+        {
+            if (!HasRelationships)
+                return null;
+
+            StringBuilder sb = new StringBuilder("Custom Sort Rules");
+            if (BeforeCount > 0) sb.AppendLine().Append($"• Before: {BeforeCount}");
+            if (AfterCount > 0) sb.AppendLine().Append($"• After: {AfterCount}");
+            if (RequiredCount > 0) sb.AppendLine().Append($"• Required: {RequiredCount}");
+            if (IncompatibleCount > 0) sb.AppendLine().Append($"• Incompatible: {IncompatibleCount}");
+            return sb.ToString();
+        }
+    }
+
     public void RefreshStyle()
     {
         RefreshBackground();
@@ -450,7 +583,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             var selectedColorNames = filter.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => s.Trim())
                 .ToList();
-            
+
             if (selectedColorNames.Count == 0)
                 return true;
 

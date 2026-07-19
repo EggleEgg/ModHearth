@@ -9,6 +9,11 @@ public partial class MainWindow
         ModListIndicatorUpdater.UpdateCachedIndicators(modViewMap.Values, manager.GetInstalledCacheModIds());
     }
 
+    private void UpdateRelationshipBadges()
+    {
+        ModListIndicatorUpdater.UpdateRelationshipBadges(modViewMap.Values, manager.GetModRelationshipRules());
+    }
+
     private void UpdateProblemIndicators()
     {
         problemMods = ModListIndicatorUpdater.UpdateProblemIndicators(manager, modViewMap.Values);

@@ -30,6 +30,7 @@
     <Grid Margin="12">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="10*" />
+        <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="11*" />
         <ColumnDefinition Width="200" />
       </Grid.ColumnDefinitions>
@@ -70,7 +71,12 @@
         </Grid>
       </Border>
 
-      <Border Grid.Column="1" Margin="3">
+      <Border Grid.Column="1" Background="{DynamicResource SeparatorBrush}" Width="0.5"
+              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,30,2,2" />
+      <GridSplitter Grid.Column="1" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
+                    HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
+
+      <Border Grid.Column="2" Margin="3">
         <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
 
           <Grid.Styles>
@@ -82,7 +88,7 @@
               <Setter Property="IsVisible" Value="{Binding IsVisible}" />
               <Setter Property="HorizontalAlignment" Value="Stretch" />
               <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-              <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Hidden" />
+              <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
               <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
             </Style>
           </Grid.Styles>
@@ -93,8 +99,8 @@
 
             <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1" PlaceholderText="Search" />
 
-            <ListBox x:Name="leftModlist" Grid.Row="2" SelectionMode="Multiple"
-                     AutoScrollToSelectedItem="False" Margin="0,6,0,0">
+            <ListBox x:Name="leftModlist" Grid.Row="2" SelectionMode="Multiple" AutoScrollToSelectedItem="False"
+                     Margin="0,6,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
             </ListBox>
           </Grid>
 
@@ -104,8 +110,8 @@
 
             <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1" PlaceholderText="Search"/>
 
-            <ListBox x:Name="rightModlist" Grid.Row="2" SelectionMode="Multiple"
-                     AutoScrollToSelectedItem="False" Margin="0,6,0,0">
+            <ListBox x:Name="rightModlist" Grid.Row="2" SelectionMode="Multiple" AutoScrollToSelectedItem="False"
+                     Margin="0,6,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
             </ListBox>
           </Grid>
 
@@ -114,7 +120,7 @@
         </Grid>
       </Border>
 
-      <Border Grid.Column="2" Margin="0,3,3,3">
+      <Border Grid.Column="3" Margin="0,3,3,3">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*, Auto" RowSpacing="6">
           <Grid.Styles>
             <Style Selector="Button">
@@ -149,9 +155,13 @@
             <Button x:Name="undoChangesButton" Grid.Column="2" ToolTip.Tip="Undo unsaved changes">
               <Image Source="{ui:AssetImage undoIcon}" />
             </Button>
-            <Button x:Name="reloadButton" Grid.Column="3"
-                    ToolTip.Tip="Reload local/steam workshop modlists and mods. Right click to autoreload">
-              <Image Source="{ui:AssetImage reloadIcon}" />
+            <Button x:Name="reloadButton" Grid.Column="3" ToolTip.Tip="Reload local/steam workshop modlists and mods. Right click to autoreload">
+              <Grid>
+                <Image Source="{ui:AssetImage reloadIcon}" />
+                <Image x:Name="autoReloadIndicator" Source="{ui:AssetImage updateBorderIcon}"
+                       Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                       Margin="0" IsVisible="{Binding IsAutoReloadEnabled}" />
+              </Grid>
             </Button>
           </Grid>
 
@@ -171,7 +181,7 @@
           <Border Grid.Row="5" Grid.ColumnSpan="3" Background="{DynamicResource SeparatorBrush}" Height="2" HorizontalAlignment="Stretch" Margin="0,2,0,4" />
 
           <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Height="28">
-            <Button x:Name="sortButton" HorizontalContentAlignment="Stretch">
+            <Button x:Name="sortButton" HorizontalContentAlignment="Stretch" ToolTip.Tip="Sorts mods based on raw tag properties. Right click to autosort">
               <Grid>
                 <TextBlock Text="Sort" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Image x:Name="autoSortIndicator"

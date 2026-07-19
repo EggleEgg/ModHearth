@@ -43,7 +43,7 @@
                Source="{ui:AssetImage viewEyeIcon}" />
       </Button>
       <Button x:Name="ClearButton" Grid.Column="3" Width="22" Height="22" Padding="0"
-              Margin="0,2,2.5,2" VerticalAlignment="Center">
+              Margin="0,2,2,2" VerticalAlignment="Center">
         <Image Source="{ui:AssetImage cancelIcon}" />
       </Button>
     </Grid>

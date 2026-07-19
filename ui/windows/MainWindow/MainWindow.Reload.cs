@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Threading;
 using ModHearth.Utilities.Logging;
 
@@ -160,12 +161,12 @@ public partial class MainWindow
         TextBlock label = new TextBlock
         {
             Text = "Every (seconds):",
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center
         };
 
         StackPanel secondsRow = new StackPanel
         {
-            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Orientation = Orientation.Horizontal,
             Spacing = 8
         };
         secondsRow.Children.Add(label);
@@ -294,10 +295,12 @@ public partial class MainWindow
         {
             autoReloadTimer.Interval = TimeSpan.FromSeconds(configValue);
             autoReloadTimer.Start();
+            IsAutoReloadEnabled = true;
             return;
         }
 
         autoReloadTimer.Stop();
+        IsAutoReloadEnabled = false;
     }
 
     private static int ParseAutoReloadSeconds(string? text)

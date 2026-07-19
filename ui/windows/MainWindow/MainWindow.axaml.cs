@@ -1,5 +1,4 @@
-﻿
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -48,6 +47,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (value != ConfigManager.IsAutoSortEnabled())
             {
                 ConfigManager.SetAutoSortEnabled(value);
+                NotifyOfPropertyChange();
+            }
+        }
+    }
+
+    private bool _isAutoReloadEnabled;
+    public bool IsAutoReloadEnabled
+    {
+        get => _isAutoReloadEnabled;
+        set
+        {
+            if (_isAutoReloadEnabled != value)
+            {
+                _isAutoReloadEnabled = value;
                 NotifyOfPropertyChange();
             }
         }
@@ -133,6 +146,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeModInfoDock();
         saveButton.DataContext = this;
         sortButton.DataContext = this;
+        reloadButton.DataContext = this;
         SetWindowIcon();
         SetPreviewImage(LoadFallbackPreview());
         ShowFallbackHelpText();

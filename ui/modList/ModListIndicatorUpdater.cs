@@ -1,4 +1,9 @@
 using System.Text;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Data;
+using Avalonia.Layout;
+using Avalonia.Media;
 using ModHearth.Utilities;
 
 namespace ModHearth.UI;
@@ -9,6 +14,88 @@ internal static class ModListIndicatorUpdater
     {
         foreach (ModRefViewModel vm in viewModels)
             vm.IsCached = cachedIds != null && cachedIds.Contains(vm.DfMod.id);
+    }
+
+    public static void UpdateRelationshipBadges(
+        IEnumerable<ModRefViewModel> viewModels,
+        IReadOnlyDictionary<string, ModRelationshipRule> rules)
+    {
+        List<ModRefViewModel> mods = viewModels.ToList();
+        Dictionary<string, ModRefViewModel> byId = mods
+            .Where(vm => !string.IsNullOrWhiteSpace(vm.ModReference.ID))
+            .GroupBy(vm => vm.ModReference.ID.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (ModRefViewModel vm in mods)
+        {
+            string id = vm.ModReference.ID?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id) ||
+                rules == null ||
+                !rules.TryGetValue(id, out ModRelationshipRule? rule) ||
+                rule.IsEmpty)
+            {
+                vm.RuleBadges = Array.Empty<Control>();
+                vm.RuleBadgesTooltip = null;
+                vm.RelationshipCount = 0;
+                continue;
+            }
+
+            List<Control> badges = new();
+
+            if (rule.BeforeIds.Count > 0)
+                badges.Add(CreateBadge("arrowUpIcon.svg", rule.BeforeIds.Count, RelationshipBrush(ModRelationshipKind.Before)));
+
+            if (rule.AfterIds.Count > 0)
+                badges.Add(CreateBadge("arrowDownIcon.svg", rule.AfterIds.Count, RelationshipBrush(ModRelationshipKind.After)));
+
+            if (rule.RequiredIds.Count > 0)
+                badges.Add(CreateBadge("linkIcon.svg", rule.RequiredIds.Count, RelationshipBrush(ModRelationshipKind.Required)));
+
+            if (rule.IncompatibleIds.Count > 0)
+                badges.Add(CreateBadge("cancelCircledIcon.svg", rule.IncompatibleIds.Count, RelationshipBrush(ModRelationshipKind.Incompatible)));
+
+            vm.RuleBadges = badges;
+            vm.RuleBadgesTooltip = BuildRelationshipTooltip(rule, byId);
+            vm.RelationshipCount = rule.BeforeIds.Count + rule.AfterIds.Count + rule.RequiredIds.Count + rule.IncompatibleIds.Count;
+            vm.BeforeCount = rule.BeforeIds.Count;
+            vm.AfterCount = rule.AfterIds.Count;
+            vm.RequiredCount = rule.RequiredIds.Count;
+            vm.IncompatibleCount = rule.IncompatibleIds.Count;
+        }
+    }
+
+    // Helper method to generate a unified Icon + Number badge control
+    private static Control CreateBadge(string iconName, int count, IBrush iconBrush)
+    {
+        StackPanel badgePanel = new()
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 0.5,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 3, 0)
+        };
+
+        Color? tint = (iconBrush as ISolidColorBrush)?.Color;
+        Image iconImage = new()
+        {
+            Width = 12,
+            Height = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Source = ImageSourceLoader.LoadFromAssetUri(iconName, tint)
+        };
+
+        TextBlock text = new()
+        {
+            Text = count.ToString(),
+            FontSize = 11,
+            FontWeight = FontWeight.Medium,
+            VerticalAlignment = VerticalAlignment.Center
+            // Leave Foreground empty here so it inherits TextBrush dynamically
+        };
+
+        badgePanel.Children.Add(iconImage);
+        badgePanel.Children.Add(text);
+        return badgePanel;
     }
 
     public static List<DFHMod> UpdateProblemIndicators(ModHearthManager? manager, IEnumerable<ModRefViewModel> viewModels)
@@ -148,6 +235,38 @@ internal static class ModListIndicatorUpdater
         return builder.ToString();
     }
 
+    private static string BuildRelationshipTooltip(
+        ModRelationshipRule rule,
+        IReadOnlyDictionary<string, ModRefViewModel> byId)
+    {
+        StringBuilder builder = new("Relationships:");
+        AppendCategory(builder, "Before", rule.BeforeIds, byId);
+        AppendCategory(builder, "After", rule.AfterIds, byId);
+        AppendCategory(builder, "Required", rule.RequiredIds, byId);
+        AppendCategory(builder, "Incompatible", rule.IncompatibleIds, byId);
+        return builder.ToString();
+    }
+
+    private static void AppendCategory(
+        StringBuilder builder,
+        string title,
+        IReadOnlyList<string> ids,
+        IReadOnlyDictionary<string, ModRefViewModel> byId)
+    {
+        if (ids.Count == 0)
+            return;
+
+        builder.AppendLine().Append(title).Append(':');
+        foreach (string id in ids
+            .OrderBy(value => byId.TryGetValue(value, out ModRefViewModel? vm) ? vm.DisplayName : value, StringComparer.OrdinalIgnoreCase))
+        {
+            string label = byId.TryGetValue(id, out ModRefViewModel? vm)
+                ? $"{vm.DisplayName} ({id})"
+                : $"Missing Mod ({id})";
+            builder.AppendLine().Append("- ").Append(label);
+        }
+    }
+
     public static string? BuildWarningIssuesTooltip(int problemCount, int duplicateCount)
     {
         if (problemCount <= 0 && duplicateCount <= 0)
@@ -171,5 +290,16 @@ internal static class ModListIndicatorUpdater
             return problemText;
 
         return $"{problemText}{Environment.NewLine}{duplicateText}";
+    }
+    public static IBrush RelationshipBrush(ModRelationshipKind kind)
+    {
+        return kind switch
+        {
+            ModRelationshipKind.Before => BrushCache.GetBrush(Color.Parse("#3B82F6")),
+            ModRelationshipKind.After => BrushCache.GetBrush(Color.Parse("#22C55E")),
+            ModRelationshipKind.Required => BrushCache.GetBrush(Color.Parse("#EAB308")),
+            ModRelationshipKind.Incompatible => BrushCache.GetBrush(Color.Parse("#EF4444")),
+            _ => Brushes.Gray
+        };
     }
 }
