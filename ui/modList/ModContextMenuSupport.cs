@@ -312,7 +312,7 @@ internal static class ModContextMenuSupport
     {
         if (!ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId))
         {
-            string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open in Steam" : "Open Steam Page (browser)";
+            string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open URL in steam" : "Open URL in browser";
             await DialogService.ShowMessageAsync(owner, "Steam ID not available for this mod.", actionTitle);
             return;
         }
@@ -331,7 +331,7 @@ internal static class ModContextMenuSupport
         }
         catch (Exception ex)
         {
-            string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open in Steam" : "Open Steam Page (browser)";
+            string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open URL in steam" : "Open URL in browser";
             await DialogService.ShowMessageAsync(owner, ex.Message, actionTitle);
         }
     }

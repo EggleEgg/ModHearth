@@ -66,7 +66,7 @@ public static class WindowThemeManager
         registered.RemoveAll(weak => !weak.TryGetTarget(out _));
     }
 
-    private static void ApplyToWindow(Window window, Style style)
+    public static void ApplyToWindow(Window window, Style style)
     {
         if (window == null)
             return;

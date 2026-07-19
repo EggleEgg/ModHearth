@@ -34,25 +34,22 @@ internal static class ModListIndicatorUpdater
                 !rules.TryGetValue(id, out ModRelationshipRule? rule) ||
                 rule.IsEmpty)
             {
-                vm.RuleBadges = Array.Empty<Control>();
+                vm.RuleBadges = Array.Empty<RuleBadgeInfo>();
                 vm.RuleBadgesTooltip = null;
                 vm.RelationshipCount = 0;
                 continue;
             }
 
-            List<Control> badges = new();
+            List<RuleBadgeInfo> badges = new();
 
             if (rule.BeforeIds.Count > 0)
-                badges.Add(CreateBadge("arrowUpIcon.svg", rule.BeforeIds.Count, RelationshipBrush(ModRelationshipKind.Before)));
-
+                badges.Add(CreateBadgeInfo("arrowUpIcon.svg", rule.BeforeIds.Count, RelationshipBrush(ModRelationshipKind.Before)));
             if (rule.AfterIds.Count > 0)
-                badges.Add(CreateBadge("arrowDownIcon.svg", rule.AfterIds.Count, RelationshipBrush(ModRelationshipKind.After)));
-
+                badges.Add(CreateBadgeInfo("arrowDownIcon.svg", rule.AfterIds.Count, RelationshipBrush(ModRelationshipKind.After)));
             if (rule.RequiredIds.Count > 0)
-                badges.Add(CreateBadge("linkIcon.svg", rule.RequiredIds.Count, RelationshipBrush(ModRelationshipKind.Required)));
-
+                badges.Add(CreateBadgeInfo("linkIcon.svg", rule.RequiredIds.Count, RelationshipBrush(ModRelationshipKind.Required)));
             if (rule.IncompatibleIds.Count > 0)
-                badges.Add(CreateBadge("cancelCircledIcon.svg", rule.IncompatibleIds.Count, RelationshipBrush(ModRelationshipKind.Incompatible)));
+                badges.Add(CreateBadgeInfo("cancelCircledIcon.svg", rule.IncompatibleIds.Count, RelationshipBrush(ModRelationshipKind.Incompatible)));
 
             vm.RuleBadges = badges;
             vm.RuleBadgesTooltip = BuildRelationshipTooltip(rule, byId);
@@ -65,37 +62,10 @@ internal static class ModListIndicatorUpdater
     }
 
     // Helper method to generate a unified Icon + Number badge control
-    private static Control CreateBadge(string iconName, int count, IBrush iconBrush)
+    private static RuleBadgeInfo CreateBadgeInfo(string iconName, int count, IBrush iconBrush)
     {
-        StackPanel badgePanel = new()
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 0.5,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 3, 0)
-        };
-
         Color? tint = (iconBrush as ISolidColorBrush)?.Color;
-        Image iconImage = new()
-        {
-            Width = 12,
-            Height = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-            Source = ImageSourceLoader.LoadFromAssetUri(iconName, tint)
-        };
-
-        TextBlock text = new()
-        {
-            Text = count.ToString(),
-            FontSize = 11,
-            FontWeight = FontWeight.Medium,
-            VerticalAlignment = VerticalAlignment.Center
-            // Leave Foreground empty here so it inherits TextBrush dynamically
-        };
-
-        badgePanel.Children.Add(iconImage);
-        badgePanel.Children.Add(text);
-        return badgePanel;
+        return new RuleBadgeInfo(ImageSourceLoader.LoadFromAssetUri(iconName, tint), count);
     }
 
     public static List<DFHMod> UpdateProblemIndicators(ModHearthManager? manager, IEnumerable<ModRefViewModel> viewModels)

@@ -1,16 +1,16 @@
-using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
-using ModHearth.Metadata;
-using System.Linq;
-using Avalonia.Controls;
 
 namespace ModHearth.UI;
 
+/// <summary>
+/// For creating new view instances per window
+/// </summary>
+public sealed record RuleBadgeInfo(IImage? Icon, int Count);
 public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 {
     private readonly ModReference modref;
@@ -33,7 +33,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     private string? duplicateWarningTooltip;
     private string ruleBadgesText = string.Empty;
     private string? ruleBadgesTooltip;
-    private IEnumerable<Control> ruleBadges = Array.Empty<Control>();
+    private IEnumerable<RuleBadgeInfo> ruleBadges = Array.Empty<RuleBadgeInfo>();
 
     private IBrush backgroundBrush = Brushes.Transparent;
     private IBrush textBrush = Brushes.Black;
@@ -369,7 +369,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             OnPropertyChanged();
         }
     }
-    public IEnumerable<Control> RuleBadges
+    public IEnumerable<RuleBadgeInfo> RuleBadges
     {
         get => ruleBadges;
         set
@@ -381,7 +381,6 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             OnPropertyChanged(nameof(HasRuleBadges));
         }
     }
-
     public bool HasRuleBadges => RuleBadges.Any();
 
     private int relationshipCount;

@@ -164,6 +164,9 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Required, "Required", "These mods are required when this mod is enabled.", rule.RequiredIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Incompatible, "Incompatible", "These mods should not be enabled together.", rule.IncompatibleIds));
+
+        if (Style.instance != null)
+            WindowThemeManager.ApplyToWindow(this, Style.instance);
     }
 
     private Control CreateSection(ModRelationshipKind kind, string title, string description, IReadOnlyList<string> ids)
@@ -309,8 +312,9 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         ModRefControl modControl = new()
         {
             DataContext = vm,
-            ShowColorUnderlay = true,
-            AllowRelationshipEditing = true,
+            ShowDetailedRuleBadges = true,
+            AllowContextActions = false,
+            AllowRelationshipEditing = false,
             Padding = new Thickness(0)
         };
         TextBlock detail = new()

@@ -29,22 +29,6 @@ public partial class MainWindow : IModRefContextMenuProvider
                 {
                     // Visibility is now controlled by ModRefControl.AllowRelationshipEditing
                 }
-                else if (string.Equals(tag, "open-steam", StringComparison.Ordinal))
-                {
-                    var textBlock = menuItem.FindControl<TextBlock>("OpenSteamText");
-                    if (textBlock != null)
-                    {
-                        textBlock.Text = ConfigManager.GetOpenSteamInClient() ? "Open in Steam" : "Open Steam Page (browser)";
-                    }
-                }
-                else if (string.Equals(tag, "copy-id", StringComparison.Ordinal))
-                {
-                    var textBlock = menuItem.FindControl<TextBlock>("CopyIdText");
-                    if (textBlock != null)
-                    {
-                        textBlock.Text = ConfigManager.GetCopySteamFileId() ? "Copy Steam File Id" : "Copy Mod ID";
-                    }
-                }
             }
             else if (item is Separator separator)
             {

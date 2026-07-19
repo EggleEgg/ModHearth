@@ -21,24 +21,24 @@ public partial class MainWindow
     ModInfoDockFactory factory = new ModInfoDockFactory();
     private void InitializeModInfoDock()
     {
-        // Configure properties directly on your panel view models since they are now Tools!
+        // Configure properties directly on panel view models since they are Tools
         modPreviewPanelViewModel.Id = "ModPreviewTool";
         modPreviewPanelViewModel.Title = "Preview";
-        modPreviewPanelViewModel.CanClose = true;
+        modPreviewPanelViewModel.CanClose = false;
         modPreviewPanelViewModel.CanFloat = true;
         modPreviewPanelViewModel.CanPin = true;
         modPreviewPanelViewModel.CanDrag = true;
 
         modDataPanelViewModel.Id = "ModDataTool";
         modDataPanelViewModel.Title = "Mod Data";
-        modDataPanelViewModel.CanClose = true;
+        modDataPanelViewModel.CanClose = false;
         modDataPanelViewModel.CanFloat = true;
         modDataPanelViewModel.CanPin = true;
         modDataPanelViewModel.CanDrag = true;
 
         modDescriptionPanelViewModel.Id = "DescriptionTool";
         modDescriptionPanelViewModel.Title = "Description";
-        modDescriptionPanelViewModel.CanClose = true;
+        modDescriptionPanelViewModel.CanClose = false;
         modDescriptionPanelViewModel.CanFloat = true;
         modDescriptionPanelViewModel.CanPin = true;
         modDescriptionPanelViewModel.CanDrag = true;
@@ -65,8 +65,6 @@ public partial class MainWindow
             VisibleDockables = factory.CreateList<IDockable>(modDataTool),
             ActiveDockable = modDataTool,
             CanClose = false,
-            CanFloat = false,
-            IsCollapsable = false
         };
         ToolDock descriptionDock = new ToolDock
         {
@@ -77,8 +75,6 @@ public partial class MainWindow
             VisibleDockables = factory.CreateList<IDockable>(descriptionTool),
             ActiveDockable = descriptionTool,
             CanClose = false,
-            CanFloat = false,
-            IsCollapsable = false
         };
 
         ProportionalDockSplitter splitter = new ProportionalDockSplitter
@@ -113,8 +109,6 @@ public partial class MainWindow
             VisibleDockables = factory.CreateList<IDockable>(modPreviewTool),
             ActiveDockable = modPreviewTool,
             CanClose = false,
-            CanFloat = false,
-            IsCollapsable = false,
         };
         layoutDock.Proportion = 1 - previewProportion;
         ProportionalDockSplitter previewSplitter = new ProportionalDockSplitter
@@ -138,7 +132,6 @@ public partial class MainWindow
             ActiveDockable = outerLayoutDock,
             DefaultDockable = outerLayoutDock,
             CanClose = false,
-            CanFloat = false
         };
 
         factory.InitLayout(root);

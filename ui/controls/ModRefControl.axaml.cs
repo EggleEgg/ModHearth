@@ -6,10 +6,13 @@ using Avalonia.VisualTree;
 
 namespace ModHearth.UI;
 
+/// <summary>
+/// Centralized class for modlist viewers
+/// </summary>
 public partial class ModRefControl : UserControl
 {
     public static readonly StyledProperty<bool> ShowColorUnderlayProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(ShowColorUnderlay), false);
+        AvaloniaProperty.Register<ModRefControl, bool>(nameof(ShowColorUnderlay), true);
 
     public bool ShowColorUnderlay
     {
@@ -33,6 +36,15 @@ public partial class ModRefControl : UserControl
     {
         get => GetValue(AllowRelationshipEditingProperty);
         set => SetValue(AllowRelationshipEditingProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> AllowContextActionsProperty =
+        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowContextActions), true);
+
+    public bool AllowContextActions
+    {
+        get => GetValue(AllowContextActionsProperty);
+        set => SetValue(AllowContextActionsProperty, value);
     }
 
     public static readonly StyledProperty<IBrush> HostBackgroundProperty =
@@ -99,6 +111,12 @@ public partial class ModRefControl : UserControl
         }
     }
 
+    private static bool IsRelationshipTag(string? tag) => tag is not null &&
+        (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
+        string.Equals(tag, "add-required-root", StringComparison.Ordinal) ||
+        tag.StartsWith("relation-", StringComparison.Ordinal));
+
+
     private void OnContextMenuOpened(object? sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu)
@@ -107,23 +125,33 @@ public partial class ModRefControl : UserControl
         if (DataContext is not ModRefViewModel vm)
             return;
 
-        // Apply visibility based on AllowRelationshipEditing before provider runs
-        bool allowEditing = AllowRelationshipEditing;
-        foreach (var item in menu.Items.OfType<MenuItem>())
+        // Let the ancestor window customize content first (wording, steam-vs-local enable/disable, etc).
+        // Instance-level flags below run last so they always have final say for THIS control.
+        IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
+        provider?.OnModRefContextMenuOpened(menu, vm);
+
+        bool allowRelationships = AllowRelationshipEditing;
+        bool allowActions = AllowContextActions;
+        bool anyVisible = false;
+
+        foreach (Control item in menu.Items.OfType<Control>())
         {
-            string? tag = item.Tag?.ToString();
-            if (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
-                string.Equals(tag, "add-required-root", StringComparison.Ordinal) ||
-                tag?.StartsWith("relation-", StringComparison.Ordinal) == true)
-            {
-                item.IsVisible = allowEditing;
-            }
+            string? tag = (item as MenuItem)?.Tag?.ToString() ?? (item as Separator)?.Tag?.ToString();
+
+            // Only ever suppress here, never re-enable. Preserves per-item decisions providers already made (e.g. hiding "Open Steam Page" for non-steam mods).
+            if (IsRelationshipTag(tag) && !allowRelationships)
+                item.IsVisible = false;
+            else if (!IsRelationshipTag(tag) && !allowActions)
+                item.IsVisible = false;
+
+            if (item.IsVisible)
+                anyVisible = true;
         }
 
-        IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
-        if (provider != null)
+        if (!anyVisible)
         {
-            provider.OnModRefContextMenuOpened(menu, vm);
+            menu.Close();
+            e.Handled = true;
         }
     }
 

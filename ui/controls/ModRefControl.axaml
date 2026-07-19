@@ -11,10 +11,36 @@
 
   <UserControl.Resources>
     <ui:TintedAssetConverter x:Key="TintedAssetConverter" />
+    <ui:BoolToTextConverter x:Key="SteamTextConverter" TrueValue="Open URL in steam" FalseValue="Open URL in browser" />
+    <ui:BoolToTextConverter x:Key="IdTextConverter" TrueValue="Copy Steam File ID" FalseValue="Copy Mod ID" />
   </UserControl.Resources>
 
   <UserControl.ContextMenu>
     <ContextMenu Opened="OnContextMenuOpened">
+
+      <ContextMenu.Styles>
+        <Style Selector="MenuItem.remove-arrow-row">
+          <Setter Property="Padding" Value="10,6,0,6" />
+          <Setter Property="Template">
+            <ControlTemplate>
+              <!-- Border name matches native theme triggers for hover highlights -->
+              <Border Name="PART_LayoutRoot"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      Padding="{TemplateBinding Padding}">
+                <!-- Strips out the hidden columns, forcing the header to take up 100% width -->
+                <ContentPresenter Name="PART_HeaderPresenter"
+                                  Content="{TemplateBinding Header}"
+                                  ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Center" />
+              </Border>
+            </ControlTemplate>
+          </Setter>
+        </Style>
+      </ContextMenu.Styles>
+
       <MenuItem Header="Add required mod" Tag="add-required-root" />
       <MenuItem Header="Relations" Tag="relations-root">
         <MenuItem Header="Add Before..." Tag="relation-before" Click="OnContextMenuItemClick" />
@@ -27,21 +53,30 @@
       <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <Separator Tag="separator-1" />
       <MenuItem Header="Open Folder" Tag="open" Click="OnContextMenuItemClick" />
-      <MenuItem Tag="open-steam" Classes="remove-arrow-row" IsEnabled="False" Click="OnContextMenuItemClick">
+      <MenuItem Tag="open-steam" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
         <MenuItem.Header>
-          <TextBlock x:Name="OpenSteamText" Text="Open Steam Page (browser)" VerticalAlignment="Center" />
+          <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+            <TextBlock x:Name="OpenSteamText"
+                       Text="{Binding #OpenSteamInClientCheckBox.IsChecked, Converter={StaticResource SteamTextConverter}}"
+                       MinWidth="150" VerticalAlignment="Center" />
+            <CheckBox x:Name="OpenSteamInClientCheckBox" Grid.Column="1"
+                      IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}"
+                      Margin="25,0,0,0" VerticalAlignment="Center" />
+          </Grid>
         </MenuItem.Header>
-        <MenuItem.Icon>
-          <CheckBox x:Name="OpenSteamInClientCheckBox" Grid.Column="1" IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}" />
-        </MenuItem.Icon>
       </MenuItem>
+
       <MenuItem Tag="copy-id" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
         <MenuItem.Header>
-          <TextBlock x:Name="CopyIdText" Text="Copy Mod ID" VerticalAlignment="Center" />
+          <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+            <TextBlock x:Name="CopyIdText"
+                       Text="{Binding #CopySteamFileIdCheckBox.IsChecked, Converter={StaticResource IdTextConverter}}"
+                       MinWidth="150" VerticalAlignment="Center" />
+            <CheckBox x:Name="CopySteamFileIdCheckBox" Grid.Column="1"
+                      IsChecked="{Binding $parent[ui:MainWindow].IsCopySteamFileIdEnabled, FallbackValue=False}"
+                      Margin="25,0,0,0" VerticalAlignment="Center" />
+          </Grid>
         </MenuItem.Header>
-        <MenuItem.Icon>
-          <CheckBox x:Name="CopySteamFileIdCheckBox" Grid.Column="1" IsChecked="{Binding $parent[ui:MainWindow].IsCopySteamFileIdEnabled, FallbackValue=False}" />
-        </MenuItem.Icon>
       </MenuItem>
       <MenuItem Header="Set Mod Color" Tag="set-mod-color-root" />
     </ContextMenu>
@@ -113,6 +148,14 @@
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="ui:RuleBadgeInfo">
+            <StackPanel Orientation="Horizontal" Spacing="0.5" VerticalAlignment="Center" Margin="0,0,3,0">
+              <Image Width="12" Height="12" VerticalAlignment="Center" Source="{Binding Icon}" />
+              <TextBlock Text="{Binding Count}" FontSize="11" FontWeight="Medium" VerticalAlignment="Center" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
       </ItemsControl>
       <StackPanel x:Name="SimpleBadgeControl"
                   Grid.Column="3"

@@ -85,7 +85,8 @@ internal sealed class RelationshipPickerWindow : Window
             {
                 DataContext = vm,
                 Padding = new Thickness(2, 0),
-                ShowColorUnderlay = true,
+                ShowDetailedRuleBadges = true,
+                AllowContextActions = false,
                 AllowRelationshipEditing = false // Disable context menu in picker
             };
 
