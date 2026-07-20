@@ -105,6 +105,15 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         RefreshEditor();
     }
 
+    private void OnMainGridSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (MainGrid != null && MainGrid.ColumnDefinitions.Count > 0)
+        {
+            double dynamicMax = e.NewSize.Width - 408;
+            MainGrid.ColumnDefinitions[0].MaxWidth = Math.Max(200, dynamicMax);
+        }
+    }
+
     public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
     {
         foreach (object? item in menu.Items)
@@ -143,7 +152,6 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             selectedSubtitleText.Text = "Choose a mod to edit its relationships.";
             summaryText.Text = "Before: 0   After: 0   Required: 0   Incompatible: 0";
             validationText.Text = string.Empty;
-            previewText.Text = string.Empty;
             return;
         }
 
@@ -155,10 +163,13 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
 
         ValidationResult validation = ValidateRules();
         validationText.Text = validation.Message;
-        validationText.Foreground = validation.HasError
-            ? Brushes.IndianRed
-            : validation.HasWarning ? Brushes.Goldenrod : Brushes.SeaGreen;
-        previewText.Text = validation.HasError ? "Sorting conflict" : "AutoSort preview updated";
+
+        if (validation.HasError)
+            validationText.Foreground = Brushes.IndianRed;
+        else if (validation.HasWarning)
+            validationText.Foreground = Brushes.Goldenrod;
+        else
+            validationText.Foreground = Brushes.SeaGreen;
 
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Before, "Before", "This mod must load before these mods.", rule.BeforeIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));

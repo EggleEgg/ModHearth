@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 
 namespace ModHearth.UI;
 
+/// Ideally merge as many of these as possible with <see cref=ShortcutKeyHandler
 public partial class MainWindow
 {
     private async void MainWindowKeyDown(object? sender, KeyEventArgs e)

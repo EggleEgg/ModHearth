@@ -148,7 +148,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         sortButton.DataContext = this;
         reloadButton.DataContext = this;
         SetWindowIcon();
-        SetPreviewImage(LoadFallbackPreview());
+        SetPreviewImage(LoadFallbackPreview("modhearth_icon_v2.ico"));
         ShowFallbackHelpText();
 
         manager = new ModHearthManager();
@@ -250,8 +250,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Closing += MainWindowClosing;
         Closed += (_, _) =>
         {
-            SaveModDataPanelLayout();
-            SaveModPreviewPanelLayout();
+            SaveModInfoDockLayout();
             SaveSearchBarStates();
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();

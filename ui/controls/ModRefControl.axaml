@@ -1,4 +1,4 @@
-<!--Generic avalonia axaml context and list ui controller to avoid duplicate logic -->
+<!--Generic unified avalonia axaml context and list ui controller -->
 
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -41,7 +41,6 @@
         </Style>
       </ContextMenu.Styles>
 
-      <MenuItem Header="Add required mod" Tag="add-required-root" />
       <MenuItem Header="Relations" Tag="relations-root">
         <MenuItem Header="Add Before..." Tag="relation-before" Click="OnContextMenuItemClick" />
         <MenuItem Header="Add After..." Tag="relation-after" Click="OnContextMenuItemClick" />

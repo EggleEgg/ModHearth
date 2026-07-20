@@ -9,35 +9,68 @@ using System.Runtime.CompilerServices;
 
 namespace ModHearth.UI;
 
-public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyPropertyChanged
+public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyPropertyChanged, IModRefContextMenuProvider
 {
     private readonly ModHearthManager? manager;
     private readonly ObservableCollection<ModUpdateLogItemViewModel> entries = new();
+    public ObservableCollection<ModUpdateLogItemViewModel> Entries => entries;
     private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
+    private ModRefControl? contextMenuHost;
     private IBrush backgroundColorBrush = Brushes.Transparent;
 
-    public ModUpdateLogWindow()
+
+    // Just so avalonia doesnt complain
+    public ModUpdateLogWindow() : this(null) { }
+    public ModUpdateLogWindow(ModHearthManager? manager)
     {
         InitializeComponent();
+        DataContext = this;
         WindowThemeManager.Register(this);
+        InitializeModListAndContextMenu();
 
-        logList.ItemsSource = entries;
-        logList.SelectionChanged += LogListSelectionChanged;
-        selectionController.RegisterList(logList);
-        AddHandler(InputElement.PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
+        if (manager != null)
+        {
+            this.manager = manager;
+            LoadEntries();
+        }
     }
 
-    public ModUpdateLogWindow(ModHearthManager manager)
+    private void InitializeModListAndContextMenu()
     {
-        InitializeComponent();
-        WindowThemeManager.Register(this);
-
-        this.manager = manager ?? throw new ArgumentNullException(nameof(manager));
-        logList.ItemsSource = entries;
         logList.SelectionChanged += LogListSelectionChanged;
         selectionController.RegisterList(logList);
         AddHandler(InputElement.PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
-        LoadEntries();
+
+        contextMenuHost = this.FindControl<ModRefControl>("ContextMenuHost");
+        if (contextMenuHost != null)
+        {
+            logList.ContextMenu = contextMenuHost.ContextMenu;
+            logList.ContextRequested += LogListContextRequested;
+        }
+    }
+
+    private void LogListContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (sender is not DataGrid grid)
+            return;
+
+        ModUpdateLogItemViewModel? contextLogItemVm = grid.SelectedItem as ModUpdateLogItemViewModel;
+        if (contextLogItemVm == null)
+        {
+            contextLogItemVm = grid.SelectedItems?.OfType<ModUpdateLogItemViewModel>().FirstOrDefault();
+        }
+
+        if (contextLogItemVm == null)
+            return;
+
+        selectionController.TryRestoreContextSelection(grid, contextLogItemVm);
+        ModContextMenuSupport.EnsureContextItemSelected(grid.SelectedItems, contextLogItemVm);
+        selectionController.UpdateSelectionState(grid);
+
+        if (contextMenuHost != null)
+        {
+            contextMenuHost.DataContext = new ModRefViewModel(contextLogItemVm.ModReference);
+        }
     }
 
     private event PropertyChangedEventHandler? propertyChanged;
@@ -141,40 +174,25 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             string.IsNullOrWhiteSpace(steamId) ? ModSource.Local : ModSource.Steam);
     }
 
-    private void ModContextMenuOpened(object? sender, RoutedEventArgs e)
+    public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
     {
         if (manager == null)
             return;
-        if (sender is not ContextMenu menu)
-            return;
 
-        ModUpdateLogItemViewModel? contextVm = menu.DataContext as ModUpdateLogItemViewModel;
-        if (contextVm != null && (logList.SelectedItems == null || !logList.SelectedItems.Contains(contextVm)))
+        foreach (Control item in menu.Items.OfType<Control>())
         {
-            contextVm = null;
+            if (item is MenuItem menuItem)
+            {
+                string tag = menuItem.Tag?.ToString() ?? string.Empty;
+                if (string.Equals(tag, "set-mod-color-root", StringComparison.Ordinal))
+                {
+                    menuItem.IsVisible = false;
+                }
+            }
         }
-
-        ModUpdateLogItemViewModel? vm =
-            (menu.PlacementTarget as Control)?.DataContext as ModUpdateLogItemViewModel ??
-            contextVm ??
-            menu.Items.OfType<MenuItem>()
-                .Select(item => item.DataContext)
-                .OfType<ModUpdateLogItemViewModel>()
-                .FirstOrDefault() ??
-            logList.SelectedItems?.OfType<ModUpdateLogItemViewModel>().FirstOrDefault();
-
-        if (vm == null)
-            return;
-
-        // Ensure the ContextMenu itself has the DataContext so MenuItems can find it if needed
-        menu.DataContext = vm;
 
         if (logList.SelectedItems == null)
             return;
-
-        selectionController.TryRestoreContextSelection(logList, vm);
-        ModContextMenuSupport.EnsureContextItemSelected(logList.SelectedItems, vm);
-        selectionController.UpdateSelectionState(logList);
 
         List<ModUpdateLogItemViewModel> selected = logList.SelectedItems.Cast<ModUpdateLogItemViewModel>().ToList();
         ModContextMenuSupport.PrepareContextMenu(
@@ -182,6 +200,34 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             manager,
             vm.ModReference,
             selected.Select(item => item.ModReference));
+    }
+
+    public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+    {
+        if (manager == null)
+            return;
+
+        switch (item.Tag?.ToString())
+        {
+            case ModContextMenuSupport.DeleteTag:
+                await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(this, manager, new[] { vm.ModReference });
+                break;
+            case ModContextMenuSupport.UnsubscribeTag:
+                await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(this, manager, new[] { vm.ModReference });
+                break;
+            case ModContextMenuSupport.RedownloadTag:
+                await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(this, manager, new[] { vm.ModReference });
+                break;
+            case ModContextMenuSupport.OpenFolderTag:
+                await ModContextMenuSupport.OpenFolderAsync(this, vm.ModReference);
+                break;
+            case ModContextMenuSupport.OpenSteamTag:
+                await ModContextMenuSupport.OpenSteamPageAsync(this, vm.ModReference);
+                break;
+            case ModContextMenuSupport.CopyIdTag:
+                await ModContextMenuSupport.CopyModIdAsync(this, vm.ModReference);
+                break;
+        }
     }
 
     private void LogListSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -214,84 +260,6 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
     private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         ContextMenuCoordinator.DismissActive();
-    }
-
-    private async void ModContextDeleteMod(object? sender, RoutedEventArgs e)
-    {
-        if (manager == null)
-            return;
-        if (!ModContextMenuSupport.TryGetContextModReferences<ModUpdateLogItemViewModel>(
-                sender,
-                logList.SelectedItems,
-                vm => vm.ModReference,
-                out List<ModReference> modReferences))
-            return;
-
-        await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(this, manager, modReferences);
-    }
-
-    private async void ModContextUnsubscribeSteam(object? sender, RoutedEventArgs e)
-    {
-        if (manager == null)
-            return;
-        if (!ModContextMenuSupport.TryGetContextModReferences<ModUpdateLogItemViewModel>(
-                sender,
-                logList.SelectedItems,
-                vm => vm.ModReference,
-                out List<ModReference> modReferences))
-            return;
-
-        await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(this, manager, modReferences);
-    }
-
-    private async void ModContextRedownloadSteam(object? sender, RoutedEventArgs e)
-    {
-        if (manager == null)
-            return;
-        if (!ModContextMenuSupport.TryGetContextModReferences<ModUpdateLogItemViewModel>(
-                sender,
-                logList.SelectedItems,
-                vm => vm.ModReference,
-                out List<ModReference> modReferences))
-            return;
-
-        await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(this, manager, modReferences);
-    }
-
-    private async void ModContextOpenFolder(object? sender, RoutedEventArgs e)
-    {
-        if (manager == null)
-            return;
-
-        await ModContextMenuSupport.OpenFolderFromContextMenuAsync(
-            sender,
-            this,
-            logList.SelectedItems,
-            (ModUpdateLogItemViewModel vm) => vm.ModReference);
-    }
-
-    private async void ModContextCopyId(object? sender, RoutedEventArgs e)
-    {
-        if (manager == null)
-            return;
-
-        await ModContextMenuSupport.CopyModIdFromContextMenuAsync(
-            sender,
-            this,
-            logList.SelectedItems,
-            (ModUpdateLogItemViewModel vm) => vm.ModReference);
-    }
-
-    private async void ModContextOpenSteam(object? sender, RoutedEventArgs e)
-    {
-        if (manager == null)
-            return;
-
-        await ModContextMenuSupport.OpenSteamPageFromContextMenuAsync(
-            sender,
-            this,
-            logList.SelectedItems,
-            (ModUpdateLogItemViewModel vm) => vm.ModReference);
     }
 
     public void ApplyCustomStyle(Style style)

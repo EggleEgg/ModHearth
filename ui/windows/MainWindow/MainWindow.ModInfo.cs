@@ -17,7 +17,7 @@ public partial class MainWindow
         modListController.UpdateSelectionState(rightModlist);
         currentSelectedModId = null;
         previousSelectedModId = null;
-        SetPreviewImage(LoadFallbackPreview());
+        SetPreviewImage(LoadFallbackPreview("modhearth_icon_v2.ico"));
         ShowFallbackHelpText();
         PopulateModDataViewer(null);
     }
@@ -86,15 +86,15 @@ public partial class MainWindow
         }
     }
 
-    private static IImage LoadFallbackPreview()
+    private static IImage LoadFallbackPreview(string file = "43G6tag.png")
     {
-        IImage? fallback = ImageSourceLoader.LoadFromAssetUriUncached("43G6tag.png");
+        IImage? fallback = ImageSourceLoader.LoadFromAssetUriUncached(file);
         if (fallback != null)
             return fallback;
 
         try
         {
-            Uri uri = new Uri($"{AvaloniaUri}/resources/43G6tag.png");
+            Uri uri = new Uri($"{AvaloniaUri}/resources/{file}");
             using Stream stream = AssetLoader.Open(uri);
             return new Bitmap(stream);
         }
@@ -105,7 +105,7 @@ public partial class MainWindow
 
         try
         {
-            Uri uri = new Uri($"{AvaloniaUri}/Resources/43G6tag.png");
+            Uri uri = new Uri($"{AvaloniaUri}/Resources/{file}");
             using Stream stream = AssetLoader.Open(uri);
             return new Bitmap(stream);
         }

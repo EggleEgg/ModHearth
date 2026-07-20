@@ -5,7 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <ApplicationIcon>resources\\modhearth_icon_v1.ico</ApplicationIcon>
+    <ApplicationIcon>resources\\modhearth_icon_v2.ico</ApplicationIcon>
     <IsPublishing>true</IsPublishing>
     <PublishDir>artifacts\$(RuntimeIdentifier)\</PublishDir>
 
@@ -53,7 +53,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="resources\\**" />
-    <AvaloniaResource Include="resources\\modhearth_icon_v1.ico" />
+    <AvaloniaResource Include="resources\\modhearth_icon_v2.ico" />
   </ItemGroup>
 
   <ItemGroup>

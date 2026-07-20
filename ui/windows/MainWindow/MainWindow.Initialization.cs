@@ -21,7 +21,7 @@ public partial class MainWindow
     {
         try
         {
-            Uri iconUri = new Uri($"{AvaloniaUri}/resources/modhearth_icon_v1.ico");
+            Uri iconUri = new Uri($"{AvaloniaUri}/resources/modhearth_icon_v2.ico");
             using Stream stream = AssetLoader.Open(iconUri);
             Icon = new WindowIcon(stream);
         }

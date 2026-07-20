@@ -18,7 +18,12 @@
     </DataTemplate>
   </Window.DataTemplates>
 
-  <Grid Margin="12" ColumnDefinitions="320,Auto,*" ColumnSpacing="4">
+  <Grid x:Name="MainGrid" Margin="12" ColumnSpacing="4" SizeChanged="OnMainGridSizeChanged">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="320" MinWidth="200" />
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="*" MinWidth="400" />
+    </Grid.ColumnDefinitions>
 
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="8">
       <TextBlock Text="Mods" FontWeight="Bold" />
@@ -63,7 +68,6 @@
             </Grid>
             <TextBlock x:Name="summaryText" />
             <TextBlock x:Name="validationText" TextWrapping="Wrap" />
-            <TextBlock x:Name="previewText" FontSize="12" Opacity="0.72" />
           </StackPanel>
         </Border>
 

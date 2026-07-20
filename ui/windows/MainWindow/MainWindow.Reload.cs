@@ -116,7 +116,7 @@ public partial class MainWindow
         if (!string.IsNullOrWhiteSpace(manager.LastMissingModsMessage))
             _ = DialogService.ShowMessageAsync(this, manager.LastMissingModsMessage, "Missing Mods");
 
-        ShowReloadFinishedPopup();
+        ShowNotification("Reload finished", "infoCircleWhiteIcon.svg");
     }
 
     private void InitializeAutoReloadTimer()
@@ -371,10 +371,5 @@ public partial class MainWindow
 
         modManagerReloadTimer.Stop();
         modManagerReloadTimer.Start();
-    }
-
-    private void ShowReloadFinishedPopup()
-    {
-        ShowNotification("Reload finished", "infoCircleWhiteIcon.svg");
     }
 }

@@ -7,7 +7,7 @@ namespace ModHearth.UI;
 
 public partial class MainWindow
 {
-    public void ShowNotification(string message, string iconResourceName, bool showAfterReload = false)
+    public void ShowNotification(string message, string iconResourceName = "infoCircleWhiteIcon.svg", bool showAfterReload = false)
     {
 
         Console.WriteLine($"Notification: {message}");

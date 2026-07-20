@@ -113,7 +113,6 @@ public partial class ModRefControl : UserControl
 
     private static bool IsRelationshipTag(string? tag) => tag is not null &&
         (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
-        string.Equals(tag, "add-required-root", StringComparison.Ordinal) ||
         tag.StartsWith("relation-", StringComparison.Ordinal));
 
 

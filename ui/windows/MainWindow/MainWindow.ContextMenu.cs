@@ -20,11 +20,7 @@ public partial class MainWindow : IModRefContextMenuProvider
             if (item is MenuItem menuItem)
             {
                 string? tag = menuItem.Tag?.ToString();
-                if (string.Equals(tag, "add-required-root", StringComparison.Ordinal))
-                {
-                    menuItem.IsVisible = false;
-                }
-                else if (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
+                if (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
                          tag?.StartsWith("relation-", StringComparison.Ordinal) == true)
                 {
                     // Visibility is now controlled by ModRefControl.AllowRelationshipEditing

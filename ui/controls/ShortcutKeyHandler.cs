@@ -4,6 +4,9 @@ using Avalonia.Input;
 
 namespace ModHearth.UI;
 
+/// <summary>
+/// Generic unified class for handling keyboard actions
+/// </summary>
 public sealed class ShortcutKeyHandler
 {
     private readonly Func<bool> canUndo;

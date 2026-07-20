@@ -194,6 +194,22 @@ namespace ModHearth
             SaveConfigFile("Panel data");
         }
 
+        public static double GetModDescriptionPanelProportion() => Config.ModDescriptionPanelProportion;
+
+        public static void SetModDescriptionPanelProportion(double proportion)
+        {
+            Config.ModDescriptionPanelProportion = proportion;
+            SaveConfigFile("Panel data");
+        }
+
+        public static double GetModInfoPanelProportion() => Config.ModInfoPanelProportion;
+
+        public static void SetModInfoPanelProportion(double proportion)
+        {
+            Config.ModInfoPanelProportion = proportion;
+            SaveConfigFile("Panel data");
+        }
+
         public static double GetModPreviewPanelProportion() => Config.ModPreviewPanelProportion;
 
         public static int GetModPreviewPanelOrientation() => Config.ModPreviewPanelOrientation;
@@ -205,6 +221,27 @@ namespace ModHearth
             Config.ModPreviewPanelProportion = proportion;
             Config.ModPreviewPanelOrientation = orientation;
             Config.ModPreviewPanelFirst = first;
+            SaveConfigFile("Panel data");
+        }
+
+        public static void SetModInfoDockLayout(
+            double modDataProportion,
+            int modDataOrientation,
+            bool modDataFirst,
+            double descriptionProportion,
+            double infoPanelProportion,
+            double previewProportion,
+            int previewOrientation,
+            bool previewFirst)
+        {
+            Config.ModDataPanelProportion = modDataProportion;
+            Config.ModDataPanelOrientation = modDataOrientation;
+            Config.ModDataPanelFirst = modDataFirst;
+            Config.ModDescriptionPanelProportion = descriptionProportion;
+            Config.ModInfoPanelProportion = infoPanelProportion;
+            Config.ModPreviewPanelProportion = previewProportion;
+            Config.ModPreviewPanelOrientation = previewOrientation;
+            Config.ModPreviewPanelFirst = previewFirst;
             SaveConfigFile("Panel data");
         }
 
