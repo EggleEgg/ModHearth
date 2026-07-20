@@ -165,7 +165,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             () => UndoChangesAsync(),
             () => redoAvailable,
             () => RedoListChangesAsync(),
-            saveAsync: () => SaveCurrentModpackAsync());
+            saveAsync: () => SaveCurrentModpackAsync(),
+            moveLeftAsync: () => MoveSelectedBetweenListsAsync(false),
+            moveRightAsync: () => MoveSelectedBetweenListsAsync(true));
         shortcutKeyHandler.Attach(this);
 
         leftModlist.ItemsSource = inactiveMods;

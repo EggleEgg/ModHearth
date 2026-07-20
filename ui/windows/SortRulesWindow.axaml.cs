@@ -133,7 +133,16 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
 
     public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
     {
-        ModRelationshipKind? kind = RelationshipKindFromTag(item.Tag?.ToString());
+        string? tag = item.Tag?.ToString();
+        if (tag == "relation-clear-all")
+        {
+            selectedMod = vm;
+            modTreeList.SelectedItem = vm;
+            await ClearAllRelationshipsAsync();
+            return;
+        }
+
+        ModRelationshipKind? kind = RelationshipKindFromTag(tag);
         if (kind == null)
             return;
 
@@ -175,9 +184,6 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Required, "Required", "These mods are required when this mod is enabled.", rule.RequiredIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Incompatible, "Incompatible", "These mods should not be enabled together.", rule.IncompatibleIds));
-
-        if (Style.instance != null)
-            WindowThemeManager.ApplyToWindow(this, Style.instance);
     }
 
     private Control CreateSection(ModRelationshipKind kind, string title, string description, IReadOnlyList<string> ids)
@@ -190,6 +196,8 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             Padding = new Thickness(10),
             Child = panel
         };
+        if (Style.instance != null)
+            border.Background = BrushCache.GetBrush(Style.instance.backgroundColor.ToAvaloniaColor());
 
         Grid header = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 8 };
         Border accent = new()
@@ -300,6 +308,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
         };
+
         ToolTip.SetTip(removeButton, "Remove relationship");
         removeButton.Click += (_, _) => RemoveRelationship(kind, id);
 
@@ -367,7 +376,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         string ownerId = selectedMod.ModReference.ID.Trim();
         ModRelationshipRule rule = GetRule(ownerId);
         HashSet<string> alreadyAdded = new(GetList(rule, kind), StringComparer.OrdinalIgnoreCase);
-        RelationshipPickerWindow picker = new(ownerId, kind, allMods, alreadyAdded)
+        RelationshipPickerWindow picker = new(ownerId, kind, allMods, alreadyAdded, rules)
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };

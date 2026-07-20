@@ -505,53 +505,64 @@ public sealed class ModListDragDropController
             // Capture references safely for the UI thread callback
             var list = currentDragOverList;
 
-            // Post the work to the UI thread. The active OS drag loop will 
-            // successfully intercept and process this window message!
+            // Post the work to the UI thread
             Dispatcher.UIThread.Post(() =>
             {
                 // Verify state hasn't drifted while waiting for the dispatch frame
                 if (!isDragging || currentDragOverList != list || currentDragOverPosition == null)
                     return;
 
-                ScrollViewer? scrollViewer = list.FindDescendantOfType<ScrollViewer>();
-                if (scrollViewer == null)
-                {
-                    scrollViewer = list.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
-                }
+                ScrollViewer? scrollViewer = list.FindDescendantOfType<ScrollViewer>()
+                    ?? list.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
 
                 if (scrollViewer == null) return;
 
                 Point pos = currentDragOverPosition.Value;
+
                 //TODO Make these configurable in the future
-                double scrollSpeed = 40.0;
-                double scrollThreshold = 20.0;
-                bool scrolled = false;
+                double scrollThreshold = 60.0; // Increased zone width to give users room to adjust speed
+                double minSpeed = 6.0;         // Minimum crawl speed right at the boundary edge
+                double maxSpeed = 100.0;       // Maximum cap when pulled far past the boundary
+
+                double listHeight = list.Bounds.Height;
+                double deltaY = 0;
 
                 if (pos.Y < scrollThreshold)
                 {
-                    double oldOffset = scrollViewer.Offset.Y;
-                    double newOffset = Math.Max(0, oldOffset - scrollSpeed);
-                    if (Math.Abs(newOffset - oldOffset) > 0.01)
-                    {
-                        scrollViewer.Offset = scrollViewer.Offset.WithY(newOffset);
-                        scrolled = true;
-                    }
+                    // Distance past the top scroll trigger (larger = further into/above the zone)
+                    double distanceIntoZone = scrollThreshold - pos.Y;
+
+                    // Normalize ratio [0.0 to 2.0] (allows scaling up if cursor goes above list bounds)
+                    double intensity = Math.Clamp(distanceIntoZone / scrollThreshold, 0.0, 2.0);
+
+                    // Math.Pow(..., 1.5) provides a smooth, progressive acceleration curve
+                    double speed = minSpeed + (maxSpeed - minSpeed) * Math.Pow(intensity, 1.5);
+
+                    deltaY = -speed;
                 }
-                else if (pos.Y > (list.Bounds.Height - scrollThreshold))
+                else if (pos.Y > (listHeight - scrollThreshold))
                 {
-                    double oldOffset = scrollViewer.Offset.Y;
-                    double maxOffset = scrollViewer.Extent.Height - scrollViewer.Viewport.Height;
-                    double newOffset = Math.Min(maxOffset, oldOffset + scrollSpeed);
-                    if (Math.Abs(newOffset - oldOffset) > 0.01)
-                    {
-                        scrollViewer.Offset = scrollViewer.Offset.WithY(newOffset);
-                        scrolled = true;
-                    }
+                    // Distance past the bottom scroll trigger
+                    double distanceIntoZone = pos.Y - (listHeight - scrollThreshold);
+
+                    double intensity = Math.Clamp(distanceIntoZone / scrollThreshold, 0.0, 2.0);
+                    double speed = minSpeed + (maxSpeed - minSpeed) * Math.Pow(intensity, 1.5);
+
+                    deltaY = speed;
                 }
 
-                if (scrolled)
+                // Apply scroll delta if active
+                if (Math.Abs(deltaY) > 0.01)
                 {
-                    UpdateDropHighlight(list, pos);
+                    double oldOffset = scrollViewer.Offset.Y;
+                    double maxOffset = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+                    double newOffset = Math.Clamp(oldOffset + deltaY, 0, maxOffset);
+
+                    if (Math.Abs(newOffset - oldOffset) > 0.01)
+                    {
+                        scrollViewer.Offset = scrollViewer.Offset.WithY(newOffset);
+                        UpdateDropHighlight(list, pos);
+                    }
                 }
             }, DispatcherPriority.Input);
         }

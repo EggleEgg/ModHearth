@@ -12,8 +12,7 @@ internal static class InfoLogger
 
     public static void LogRunDf(string message)
     {
-        if (DevMode.IsEnabled)
-            Console.WriteLine($"[DfRunner] {message}");
+        Console.WriteLine($"[DfRunner] {message}");
     }
 
 

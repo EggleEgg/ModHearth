@@ -1,6 +1,8 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 
 namespace ModHearth.UI;
 
@@ -15,6 +17,8 @@ public sealed class ShortcutKeyHandler
     private readonly Func<Task> redoAsync;
     private readonly Func<bool>? canSave;
     private readonly Func<Task>? saveAsync;
+    private readonly Func<Task>? moveLeftAsync;
+    private readonly Func<Task>? moveRightAsync;
 
     public ShortcutKeyHandler(
         Func<bool> canUndo,
@@ -22,7 +26,9 @@ public sealed class ShortcutKeyHandler
         Func<bool> canRedo,
         Func<Task> redoAsync,
         Func<bool>? canSave = null,
-        Func<Task>? saveAsync = null)
+        Func<Task>? saveAsync = null,
+        Func<Task>? moveLeftAsync = null,
+        Func<Task>? moveRightAsync = null)
     {
         this.canUndo = canUndo ?? throw new ArgumentNullException(nameof(canUndo));
         this.undoAsync = undoAsync ?? throw new ArgumentNullException(nameof(undoAsync));
@@ -30,20 +36,22 @@ public sealed class ShortcutKeyHandler
         this.redoAsync = redoAsync ?? throw new ArgumentNullException(nameof(redoAsync));
         this.canSave = canSave;
         this.saveAsync = saveAsync;
+        this.moveLeftAsync = moveLeftAsync;
+        this.moveRightAsync = moveRightAsync;
     }
 
     public void Attach(InputElement element)
     {
         if (element == null)
             throw new ArgumentNullException(nameof(element));
-        element.KeyDown += OnKeyDown;
+        element.AddHandler(InputElement.KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
     }
 
     public void Detach(InputElement element)
     {
         if (element == null)
             throw new ArgumentNullException(nameof(element));
-        element.KeyDown -= OnKeyDown;
+        element.RemoveHandler(InputElement.KeyDownEvent, OnKeyDown);
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
@@ -73,7 +81,33 @@ public sealed class ShortcutKeyHandler
             {
                 _ = saveAsync();
                 e.Handled = true;
+                return;
             }
         }
+
+        if (e.KeyModifiers == KeyModifiers.None)
+        {
+            if (e.Key == Key.Left && moveLeftAsync != null)
+            {
+                if (!IsTextInputFocused(e.Source))
+                {
+                    _ = moveLeftAsync();
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key == Key.Right && moveRightAsync != null)
+            {
+                if (!IsTextInputFocused(e.Source))
+                {
+                    _ = moveRightAsync();
+                    e.Handled = true;
+                }
+            }
+        }
+    }
+
+    private static bool IsTextInputFocused(object? source)
+    {
+        return source is TextBox || source is ComboBox;
     }
 }

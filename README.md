@@ -39,6 +39,7 @@ Information on the four buttons from left to right:
 - Escape to deselect mods.
 - Delete selects the previously selected mod.
 - Backspace removes the selected mods.
+- Up/down arrow keys to scroll through mods, left/right to move mods between lists
 
 ## Contributor Information
 

@@ -46,6 +46,8 @@
         <MenuItem Header="Add After..." Tag="relation-after" Click="OnContextMenuItemClick" />
         <MenuItem Header="Require..." Tag="relation-required" Click="OnContextMenuItemClick" />
         <MenuItem Header="Mark Incompatible..." Tag="relation-incompatible" Click="OnContextMenuItemClick" />
+        <Separator />
+        <MenuItem Header="Clear All Relationships" Tag="relation-clear-all" Click="OnContextMenuItemClick" />
       </MenuItem>
       <MenuItem Header="Delete local mod" Tag="delete-mod" Click="OnContextMenuItemClick" />
       <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnContextMenuItemClick" />

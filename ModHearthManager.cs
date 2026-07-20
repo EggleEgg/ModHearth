@@ -1706,7 +1706,7 @@ namespace ModHearth
                         // Ignored
                     }
                 }
-                
+
             }
             catch (Exception ex)
             {
@@ -2281,17 +2281,26 @@ namespace ModHearth
         {
             EnsureDuplicateWarningCache(logFound: true);
 
-            Dictionary<string, List<string>> combinedMap = new(duplicateWarningMap, StringComparer.OrdinalIgnoreCase);
+            HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> liveConflictedIds = new(StringComparer.OrdinalIgnoreCase);
+            foreach (HashSet<string> group in duplicateWarningGroups)
+            {
+                if (group.Count(activeModIds.Contains) > 1)
+                    liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
+            }
+
+            Dictionary<string, List<string>> combinedMap = new(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in duplicateWarningMap)
+            {
+                if (liveConflictedIds.Contains(kvp.Key))
+                    combinedMap[kvp.Key] = new List<string>(kvp.Value);
+            }
             foreach (var kvp in cacheDuplicateMap)
             {
                 if (combinedMap.TryGetValue(kvp.Key, out var list))
-                {
                     list.AddRange(kvp.Value);
-                }
                 else
-                {
                     combinedMap[kvp.Key] = new List<string>(kvp.Value);
-                }
             }
             return combinedMap;
         }
@@ -2300,7 +2309,14 @@ namespace ModHearth
         {
             EnsureDuplicateWarningCache(logFound: true);
 
-            List<HashSet<string>> combinedGroups = new(duplicateWarningGroups);
+            HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+            List<HashSet<string>> combinedGroups = new();
+            foreach (HashSet<string> group in duplicateWarningGroups)
+            {
+                HashSet<string> activeMembers = new(group.Where(activeModIds.Contains), StringComparer.OrdinalIgnoreCase);
+                if (activeMembers.Count > 1)
+                    combinedGroups.Add(activeMembers);
+            }
             combinedGroups.AddRange(cacheDuplicateGroups);
             return combinedGroups;
         }
@@ -2420,12 +2436,16 @@ namespace ModHearth
         private void RefreshCacheDuplicateMap()
         {
             var cache = ModRawDependencyCacheStore.Load();
+            HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             Dictionary<string, List<string>> newMap = new(StringComparer.OrdinalIgnoreCase);
             List<HashSet<string>> newGroups = new();
             Dictionary<string, List<string>> definitionToMods = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in cache.Values)
             {
+                if (!activeModIds.Contains(entry.ModId))
+                    continue;
+
                 foreach (var defId in entry.DirectDefinitionIds)
                 {
                     if (!definitionToMods.TryGetValue(defId, out var mods))

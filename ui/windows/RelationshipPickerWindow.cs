@@ -30,17 +30,32 @@ internal sealed class RelationshipPickerWindow : Window
         string ownerId,
         ModRelationshipKind kind,
         IEnumerable<ModRefViewModel> candidates,
-        IReadOnlySet<string> alreadyAdded)
+        IReadOnlySet<string> alreadyAdded,
+        IReadOnlyDictionary<string, ModRelationshipRule> relationshipRules)
     {
         WindowThemeManager.Register(this);
         this.ownerId = ownerId.Trim();
         this.alreadyAdded = new HashSet<string>(alreadyAdded, StringComparer.OrdinalIgnoreCase);
 
+        // Wrap fresh ModRefViewModel instances instead of reusing the ones the opening window is already displaying
+        string modsFolderPath = ConfigManager.GetModsPath();
+        string vanillaFolderPath = ConfigManager.GetVanillaModsPath();
         allMods = candidates
             .Where(vm => !string.Equals(vm.ModReference.ID, this.ownerId, StringComparison.OrdinalIgnoreCase))
+            .Select(vm =>
+            {
+                ModRefViewModel copy = new ModRefViewModel(vm.ModReference);
+                (bool isVanilla, bool isLocal, bool isSteam) = ModSourceClassifier.Classify(vm.ModReference, modsFolderPath, vanillaFolderPath);
+                copy.IsVanillaModSource = isVanilla;
+                copy.IsLocalModSource = isLocal;
+                copy.IsSteamModSource = isSteam;
+                copy.RefreshStyle();
+                return copy;
+            })
             .OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        ModListIndicatorUpdater.UpdateRelationshipBadges(allMods, relationshipRules);
 
         Title = $"Add {LabelFor(kind)}";
         Width = 460;

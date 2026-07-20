@@ -3,6 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:ModHearth.UI"
         xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
+        KeyboardNavigation.TabNavigation="None"
+        XYFocus.NavigationModes="Disabled"
         x:Class="ModHearth.UI.MainWindow"
         x:DataType="ui:MainWindow"
         Title="Mod Hearth"
@@ -25,6 +27,13 @@
       <ui:ModDescriptionPanelView />
     </DataTemplate>
   </Window.DataTemplates>
+
+  <Window.Styles>
+    <Style Selector="Control">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="IsTabStop" Value="False" />
+    </Style>
+  </Window.Styles>
 
   <Panel>
     <Grid Margin="12">

@@ -516,6 +516,7 @@ namespace ModHearth
             // No order makes it correct, DF will silently misbehave regardless. Still assign a deterministic best-effort order (chained through
             // the whole group) rather than leave it to incidental Kahn's-algorithm frontier timing, and surface it so it's at least traceable.
             List<string> conflictingKeys = new List<string>();
+            HashSet<string> activeModIds = new HashSet<string>(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, List<string>> kvp in directDefiners)
             {
                 if (kvp.Value.Count <= 1)
@@ -535,7 +536,9 @@ namespace ModHearth
                 if (anyCutRelationship)
                     continue; // already handled by the CUT-before-SELECT pass above
 
-                conflictingKeys.Add(kvp.Key);
+                // Only surface this to ui if at least two of the actual culprits are in their real active modlist
+                if (kvp.Value.Count(id => activeModIds.Contains(id)) > 1)
+                    conflictingKeys.Add(kvp.Key);
 
                 List<ModReference> definers = kvp.Value
                     .Select(id => idMap.TryGetValue(id, out ModReference? m) ? m : null)

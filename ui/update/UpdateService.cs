@@ -17,6 +17,9 @@ internal enum CleanupPlatforms
     All = Windows | Linux | macOS
 }
 
+/// <summary>
+/// Handles everything needed to change versions
+/// </summary>
 internal static class UpdateService
 {
     private const int RecentBuildCount = 5;
