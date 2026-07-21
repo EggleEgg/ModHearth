@@ -163,6 +163,8 @@ public partial class ModRefControl : UserControl
             return;
 
         IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
+        if (DevMode.IsEnabled)
+            Console.WriteLine($"[ModRefControl] OnContextMenuItemClick - Provider found: {provider != null}");
         if (provider != null)
         {
             provider.OnModRefContextMenuItemClicked(item, vm);

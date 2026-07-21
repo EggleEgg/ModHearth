@@ -20,7 +20,7 @@ public partial class MainWindow
         if (ConfigManager.IsAutoSaveEnabled())
         {
             // Confirms the local save succeeded, independent of DFHack
-            ShowNotification("Modlist Autosaved", "saveWhiteIcon.svg");
+            ShowNotification("Modlist Autosaved", "saveWhiteIcon.svg", 1000);
         }
 
         if (string.IsNullOrWhiteSpace(result.LiveReloadMessage))
@@ -176,7 +176,7 @@ public partial class MainWindow
         {
             bool sorted = await Task.Run(() => manager.ModSortEnabledMods());
             if (sorted)
-                ShowNotification("Modlist Autosorted", "sortBorderIcon.svg");
+                ShowNotification("Modlist Autosorted", "sortBorderIcon.svg", 1000);
             RefreshModlistPanels();
         }
 

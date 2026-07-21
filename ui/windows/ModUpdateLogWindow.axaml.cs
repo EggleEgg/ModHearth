@@ -43,10 +43,33 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
 
         contextMenuHost = this.FindControl<ModRefControl>("ContextMenuHost");
         if (contextMenuHost != null)
-        {
             logList.ContextMenu = contextMenuHost.ContextMenu;
-            logList.ContextRequested += LogListContextRequested;
+    }
+
+    private void LogListSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not DataGrid list)
+            return;
+
+        if (selectionController.HandleSelectionChanged(list))
+        {
+            SyncContextMenuHostDataContext(list);
+            return;
         }
+
+        selectionController.UpdateSelectionState(list);
+        SyncContextMenuHostDataContext(list);
+    }
+
+    private void SyncContextMenuHostDataContext(DataGrid list)
+    {
+        if (contextMenuHost == null)
+            return;
+
+        ModUpdateLogItemViewModel? selected = list.SelectedItem as ModUpdateLogItemViewModel
+            ?? list.SelectedItems?.OfType<ModUpdateLogItemViewModel>().FirstOrDefault();
+        if (selected != null)
+            contextMenuHost.DataContext = new ModRefViewModel(selected.ModReference);
     }
 
     private void LogListContextRequested(object? sender, ContextRequestedEventArgs e)
@@ -228,17 +251,6 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
                 await ModContextMenuSupport.CopyModIdAsync(this, vm.ModReference);
                 break;
         }
-    }
-
-    private void LogListSelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (sender is not DataGrid list)
-            return;
-
-        if (selectionController.HandleSelectionChanged(list))
-            return;
-
-        selectionController.UpdateSelectionState(list);
     }
 
     private void LogListLoadingRow(object? sender, DataGridRowEventArgs e)

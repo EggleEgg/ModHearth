@@ -7,7 +7,12 @@ namespace ModHearth.UI;
 
 public partial class MainWindow
 {
-    public void ShowNotification(string message, string iconResourceName = "infoCircleWhiteIcon.svg", bool showAfterReload = false)
+    public void ShowNotification(string message, string iconResourceName, int notificationDelay)
+        => ShowNotification(message, iconResourceName, showAfterReload: false, notificationDelay);
+    public void ShowNotification(string message,
+        string iconResourceName = "infoCircleWhiteIcon.svg",
+        bool showAfterReload = false,
+        int notificationDelay = 3500)
     {
 
         Console.WriteLine($"Notification: {message}");
@@ -99,7 +104,6 @@ public partial class MainWindow
 
             // Insert at top (index 0) so newest is on top, oldest is on bottom
             container.Children.Insert(0, border);
-            int notificationDelay = 3500; // in ms
 
             // Gradually reduce transparency (increase opacity) up to 0.75
             _ = Task.Run(async () =>

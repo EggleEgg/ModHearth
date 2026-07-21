@@ -1624,7 +1624,7 @@ namespace ModHearth
             return false;
         }
 
-        // Run Dwarf Fortress executable.
+        // Run Dwarf Fortress executable or trigger Steam launch.
         public async Task<(bool Success, string Message)> RunDwarfFortressAsync()
         {
             if (DwarfFortressRunning())
@@ -1640,7 +1640,6 @@ namespace ModHearth
             if (!DwarfFortressExecutableLocator.TryResolvePath(dfFolderPath, out string executablePath))
                 return (false, "Dwarf Fortress executable not found in the configured folder.");
 
-            Process started;
             try
             {
                 // Check if Dwarf Fortress is a Steam installation
@@ -1649,17 +1648,45 @@ namespace ModHearth
                 if (isSteamInstallation)
                 {
                     InfoLogger.LogRunDf("Launching Dwarf Fortress through Steam (App ID: 975370)");
+
                     ProcessStartInfo startInfo = new ProcessStartInfo
                     {
-                        FileName = "steam",
-                        Arguments = "steam://run/975370",
-                        UseShellExecute = true // Must be true for URI schemes
+                        FileName = "steam://run/975370",
+                        UseShellExecute = true
                     };
-                    started = Process.Start(startInfo) ?? throw new Exception("Failed to launch Dwarf Fortress via Steam: process did not start.");
+
+                    // Trigger Steam protocol handler
+                    using (Process? launcherProcess = Process.Start(startInfo))
+                    {
+                        if (launcherProcess != null)
+                        {
+                            InfoLogger.LogRunDf($"Steam protocol handler invoked (PID = {launcherProcess.Id})");
+                        }
+                    }
+
+                    // Poll for the actual Dwarf Fortress process to appear in the OS process list
+                    const int pollIntervalMs = 500;
+                    const int maxWaitTimeoutMs = 15000;
+                    int totalElapsedMs = 0;
+
+                    while (totalElapsedMs < maxWaitTimeoutMs)
+                    {
+                        await Task.Delay(pollIntervalMs);
+                        totalElapsedMs += pollIntervalMs;
+
+                        if (DwarfFortressRunning())
+                        {
+                            InfoLogger.LogRunDf($"Dwarf Fortress process detected active after {totalElapsedMs}ms.");
+                            return (true, "Dwarf Fortress launched successfully through Steam.");
+                        }
+                    }
+
+                    return (false, $"Steam URI was triggered, but Dwarf Fortress failed to launch within {maxWaitTimeoutMs / 1000} seconds.");
                 }
                 else
                 {
                     InfoLogger.LogRunDf($"Launching Dwarf Fortress executable directly: {executablePath}");
+
                     ProcessStartInfo startInfo = new ProcessStartInfo
                     {
                         FileName = executablePath,
@@ -1677,56 +1704,34 @@ namespace ModHearth
                             startInfo.EnvironmentVariables["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(existing)
                                 ? bundledLibs
                                 : $"{bundledLibs}:{existing}";
-                            InfoLogger.LogRunDf($"LD_LIBRARY_PATH: {existing}");
+                            InfoLogger.LogRunDf($"LD_LIBRARY_PATH set to: {startInfo.EnvironmentVariables["LD_LIBRARY_PATH"]}");
                         }
                     }
-                    started = Process.Start(startInfo) ?? throw new Exception("Failed to launch Dwarf Fortress directly: process did not start.");
-                }
 
-                InfoLogger.LogRunDf($"Started PID = {started.Id}");
+                    Process? started = Process.Start(startInfo);
+                    if (started == null)
+                        return (false, "Failed to launch Dwarf Fortress directly: process could not be created.");
 
-                await Task.Delay(2000);
+                    InfoLogger.LogRunDf($"Started direct process PID = {started.Id}");
 
-                InfoLogger.LogRunDf($"HasExited = {started.HasExited}");
+                    // Verify the executable didn't crash on startup (e.g., missing dynamic libraries/DLLs)
+                    await Task.Delay(2000);
 
-                if (started.HasExited)
-                {
-                    InfoLogger.LogRunDf($"ExitCode = {started.ExitCode}");
-                }
-
-                foreach (Process p in Process.GetProcesses())
-                {
-                    try
+                    if (started.HasExited)
                     {
-                        if (p.ProcessName.Contains("dwar", StringComparison.OrdinalIgnoreCase))
-                            InfoLogger.LogRunDf($"{p.Id} {p.ProcessName}");
+                        int exitCode = started.ExitCode;
+                        started.Dispose();
+                        return (false, $"Dwarf Fortress exited immediately (Exit code {exitCode}). Check terminal output or error logs for missing dynamic libraries.");
                     }
-                    catch
-                    {
-                        // Ignored
-                    }
-                }
 
+                    started.Dispose();
+                    return (true, "Dwarf Fortress launched successfully.");
+                }
             }
             catch (Exception ex)
             {
                 return (false, $"Failed to launch Dwarf Fortress: {ex.Message}");
             }
-
-            using Process process1 = started;
-
-            // A real, successfully-started DF process won't exit within this window. Catches
-            // dynamic-linker failures and similar immediate crashes that Process.Start itself
-            // can't detect, since the OS process genuinely starts before dying.
-            bool exitedQuickly = await Task.Run(() => process1.WaitForExit(1500));
-            if (exitedQuickly)
-            {
-                return (false,
-                    $"Dwarf Fortress exited immediately (exit code {process1.ExitCode}). " +
-                    "Check the terminal/console output for missing shared library errors.");
-            }
-
-            return (true, "Dwarf Fortress launched successfully.");
         }
 
         public static bool IsDwarfFortressFound()

@@ -49,6 +49,7 @@ public partial class MainWindow
         PopulateModDataViewer(modref);
 
         IImage? previewImage = null;
+        // Technically not necessary but whatever
         string? previewSvgPath = ResolveFilePathCaseInsensitive(modref.path, "preview.svg");
         if (!string.IsNullOrWhiteSpace(previewSvgPath))
             previewImage = ImageSourceLoader.LoadFromFilePath(previewSvgPath);

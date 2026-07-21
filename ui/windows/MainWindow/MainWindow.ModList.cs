@@ -185,6 +185,29 @@ public partial class MainWindow
         await SetAndMarkChangesAsync(true);
         RefreshModlistPanels();
         SelectModsInList(!sourceLeft, mods);
+
+        // Async focus to target ListBox and its selected container
+        ListBox target = !sourceLeft ? leftModlist : rightModlist;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            var item = target.SelectedItem;
+            if (item != null)
+            {
+                var container = target.ContainerFromItem(item) as Control;
+                if (container != null)
+                {
+                    container.Focus();
+                }
+                else
+                {
+                    target.Focus();
+                }
+            }
+            else
+            {
+                target.Focus();
+            }
+        }, Avalonia.Threading.DispatcherPriority.Background);
     }
 
     private ListBox? GetListForMod(ModRefViewModel vm)
