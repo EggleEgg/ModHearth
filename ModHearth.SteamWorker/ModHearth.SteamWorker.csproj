@@ -7,6 +7,9 @@
         <Nullable>enable</Nullable>
         <AssemblyName>ModHearth.SteamWorker</AssemblyName>
         <SelfContained>true</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+        <!-- Keep native DLLs loose so Steamworks P/Invoke resolution works smoothly -->
+        <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
     <ItemGroup>

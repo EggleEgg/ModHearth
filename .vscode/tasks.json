@@ -58,7 +58,7 @@
         "-r",
         "${input:rid}",
         "--self-contained",
-        "false",
+        "true",
         "/property:GenerateFullPaths=true",
         "/consoleloggerparameters:NoSummary;ForceNoAlign"
       ],
