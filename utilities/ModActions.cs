@@ -31,7 +31,6 @@ namespace ModHearth
                 if (!TryEnsureSteamSession(new List<string>()))
                     return;
 
-                SteamManager.Initialize();
                 SteamWorkshopService steam = new SteamWorkshopService();
                 if (!steam.IsAvailable)
                     return;
@@ -159,7 +158,6 @@ namespace ModHearth
             if (!TryEnsureSteamSession(failures))
                 return failures;
 
-            SteamManager.Initialize();
             SteamWorkshopService steam = new SteamWorkshopService();
             if (!steam.IsAvailable)
             {
@@ -244,7 +242,6 @@ namespace ModHearth
             if (!TryEnsureSteamSession(failures))
                 return failures;
 
-            SteamManager.Initialize();
             SteamWorkshopService steam = new SteamWorkshopService();
             if (!steam.IsAvailable)
             {
@@ -293,7 +290,7 @@ namespace ModHearth
                     continue;
                 }
 
-                if (!steam.Subscribe(workshopId))
+                if (!SteamWorkshopService.Subscribe(workshopId))
                 {
                     failures.Add($"Failed to subscribe workshop item {steamItemId} (resubscribe stage).");
                 }
@@ -316,7 +313,7 @@ namespace ModHearth
                     continue;
                 }
 
-                if (!steam.Download(workshopId, highPriority: true))
+                if (!SteamWorkshopService.Download(workshopId))
                 {
                     failures.Add($"Failed to trigger download/validation for workshop item {steamItemId}.");
                 }

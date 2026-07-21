@@ -247,8 +247,6 @@ namespace ModHearth
 
             try
             {
-                SteamManager.Initialize();
-
                 try
                 {
                     Task.Run(() => AuditWorkshopManifests());

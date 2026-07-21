@@ -1,125 +1,87 @@
 using System;
-using System.Linq;
-using System.Threading;
-using Steamworks;
+using System.Diagnostics;
+using System.IO;
 
 namespace ModHearth.Utilities;
 
+/// <summary>
+/// Talks to the Steamworks Workshop API by shelling out to ModHearth.SteamWorker, a separate helper
+/// process that owns every direct SteamAPI_Init/Shutdown call for App 975370. See
+/// ModHearth.SteamWorker/Program.cs for why.
+/// </summary>
 public sealed class SteamWorkshopService
 {
-    public bool IsAvailable =>
-        SteamManager.Initialized;
+    private static readonly TimeSpan WorkerTimeout = TimeSpan.FromSeconds(20);
 
-    public bool Subscribe(ulong workshopId)
+    // Cheap process-presence check only -- a real Init() attempt now only happens inside a worker
+    // invocation, so this can no longer guarantee success the way the old in-process check did.
+    // It exists so callers fail fast with a clear message instead of spawning a doomed worker
+    // process when Steam obviously isn't running at all.
+    public bool IsAvailable => SteamProcessHelper.TryDetectSteamProcess(out _);
+
+    public static bool Subscribe(ulong workshopId) => RunWorker("subscribe", workshopId.ToString());
+
+    public bool Unsubscribe(ulong workshopId) => RunWorker("unsubscribe", workshopId.ToString());
+
+    public static bool Download(ulong workshopId, bool highPriority = true) =>
+        RunWorker("download", workshopId.ToString());
+
+    // Not currently called anywhere in the codebase -- kept for API parity with the previous
+    // implementation. Costs the same worker round-trip as Subscribe/Unsubscribe if used.
+    public static bool IsSubscribed(ulong workshopId) => RunWorker("issubscribed", workshopId.ToString());
+
+    private static bool RunWorker(string action, string arg)
     {
-        lock (SteamManager.Gate)
+        string? workerPath = ResolveWorkerPath();
+        if (workerPath == null)
         {
-            if (!IsAvailable)
-                return false;
+            SteamConnectionLogger.LogError("ModHearth.SteamWorker executable not found alongside ModHearth.");
+            return false;
+        }
 
-            PublishedFileId_t publishedFileId = new PublishedFileId_t(workshopId);
-            SteamAPICall_t call = SteamUGC.SubscribeItem(publishedFileId);
-            if (call == SteamAPICall_t.Invalid)
-                return false;
-
-            bool completed = false;
-            EResult result = EResult.k_EResultFail;
-
-            using CallResult<RemoteStorageSubscribePublishedFileResult_t> callResult = CallResult<RemoteStorageSubscribePublishedFileResult_t>.Create((res, failure) =>
+        try
+        {
+            using Process? process = Process.Start(new ProcessStartInfo
             {
-                completed = true;
-                if (!failure)
-                {
-                    result = res.m_eResult;
-                }
+                FileName = workerPath,
+                Arguments = $"{action} {arg}",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = true
             });
 
-            callResult.Set(call);
+            if (process == null)
+                return false;
 
-            // Wait up to 15 seconds, running callbacks periodically.
-            DateTime start = DateTime.UtcNow;
-            while (!completed && (DateTime.UtcNow - start).TotalSeconds < 15)
+            string stderr = process.StandardError.ReadToEnd();
+            bool exited = process.WaitForExit((int)WorkerTimeout.TotalMilliseconds);
+            if (!exited)
             {
-                SteamAPI.RunCallbacks();
-                Thread.Sleep(50);
+                SteamConnectionLogger.LogError($"ModHearth.SteamWorker timed out running '{action} {arg}'.");
+                try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+                return false;
             }
 
-            return completed && result == EResult.k_EResultOK;
+            if (process.ExitCode != 0)
+            {
+                if (!string.IsNullOrWhiteSpace(stderr))
+                    SteamConnectionLogger.LogError($"ModHearth.SteamWorker '{action} {arg}' failed: {stderr.Trim()}");
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SteamConnectionLogger.LogError($"Failed to run ModHearth.SteamWorker '{action} {arg}': {ex.Message}");
+            return false;
         }
     }
 
-    public bool Unsubscribe(ulong workshopId)
+    private static string? ResolveWorkerPath()
     {
-        lock (SteamManager.Gate)
-        {
-            if (!IsAvailable)
-                return false;
-
-            PublishedFileId_t publishedFileId = new PublishedFileId_t(workshopId);
-            SteamAPICall_t call = SteamUGC.UnsubscribeItem(publishedFileId);
-            if (call == SteamAPICall_t.Invalid)
-                return false;
-
-            bool completed = false;
-            EResult result = EResult.k_EResultFail;
-
-            using CallResult<RemoteStorageUnsubscribePublishedFileResult_t> callResult = CallResult<RemoteStorageUnsubscribePublishedFileResult_t>.Create((res, failure) =>
-            {
-                completed = true;
-                if (!failure)
-                {
-                    result = res.m_eResult;
-                }
-            });
-
-            callResult.Set(call);
-
-            // Wait up to 15 seconds, running callbacks periodically.
-            DateTime start = DateTime.UtcNow;
-            while (!completed && (DateTime.UtcNow - start).TotalSeconds < 15)
-            {
-                SteamAPI.RunCallbacks();
-                Thread.Sleep(50);
-            }
-
-            return completed && result == EResult.k_EResultOK;
-        }
-    }
-
-    public bool Download(ulong workshopId, bool highPriority = true)
-    {
-        lock (SteamManager.Gate)
-        {
-            if (!IsAvailable)
-                return false;
-
-            return SteamUGC.DownloadItem(new PublishedFileId_t(workshopId), highPriority);
-        }
-    }
-
-    public bool IsSubscribed(ulong workshopId)
-    {
-        lock (SteamManager.Gate)
-        {
-            if (!IsAvailable)
-                return false;
-
-            // Try bitmask check first
-            uint state = SteamUGC.GetItemState(new PublishedFileId_t(workshopId));
-            if (state != 0)
-            {
-                return (state & (uint)EItemState.k_EItemStateSubscribed) != 0;
-            }
-
-            // Fallback to list enumeration
-            uint count = SteamUGC.GetNumSubscribedItems();
-            if (count == 0)
-                return false;
-
-            PublishedFileId_t[] items = new PublishedFileId_t[count];
-            uint actualCount = SteamUGC.GetSubscribedItems(items, count);
-
-            return items.Take((int)actualCount).Any(x => x.m_PublishedFileId == workshopId);
-        }
+        string fileName = "ModHearth.SteamWorker" + (OperatingSystem.IsWindows() ? ".exe" : string.Empty);
+        string candidate = Path.Combine(AppContext.BaseDirectory, fileName);
+        return File.Exists(candidate) ? candidate : null;
     }
 }

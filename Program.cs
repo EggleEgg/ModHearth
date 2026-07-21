@@ -9,7 +9,6 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        RegisterSteamApiResolver();
         RuntimeBootstrap.Initialize();
         ConfigManager.AttemptLoadConfig(false);
 
@@ -58,7 +57,6 @@ internal static class Program
         finally
         {
             AppLogging.Shutdown();
-            SteamManager.Shutdown();
         }
     }
 

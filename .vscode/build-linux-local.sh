@@ -19,6 +19,7 @@ dotnet restore ModHearth.sln
 
 echo "== Restoring publish runtime assets (${RID}) =="
 dotnet restore ModHearth.csproj -r "$RID"
+dotnet restore ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -r "$RID"
 
 echo "== Building solution =="
 dotnet build ModHearth.sln -c Release --no-restore
@@ -39,8 +40,12 @@ dotnet build ModHearth.csproj -c Release -r "$RID" --no-restore \
   /p:InformationalVersion="$VERSION"
 
 echo "== Publishing =="
-dotnet publish ModHearth.csproj -c Release -r "$RID" --self-contained false \
+dotnet publish ModHearth.csproj -c Release -r "$RID" \
   /p:UseAppHost=true --no-build --no-restore
+
+echo "== Publishing Steam worker =="
+dotnet publish ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -c Release -r "$RID" \
+  /p:UseAppHost=true --no-restore -o "artifacts/$RID"
 
 echo "== Pruning + packaging =="
 bash ./.github/scripts/prune-package.sh "$RID" "$EXT"

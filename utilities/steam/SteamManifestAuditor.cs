@@ -82,7 +82,7 @@ namespace ModHearth.Utilities
                 {
                     SteamConnectionLogger.LogWarning($"Discrepancy found: Workshop item {itemId} is marked as installed in manifest, but local folder is missing or empty. Sending wake-up call.");
                     
-                    if (steamService.Download(itemId, highPriority: true))
+                    if (SteamWorkshopService.Download(itemId))
                     {
                         wakeUpCalls++;
                     }

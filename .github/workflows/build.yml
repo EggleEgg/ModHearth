@@ -55,6 +55,8 @@ jobs:
         run: dotnet restore ModHearth.sln
       - name: Restore publish runtime assets
         run: dotnet restore ModHearth.csproj -r ${{ matrix.rid }}
+      - name: Restore Steam worker publish runtime assets
+        run: dotnet restore ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -r ${{ matrix.rid }}
       - name: Build
         run: dotnet build ModHearth.sln -c Release --no-restore
       - name: Test (Linux)
@@ -74,6 +76,8 @@ jobs:
         run: dotnet test ModHearth.sln -c Release --no-build --no-restore
       - name: Publish
         run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
+      - name: Publish Steam worker
+        run: dotnet publish ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore -o artifacts/${{ matrix.rid }}
       - name: Prune + verify + package (Windows)
         if: matrix.os == 'windows-latest'
         run: ./.github/scripts/prune-package.ps1 -Rid "${{ matrix.rid }}" -Ext "${{ matrix.ext }}"
