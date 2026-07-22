@@ -39,7 +39,10 @@ internal static class UpdateService
         ("dlls", true, CleanupPlatforms.All),
         ("libsteam_api.dylib", false, CleanupPlatforms.Windows | CleanupPlatforms.Linux),
         ("libsteam_api.so", false, CleanupPlatforms.Windows | CleanupPlatforms.macOS),
-        ("steam_api64.dll", false, CleanupPlatforms.Linux | CleanupPlatforms.macOS )
+        ("steam_api64.dll", false, CleanupPlatforms.Linux | CleanupPlatforms.macOS ),
+        //TODO maybe handle skiasharp debug symbols too? Is it even safe to do so?
+        ("ModHearth.SteamWorker.pdb", false, CleanupPlatforms.All),
+        ("ModHearth.pdb", false, CleanupPlatforms.All),
     };
 
     public static async Task<bool> TryRunUpdateAsync(Window owner, string currentBuild)

@@ -17,13 +17,6 @@
         <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
     </ItemGroup>
 
-    <!-- Deliberately NOT single-file: this keeps steam_api64.dll/libsteam_api.so sitting as a plain
-       loose file directly beside ModHearth.SteamWorker.exe, so standard P/Invoke resolution finds it
-       with no custom resolver needed (unlike ModHearth.exe, which needs Program.cs's
-       NativeLibrary.SetDllImportResolver trick specifically because single-file bundling changes
-       where native deps end up at runtime). Keeping the worker as a plain multi-file publish avoids
-       importing that same complexity into a brand-new, unverified code path. -->
-
     <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
         <None Include="..\libs\steam_api64.dll" Link="steam_api64.dll">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
