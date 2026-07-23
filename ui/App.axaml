@@ -36,6 +36,7 @@
     <!-- Used for small submenus. By default, the padding is 12px -->
     <Style Selector="FlyoutPresenter.compact-flyout">
       <Setter Property="Padding" Value="2"/>
+      <Setter Property="MinWidth" Value="0"/>
     </Style>
 
   </Application.Styles>

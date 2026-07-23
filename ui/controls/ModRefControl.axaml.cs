@@ -143,6 +143,11 @@ public partial class ModRefControl : UserControl
             else if (!IsRelationshipTag(tag) && !allowActions)
                 item.IsVisible = false;
 
+            if (string.Equals(tag, "relations-root", StringComparison.Ordinal) && item is MenuItem relationsRoot)
+            {
+                ModContextMenuSupport.ConfigureRelationsMenu(relationsRoot, vm);
+            }
+
             if (item.IsVisible)
                 anyVisible = true;
         }

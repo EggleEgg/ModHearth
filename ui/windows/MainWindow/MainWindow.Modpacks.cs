@@ -20,7 +20,7 @@ public partial class MainWindow
         if (ConfigManager.IsAutoSaveEnabled())
         {
             // Confirms the local save succeeded, independent of DFHack
-            ShowNotification("Modlist Autosaved", "saveWhiteIcon.svg", 1000);
+            ShowNotification("Modlist Autosaved", "saveUpdateIcon.svg", 1000);
         }
 
         if (string.IsNullOrWhiteSpace(result.LiveReloadMessage))

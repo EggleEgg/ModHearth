@@ -65,6 +65,28 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         RefreshEditor();
 
         clearAllRelationshipsButton.Click += async (_, _) => await ClearAllRelationshipsAsync();
+
+        double sortRatio = ConfigManager.GetSortRulesWindowGridSplitterRatio();
+        if (sortRatio > 0 && sortRatio < 1 && MainGrid != null && MainGrid.ColumnDefinitions.Count >= 3)
+        {
+            MainGrid.ColumnDefinitions[0].Width = new GridLength(sortRatio, GridUnitType.Star);
+            MainGrid.ColumnDefinitions[2].Width = new GridLength(1.0 - sortRatio, GridUnitType.Star);
+        }
+
+        Closed += (_, _) =>
+        {
+            if (MainGrid != null && MainGrid.ColumnDefinitions.Count >= 3)
+            {
+                double w0 = MainGrid.ColumnDefinitions[0].ActualWidth;
+                double w2 = MainGrid.ColumnDefinitions[2].ActualWidth;
+                if (w0 + w2 > 0)
+                {
+                    double ratio = w0 / (w0 + w2);
+                    ratio = Math.Clamp(ratio, 0.05, 0.95);
+                    ConfigManager.SetSortRulesWindowGridSplitterRatio(ratio);
+                }
+            }
+        };
     }
 
     private void BuildViewModels(IEnumerable<ModReference> modRefs)
@@ -123,6 +145,11 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
                 string tag = menuItem.Tag?.ToString() ?? string.Empty;
                 menuItem.IsVisible = tag.StartsWith("relation-", StringComparison.Ordinal) ||
                                      string.Equals(tag, "relations-root", StringComparison.Ordinal);
+
+                if (string.Equals(tag, "relations-root", StringComparison.Ordinal))
+                {
+                    ModContextMenuSupport.ConfigureRelationsMenu(menuItem, vm);
+                }
             }
             else if (item is Separator separator)
             {
@@ -154,6 +181,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
     private void RefreshEditor()
     {
         sectionsPanel.Children.Clear();
+        clearAllRelationshipsButton.IsVisible = selectedMod?.HasRelationships == true;
 
         if (selectedMod == null)
         {

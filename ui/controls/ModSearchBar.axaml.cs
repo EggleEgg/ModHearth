@@ -301,6 +301,8 @@ public partial class ModSearchBar : UserControl
             button.BorderBrush = Brushes.Transparent;
             button.BorderThickness = new Thickness(0);
         }
+
+        ColorPicker.ApplyStyle(searchButtonBrush, searchButtonHoverBrush, searchButtonPressedBrush, buttonTextBrush);
     }
 
     private void InitializeSearchButtonState(Button button)

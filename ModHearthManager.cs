@@ -1620,7 +1620,7 @@ namespace ModHearth
         // Check if DF is running.
         public static bool DwarfFortressRunning()
         {
-            string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort" };
+            string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort", "dwarfort.exe", "df.exe", "dwarf_fortress" };
             foreach (string name in candidateNames)
             {
                 try
@@ -1632,6 +1632,36 @@ namespace ModHearth
                 {
                     // Ignore query failures for this candidate name.
                 }
+            }
+
+            // Fallback: iterate all processes for robust matching across OS (especially Linux/macOS where comm names might differ or truncate)
+            try
+            {
+                foreach (Process p in Process.GetProcesses())
+                {
+                    try
+                    {
+                        string pName = p.ProcessName;
+                        if (candidateNames.Any(c => string.Equals(pName, c, StringComparison.OrdinalIgnoreCase) ||
+                                                    pName.StartsWith(c, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            p.Dispose();
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore access denied or exited processes
+                    }
+                    finally
+                    {
+                        p.Dispose();
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore global process enumeration failures
             }
 
             return false;
@@ -1662,24 +1692,65 @@ namespace ModHearth
                 {
                     InfoLogger.LogRunDf("Launching Dwarf Fortress through Steam (App ID: 975370)");
 
-                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    bool launched = false;
+                    try
                     {
-                        FileName = "steam://run/975370",
-                        UseShellExecute = true
-                    };
-
-                    // Trigger Steam protocol handler
-                    using (Process? launcherProcess = Process.Start(startInfo))
-                    {
-                        if (launcherProcess != null)
+                        ProcessStartInfo startInfo = new ProcessStartInfo
                         {
-                            InfoLogger.LogRunDf($"Steam protocol handler invoked (PID = {launcherProcess.Id})");
+                            FileName = "steam://run/975370",
+                            UseShellExecute = true
+                        };
+
+                        // Trigger Steam protocol handler
+                        using (Process? launcherProcess = Process.Start(startInfo))
+                        {
+                            if (launcherProcess != null)
+                            {
+                                InfoLogger.LogRunDf($"Steam protocol handler invoked (PID = {launcherProcess.Id})");
+                                launched = true;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        InfoLogger.LogRunDf($"Failed to launch via steam:// protocol handler: {ex.Message}");
+                    }
+
+                    if (!launched && OperatingSystem.IsLinux())
+                    {
+                        // Fallback on Linux to direct steam command
+                        try
+                        {
+                            InfoLogger.LogRunDf("Trying fallback Steam CLI launch (steam -applaunch 975370)...");
+                            ProcessStartInfo fallbackStartInfo = new ProcessStartInfo
+                            {
+                                FileName = "steam",
+                                Arguments = "-applaunch 975370",
+                                UseShellExecute = true
+                            };
+                            using (Process? fallbackProcess = Process.Start(fallbackStartInfo))
+                            {
+                                if (fallbackProcess != null)
+                                {
+                                    InfoLogger.LogRunDf($"Steam CLI invoked (PID = {fallbackProcess.Id})");
+                                    launched = true;
+                                }
+                            }
+                        }
+                        catch (Exception ex2)
+                        {
+                            InfoLogger.LogRunDf($"Fallback Steam CLI launch failed: {ex2.Message}");
                         }
                     }
 
-                    // Poll for the actual Dwarf Fortress process to appear in the OS process list
-                    const int pollIntervalMs = 500;
-                    const int maxWaitTimeoutMs = 15000;
+                    if (!launched)
+                    {
+                        return (false, "Failed to trigger Steam launcher or protocol handler.");
+                    }
+
+                    // Poll for the actual Dwarf Fortress process to appear in the OS process list (increased to 60s for Steam startup overhead)
+                    const int pollIntervalMs = 1000;
+                    const int maxWaitTimeoutMs = 60000;
                     int totalElapsedMs = 0;
 
                     while (totalElapsedMs < maxWaitTimeoutMs)
@@ -1694,7 +1765,7 @@ namespace ModHearth
                         }
                     }
 
-                    return (false, $"Steam URI was triggered, but Dwarf Fortress failed to launch within {maxWaitTimeoutMs / 1000} seconds.");
+                    return (false, $"Steam launch was triggered, but Dwarf Fortress failed to launch within {maxWaitTimeoutMs / 1000} seconds.");
                 }
                 else
                 {
@@ -1868,6 +1939,7 @@ namespace ModHearth
             if (reloaded)
             {
                 Console.WriteLine("[ModHearth] Mod manager reload applied after 1 check.");
+                ShowNotification("DFHack screen reload applied", "saveDfHackIcon.svg");
                 CancelDeferredModManagerReload();
                 message = "Modpack saved and applied to the DFHack mod manager.";
                 return true;
@@ -2011,6 +2083,7 @@ namespace ModHearth
                 else if (!cts.IsCancellationRequested && DateTime.UtcNow >= deadline)
                 {
                     Console.WriteLine($"[ModHearth] Deferred mod manager reload timed out after {checksPerformed} checks.");
+                    ShowNotification("DFHack screen reload failed", "saveDfHackIcon.svg");
                 }
 
                 lock (modManagerReloadGate)

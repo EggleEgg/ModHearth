@@ -25,6 +25,10 @@ public partial class MainWindow : IModRefContextMenuProvider
                 {
                     // Visibility is now controlled by ModRefControl.AllowRelationshipEditing
                 }
+                if (string.Equals(tag, "relations-root", StringComparison.Ordinal))
+                {
+                    ModContextMenuSupport.ConfigureRelationsMenu(menuItem, vm);
+                }
             }
             else if (item is Separator separator)
             {

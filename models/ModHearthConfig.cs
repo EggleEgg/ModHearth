@@ -98,5 +98,11 @@ namespace ModHearth
 
         // Search bar filter and sort state for the right modlist.
         public string RightSearchBarState { get; set; } = string.Empty;
+
+        // Normalized ratio representing the proportional split between resizable columns for MainWindow GridSplitter.
+        public double MainWindowGridSplitterRatio { get; set; } = 0.47619;
+
+        // Normalized ratio representing the proportional split between resizable columns for SortRulesWindow GridSplitter.
+        public double SortRulesWindowGridSplitterRatio { get; set; } = 0.4444;
     }
 }

@@ -1,8 +1,8 @@
 {
   "backgroundColor": {
-    "R": 211,
-    "G": 211,
-    "B": 211,
+    "R": 230,
+    "G": 230,
+    "B": 230,
     "A": 255
   },
   "modRefHighlightColor": {
@@ -24,16 +24,16 @@
     "A": 70
   },
   "modRefPanelColor": {
-    "R": 211,
-    "G": 211,
-    "B": 211,
+    "R": 230,
+    "G": 230,
+    "B": 230,
     "A": 255
   },
   "modRefPanelColorClear": {
-    "R": 211,
-    "G": 211,
-    "B": 211,
-    "A": 235
+    "R": 230,
+    "G": 230,
+    "B": 230,
+    "A": 255
   },
   "modRefTextColor": {
     "R": 0,

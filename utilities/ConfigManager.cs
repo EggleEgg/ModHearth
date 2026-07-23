@@ -1337,5 +1337,19 @@ namespace ModHearth
                     yield return vanillaPath;
             }
         }
+
+        public static double GetMainWindowGridSplitterRatio() => Config.MainWindowGridSplitterRatio;
+        public static void SetMainWindowGridSplitterRatio(double ratio)
+        {
+            Config.MainWindowGridSplitterRatio = ratio;
+            SaveConfigFile("MainWindow GridSplitter ratio");
+        }
+
+        public static double GetSortRulesWindowGridSplitterRatio() => Config.SortRulesWindowGridSplitterRatio;
+        public static void SetSortRulesWindowGridSplitterRatio(double ratio)
+        {
+            Config.SortRulesWindowGridSplitterRatio = ratio;
+            SaveConfigFile("SortRulesWindow GridSplitter ratio");
+        }
     }
 }

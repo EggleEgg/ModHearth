@@ -36,7 +36,7 @@
   </Window.Styles>
 
   <Panel>
-    <Grid Margin="12">
+    <Grid x:Name="mainGrid" Margin="12">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="10*" />
         <ColumnDefinition Width="Auto" />

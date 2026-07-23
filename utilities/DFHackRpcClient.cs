@@ -309,8 +309,8 @@ namespace ModHearth.Utilities
 
         private static void LogRpcClient(string message)
         {
-            if (!DevMode.IsEnabled)
-                Console.WriteLine($"[DEBUG] DFHackRpcClient: {message}");
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"DFHackRpcClient: {message}");
         }
     }
 

@@ -113,7 +113,7 @@ public partial class MainWindow
 
         if (IsAutoSaveEnabled)
         {
-            ShowNotification("Autosave enabled", "saveWhiteIcon.svg");
+            ShowNotification("Autosave enabled", "saveIcon.svg");
             if (changesMade)
             {
                 _ = SaveCurrentModpackAsync();

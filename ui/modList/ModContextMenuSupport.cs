@@ -383,4 +383,24 @@ internal static class ModContextMenuSupport
             return;
         }
     }
+
+    public static void ConfigureRelationsMenu(MenuItem relationsRoot, ModRefViewModel vm)
+    {
+        bool hasRelationships = vm.HasRelationships;
+        foreach (object? sub in relationsRoot.Items)
+        {
+            if (sub is MenuItem subMenuItem)
+            {
+                string subTag = subMenuItem.Tag?.ToString() ?? string.Empty;
+                if (string.Equals(subTag, "relation-clear-all", StringComparison.Ordinal))
+                {
+                    subMenuItem.IsVisible = hasRelationships;
+                }
+            }
+            else if (sub is Separator sep)
+            {
+                sep.IsVisible = hasRelationships;
+            }
+        }
+    }
 }

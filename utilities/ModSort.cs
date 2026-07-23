@@ -366,7 +366,8 @@ namespace ModHearth
             }
 
             // --- Tier 3: vanilla-base structural edges ---
-            foreach (HashSet<string> group in GetDuplicateWarningGroups())
+            var duplicateWarningGroupsSnapshot = GetDuplicateWarningGroups();
+            foreach (HashSet<string> group in duplicateWarningGroupsSnapshot)
             {
                 List<string> vanillaIds = new List<string>();
                 List<string> modIds = new List<string>();
@@ -511,7 +512,7 @@ namespace ModHearth
             });
 
             // --- Tier 5: Mod-vs-mod duplicate warnings ---
-            foreach (HashSet<string> group in GetDuplicateWarningGroups())
+            foreach (HashSet<string> group in duplicateWarningGroupsSnapshot)
             {
                 List<string> modIds = group.Where(id =>
                     enabledIds.Contains(id) &&

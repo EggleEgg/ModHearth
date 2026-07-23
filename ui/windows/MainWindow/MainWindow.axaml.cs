@@ -175,6 +175,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         modListController.RegisterList(leftModlist, allowReorder: false);
         modListController.RegisterList(rightModlist, allowReorder: true);
 
+        double mainRatio = ConfigManager.GetMainWindowGridSplitterRatio();
+        if (mainRatio > 0 && mainRatio < 1 && mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+        {
+            mainGrid.ColumnDefinitions[0].Width = new GridLength(mainRatio, GridUnitType.Star);
+            mainGrid.ColumnDefinitions[2].Width = new GridLength(1.0 - mainRatio, GridUnitType.Star);
+        }
+
         leftModlist.SelectionChanged += ModlistSelectionChanged;
         rightModlist.SelectionChanged += ModlistSelectionChanged;
         leftModlist.DoubleTapped += async (_, _) => await MoveSelectedBetweenListsAsync(true);
@@ -252,6 +259,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Closing += MainWindowClosing;
         Closed += (_, _) =>
         {
+            SaveMainWindowGridSplitterRatio();
             SaveModInfoDockLayout();
             SaveSearchBarStates();
             modManagerWatcher?.Dispose();
@@ -265,6 +273,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         InitializeDfHackStatusTimer();
         InitializeAutoReloadTimer();
+    }
+
+    private void SaveMainWindowGridSplitterRatio()
+    {
+        if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+        {
+            double w0 = mainGrid.ColumnDefinitions[0].ActualWidth;
+            double w2 = mainGrid.ColumnDefinitions[2].ActualWidth;
+            if (w0 + w2 > 0)
+            {
+                double ratio = w0 / (w0 + w2);
+                ratio = Math.Clamp(ratio, 0.05, 0.95);
+                ConfigManager.SetMainWindowGridSplitterRatio(ratio);
+            }
+        }
     }
 
     private void OnSearchBarStateChanged()
