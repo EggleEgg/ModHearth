@@ -33,6 +33,7 @@ internal sealed class ModUpdateSnapshotEntry
     public string SteamId { get; set; } = string.Empty;
     public string QuickStamp { get; set; } = string.Empty;
     public string DeepStamp { get; set; } = string.Empty;
+    public bool IsIgnored { get; set; }
 }
 
 public static class ModUpdateLogger
@@ -92,6 +93,7 @@ public static class ModUpdateLogger
             }
         }
     }
+
     private const int MaxLogLines = 5000;
     // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
     // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
@@ -126,7 +128,6 @@ public static class ModUpdateLogger
         {
             try
             {
-
                 Dictionary<string, ModUpdateSnapshotEntry> current = BuildSnapshot(mods);
                 if (!File.Exists(SnapshotPath))
                 {
@@ -140,32 +141,48 @@ public static class ModUpdateLogger
                     activeMods.Select(m => m.id),
                     StringComparer.OrdinalIgnoreCase);
 
-                List<ModUpdateLogEntry> entries = new List<ModUpdateLogEntry>();
+                List<ModUpdateSnapshotEntry> currentList = current.Values.ToList();
 
-                foreach (ModUpdateSnapshotEntry currentEntry in current.Values)
+                // Parallelize TryDetectLocalUpdate and EnsureLocalDeepStamp passes per mod.
+                // Computed into an index-aligned array to preserve stable entry ordering.
+                List<ModUpdateLogEntry>?[] perEntryResults = new List<ModUpdateLogEntry>?[currentList.Count];
+                Parallel.For(0, currentList.Count, new ParallelOptions
                 {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                }, i =>
+                {
+                    ModUpdateSnapshotEntry currentEntry = currentList[i];
+                    List<ModUpdateLogEntry> localEntries = new();
+
                     if (!previous.TryGetValue(currentEntry.ModId, out ModUpdateSnapshotEntry? oldEntry))
                     {
                         EnsureLocalDeepStamp(currentEntry);
-                        entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
-                        continue;
+                        localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
                     }
-
-                    if (!PathsMatch(oldEntry.Path, currentEntry.Path))
+                    else if (!PathsMatch(oldEntry.Path, currentEntry.Path))
                     {
                         EnsureLocalDeepStamp(currentEntry);
-                        entries.Add(BuildEntry(oldEntry, activeIds.Contains(oldEntry.ModId), ModUpdateChangeType.Deleted));
-                        entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
-                        continue;
+                        localEntries.Add(BuildEntry(oldEntry, activeIds.Contains(oldEntry.ModId), ModUpdateChangeType.Deleted));
+                        localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
+                    }
+                    else if (TryDetectLocalUpdate(oldEntry, currentEntry))
+                    {
+                        localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Updated));
                     }
 
-                    if (TryDetectLocalUpdate(oldEntry, currentEntry))
-                        entries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Updated));
+                    perEntryResults[i] = localEntries.Count > 0 ? localEntries : null;
+                });
+
+                List<ModUpdateLogEntry> entries = new List<ModUpdateLogEntry>();
+                foreach (List<ModUpdateLogEntry>? localEntries in perEntryResults)
+                {
+                    if (localEntries != null)
+                        entries.AddRange(localEntries);
                 }
 
                 foreach (ModUpdateSnapshotEntry previousEntry in previous.Values.Where(previousEntry => !current.ContainsKey(previousEntry.ModId)))
                 {
-                    if (IsIgnoredPath(previousEntry.Path))
+                    if (previousEntry.IsIgnored)
                         continue;
 
                     entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
@@ -187,42 +204,48 @@ public static class ModUpdateLogger
 
     private static Dictionary<string, ModUpdateSnapshotEntry> BuildSnapshot(IEnumerable<ModReference> mods)
     {
-        Dictionary<string, ModUpdateSnapshotEntry> snapshot = new(StringComparer.OrdinalIgnoreCase);
-        foreach (ModReference modref in mods)
+        List<ModReference> modList = mods as List<ModReference> ?? mods.ToList();
+
+        ModUpdateSnapshotEntry?[] results = new ModUpdateSnapshotEntry?[modList.Count];
+        Parallel.For(0, modList.Count, new ParallelOptions
         {
+            MaxDegreeOfParallelism = Environment.ProcessorCount
+        }, i =>
+        {
+            ModReference? modref = modList[i];
             if (modref == null)
-                continue;
+                return;
+
             string id = modref.ID?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(id) || snapshot.ContainsKey(id))
-                continue;
+            if (string.IsNullOrWhiteSpace(id))
+                return;
 
             string path = ResolveCanonicalPath(modref.path ?? string.Empty);
-            if (IsIgnoredPath(path))
-                continue;
+            if (modref.IsIgnored)
+                return;
 
-            snapshot[id] = new ModUpdateSnapshotEntry
+            results[i] = new ModUpdateSnapshotEntry
             {
                 ModId = id,
                 ModName = string.IsNullOrWhiteSpace(modref.name) ? id : modref.name,
                 SourceType = GetSourceType(modref),
                 Path = path,
                 SteamId = ResolveSteamId(modref),
-                QuickStamp = BuildLocalQuickStamp(modref.path ?? string.Empty),
-                DeepStamp = string.Empty
+                QuickStamp = BuildLocalQuickStamp(path),
+                DeepStamp = string.Empty,
+                IsIgnored = modref.IsIgnored
             };
+        });
+
+        Dictionary<string, ModUpdateSnapshotEntry> snapshot = new(StringComparer.OrdinalIgnoreCase);
+        foreach (ModUpdateSnapshotEntry? entry in results)
+        {
+            if (entry == null || snapshot.ContainsKey(entry.ModId))
+                continue;
+            snapshot[entry.ModId] = entry;
         }
 
         return snapshot;
-    }
-
-    //TODO handle this at the source instead of at the end
-    private static bool IsIgnoredPath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        return path.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
-            .Any(segment => string.Equals(segment, "installed_mods", StringComparison.OrdinalIgnoreCase));
     }
 
     private static ModUpdateLogEntry BuildEntry(ModUpdateSnapshotEntry entry, bool active, ModUpdateChangeType changeType)
@@ -616,7 +639,7 @@ public static class ModUpdateLogger
                 continue;
             }
 
-            if (modref.path != null && IsIgnoredPath(ResolveCanonicalPath(modref.path)))
+            if (modref.IsIgnored)
                 continue;
 
             DateTime? timestamp = TryConvertUnixTime(kvp.Value);

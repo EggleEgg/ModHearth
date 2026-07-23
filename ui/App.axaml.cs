@@ -38,6 +38,10 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+
+        if (DevMode.IsEnabled)
+            //Use F12 key to open devtools
+            this.AttachDeveloperTools();
     }
 
     private static bool IsSmokeTestWindowEnabled()

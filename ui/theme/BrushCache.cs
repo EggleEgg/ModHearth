@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 
@@ -6,19 +6,14 @@ namespace ModHearth.UI;
 
 public static class BrushCache
 {
-    private static readonly Dictionary<Color, IBrush> _cache = new();
+    private static readonly ConcurrentDictionary<Color, IBrush> _cache = new();
 
     /// <summary>
     /// Gets a cached, high-performance ImmutableSolidColorBrush for the given color.
     /// </summary>
     public static IBrush GetBrush(Color color)
     {
-        if (!_cache.TryGetValue(color, out var brush))
-        {
-            brush = new ImmutableSolidColorBrush(color);
-            _cache[color] = brush;
-        }
-        return brush;
+        return _cache.GetOrAdd(color, static c => new ImmutableSolidColorBrush(c));
     }
 
     // Call this whenever the theme is changed

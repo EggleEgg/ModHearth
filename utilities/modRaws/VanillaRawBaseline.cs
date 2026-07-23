@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace ModHearth.Utilities;
 
 /// <summary>
@@ -32,7 +34,8 @@ public sealed class VanillaRawBaseline
 
     /// <summary>
     /// Loads the vanilla baseline by scanning the objects/ folders of all mods
-    /// located under <paramref name="vanillaModsPath"/>.
+    /// located under <paramref name="vanillaModsPath"/>. Each mod folder's scan is
+    /// independent, so this mirrors EnsureModRawDependencyCacheAsync's parallel raw scan.
     /// </summary>
     public static VanillaRawBaseline Load(string vanillaModsPath)
     {
@@ -41,9 +44,13 @@ public sealed class VanillaRawBaseline
 
         try
         {
-            List<ObjectKey> keys = new();
+            List<string> modDirs = Directory.EnumerateDirectories(vanillaModsPath).ToList();
+            ConcurrentBag<ObjectKey> keys = new();
 
-            foreach (string modDir in Directory.EnumerateDirectories(vanillaModsPath))
+            Parallel.ForEach(modDirs, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, modDir =>
             {
                 RawDatabase db = ModRawObjectScanner.Scan(modDir, Path.GetFileName(modDir));
                 foreach (var kvp in db.DefinedObjects)
@@ -54,7 +61,7 @@ public sealed class VanillaRawBaseline
                         keys.Add(new ObjectKey(objectType, id));
                     }
                 }
-            }
+            });
 
             return new VanillaRawBaseline(keys);
         }

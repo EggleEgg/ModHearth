@@ -51,14 +51,12 @@ public partial class MainWindow
         _ = dialog.ShowDialog(this);
     }
 
-    // TODO This still triggers a second ModSortEnabledMods() pass inside SetAndMarkChangesAsync. 
-    // Also mark this for multithreading and make its children thread safe
     private async Task ModSortAsync()
     {
         await manager.EnsureModRawDependencyCacheAsync();
         bool changed = await Task.Run(() => manager.ModSortEnabledMods());
         if (changed)
-            await SetAndMarkChangesAsync(true);
+            await SetAndMarkChangesAsync(true, skipSort: true);
         RefreshModlistPanels();
     }
 

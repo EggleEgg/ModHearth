@@ -45,7 +45,7 @@ namespace ModHearth
                 case ProblemType.ConflictPresent:
                     return $"Mod '{problemThrowerID}' is incompatible with mod '{problemID}'.";
                 case ProblemType.DuplicateMod:
-                    return $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}).\nPlease remove one to avoid issues.";
+                    return $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}).\n\nPlease remove one to avoid issues.";
                 case ProblemType.MissingRequired:
                     return $"Mod '{problemThrowerID}' requires mod '{problemID}' to be enabled.";
             }
@@ -998,7 +998,16 @@ namespace ModHearth
                 // Mod setup and registry.
                 ModReference modRef = new ModReference(modDataEntry);
                 modRef.LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"]);
-                results[i] = modRef;
+
+                ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
+                if (modRef.IsIgnored)
+                {
+                    results[i] = null; // Mark as null to be filtered out later
+                }
+                else
+                {
+                    results[i] = modRef;
+                }
             });
 
             // Sequential merge. Preserves "first occurrence wins" for duplicates, same as before.
@@ -1006,7 +1015,7 @@ namespace ModHearth
             Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
             HashSet<DFHMod> newModPool = new();
 
-            foreach (ModReference? modRef in results)
+            foreach (ModReference? modRef in results.Where(m => m != null))
             {
                 if (modRef == null)
                     continue;
@@ -1129,11 +1138,17 @@ namespace ModHearth
             if (!modData.TryGetValue("id", out string? id) || string.IsNullOrWhiteSpace(id))
                 return null;
 
-            return new ModReference(modData)
+            ModReference modRef = new ModReference(modData)
             {
                 MissingVersion = missingVersion,
                 LastModifiedTime = GetLatestModifiedTimestampCached(dir)
             };
+
+            ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
+            if (modRef.IsIgnored)
+                return null;
+
+            return modRef;
         }
 
         // A reader that checks modPool for a key must be able to find it in modrefMap too.

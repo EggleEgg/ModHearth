@@ -16,62 +16,64 @@ namespace ModHearth
     public class ModReference
     {
         // Data found in modinfo files.
-        public string ID;
-        public string numericVersion;
-        public string displayedVersion;
-        public string earliestCompatibleNumericVersion;
-        public string earliestCompatibleDisplayedVersion;
-        public string author;
-        public string name;
-        public string description;
+        public string ID { get; set; } = string.Empty;
+        public string numericVersion { get; set; } = string.Empty;
+        public string displayedVersion { get; set; } = string.Empty;
+        public string earliestCompatibleNumericVersion { get; set; } = string.Empty;
+        public string earliestCompatibleDisplayedVersion { get; set; } = string.Empty;
+        public string author { get; set; } = string.Empty;
+        public string name { get; set; } = string.Empty;
+        public string description { get; set; } = string.Empty;
 
-        public ModColor AssignedColor { get; set; }
+        public ModColor AssignedColor { get; set; } = ModColor.None;
 
-        public string steamName;
-        public string steamDescription;
-        public string steamID;
+        public string steamName { get; set; } = string.Empty;
+        public string steamDescription { get; set; } = string.Empty;
+        public string steamID { get; set; } = string.Empty;
 
-        public List<string> require_before_me;
-        public List<string> require_after_me;
-        public List<string> require_ids;
-        public List<string> conflicts_with;
+        public List<string> require_before_me { get; set; } = new List<string>();
+        public List<string> require_after_me { get; set; } = new List<string>();
+        public List<string> require_ids { get; set; } = new List<string>();
+        public List<string> conflicts_with { get; set; } = new List<string>();
 
         // Path of mod folder, not path to info.
-        public string path;
+        public string path { get; set; } = string.Empty;
 
         // Is this modref missing a version (one mod did this, dfhack set version to 1 so this matches it).
-        public bool MissingVersion = false;
+        public bool MissingVersion { get; set; } = false;
 
         // Does this mod have mods it needs loaded before it, mods it needs loaded after it, or conflicts.
-        public bool problematic;
+        public bool problematic { get; set; } = false;
         public DateTime? LastModifiedTime { get; set; }
+        public bool IsIgnored { get; set; } = false;
 
-        public ModSource Source { get; private set; }
+        public ModSource Source { get; set; } = ModSource.Local;
 
-        // #FIXME: pointless constructor.
-        public ModReference(string ID, string numericVersion, string displayedVersion, string earliestCompatibleNumericVersion, string earliestCompatibleDisplayedVersion, string author, string name, string description, string steamName, string steamDescription, string steamID, string path, ModSource source)
+        public ModReference()
         {
-            this.ID = ID;
-            this.numericVersion = numericVersion;
-            this.displayedVersion = displayedVersion;
-            this.earliestCompatibleNumericVersion = earliestCompatibleNumericVersion;
-            this.earliestCompatibleDisplayedVersion = earliestCompatibleDisplayedVersion;
-            this.author = author;
-            this.name = name;
-            this.description = description;
-            this.steamName = steamName;
-            this.steamDescription = steamDescription;
-            this.steamID = steamID;
-            this.path = path;
-            this.Source = source;
+            ID = string.Empty;
+            numericVersion = string.Empty;
+            displayedVersion = string.Empty;
+            earliestCompatibleNumericVersion = string.Empty;
+            earliestCompatibleDisplayedVersion = string.Empty;
+            author = string.Empty;
+            name = string.Empty;
+            description = string.Empty;
+            steamName = string.Empty;
+            steamDescription = string.Empty;
+            steamID = string.Empty;
+            path = string.Empty;
+            Source = ModSource.Local;
             problematic = false;
             AssignedColor = ModColor.None;
+            IsIgnored = false;
 
             require_before_me = new List<string>();
             require_after_me = new List<string>();
             require_ids = new List<string>();
             conflicts_with = new List<string>();
         }
+
 
         public ModReference(Dictionary<string, string> modMemoryData)
         {
@@ -91,6 +93,7 @@ namespace ModHearth
             steamDescription = mmd["steam_description"];
 
             Source = string.IsNullOrWhiteSpace(steamID) ? ModSource.Local : ModSource.Steam;
+            IsIgnored = false; // Initialize the new property
 
             require_before_me = new List<string>();
             require_after_me = new List<string>();

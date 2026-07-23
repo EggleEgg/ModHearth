@@ -76,6 +76,8 @@ public partial class MainWindow
     {
         leftHeaderLabel.Text = $"Inactive [{manager?.disabledMods?.Count ?? 0}]";
         rightHeaderLabel.Text = $"Active [{manager?.enabledMods?.Count ?? 0}]";
+        if (clearModlistButton != null)
+            clearModlistButton.IsEnabled = manager?.enabledMods?.Count > 0;
     }
 
 

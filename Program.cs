@@ -20,7 +20,7 @@ internal static class Program
 
         try
         {
-            // For debugging features with extra logs
+            // For debugging features with extra logs, and using avalonia dev tools
             bool isDevMode = HasArg(args, "--devmode") || HasArg(args, "--dev")
                 || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_DEVMODE"));
             if (isDevMode)
@@ -61,9 +61,11 @@ internal static class Program
     }
 
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<UI.App>()
+    {
+        return AppBuilder.Configure<UI.App>()
             .UsePlatformDetect()
             .LogToTrace();
+    }
 
     private static bool HasArg(string[] args, string value)
         => args.Any(arg => string.Equals(arg, value, StringComparison.OrdinalIgnoreCase));

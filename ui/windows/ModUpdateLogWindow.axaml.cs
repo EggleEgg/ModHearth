@@ -181,20 +181,15 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
         string name = string.IsNullOrWhiteSpace(entry.ModName) ? id : entry.ModName;
         string steamId = entry.SteamId ?? string.Empty;
         string path = entry.Path ?? string.Empty;
-        return new ModReference(
-            id,
-            "0",
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            name,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            steamId,
-            path,
-            string.IsNullOrWhiteSpace(steamId) ? ModSource.Local : ModSource.Steam);
+        return new ModReference
+        {
+            ID = id,
+            numericVersion = "0",
+            name = name,
+            steamID = steamId,
+            path = path,
+            Source = string.IsNullOrWhiteSpace(steamId) ? ModSource.Local : ModSource.Steam
+        };
     }
 
     public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)

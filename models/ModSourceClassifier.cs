@@ -3,14 +3,21 @@ namespace ModHearth;
 public static class ModSourceClassifier
 {
     public static (bool IsVanilla, bool IsLocal, bool IsSteam) Classify(
-    ModReference modref,
-    string? modsFolderPath,
-    string? vanillaFolderPath)
+        ModReference modref,
+        string? modsFolderPath,
+        string? vanillaFolderPath)
     {
         if (modref == null)
             return (false, false, false);
 
         string path = modref.path?.Trim() ?? string.Empty;
+
+        modref.IsIgnored = IsPathIgnored(path);
+        if (modref.IsIgnored)
+        {
+            return (false, false, false);
+        }
+
         bool isVanilla = IsPathUnderRootOrEqual(path, vanillaFolderPath);
 
         bool isLocal = !isVanilla && IsPathUnderRoot(path, modsFolderPath);
@@ -63,5 +70,14 @@ public static class ModSourceClassifier
         {
             return false;
         }
+    }
+
+    private static bool IsPathIgnored(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        return path.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
+            .Any(segment => string.Equals(segment, "installed_mods", StringComparison.OrdinalIgnoreCase));
     }
 }

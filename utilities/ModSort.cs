@@ -1,4 +1,6 @@
-﻿using System.Text.RegularExpressions;
+using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace ModHearth
 {
@@ -74,7 +76,19 @@ namespace ModHearth
         // Adds a "fromId must come before toId" edge, unless it's a self-edge, already present, or would create a cycle with edges already in the
         // graph, in which case it's silently dropped rather than corrupting the sort. Every edge added anywhere in ModSortEnabledMods goes
         // through this.
-        private static bool TryAddEdge(Dictionary<string, List<string>> edges, Dictionary<string, int> indegree, string fromId, string toId)
+        private static bool TryAddEdge(Dictionary<string, List<string>> edges, Dictionary<string, int> indegree, string fromId, string toId, object? syncRoot = null)
+        {
+            if (syncRoot != null)
+            {
+                lock (syncRoot)
+                {
+                    return TryAddEdgeInternal(edges, indegree, fromId, toId);
+                }
+            }
+            return TryAddEdgeInternal(edges, indegree, fromId, toId);
+        }
+
+        private static bool TryAddEdgeInternal(Dictionary<string, List<string>> edges, Dictionary<string, int> indegree, string fromId, string toId)
         {
             if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
                 return false;
@@ -118,16 +132,30 @@ namespace ModHearth
 
         public bool ModSortEnabledMods()
         {
-            Dictionary<string, ModReference> idMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
-            foreach (ModReference modref in modrefMap.Values)
-                if (!idMap.ContainsKey(modref.ID))
-                    idMap.Add(modref.ID, modref);
+            Dictionary<string, ModReference> idMap;
+            Dictionary<string, int> originalIndex = new(StringComparer.OrdinalIgnoreCase);
+            List<ModReference> enabledRefs = new();
+            List<ModSortRule> sortRulesSnapshot;
+            List<ModSortRule> communitySortRulesSnapshot;
+            Dictionary<string, ModRelationshipRule> relationshipRulesSnapshot;
+            List<DFHMod> enabledModsSnapshot;
 
-            Dictionary<string, int> originalIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            List<ModReference> enabledRefs = new List<ModReference>();
-            for (int i = 0; i < enabledMods.Count; i++)
+            lock (stateGate)
             {
-                if (modrefMap.TryGetValue(enabledMods[i].ToString(), out ModReference? modref) && modref != null)
+                idMap = new Dictionary<string, ModReference>(modrefMap.Count, StringComparer.OrdinalIgnoreCase);
+                foreach (ModReference modref in modrefMap.Values)
+                    if (!idMap.ContainsKey(modref.ID))
+                        idMap.Add(modref.ID, modref);
+
+                enabledModsSnapshot = new List<DFHMod>(enabledMods);
+                sortRulesSnapshot = new List<ModSortRule>(sortRules);
+                communitySortRulesSnapshot = new List<ModSortRule>(communitySortRules);
+                relationshipRulesSnapshot = new Dictionary<string, ModRelationshipRule>(relationshipRules, StringComparer.OrdinalIgnoreCase);
+            }
+
+            for (int i = 0; i < enabledModsSnapshot.Count; i++)
+            {
+                if (idMap.TryGetValue(enabledModsSnapshot[i].id, out ModReference? modref) && modref != null)
                 {
                     enabledRefs.Add(modref);
                     if (!originalIndex.ContainsKey(modref.ID))
@@ -145,7 +173,7 @@ namespace ModHearth
                 }
             }
 
-            foreach (ModSortRule rule in sortRules)
+            foreach (ModSortRule rule in sortRulesSnapshot)
             {
                 if (rule == null)
                     continue;
@@ -159,7 +187,7 @@ namespace ModHearth
                 enabledIds.Add(requiredRef.ID);
             }
 
-            foreach (ModSortRule rule in communitySortRules)
+            foreach (ModSortRule rule in communitySortRulesSnapshot)
             {
                 if (rule == null)
                     continue;
@@ -188,7 +216,7 @@ namespace ModHearth
                     .Concat(current.require_after_me)
                     .Concat(current.require_ids);
 
-                IEnumerable<string> customRequiredIds = relationshipRules.TryGetValue(current.ID, out ModRelationshipRule? customRule)
+                IEnumerable<string> customRequiredIds = relationshipRulesSnapshot.TryGetValue(current.ID, out ModRelationshipRule? customRule)
                     ? customRule.RequiredIds
                     : Enumerable.Empty<string>();
 
@@ -212,6 +240,15 @@ namespace ModHearth
                 if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
                     allEnabled.Add(modref);
 
+            // Snapshot raw info for all enabled mods to avoid repeated locking
+            Dictionary<string, ModRawDependencyInfo> rawInfoSnapshot = new(StringComparer.OrdinalIgnoreCase);
+            foreach (ModReference modref in allEnabled)
+            {
+                ModRawDependencyInfo? info = GetRawDependencyInfo(modref);
+                if (info != null)
+                    rawInfoSnapshot[modref.ID] = info;
+            }
+
             // Used as: the final "everything failed" fallback, the tie-break for Kahn's algorithm's frontier selection, and the signal
             // best-effort edges are derived from.
             List<ModReference> baseOrder = allEnabled
@@ -232,8 +269,10 @@ namespace ModHearth
                 indegree[modref.ID] = 0;
             }
 
+            object syncRoot = new object();
+
             // --- Tier 1: per-mod relationship rules ---
-            foreach (KeyValuePair<string, ModRelationshipRule> kvp in relationshipRules)
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in relationshipRulesSnapshot)
             {
                 string ownerId = kvp.Key?.Trim() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(ownerId) || !enabledIds.Contains(ownerId))
@@ -265,7 +304,7 @@ namespace ModHearth
             }
 
             // --- Tier 1.1: legacy user-defined sort rules ---
-            foreach (ModSortRule rule in sortRules)
+            foreach (ModSortRule rule in sortRulesSnapshot)
             {
                 if (rule == null)
                     continue;
@@ -282,8 +321,8 @@ namespace ModHearth
                 TryAddEdge(edges, indegree, beforeId, afterId);
             }
 
-            // --- Tier 1.5: community sort rules fetched from a GitHub repository URL ---
-            foreach (ModSortRule rule in communitySortRules)
+            // --- Tier 1.5: community sort rules ---
+            foreach (ModSortRule rule in communitySortRulesSnapshot)
             {
                 if (rule == null)
                     continue;
@@ -326,8 +365,7 @@ namespace ModHearth
                 }
             }
 
-            // --- Tier 3: vanilla-base structural edges. A mod sharing a raw definition with a vanilla object (per DF's own errorlog.txt) is
-            // almost always intended to patch/extend it, not replace it silently, so vanilla goes first. ---
+            // --- Tier 3: vanilla-base structural edges ---
             foreach (HashSet<string> group in GetDuplicateWarningGroups())
             {
                 List<string> vanillaIds = new List<string>();
@@ -367,14 +405,13 @@ namespace ModHearth
                 }
             }
 
-            // --- Tier 4: raw-scan-derived edges (lowest priority mechanically inferred, not declared by anyone) ---
+            // --- Tier 4: raw-scan-derived edges (optimized and parallelized) ---
             Dictionary<string, List<string>> directDefiners = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, List<string>> selectorsByTarget = new(StringComparer.OrdinalIgnoreCase);
+
             foreach (string id in enabledIds)
             {
-                if (!idMap.TryGetValue(id, out ModReference? modref) || modref == null)
-                    continue;
-                ModRawDependencyInfo? info = GetRawDependencyInfo(modref);
-                if (info == null)
+                if (!rawInfoSnapshot.TryGetValue(id, out ModRawDependencyInfo? info))
                     continue;
 
                 foreach (string definedId in info.DirectDefinitionIds)
@@ -386,90 +423,94 @@ namespace ModHearth
                     }
                     definers.Add(id);
                 }
-            }
 
-            // CUT-before-SELECT: if mod A cuts target T and mod B separately SELECTs (patches) T without also cutting it, A must load before
-            // B. Otherwise A's CUT silently erases B's additions. If both A and B cut the same target, there's no principled correct order
-            // (whichever cuts last is the one whose CUT sticks). Rather than leave that undetermined, a deterministic best-effort order is
-            // assigned using the same signal baseOrder itself is built from.
-            foreach (string cutterId in enabledIds)
-            {
-                if (!idMap.TryGetValue(cutterId, out ModReference? cutterRef) || cutterRef == null)
-                    continue;
-                ModRawDependencyInfo? cutterInfo = GetRawDependencyInfo(cutterRef);
-                if (cutterInfo == null || !cutterInfo.IsCutter || cutterInfo.CutTargetIds.Count == 0)
-                    continue;
-
-                HashSet<string> cutTargets = new HashSet<string>(cutterInfo.CutTargetIds, StringComparer.OrdinalIgnoreCase);
-
-                foreach (string selectorId in enabledIds)
+                foreach (string targetId in info.SelectTargetIds)
                 {
-                    if (string.Equals(selectorId, cutterId, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (!idMap.TryGetValue(selectorId, out ModReference? selectorRef) || selectorRef == null)
-                        continue;
-                    ModRawDependencyInfo? selectorInfo = GetRawDependencyInfo(selectorRef);
-                    if (selectorInfo == null)
-                        continue;
-
-                    bool selectsCutTarget = selectorInfo.SelectTargetIds.Any(t => cutTargets.Contains(t));
-                    if (!selectsCutTarget)
-                        continue;
-
-                    if (HasExplicitOrder(selectorRef, cutterRef) || HasExplicitOrder(cutterRef, selectorRef))
-                        continue;
-
-                    bool selectorAlsoCutsSameTarget = selectorInfo.IsCutter &&
-                        selectorInfo.CutTargetIds.Any(t => cutTargets.Contains(t));
-
-                    if (selectorAlsoCutsSameTarget)
+                    if (!selectorsByTarget.TryGetValue(targetId, out List<string>? selectors))
                     {
-                        string? winnerId = PickBestEffortOrder(cutterRef, selectorRef, originalIndex);
-                        if (winnerId != null)
-                        {
-                            string loserId = string.Equals(winnerId, cutterId, StringComparison.OrdinalIgnoreCase) ? selectorId : cutterId;
-                            TryAddEdge(edges, indegree, winnerId, loserId);
-                        }
-                        continue;
+                        selectors = new List<string>();
+                        selectorsByTarget[targetId] = selectors;
                     }
-
-                    TryAddEdge(edges, indegree, cutterId, selectorId);
+                    selectors.Add(id);
                 }
             }
 
-            // COPY_TAGS_FROM: a hard dependency. Whoever directly defines the source ID must load before anything that copies its tags.
-            foreach (string copierId in enabledIds)
+            List<string> enabledIdsList = enabledIds.ToList();
+
+            Parallel.ForEach(enabledIdsList, cutterId =>
+            {
+                if (!idMap.TryGetValue(cutterId, out ModReference? cutterRef) || cutterRef == null)
+                    return;
+                if (!rawInfoSnapshot.TryGetValue(cutterId, out ModRawDependencyInfo? cutterInfo))
+                    return;
+                if (!cutterInfo.IsCutter || cutterInfo.CutTargetIds.Count == 0)
+                    return;
+
+                foreach (string cutTargetId in cutterInfo.CutTargetIds)
+                {
+                    if (selectorsByTarget.TryGetValue(cutTargetId, out List<string>? selectors))
+                    {
+                        foreach (string selectorId in selectors)
+                        {
+                            if (string.Equals(selectorId, cutterId, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            if (!idMap.TryGetValue(selectorId, out ModReference? selectorRef) || selectorRef == null)
+                                continue;
+                            if (!rawInfoSnapshot.TryGetValue(selectorId, out ModRawDependencyInfo? selectorInfo))
+                                continue;
+
+                            if (HasExplicitOrder(selectorRef, cutterRef) || HasExplicitOrder(cutterRef, selectorRef))
+                                continue;
+
+                            bool selectorAlsoCutsSameTarget = selectorInfo.IsCutter &&
+                                selectorInfo.CutTargetIds.Contains(cutTargetId, StringComparer.OrdinalIgnoreCase);
+
+                            if (selectorAlsoCutsSameTarget)
+                            {
+                                string? winnerId = PickBestEffortOrder(cutterRef, selectorRef, originalIndex);
+                                if (winnerId != null)
+                                {
+                                    string loserId = string.Equals(winnerId, cutterId, StringComparison.OrdinalIgnoreCase) ? selectorId : cutterId;
+                                    TryAddEdge(edges, indegree, winnerId, loserId, syncRoot);
+                                }
+                                continue;
+                            }
+
+                            TryAddEdge(edges, indegree, cutterId, selectorId, syncRoot);
+                        }
+                    }
+                }
+            });
+
+            // COPY_TAGS_FROM
+            Parallel.ForEach(enabledIdsList, copierId =>
             {
                 if (!idMap.TryGetValue(copierId, out ModReference? copierRef) || copierRef == null)
-                    continue;
-                ModRawDependencyInfo? copierInfo = GetRawDependencyInfo(copierRef);
-                if (copierInfo == null || copierInfo.CopyTagsFromSourceIds.Count == 0)
-                    continue;
+                    return;
+                if (!rawInfoSnapshot.TryGetValue(copierId, out ModRawDependencyInfo? copierInfo) || copierInfo.CopyTagsFromSourceIds.Count == 0)
+                    return;
 
                 foreach (string sourceId in copierInfo.CopyTagsFromSourceIds)
                 {
-                    if (!directDefiners.TryGetValue(sourceId, out List<string>? definers))
-                        continue;
-
-                    foreach (string definerId in definers)
+                    if (directDefiners.TryGetValue(sourceId, out List<string>? definers))
                     {
-                        if (string.Equals(definerId, copierId, StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        if (!idMap.TryGetValue(definerId, out ModReference? definerRef) || definerRef == null)
-                            continue;
+                        foreach (string definerId in definers)
+                        {
+                            if (string.Equals(definerId, copierId, StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            if (!idMap.TryGetValue(definerId, out ModReference? definerRef) || definerRef == null)
+                                continue;
 
-                        if (HasExplicitOrder(copierRef, definerRef) || HasExplicitOrder(definerRef, copierRef))
-                            continue;
+                            if (HasExplicitOrder(copierRef, definerRef) || HasExplicitOrder(definerRef, copierRef))
+                                continue;
 
-                        TryAddEdge(edges, indegree, definerId, copierId);
+                            TryAddEdge(edges, indegree, definerId, copierId, syncRoot);
+                        }
                     }
                 }
-            }
+            });
 
-            // Mod-vs-mod duplicate warnings (from DF's own errorlog.txt) where none of the conflicting mods are vanilla. 
-            // If some are cutters and some aren't, put non-cutters first. 
-            // Complementary to the CUT-before-SELECT pass above: this comes from DF's actual
-            // reported conflicts rather than requiring the scan to match a specific SELECT target ID.
+            // --- Tier 5: Mod-vs-mod duplicate warnings ---
             foreach (HashSet<string> group in GetDuplicateWarningGroups())
             {
                 List<string> modIds = group.Where(id =>
@@ -483,9 +524,7 @@ namespace ModHearth
                 List<string> baseIds = new List<string>();
                 foreach (string id in modIds)
                 {
-                    if (!idMap.TryGetValue(id, out ModReference? modref) || modref == null)
-                        continue;
-                    if (GetRawDependencyInfo(modref)?.IsCutter == true)
+                    if (rawInfoSnapshot.TryGetValue(id, out ModRawDependencyInfo? info) && info.IsCutter)
                         cutterIds.Add(id);
                     else
                         baseIds.Add(id);
@@ -512,11 +551,9 @@ namespace ModHearth
                 }
             }
 
-            // Two or more enabled mods directly defining the same raw ID with no CUT relationship between them is a genuine conflict. 
-            // No order makes it correct, DF will silently misbehave regardless. Still assign a deterministic best-effort order (chained through
-            // the whole group) rather than leave it to incidental Kahn's-algorithm frontier timing, and surface it so it's at least traceable.
+            // Direct definition conflicts
             List<string> conflictingKeys = new List<string>();
-            HashSet<string> activeModIds = new HashSet<string>(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> activeModIds = new HashSet<string>(enabledModsSnapshot.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, List<string>> kvp in directDefiners)
             {
                 if (kvp.Value.Count <= 1)
@@ -525,8 +562,8 @@ namespace ModHearth
                 bool anyCutRelationship = false;
                 foreach (string candidateId in kvp.Value)
                 {
-                    if (idMap.TryGetValue(candidateId, out ModReference? candidate) && candidate != null &&
-                        GetRawDependencyInfo(candidate)?.CutTargetIds.Contains(kvp.Key) == true)
+                    if (rawInfoSnapshot.TryGetValue(candidateId, out ModRawDependencyInfo? info) &&
+                        info.CutTargetIds.Contains(kvp.Key, StringComparer.OrdinalIgnoreCase))
                     {
                         anyCutRelationship = true;
                         break;
@@ -534,9 +571,8 @@ namespace ModHearth
                 }
 
                 if (anyCutRelationship)
-                    continue; // already handled by the CUT-before-SELECT pass above
+                    continue;
 
-                // Only surface this to ui if at least two of the actual culprits are in their real active modlist
                 if (kvp.Value.Count(id => activeModIds.Contains(id)) > 1)
                     conflictingKeys.Add(kvp.Key);
 
@@ -559,7 +595,7 @@ namespace ModHearth
 
             if (conflictingKeys.Any())
             {
-                Console.WriteLine($"[ModSort] Warning: \'{string.Join(", ", conflictingKeys)}\' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
+                Console.WriteLine($"[ModSort] Warning: '{string.Join(", ", conflictingKeys)}' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
             }
 
             List<string> available = new List<string>();
@@ -581,8 +617,6 @@ namespace ModHearth
                 }
             }
 
-            // With every edge added through TryAddEdge's cycle check, the graph should always be acyclic by construction. 
-            // This remains only as a defensive fallback.
             if (sortedIds.Count != enabledIds.Count)
                 sortedIds = baseOrder.Select(m => m.ID).ToList();
 
@@ -591,14 +625,18 @@ namespace ModHearth
                 if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
                     sortedMods.Add(modref.ToDFHMod());
 
-            bool changed = sortedMods.Count != enabledMods.Count;
+            bool changed = sortedMods.Count != enabledModsSnapshot.Count;
             if (!changed)
+            {
                 for (int i = 0; i < sortedMods.Count; i++)
-                    if (sortedMods[i] != enabledMods[i])
+                {
+                    if (sortedMods[i] != enabledModsSnapshot[i])
                     {
                         changed = true;
                         break;
                     }
+                }
+            }
 
             if (changed)
             {

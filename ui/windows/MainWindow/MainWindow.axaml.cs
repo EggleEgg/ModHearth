@@ -218,8 +218,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         leftSearchBar.SortOrderChanged += OnSearchModeChanged;
         rightSearchBar.SortOrderChanged += OnSearchModeChanged;
 
-        leftSearchBar.ColorPickerClicked += OnColorPickerClicked;
-        rightSearchBar.ColorPickerClicked += OnColorPickerClicked;
+
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
         saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);
@@ -238,6 +237,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         deleteListButton.Click += async (_, _) => await DeleteModpackAsync();
         importButton.Click += async (_, _) => await ImportModpackAsync();
         exportButton.Click += async (_, _) => await ExportModpackAsync();
+        clearModlistButton.Click += async (_, _) => await ClearModlistAsync();
 
         warningIssuesButton.Click += (_, _) => JumpToNextProblem();
         redoConfigButton.Click += async (_, _) => await RedoConfigAsync();

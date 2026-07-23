@@ -177,14 +177,17 @@
           <ComboBox x:Name="modpackComboBox" Grid.Row="2" Height="30" HorizontalAlignment="Stretch" />
 
           <Grid Grid.Row="3" ColumnDefinitions="*,*,*" Height="28">
-            <Button x:Name="newListButton" Content="New" FontSize="12" />
-            <Button x:Name="renameListButton" Grid.Column="1" Content="Rename" FontSize="12" />
-            <Button x:Name="deleteListButton" Grid.Column="2" Content="Delete" FontSize="12" />
+            <Button x:Name="newListButton" Content="New" FontSize="12" ToolTip.Tip="Create a new modpack"/>
+            <Button x:Name="renameListButton" Grid.Column="1" Content="Rename" FontSize="12" ToolTip.Tip="Rename this modpack"/>
+            <Button x:Name="deleteListButton" Grid.Column="2" Content="Delete" FontSize="12" ToolTip.Tip="Delete this modpack"/>
           </Grid>
 
-          <Grid Grid.Row="4" ColumnDefinitions="*,*" Height="28">
-            <Button x:Name="importButton" Content="Import" FontSize="13" />
-            <Button x:Name="exportButton" Grid.Column="1" Content="Export" FontSize="13" />
+          <Grid Grid.Row="4" ColumnDefinitions="Auto,*,*" Height="28">
+            <Button x:Name="clearModlistButton" ToolTip.Tip="Clear the current modlist" Width="28" Padding="0,0,-1,-3">
+              <Image Source="{ui:AssetImage broomMenuIcon.svg}"/>
+            </Button>
+            <Button x:Name="importButton" Grid.Column="1" Content="Import" FontSize="13" />
+            <Button x:Name="exportButton" Grid.Column="2" Content="Export" FontSize="13" />
           </Grid>
 
           <Border Grid.Row="5" Grid.ColumnSpan="3" Background="{DynamicResource SeparatorBrush}" Height="2" HorizontalAlignment="Stretch" Margin="0,2,0,4" />

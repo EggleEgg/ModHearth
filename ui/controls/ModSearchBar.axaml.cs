@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Reactive;
@@ -78,6 +79,7 @@ public partial class ModSearchBar : UserControl
         };
         ColorPicker.PickerClicked += (_, e) =>
         {
+            ShowColorPickerFlyout();
             ColorPickerClicked?.Invoke(this, e);
         };
         SearchModeButton.Click += (s, e) =>
@@ -547,9 +549,8 @@ public partial class ModSearchBar : UserControl
         string directionIconName = SortDescending ? "sortDownIcon.svg" : "sortUpIcon.svg";
         SortDirectionIcon.Source = ImageSourceLoader.LoadFromAssetUri(directionIconName)
             ?? SortDirectionIcon.Source;
-        // If searchbar button size changes, also modify this
-        //TODO Get ToggleButton width to set the width value (IsSortingEnabled == false)
-        SearchModeButton.Width = IsSortingEnabled ? 30 : 22;
+
+        SearchModeButton.Width = IsSortingEnabled ? 30 : ToggleButton.Width;
 
         if (!IsSortingEnabled)
         {
@@ -604,5 +605,122 @@ public partial class ModSearchBar : UserControl
             SearchMode = Enum.Parse<SearchFilterMode>(parts[2]);
             Text = parts[0];
         }
+    }
+
+    private void ShowColorPickerFlyout()
+    {
+        var availableColors = ColorPicker.AvailableColors.Select(c => c.ModColor).ToList();
+
+        var grid = new UniformGrid
+        {
+            Columns = (int)Math.Sqrt(availableColors.Count + 1),
+        };
+
+        void RefreshGrid()
+        {
+            grid.Children.Clear();
+
+            // Add "Clear" option
+            grid.Children.Add(CreateColorSwatchButton(new ModColorInfo
+            {
+                ModColor = ModColor.None,
+                Name = "Clear all filters",
+                Color = Colors.Transparent,
+                IsSelected = false
+            }, _ =>
+            {
+                Text = string.Empty;
+                RefreshGrid();
+            }));
+
+            var currentSelection = Text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            foreach (var color in availableColors)
+            {
+                var info = new ModColorInfo
+                {
+                    ModColor = color,
+                    Name = ModColorMap.ColorNames.TryGetValue(color, out var name) ? name : color.ToString(),
+                    Color = ModColorMap.GetColor(color),
+                    IsSelected = currentSelection.Contains(color.ToString())
+                };
+                grid.Children.Add(CreateColorSwatchButton(info, c =>
+                {
+                    ToggleColor(c);
+                    RefreshGrid();
+                }));
+            }
+        }
+
+        void ToggleColor(ModColor color)
+        {
+            var text = Text;
+            var selectedColors = text.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToList();
+
+            var colorStr = color.ToString();
+            if (selectedColors.Contains(colorStr))
+                selectedColors.Remove(colorStr);
+            else
+                selectedColors.Add(colorStr);
+
+            Text = string.Join(",", selectedColors);
+        }
+
+        RefreshGrid();
+
+        var flyout = new Flyout
+        {
+            FlyoutPresenterClasses = { "compact-flyout" },
+            Content = new Border
+            {
+                Padding = new Thickness(0),
+                Child = grid
+            }
+        };
+
+        flyout.ShowAt(this);
+    }
+
+    private static Button CreateColorSwatchButton(ModColorInfo colorInfo, Action<ModColor> onSelected)
+    {
+        Border swatch = new Border
+        {
+            Width = 30,
+            Height = 30,
+            CornerRadius = new CornerRadius(3),
+            Background = (colorInfo.ModColor == ModColor.None) ? Brushes.Transparent : BrushCache.GetBrush(colorInfo.Color),
+            BorderBrush = colorInfo.IsSelected && Style.instance != null ? BrushCache.GetBrush(Style.instance.buttonSelectionColor.ToAvaloniaColor()) : Brushes.Gray,
+            BorderThickness = new Thickness(colorInfo.IsSelected ? 4 : 1)
+        };
+
+        if (colorInfo.ModColor == ModColor.None)
+        {
+            swatch.Child = new TextBlock
+            {
+                Text = "\u2715",
+                FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.Gray
+            };
+        }
+
+        Button button = new Button
+        {
+            Content = swatch,
+            Padding = new Thickness(0),
+            Margin = new Thickness(2),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0)
+        };
+
+        ToolTip.SetTip(button, colorInfo.Name);
+        button.Click += (_, _) => onSelected(colorInfo.ModColor);
+
+        return button;
     }
 }

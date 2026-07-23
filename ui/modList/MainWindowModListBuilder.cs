@@ -9,9 +9,21 @@ internal static class MainWindowModListBuilder
         modViewMap.Clear();
         string modsFolderPath = ConfigManager.GetModsPath();
         string vanillaFolderPath = ConfigManager.GetVanillaModsPath();
-        foreach (DFHMod dfm in manager.modPool)
+
+        List<DFHMod> modList = manager.modPool.ToList();
+
+        // ModRefViewModel construction, source classification, and RefreshStyle() are
+        // independent per mod. Computed into an indexed array and merged into modViewMap
+        // sequentially (Dictionary writes aren't thread-safe even though the per-item work is).
+        (string Key, ModRefViewModel Vm)?[] results = new (string, ModRefViewModel)?[modList.Count];
+        Parallel.For(0, modList.Count, new ParallelOptions
         {
-            ModReference modref = manager.GetModRef(dfm.ToString());
+            MaxDegreeOfParallelism = Environment.ProcessorCount
+        }, i =>
+        {
+            DFHMod dfm = modList[i];
+            string key = dfm.ToString();
+            ModReference modref = manager.GetModRef(key);
             ModRefViewModel vm = new ModRefViewModel(modref);
             (bool isVanillaMod, bool isLocalMod, bool isSteamMod) = ModSourceClassifier.Classify(
                 modref,
@@ -21,7 +33,13 @@ internal static class MainWindowModListBuilder
             vm.IsLocalModSource = isLocalMod;
             vm.IsSteamModSource = isSteamMod;
             vm.RefreshStyle();
-            modViewMap[dfm.ToString()] = vm;
+            results[i] = (key, vm);
+        });
+
+        foreach ((string Key, ModRefViewModel Vm)? result in results)
+        {
+            if (result != null)
+                modViewMap[result.Value.Key] = result.Value.Vm;
         }
     }
 

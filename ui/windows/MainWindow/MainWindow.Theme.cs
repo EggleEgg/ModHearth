@@ -81,6 +81,7 @@ public partial class MainWindow
             saveButton,
             undoChangesButton,
             clearInstalledModsButton,
+            clearModlistButton,
             reloadButton,
             newListButton,
             renameListButton,

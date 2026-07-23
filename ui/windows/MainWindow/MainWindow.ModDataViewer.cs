@@ -6,6 +6,8 @@ using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
 using Dock.Model.Core;
 using DockOrientation = Dock.Model.Core.Orientation;
+using System.Collections.Specialized;
+using Avalonia.Threading;
 
 namespace ModHearth.UI;
 
@@ -24,6 +26,9 @@ public partial class MainWindow
     private Tool? modPreviewTool;
     private Tool? modDataTool;
     private Tool? descriptionTool;
+    private readonly HashSet<ToolDock> emptyToolDocks = new();
+    private readonly Dictionary<ToolDock, double> reclaimedToolDockProportions = new();
+    private const double CollapsedToolDockProportion = 0.04;
     private ModReference? currentModDataModRef;
     private readonly ModInfoDockFactory factory = new();
 
@@ -168,6 +173,10 @@ public partial class MainWindow
         modInfoDockControl.Factory = factory;
         modInfoDockControl.Layout = root;
 
+        HookEmptyDockRebalance(modDataDock);
+        HookEmptyDockRebalance(descriptionDock);
+        HookEmptyDockRebalance(previewDock);
+
         PopulateModDataViewer(null);
     }
 
@@ -234,6 +243,99 @@ public partial class MainWindow
             previewProportion,
             previewOrientation,
             previewFirst);
+    }
+
+    private void HookEmptyDockRebalance(ToolDock dock)
+    {
+        if (dock.VisibleDockables is INotifyCollectionChanged notifyCollection)
+        {
+            notifyCollection.CollectionChanged += (_, _) =>
+            {
+                if (DevMode.IsEnabled)
+                    Console.WriteLine($"[DockRebalance] CollectionChanged fired for '{dock.Id}', Count={dock.VisibleDockables?.Count ?? -1}");
+                RebalanceEmptyToolDock(dock);
+            };
+        }
+        else if (DevMode.IsEnabled)
+        {
+            Console.WriteLine($"[DockRebalance] '{dock.Id}'.VisibleDockables is NOT INotifyCollectionChanged (actual type: {dock.VisibleDockables?.GetType().FullName ?? "null"})");
+        }
+    }
+
+    private void RebalanceEmptyToolDock(ToolDock dock)
+    {
+        bool isEmptyNow = dock.VisibleDockables == null || dock.VisibleDockables.Count == 0;
+        bool wasEmpty = emptyToolDocks.Contains(dock);
+        if (DevMode.IsEnabled)
+            Console.WriteLine($"[DockRebalance] '{dock.Id}' isEmptyNow={isEmptyNow} wasEmpty={wasEmpty} Proportion={dock.Proportion} Owner={dock.Owner?.Id ?? "null"} OwnerType={dock.Owner?.GetType().Name ?? "null"}");
+
+        if (isEmptyNow == wasEmpty)
+            return;
+
+        if (dock.Owner is not IDock parent || parent.VisibleDockables == null)
+        {
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"[DockRebalance] '{dock.Id}' bailing: Owner not usable.");
+            return;
+        }
+
+        List<IDock> siblings = parent.VisibleDockables
+            .Where(d => !ReferenceEquals(d, dock) && d is IDock && d is not ProportionalDockSplitter)
+            .Cast<IDock>()
+            .ToList();
+        if (DevMode.IsEnabled)
+            Console.WriteLine($"[DockRebalance] '{dock.Id}' siblings=[{string.Join(", ", siblings.Select(s => $"{s.Id}:{s.Proportion:F3}"))}]");
+        if (siblings.Count == 0)
+            return;
+
+        if (isEmptyNow)
+        {
+            reclaimedToolDockProportions[dock] = dock.Proportion;
+            double freed = dock.Proportion - CollapsedToolDockProportion;
+            if (freed > 0)
+            {
+                double siblingTotal = siblings.Sum(s => s.Proportion);
+                foreach (IDock sibling in siblings)
+                {
+                    double share = siblingTotal > 0 ? sibling.Proportion / siblingTotal : 1.0 / siblings.Count;
+                    sibling.Proportion += freed * share;
+                }
+                dock.Proportion = CollapsedToolDockProportion;
+                if (DevMode.IsEnabled) Console.WriteLine($"[DockRebalance] '{dock.Id}' -> Proportion now {dock.Proportion:F3}");
+            }
+            emptyToolDocks.Add(dock);
+        }
+        else
+        {
+            double target = reclaimedToolDockProportions.TryGetValue(dock, out double remembered) ? remembered : 0.3;
+            double needed = target - dock.Proportion;
+            double siblingTotal = siblings.Sum(s => s.Proportion);
+            if (needed > 0 && siblingTotal > needed)
+            {
+                foreach (IDock sibling in siblings)
+                {
+                    double share = sibling.Proportion / siblingTotal;
+                    sibling.Proportion -= needed * share;
+                }
+                dock.Proportion = target;
+                if (DevMode.IsEnabled) Console.WriteLine($"[DockRebalance] '{dock.Id}' -> Proportion now {dock.Proportion:F3}");
+            }
+            emptyToolDocks.Remove(dock);
+            reclaimedToolDockProportions.Remove(dock);
+        }
+
+        // Proportion values above are correct per DevMode logs, but nothing observed changing them on
+        // screen -- suggests this Dock.Avalonia version's rendering panel doesn't react to Proportion
+        // mutations made outside an active splitter-drag gesture. Forcing a fresh layout pass is a
+        // standard, version-agnostic Avalonia mechanism (not a Dock-internals guess) to make it pick
+        // the new values up.
+        Dispatcher.UIThread.Post(() =>
+        {
+            modInfoDockControl.InvalidateMeasure();
+            modInfoDockControl.InvalidateArrange();
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"[DockRebalance] '{dock.Id}' invalidated modInfoDockControl measure/arrange.");
+        }, DispatcherPriority.Background);
     }
 
     private static IDockable? FindDockableById(IDockable dockable, string id)

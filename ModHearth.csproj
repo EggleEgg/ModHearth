@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.0.5" />
     <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
     <PackageReference Include="Dock.Controls.DeferredContentControl" Version="12.0.0.2" />
@@ -38,6 +39,7 @@
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
     <PackageReference Include="Avalonia.HtmlRenderer" Version="12.0.0" />
     <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.13" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
 
     <PackageReference Include="CodeKicker.BBCode" Version="5.0.0">
       <NoWarn>NU1701</NoWarn>

@@ -135,7 +135,7 @@ public partial class MainWindow
     // and silently clobber the more recent state with a stale sort/save), 
     // we just flag that the in-flight pass should run once more after it finishes, reflecting whatever the latest state is by then. 
     // Made=false calls skip this gate entirely, matching original behavior where they never triggered sort/save in the first place.
-    private async Task SetAndMarkChangesAsync(bool made)
+    private async Task SetAndMarkChangesAsync(bool made, bool skipSort = false)
     {
         if (made && !isRedoing)
             ClearRedo();
@@ -158,7 +158,7 @@ public partial class MainWindow
             do
             {
                 autoActionRerunRequested = false;
-                autoSaved = await RunAutoSortAndAutoSaveAsync();
+                autoSaved = await RunAutoSortAndAutoSaveAsync(skipSort);
             }
             while (autoActionRerunRequested);
 
@@ -170,9 +170,9 @@ public partial class MainWindow
         }
     }
 
-    private async Task<bool> RunAutoSortAndAutoSaveAsync()
+    private async Task<bool> RunAutoSortAndAutoSaveAsync(bool skipSort)
     {
-        if (ConfigManager.IsAutoSortEnabled())
+        if (ConfigManager.IsAutoSortEnabled() && !skipSort)
         {
             bool sorted = await Task.Run(() => manager.ModSortEnabledMods());
             if (sorted)
@@ -359,5 +359,15 @@ public partial class MainWindow
         {
             await DialogService.ShowMessageAsync(this, "Error: " + ex.Message, "Error");
         }
+    }
+
+    private async Task ClearModlistAsync()
+    {
+        if (manager.enabledMods.Count == 0)
+            return;
+
+        manager.SetActiveMods(new List<DFHMod>());
+        RefreshModlistPanels();
+        await SetAndMarkChangesAsync(true);
     }
 }
