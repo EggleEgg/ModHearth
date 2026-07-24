@@ -38,10 +38,16 @@ internal static class Program
 
         PublishedFileId_t id = new PublishedFileId_t(rawId);
         string appIdFilePath = Path.Combine(AppContext.BaseDirectory, "steam_appid.txt");
+        // If a caller already dropped the file there for a batch of concurrent workers, don't
+        // write/delete it ourselves — the content is identical (same App ID) for every action,
+        // so the caller owns its lifetime for the whole batch instead of each process racing
+        // to write-then-delete around its own short lifetime.
+        bool ownsAppIdFile = !File.Exists(appIdFilePath);
 
         try
         {
-            File.WriteAllText(appIdFilePath, DwarfFortressSteamAppId);
+            if (ownsAppIdFile)
+                File.WriteAllText(appIdFilePath, DwarfFortressSteamAppId);
 
             if (!SteamAPI.Init())
                 return Fail("SteamAPI.Init() failed. Is Steam running and logged in?");
@@ -68,12 +74,13 @@ internal static class Program
         }
         finally
         {
-            // Same reasoning as before: this file is only ever consulted during SteamAPI_Init()'s
-            // handshake. Deleting it right after, on top of this whole process exiting a moment
-            // later anyway, leaves essentially nothing on disk for any scan to catch.
-            try { if (File.Exists(appIdFilePath)) File.Delete(appIdFilePath); } catch { /* best effort */ }
+            if (ownsAppIdFile)
+            {
+                try { if (File.Exists(appIdFilePath)) File.Delete(appIdFilePath); } catch { /* best effort */ }
+            }
         }
     }
+
 
     private static int RunSubscribe(PublishedFileId_t id)
     {

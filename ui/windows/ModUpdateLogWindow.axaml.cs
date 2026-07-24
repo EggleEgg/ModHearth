@@ -192,32 +192,15 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
         };
     }
 
-    public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
+    // Handled by ModRefControl
+    public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
+
+    public ModHearthManager? GetManager() => manager;
+
+    public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm)
     {
-        if (manager == null)
-            return;
-
-        foreach (Control item in menu.Items.OfType<Control>())
-        {
-            if (item is MenuItem menuItem)
-            {
-                string tag = menuItem.Tag?.ToString() ?? string.Empty;
-                if (string.Equals(tag, "set-mod-color-root", StringComparison.Ordinal))
-                {
-                    menuItem.IsVisible = false;
-                }
-            }
-        }
-
-        if (logList.SelectedItems == null)
-            return;
-
-        List<ModUpdateLogItemViewModel> selected = logList.SelectedItems.Cast<ModUpdateLogItemViewModel>().ToList();
-        ModContextMenuSupport.PrepareContextMenu(
-            menu,
-            manager,
-            vm.ModReference,
-            selected.Select(item => item.ModReference));
+        return logList.SelectedItems?.Cast<ModUpdateLogItemViewModel>().Select(item => item.ModReference)
+            ?? Enumerable.Empty<ModReference>();
     }
 
     public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
@@ -257,11 +240,8 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             DataGridRow.ForegroundProperty,
             new Binding(nameof(ModUpdateLogItemViewModel.RowBrush)) { Mode = BindingMode.OneWay });
 
-        if (e.Row.DataContext is ModUpdateLogItemViewModel vm)
-        {
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
-        }
+        if (e.Row.DataContext is ModUpdateLogItemViewModel vm && DevMode.IsEnabled)
+            Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
     }
 
     private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)

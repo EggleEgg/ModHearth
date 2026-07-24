@@ -15,28 +15,37 @@ public partial class MainWindow : IModRefContextMenuProvider
 {
     public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
     {
-        foreach (var item in menu.Items)
+        // ModRefControl has already called PrepareContextMenu via GetManager/GetSelectedModReferences.
+        var selected = GetSelectedModReferences(vm).Select(mod =>
         {
-            if (item is MenuItem menuItem)
-            {
-                string? tag = menuItem.Tag?.ToString();
-                if (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
-                         tag?.StartsWith("relation-", StringComparison.Ordinal) == true)
-                {
-                    // Visibility is now controlled by ModRefControl.AllowRelationshipEditing
-                }
-                if (string.Equals(tag, "relations-root", StringComparison.Ordinal))
-                {
-                    ModContextMenuSupport.ConfigureRelationsMenu(menuItem, vm);
-                }
-            }
-            else if (item is Separator separator)
-            {
-                separator.IsVisible = true;
-            }
+            string key = mod.ToDFHMod().ToString();
+            return modViewMap.TryGetValue(key, out var v) ? v : null;
+        }).OfType<ModRefViewModel>().ToList();
+
+        ConfigureModColorSubmenu(menu, vm, selected);
+    }
+
+    public ModHearthManager? GetManager() => manager;
+
+    public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm)
+    {
+        ListBox? list = GetListForMod(contextVm);
+        if (list == null)
+        {
+            if (rightModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(contextVm) ?? false)
+                list = rightModlist;
+            else if (leftModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(contextVm) ?? false)
+                list = leftModlist;
         }
 
-        ModContextMenuOpened(menu, new RoutedEventArgs());
+        if (list != null && list.SelectedItems != null)
+        {
+            modListController.TryRestoreContextSelection(list, contextVm);
+            ModContextMenuSupport.EnsureContextItemSelected(list.SelectedItems, contextVm);
+            return list.SelectedItems.Cast<ModRefViewModel>().Select(v => v.ModReference).ToList();
+        }
+
+        return new[] { contextVm.ModReference };
     }
 
     public void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
@@ -66,53 +75,6 @@ public partial class MainWindow : IModRefContextMenuProvider
         }
     }
 
-    private void ModContextMenuOpened(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not ContextMenu menu)
-            return;
-
-        Control? placementControl = menu.PlacementTarget as Control;
-        ModRefViewModel? vm =
-            placementControl?.DataContext as ModRefViewModel ??
-            menu.DataContext as ModRefViewModel ??
-            menu.Items.OfType<MenuItem>()
-                .Select(item => item.DataContext)
-                .OfType<ModRefViewModel>()
-                .FirstOrDefault() ??
-            rightModlist.SelectedItems?.OfType<ModRefViewModel>().FirstOrDefault() ??
-            leftModlist.SelectedItems?.OfType<ModRefViewModel>().FirstOrDefault();
-        if (vm == null)
-            return;
-
-        ListBox? list = GetListForMod(vm);
-        if (list == null)
-        {
-            if (rightModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) ?? true)
-                list = rightModlist;
-            else if (leftModlist.SelectedItems?.OfType<ModRefViewModel>().Contains(vm) ?? true)
-                list = leftModlist;
-            else if (rightModlist.SelectedItems?.Count > 0)
-                list = rightModlist;
-            else if (leftModlist.SelectedItems?.Count > 0)
-                list = leftModlist;
-        }
-
-        if (list != null)
-        {
-            modListController.TryRestoreContextSelection(list, vm);
-            ModContextMenuSupport.EnsureContextItemSelected(list.SelectedItems, vm);
-        }
-
-        List<ModRefViewModel> selected = list?.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
-        ModContextMenuSupport.PrepareContextMenu(
-            menu,
-            manager,
-            vm.ModReference,
-            selected.Select(item => item.ModReference));
-
-        ConfigureModColorSubmenu(menu, vm, selected);
-    }
 
     private async void ModContextDeleteMod(object? sender, RoutedEventArgs e)
     {

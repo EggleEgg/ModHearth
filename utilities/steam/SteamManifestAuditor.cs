@@ -16,13 +16,13 @@ namespace ModHearth.Utilities
             SteamConnectionLogger.Log("Starting Steam workshop manifest audit...");
 
             var acfPaths = ConfigManager.GetSteamWorkshopAcfPaths();
-            int wakeUpCalls = 0;
+            List<ulong> missingItemIds = new List<ulong>();
 
             foreach (string acfPath in acfPaths)
             {
                 try
                 {
-                    AuditManifest(acfPath, steamService, ref wakeUpCalls);
+                    CollectMissingItems(acfPath, missingItemIds);
                 }
                 catch (Exception ex)
                 {
@@ -30,17 +30,24 @@ namespace ModHearth.Utilities
                 }
             }
 
-            if (wakeUpCalls > 0)
-            {
-                SteamConnectionLogger.Log($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
-            }
-            else
+            if (missingItemIds.Count == 0)
             {
                 SteamConnectionLogger.Log("Manifest audit completed. No discrepancies found.");
+                return;
             }
+
+            SteamConnectionLogger.LogWarning(
+                $"Manifest audit found {missingItemIds.Count} missing workshop item(s) across all manifests. Sending wake-up calls.");
+
+            int wakeUpCalls = SteamWorkshopService.DownloadMany(missingItemIds);
+
+            if (wakeUpCalls > 0)
+                SteamConnectionLogger.Log($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
+            else
+                SteamConnectionLogger.LogError("Manifest audit completed. Failed to send any wake-up calls for missing items.");
         }
 
-        private static void AuditManifest(string acfPath, SteamWorkshopService steamService, ref int wakeUpCalls)
+        private static void CollectMissingItems(string acfPath, List<ulong> missingItemIds)
         {
             if (!File.Exists(acfPath))
                 return;
@@ -51,7 +58,7 @@ namespace ModHearth.Utilities
             if (!root.TryGetValue("AppWorkshop", out object? appObj) || appObj is not Dictionary<string, object> appDict)
                 return;
 
-            if (!appDict.TryGetValue("WorkshopItemsInstalled", out object? installedObj) || 
+            if (!appDict.TryGetValue("WorkshopItemsInstalled", out object? installedObj) ||
                 installedObj is not Dictionary<string, object> installedDict)
                 return;
 
@@ -60,15 +67,9 @@ namespace ModHearth.Utilities
             string? steamAppsDir = Path.GetDirectoryName(acfPath);
             if (string.IsNullOrWhiteSpace(steamAppsDir)) return;
 
-            string workshopContentDir;
-            if (steamAppsDir.EndsWith("workshop", StringComparison.OrdinalIgnoreCase))
-            {
-                workshopContentDir = Path.Combine(steamAppsDir, "content", ConfigManager.DwarfFortressSteamAppId);
-            }
-            else
-            {
-                workshopContentDir = Path.Combine(steamAppsDir, "workshop", "content", ConfigManager.DwarfFortressSteamAppId);
-            }
+            string workshopContentDir = steamAppsDir.EndsWith("workshop", StringComparison.OrdinalIgnoreCase)
+                ? Path.Combine(steamAppsDir, "content", ConfigManager.DwarfFortressSteamAppId)
+                : Path.Combine(steamAppsDir, "workshop", "content", ConfigManager.DwarfFortressSteamAppId);
 
             foreach (var kvp in installedDict)
             {
@@ -76,20 +77,12 @@ namespace ModHearth.Utilities
                     continue;
 
                 string itemPath = Path.Combine(workshopContentDir, kvp.Key);
-                
-                // Discrepancy check: manifest says installed, but folder is missing or empty
+
                 if (!Directory.Exists(itemPath) || !Directory.EnumerateFileSystemEntries(itemPath).Any())
                 {
-                    SteamConnectionLogger.LogWarning($"Discrepancy found: Workshop item {itemId} is marked as installed in manifest, but local folder is missing or empty. Sending wake-up call.");
-                    
-                    if (SteamWorkshopService.Download(itemId))
-                    {
-                        wakeUpCalls++;
-                    }
-                    else
-                    {
-                        SteamConnectionLogger.LogError($"Failed to send wake-up call for workshop item {itemId}.");
-                    }
+                    SteamConnectionLogger.LogWarning(
+                        $"Discrepancy found: Workshop item {itemId} is marked as installed in manifest, but local folder is missing or empty.");
+                    missingItemIds.Add(itemId);
                 }
             }
         }

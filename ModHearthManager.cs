@@ -2396,6 +2396,23 @@ namespace ModHearth
             return combinedMap;
         }
 
+        public bool HasErrorLogDuplicateWarning(string modId)
+        {
+            EnsureDuplicateWarningCache(logFound: false);
+            if (string.IsNullOrWhiteSpace(modId))
+                return false;
+
+            HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> liveConflictedIds = new(StringComparer.OrdinalIgnoreCase);
+            foreach (HashSet<string> group in duplicateWarningGroups)
+            {
+                if (group.Count(activeModIds.Contains) > 1)
+                    liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
+            }
+
+            return duplicateWarningMap.ContainsKey(modId) && liveConflictedIds.Contains(modId);
+        }
+
         public IReadOnlyList<HashSet<string>> GetDuplicateWarningGroups()
         {
             EnsureDuplicateWarningCache(logFound: true);

@@ -155,7 +155,7 @@ internal static class ModListIndicatorUpdater
         StringBuilder builder = new StringBuilder();
 
         bool hasCache = duplicates.Any(d => d.Contains("[Cache]"));
-        bool hasErrorLog = File.Exists(ConfigManager.GetErrorLogPath());
+        bool hasErrorLog = manager != null && manager.HasErrorLogDuplicateWarning(modId);
 
         if (hasErrorLog)
         {

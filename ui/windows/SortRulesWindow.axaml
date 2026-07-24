@@ -12,6 +12,9 @@
       <ui:ModRefControl ShowColorUnderlay="True"
                         ShowDetailedRuleBadges="True"
                         AllowRelationshipEditing="True"
+                        AllowContextActions="False"
+                        AllowColorEditing="False"
+                        AllowSeparators="False"
                         Margin="0"
                         Padding="2,0"
                         ToolTip.Tip="{Binding HoverTooltip}" />

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using System.Linq;
 
 namespace ModHearth.UI;
 
@@ -54,6 +55,24 @@ public partial class ModRefControl : UserControl
     {
         get => GetValue(HostBackgroundProperty);
         set => SetValue(HostBackgroundProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> AllowColorEditingProperty =
+        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowColorEditing), true);
+
+    public bool AllowColorEditing
+    {
+        get => GetValue(AllowColorEditingProperty);
+        set => SetValue(AllowColorEditingProperty, value);
+    }
+
+    public static readonly StyledProperty<bool> AllowSeparatorsProperty =
+        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowSeparators), true);
+
+    public bool AllowSeparators
+    {
+        get => GetValue(AllowSeparatorsProperty);
+        set => SetValue(AllowSeparatorsProperty, value);
     }
 
     public ModRefControl()
@@ -124,13 +143,28 @@ public partial class ModRefControl : UserControl
         if (DataContext is not ModRefViewModel vm)
             return;
 
-        // Let the ancestor window customize content first (wording, steam-vs-local enable/disable, etc).
-        // Instance-level flags below run last so they always have final say for THIS control.
         IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
+
+        // 1. Centralized preparation if a manager is available via the provider.
+        // This deduplicates calls to ModContextMenuSupport.PrepareContextMenu across all windows.
+        if (provider != null)
+        {
+            ModHearthManager? manager = provider.GetManager();
+            if (manager != null)
+            {
+                var selected = provider.GetSelectedModReferences(vm);
+                ModContextMenuSupport.PrepareContextMenu(menu, manager, vm.ModReference, selected);
+            }
+        }
+
+        // 2. Let the ancestor window customize content (wording, steam-vs-local enable/disable, etc).
+        // Instance-level flags below run last so they always have final say for THIS control.
         provider?.OnModRefContextMenuOpened(menu, vm);
 
         bool allowRelationships = AllowRelationshipEditing;
         bool allowActions = AllowContextActions;
+        bool allowColor = AllowColorEditing;
+        bool allowSeparators = AllowSeparators;
         bool anyVisible = false;
 
         foreach (Control item in menu.Items.OfType<Control>())
@@ -138,14 +172,26 @@ public partial class ModRefControl : UserControl
             string? tag = (item as MenuItem)?.Tag?.ToString() ?? (item as Separator)?.Tag?.ToString();
 
             // Only ever suppress here, never re-enable. Preserves per-item decisions providers already made (e.g. hiding "Open Steam Page" for non-steam mods).
-            if (IsRelationshipTag(tag) && !allowRelationships)
-                item.IsVisible = false;
-            else if (!IsRelationshipTag(tag) && !allowActions)
-                item.IsVisible = false;
-
-            if (string.Equals(tag, "relations-root", StringComparison.Ordinal) && item is MenuItem relationsRoot)
+            if (IsRelationshipTag(tag))
             {
-                ModContextMenuSupport.ConfigureRelationsMenu(relationsRoot, vm);
+                if (!allowRelationships)
+                    item.IsVisible = false;
+                else if (string.Equals(tag, "relations-root", StringComparison.Ordinal) && item is MenuItem relationsRoot)
+                    ModContextMenuSupport.ConfigureRelationsMenu(relationsRoot, vm);
+            }
+            else if (string.Equals(tag, "set-mod-color-root", StringComparison.Ordinal))
+            {
+                if (!allowColor)
+                    item.IsVisible = false;
+            }
+            else if (item is Separator)
+            {
+                if (!allowSeparators)
+                    item.IsVisible = false;
+            }
+            else if (!allowActions)
+            {
+                item.IsVisible = false;
             }
 
             if (item.IsVisible)

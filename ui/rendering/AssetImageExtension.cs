@@ -28,13 +28,15 @@ public sealed class AssetImageExtension : MarkupExtension
     }
 
     public string? Source { get; set; }
+    public double? Opacity { get; set; }
+    public Color? Tint { get; set; }
 
     public override object ProvideValue(IServiceProvider serviceProvider)
     {
         if (string.IsNullOrWhiteSpace(Source))
             return AvaloniaProperty.UnsetValue;
 
-        return ImageSourceLoader.LoadFromAssetUri(Source) ?? AvaloniaProperty.UnsetValue;
+        return ImageSourceLoader.LoadFromAssetUri(Source, Tint, Opacity) ?? AvaloniaProperty.UnsetValue;
     }
 }
 
@@ -66,21 +68,41 @@ internal static class ImageSourceLoader
     // Using Lazy<IImage?> guarantees the factory logic runs exactly once per unique key
     private static readonly ConcurrentDictionary<string, Lazy<IImage?>> imageCache = new();
 
-    public static IImage? LoadFromAssetUri(string assetUri, Color? tint = null)
+    private static readonly Lazy<IImage?> missingTextureImage = new(() =>
+    {
+        try
+        {
+            string svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#FF00FF\"/></svg>";
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(svg));
+            return RenderSvgStream(stream);
+        }
+        catch
+        {
+            return null;
+        }
+    });
+
+    private static IImage? GetMissingTextureImage() => missingTextureImage.Value;
+
+    public static IImage? LoadFromAssetUri(string assetUri, Color? tint = null, double? opacity = null)
     {
         string normalized = NormalizeAssetUri(assetUri);
         if (string.IsNullOrWhiteSpace(normalized))
-            return null;
+            return GetMissingTextureImage();
 
-        string key = tint.HasValue ? $"{normalized}|{tint.Value}" : normalized;
+        string key = (tint.HasValue || opacity.HasValue)
+            ? $"{normalized}|{tint?.ToString()}|{(opacity.HasValue ? opacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")}"
+            : normalized;
 
         // GetOrAdd is fast because creating Lazy is cheap.
         // The heavy loading inside Lazy only happens when .Value is accessed.
         return imageCache.GetOrAdd(key, k => new Lazy<IImage?>(() =>
         {
-            if (tint.HasValue && IsSvgPath(normalized))
+            if ((tint.HasValue || opacity.HasValue) && IsSvgPath(normalized))
             {
-                return LoadTintedSvg(normalized, tint.Value);
+                var tinted = LoadTintedSvg(normalized, tint, opacity);
+                if (tinted != null)
+                    return tinted;
             }
 
             // Try primary URI
@@ -90,55 +112,71 @@ internal static class ImageSourceLoader
 
             // Try swap alternate base URI
             string? alternate = TrySwapResourcesBase(normalized);
-            if (string.IsNullOrWhiteSpace(alternate))
-                return null;
+            if (!string.IsNullOrWhiteSpace(alternate))
+            {
+                IImage? alternateImage = LoadFromNormalizedAssetUri(alternate);
+                if (alternateImage != null)
+                    return alternateImage;
+            }
 
-            // Load alternate
-            return LoadFromNormalizedAssetUri(alternate);
+            return GetMissingTextureImage();
         })).Value;
     }
 
-    private static IImage? LoadTintedSvg(string assetUri, Color tint)
+    private static IImage? LoadTintedSvg(string assetUri, Color? tint = null, double? opacity = null)
     {
         try
         {
             Uri uri = new Uri(assetUri, UriKind.Absolute);
             using Stream stream = AssetLoader.Open(uri);
             var xdoc = XDocument.Load(stream);
-            var hexColor = $"#{tint.R:X2}{tint.G:X2}{tint.B:X2}";
-            
-            // Replace all fill and stroke attributes that are not 'none'
-            foreach (var element in xdoc.Descendants())
+
+            if (tint.HasValue)
             {
-                var name = element.Name.LocalName.ToLowerInvariant();
-                if (name is not ("path" or "rect" or "circle" or "ellipse" or "line" or "polyline" or "polygon" or "text"))
-                    continue;
+                var hexColor = $"#{tint.Value.R:X2}{tint.Value.G:X2}{tint.Value.B:X2}";
 
-                var fillAttr = element.Attribute("fill");
-                var strokeAttr = element.Attribute("stroke");
-                var styleAttr = element.Attribute("style");
-
-                // If it has NO attributes related to color, it defaults to black fill in SVG.
-                // We force a fill attribute here to apply our tint.
-                if (fillAttr == null && strokeAttr == null && styleAttr == null)
+                // Replace all fill and stroke attributes that are not 'none'
+                foreach (var element in xdoc.Descendants())
                 {
-                    element.SetAttributeValue("fill", hexColor);
-                    continue;
+                    var name = element.Name.LocalName.ToLowerInvariant();
+                    if (name is not ("path" or "rect" or "circle" or "ellipse" or "line" or "polyline" or "polygon" or "text"))
+                        continue;
+
+                    var fillAttr = element.Attribute("fill");
+                    var strokeAttr = element.Attribute("stroke");
+                    var styleAttr = element.Attribute("style");
+
+                    // If it has NO attributes related to color, it defaults to black fill in SVG.
+                    // We force a fill attribute here to apply our tint.
+                    if (fillAttr == null && strokeAttr == null && styleAttr == null)
+                    {
+                        element.SetAttributeValue("fill", hexColor);
+                        continue;
+                    }
+
+                    if (fillAttr != null && fillAttr.Value != "none")
+                        fillAttr.Value = hexColor;
+
+                    if (strokeAttr != null && strokeAttr.Value != "none")
+                        strokeAttr.Value = hexColor;
+
+                    if (styleAttr != null)
+                    {
+                        var val = styleAttr.Value;
+                        // Replace fill: and stroke: values if they are present and not 'none'
+                        val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=fill:)(?!none)[^;]+", hexColor);
+                        val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=stroke:)(?!none)[^;]+", hexColor);
+                        styleAttr.Value = val;
+                    }
                 }
+            }
 
-                if (fillAttr != null && fillAttr.Value != "none")
-                    fillAttr.Value = hexColor;
-
-                if (strokeAttr != null && strokeAttr.Value != "none")
-                    strokeAttr.Value = hexColor;
-
-                if (styleAttr != null)
+            if (opacity.HasValue)
+            {
+                var svgRoot = xdoc.Root;
+                if (svgRoot != null)
                 {
-                    var val = styleAttr.Value;
-                    // Replace fill: and stroke: values if they are present and not 'none'
-                    val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=fill:)(?!none)[^;]+", hexColor);
-                    val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=stroke:)(?!none)[^;]+", hexColor);
-                    styleAttr.Value = val;
+                    svgRoot.SetAttributeValue("opacity", opacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
             }
 

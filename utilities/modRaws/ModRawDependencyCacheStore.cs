@@ -54,7 +54,7 @@ namespace ModHearth.Utilities
                 }
                 catch
                 {
-                    // Ignore cache save failures. Worst case, the next run rescans.
+                    Console.WriteLine("[ModRawCache] ERROR: Failed to write entries to file");
                 }
             }
         }

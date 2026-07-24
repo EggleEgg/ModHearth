@@ -136,26 +136,15 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         }
     }
 
-    public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm)
-    {
-        foreach (object? item in menu.Items)
-        {
-            if (item is MenuItem menuItem)
-            {
-                string tag = menuItem.Tag?.ToString() ?? string.Empty;
-                menuItem.IsVisible = tag.StartsWith("relation-", StringComparison.Ordinal) ||
-                                     string.Equals(tag, "relations-root", StringComparison.Ordinal);
+    // Handled by ModRefControl
+    public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
 
-                if (string.Equals(tag, "relations-root", StringComparison.Ordinal))
-                {
-                    ModContextMenuSupport.ConfigureRelationsMenu(menuItem, vm);
-                }
-            }
-            else if (item is Separator separator)
-            {
-                separator.IsVisible = false;
-            }
-        }
+    public ModHearthManager? GetManager() => null; // We don't use the manager here for context actions
+
+    public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm)
+    {
+        return modTreeList.SelectedItems?.Cast<ModRefViewModel>().Select(vm => vm.ModReference)
+            ?? Enumerable.Empty<ModReference>();
     }
 
     public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)

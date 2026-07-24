@@ -21,15 +21,6 @@ namespace ModHearth.UI;
 /// </summary>
 public partial class ModColorPicker : UserControl
 {
-    private sealed class SearchButtonState
-    {
-        public IBrush NormalBrush { get; set; } = Brushes.Transparent;
-        public IBrush HoverBrush { get; set; } = Brushes.Transparent;
-        public IBrush PressedBrush { get; set; } = Brushes.Transparent;
-        public bool IsPointerOver { get; set; }
-        public bool IsPressed { get; set; }
-    }
-
     public static readonly StyledProperty<ObservableCollection<ModColorInfo>> AvailableColorsProperty =
         AvaloniaProperty.Register<ModColorPicker, ObservableCollection<ModColorInfo>>(nameof(AvailableColors));
 
@@ -44,7 +35,7 @@ public partial class ModColorPicker : UserControl
 
     public ICommand ClearSelectionCommand { get; }
 
-    private readonly Dictionary<Button, SearchButtonState> searchButtonStates = new();
+    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = new();
 
     public ObservableCollection<ModColorInfo> AvailableColors
     {
@@ -114,7 +105,7 @@ public partial class ModColorPicker : UserControl
         var clearSelectionButton = this.FindControl<Button>("ClearSelectionButton");
         if (clearSelectionButton != null)
         {
-            InitializeSearchButtonState(clearSelectionButton);
+            RegisterSearchButton(clearSelectionButton);
         }
     }
 
@@ -159,49 +150,9 @@ public partial class ModColorPicker : UserControl
         SelectedColors.Clear();
     }
 
-    private void InitializeSearchButtonState(Button button)
+    private void RegisterSearchButton(Button button)
     {
-        SearchButtonState state = new SearchButtonState();
-        searchButtonStates[button] = state;
-
-        button.GetObservable(InputElement.IsPointerOverProperty)
-              .Subscribe(new AnonymousObserver<bool>(isOver =>
-              {
-                  state.IsPointerOver = isOver;
-                  if (!isOver)
-                      state.IsPressed = false;
-                  UpdateSearchButtonBackground(button, state);
-              }));
-
-        button.PointerPressed += (_, args) =>
-        {
-            if (args.GetCurrentPoint(button).Properties.IsLeftButtonPressed)
-            {
-                state.IsPressed = true;
-                UpdateSearchButtonBackground(button, state);
-            }
-        };
-
-        button.PointerReleased += (_, _) =>
-        {
-            state.IsPressed = false;
-            state.IsPointerOver = button.IsPointerOver;
-            UpdateSearchButtonBackground(button, state);
-        };
-
-        button.PointerCaptureLost += (_, _) =>
-        {
-            state.IsPressed = false;
-            state.IsPointerOver = button.IsPointerOver;
-            UpdateSearchButtonBackground(button, state);
-        };
-
-        button.Click += (_, _) =>
-        {
-            state.IsPressed = false;
-            state.IsPointerOver = button.IsPointerOver;
-            UpdateSearchButtonBackground(button, state);
-        };
+        searchButtonBehaviors[button] = new SearchButtonBehavior(button);
     }
 
     private void ApplySearchButtonBrushes(
@@ -210,26 +161,10 @@ public partial class ModColorPicker : UserControl
         IBrush hoverBrush,
         IBrush pressedBrush)
     {
-        if (!searchButtonStates.TryGetValue(button, out SearchButtonState? state))
-            return;
-
-        state.NormalBrush = normalBrush;
-        state.HoverBrush = hoverBrush;
-        state.PressedBrush = pressedBrush;
-        UpdateSearchButtonBackground(button, state);
-    }
-
-    private static void UpdateSearchButtonBackground(Button button, SearchButtonState state)
-    {
-        IBrush targetBrush;
-        if (state.IsPressed)
-            targetBrush = state.PressedBrush;
-        else if (state.IsPointerOver)
-            targetBrush = state.HoverBrush;
-        else
-            targetBrush = state.NormalBrush;
-
-        button.Background = targetBrush;
+        if (searchButtonBehaviors.TryGetValue(button, out SearchButtonBehavior? behavior))
+        {
+            behavior.ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
+        }
     }
 
     public void ApplyStyle(IBrush normalBrush, IBrush hoverBrush, IBrush pressedBrush, IBrush textBrush)

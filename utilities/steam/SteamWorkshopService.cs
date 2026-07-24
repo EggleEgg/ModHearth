@@ -26,6 +26,58 @@ public sealed class SteamWorkshopService
     public static bool Download(ulong workshopId, bool highPriority = true) =>
         RunWorker("download", workshopId.ToString());
 
+    // Sends wake-up calls for multiple workshop items concurrently. Writes steam_appid.txt once
+    // up front (content is invariant across all actions) so the individual worker processes don't
+    // race each other writing/deleting the same shared file
+    public static int DownloadMany(IEnumerable<ulong> workshopIds)
+    {
+        List<ulong> ids = workshopIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return 0;
+
+        string? workerPath = ResolveWorkerPath();
+        if (workerPath == null)
+        {
+            SteamConnectionLogger.LogError("ModHearth.SteamWorker executable not found alongside ModHearth.");
+            return 0;
+        }
+
+        string? workerDir = Path.GetDirectoryName(workerPath);
+        if (string.IsNullOrWhiteSpace(workerDir))
+            return 0;
+
+        string appIdFilePath = Path.Combine(workerDir, "steam_appid.txt");
+        bool wroteAppIdFile = false;
+
+        try
+        {
+            if (!File.Exists(appIdFilePath))
+            {
+                File.WriteAllText(appIdFilePath, ConfigManager.DwarfFortressSteamAppId);
+                wroteAppIdFile = true;
+            }
+
+            int successCount = 0;
+            Parallel.ForEach(ids, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, id =>
+            {
+                if (RunWorker("download", id.ToString()))
+                    Interlocked.Increment(ref successCount);
+            });
+
+            return successCount;
+        }
+        finally
+        {
+            if (wroteAppIdFile)
+            {
+                try { if (File.Exists(appIdFilePath)) File.Delete(appIdFilePath); } catch { /* best effort */ }
+            }
+        }
+    }
+
     // Not currently called anywhere in the codebase -- kept for API parity with the previous
     // implementation. Costs the same worker round-trip as Subscribe/Unsubscribe if used.
     public static bool IsSubscribed(ulong workshopId) => RunWorker("issubscribed", workshopId.ToString());

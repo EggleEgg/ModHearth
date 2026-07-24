@@ -29,15 +29,6 @@ public partial class ModSearchBar : UserControl
     private readonly Dictionary<SearchFilterMode, TextBlock> searchModeLabels = new();
     private readonly Dictionary<SearchFilterMode, Image> searchModeIcons = new();
 
-    private sealed class SearchButtonState
-    {
-        public IBrush NormalBrush { get; set; } = Brushes.Transparent;
-        public IBrush HoverBrush { get; set; } = Brushes.Transparent;
-        public IBrush PressedBrush { get; set; } = Brushes.Transparent;
-        public bool IsPointerOver { get; set; }
-        public bool IsPressed { get; set; }
-    }
-
     public static readonly StyledProperty<string?> PlaceholderTextProperty =
         AvaloniaProperty.Register<ModSearchBar, string?>(nameof(PlaceholderText), "Search");
 
@@ -58,9 +49,11 @@ public partial class ModSearchBar : UserControl
     public event EventHandler? SortOrderChanged;
     public event EventHandler? ColorPickerClicked;
 
-    private readonly Dictionary<Button, SearchButtonState> searchButtonStates = new();
+    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = new();
     private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = new();
     private Flyout? searchModeFlyout;
+    private int clearClickCount;
+    private DateTime lastClearClickTime;
 
     public ModSearchBar()
     {
@@ -69,9 +62,7 @@ public partial class ModSearchBar : UserControl
         SearchBox.TextChanged += (_, _) =>
         {
             if (SearchMode != SearchFilterMode.Color)
-            {
                 SearchTextChanged?.Invoke(this, EventArgs.Empty);
-            }
         };
         ColorPicker.SelectionChanged += (_, _) =>
         {
@@ -97,20 +88,42 @@ public partial class ModSearchBar : UserControl
         ClearButton.Click += (s, e) =>
         {
             e.Handled = true;
-            if (SearchMode == SearchFilterMode.Color)
+            DateTime now = DateTime.UtcNow;
+            if ((now - lastClearClickTime).TotalMilliseconds > 800)
             {
+                clearClickCount = 0;
+            }
+            lastClearClickTime = now;
+            clearClickCount++;
+            int neededClicks = 2;
+
+            if (clearClickCount >= neededClicks)
+            {
+                clearClickCount = 0;
+                SearchLogging.Log($"ModSearchBar ClearButton clicked {neededClicks} consecutive times - resetting to default search filter");
+                SearchMode = SearchFilterMode.Name;
                 ColorPicker.ClearSelection();
+                SearchBox.Text = string.Empty;
             }
             else
             {
-                SearchBox.Text = string.Empty;
+                if (SearchMode == SearchFilterMode.Color)
+                {
+                    ColorPicker.ClearSelection();
+                }
+                else
+                {
+                    SearchBox.Text = string.Empty;
+                }
             }
         };
 
         PropertyChanged += (_, args) =>
         {
             if (args.Property == PlaceholderTextProperty)
-                SearchBox.PlaceholderText = PlaceholderText;
+            {
+                PlaceholderTextBlock.Text = PlaceholderText;
+            }
             else if (args.Property == HideFilteredProperty)
                 UpdateToggleIcon();
             else if (args.Property == SearchModeProperty)
@@ -118,6 +131,7 @@ public partial class ModSearchBar : UserControl
                 UpdateSearchModeOptionLabels();
                 UpdateSearchModeIcon();
                 UpdateSearchModeButtonTooltip();
+
                 SearchLogging.Log($"SearchModeChanged = {GetSearchModeLabel(SearchMode)}");
                 SearchModeChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -138,7 +152,7 @@ public partial class ModSearchBar : UserControl
                 searchModeFlyout = null;
             }
         };
-        SearchBox.PlaceholderText = PlaceholderText;
+        PlaceholderTextBlock.Text = PlaceholderText;
         UpdateToggleIcon();
         UpdateSearchModeIcon();
         UpdateSearchModeButtonTooltip();
@@ -155,9 +169,9 @@ public partial class ModSearchBar : UserControl
             }
         };
 
-        InitializeSearchButtonState(SearchModeButton);
-        InitializeSearchButtonState(ToggleButton);
-        InitializeSearchButtonState(ClearButton);
+        RegisterSearchButton(SearchModeButton);
+        RegisterSearchButton(ToggleButton);
+        RegisterSearchButton(ClearButton);
     }
 
     public void SetAvailableColors(IEnumerable<ModColor> colors)
@@ -191,9 +205,7 @@ public partial class ModSearchBar : UserControl
         set
         {
             if (SearchMode != SearchFilterMode.Color)
-            {
                 SearchBox.Text = value;
-            }
             else
             {
                 ColorPicker.ClearSelection();
@@ -302,52 +314,14 @@ public partial class ModSearchBar : UserControl
             button.BorderThickness = new Thickness(0);
         }
 
+        SearchModeTextBlock.Foreground = buttonTextBrush;
+
         ColorPicker.ApplyStyle(searchButtonBrush, searchButtonHoverBrush, searchButtonPressedBrush, buttonTextBrush);
     }
 
-    private void InitializeSearchButtonState(Button button)
+    private void RegisterSearchButton(Button button)
     {
-        SearchButtonState state = new SearchButtonState();
-        searchButtonStates[button] = state;
-
-        button.GetObservable(InputElement.IsPointerOverProperty)
-              .Subscribe(new AnonymousObserver<bool>(isOver =>
-              {
-                  state.IsPointerOver = isOver;
-                  if (!isOver)
-                      state.IsPressed = false;
-                  UpdateSearchButtonBackground(button, state);
-              }));
-
-        button.PointerPressed += (_, args) =>
-        {
-            if (args.GetCurrentPoint(button).Properties.IsLeftButtonPressed)
-            {
-                state.IsPressed = true;
-                UpdateSearchButtonBackground(button, state);
-            }
-        };
-
-        button.PointerReleased += (_, _) =>
-        {
-            state.IsPressed = false;
-            state.IsPointerOver = button.IsPointerOver;
-            UpdateSearchButtonBackground(button, state);
-        };
-
-        button.PointerCaptureLost += (_, _) =>
-        {
-            state.IsPressed = false;
-            state.IsPointerOver = button.IsPointerOver;
-            UpdateSearchButtonBackground(button, state);
-        };
-
-        button.Click += (_, _) =>
-        {
-            state.IsPressed = false;
-            state.IsPointerOver = button.IsPointerOver;
-            UpdateSearchButtonBackground(button, state);
-        };
+        searchButtonBehaviors[button] = new SearchButtonBehavior(button);
     }
 
     private void ApplySearchButtonBrushes(
@@ -356,26 +330,10 @@ public partial class ModSearchBar : UserControl
         IBrush hoverBrush,
         IBrush pressedBrush)
     {
-        if (!searchButtonStates.TryGetValue(button, out SearchButtonState? state))
-            return;
-
-        state.NormalBrush = normalBrush;
-        state.HoverBrush = hoverBrush;
-        state.PressedBrush = pressedBrush;
-        UpdateSearchButtonBackground(button, state);
-    }
-
-    private static void UpdateSearchButtonBackground(Button button, SearchButtonState state)
-    {
-        IBrush targetBrush;
-        if (state.IsPressed)
-            targetBrush = state.PressedBrush;
-        else if (state.IsPointerOver)
-            targetBrush = state.HoverBrush;
-        else
-            targetBrush = state.NormalBrush;
-
-        button.Background = targetBrush;
+        if (searchButtonBehaviors.TryGetValue(button, out SearchButtonBehavior? behavior))
+        {
+            behavior.ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
+        }
     }
 
     private void UpdateToggleIcon()
@@ -552,15 +510,7 @@ public partial class ModSearchBar : UserControl
         SortDirectionIcon.Source = ImageSourceLoader.LoadFromAssetUri(directionIconName)
             ?? SortDirectionIcon.Source;
 
-        SearchModeButton.Width = IsSortingEnabled ? 30 : ToggleButton.Width;
-
-        if (!IsSortingEnabled)
-        {
-            SearchModeIcon.Width = double.NaN;
-            SearchModeIcon.Height = double.NaN;
-            SearchModeIcon.HorizontalAlignment = HorizontalAlignment.Center;
-        }
-
+        SearchModeTextBlock.Text = GetSearchModeLabel(SearchMode, includePrefix: false);
     }
 
     private static string GetSearchModeIconName(SearchFilterMode mode)
@@ -577,8 +527,22 @@ public partial class ModSearchBar : UserControl
         };
     }
 
-    private static string GetSearchModeLabel(SearchFilterMode mode)
+    private static string GetSearchModeLabel(SearchFilterMode mode, bool includePrefix = true)
     {
+        if (!includePrefix)
+        {
+            return mode switch
+            {
+                SearchFilterMode.Name => "Name",
+                SearchFilterMode.Regex => "Regex",
+                SearchFilterMode.Color => "Color",
+                SearchFilterMode.ModifiedTime => "Modified",
+                SearchFilterMode.Id => "Mod ID",
+                SearchFilterMode.SteamFileId => "Steam ID",
+                _ => "Name"
+            };
+        }
+
         return mode switch
         {
             SearchFilterMode.Name => "Search by name",

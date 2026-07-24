@@ -10,7 +10,7 @@
         MinHeight="480">
 
   <Grid Margin="12" RowDefinitions="Auto,*">
-    <ui:ModRefControl x:Name="ContextMenuHost" IsVisible="False" />
+    <ui:ModRefControl x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" />
     <DataGrid x:Name="logList" Grid.Row="1"
               ItemsSource="{Binding Entries}"
               CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
