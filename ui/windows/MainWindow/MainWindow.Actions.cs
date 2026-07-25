@@ -170,7 +170,7 @@ public partial class MainWindow
     private async Task RedoConfigAsync()
     {
         bool confirm = await DialogService.ShowConfirmAsync(this,
-            "Are you sure you want to reset config file? Application will restart.",
+            "Are you sure you want to reset the config file? Application will restart.",
             "Redo Config");
         if (!confirm)
             return;

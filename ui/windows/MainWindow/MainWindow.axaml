@@ -213,7 +213,7 @@
                 VerticalAlignment="Bottom">
             <Button x:Name="updateLogButton" Content="Update log" FontSize="13" />
             <Button x:Name="clearInstalledModsButton" Grid.Column="1" Width="28"
-                    ToolTip.Tip="Clear the installed mods cache. Right click to open the installed_mods folder">
+                    ToolTip.Tip="Delete the installed mods cache. Right click to open the installed_mods folder">
               <Image Source="{ui:AssetImage trashIcon}" />
             </Button>
           </Grid>

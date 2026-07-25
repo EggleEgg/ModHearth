@@ -99,13 +99,16 @@ public sealed class SteamWorkshopService
                 Arguments = $"{action} {arg}",
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                RedirectStandardOutput = true,
                 RedirectStandardError = true
             });
 
             if (process == null)
                 return false;
 
-            string stderr = process.StandardError.ReadToEnd();
+            Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+
             bool exited = process.WaitForExit((int)WorkerTimeout.TotalMilliseconds);
             if (!exited)
             {
@@ -113,6 +116,12 @@ public sealed class SteamWorkshopService
                 try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
                 return false;
             }
+
+            string stdout = stdoutTask.GetAwaiter().GetResult();
+            string stderr = stderrTask.GetAwaiter().GetResult();
+
+            if (!string.IsNullOrWhiteSpace(stdout))
+                SteamConnectionLogger.LogInfo($"ModHearth.SteamWorker '{action} {arg}' output: {stdout.Trim()}");
 
             if (process.ExitCode != 0)
             {

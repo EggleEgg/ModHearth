@@ -13,7 +13,7 @@ using System.Diagnostics;
 
 namespace ModHearth.UI;
 
-public partial class SortRulesWindow : Window, IModRefContextMenuProvider
+public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyleAwareWindow
 {
     private readonly ObservableCollection<ModRefViewModel> visibleMods = new();
     private readonly List<ModRefViewModel> allMods = new();
@@ -64,6 +64,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         selectionController.UpdateSelectionState(modTreeList);
         RefreshEditor();
 
+        fixConflictsButton.Click += async (_, _) => await FixConflictsAsync();
         clearAllRelationshipsButton.Click += async (_, _) => await ClearAllRelationshipsAsync();
 
         double sortRatio = ConfigManager.GetSortRulesWindowGridSplitterRatio();
@@ -167,19 +168,50 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         await AddRelationshipAsync(kind.Value);
     }
 
+    private bool isApplyingStyleInternal;
+    private bool isRefreshing;
+
+    public void ApplyCustomStyle(Style style)
+    {
+        if (isApplyingStyleInternal) return;
+        if (isRefreshing) return;
+
+        isRefreshing = true;
+        try { RefreshEditor(); }
+        finally { isRefreshing = false; }
+    }
+
     private void RefreshEditor()
     {
         sectionsPanel.Children.Clear();
-        clearAllRelationshipsButton.IsVisible = selectedMod?.HasRelationships == true;
+        clearAllRelationshipsButton.IsEnabled = selectedMod?.HasRelationships == true;
+        clearAllRelationshipsButton.Opacity = clearAllRelationshipsButton.IsEnabled ? 1.0 : 0.4;
 
         if (selectedMod == null)
         {
+            fixConflictsButton.IsEnabled = false;
+            fixConflictsButton.Opacity = 0.4;
+
             selectedTitleText.Text = "Select a mod";
             selectedSubtitleText.Text = "Choose a mod to edit its relationships.";
             summaryText.Text = "Before: 0   After: 0   Required: 0   Incompatible: 0";
-            validationText.Text = string.Empty;
+            ValidationResult globalValidation = ValidateRules();
+            validationText.Text = globalValidation.Message;
+            validationText.Foreground = globalValidation.HasError ? Brushes.IndianRed : (globalValidation.HasWarning ? Brushes.Goldenrod : Brushes.SeaGreen);
+
+            if (Style.instance != null && !isApplyingStyleInternal)
+            {
+                isApplyingStyleInternal = true;
+                try { WindowThemeManager.ApplyToWindow(this, Style.instance); }
+                finally { isApplyingStyleInternal = false; }
+            }
             return;
         }
+
+        // Validation text and Fix button state are local to the selected mod
+        ValidationResult modValidation = ValidateRules(selectedMod.ModReference.ID);
+        fixConflictsButton.IsEnabled = modValidation.HasError || modValidation.HasWarning;
+        fixConflictsButton.Opacity = fixConflictsButton.IsEnabled ? 1.0 : 0.4;
 
         ModRelationshipRule rule = GetRule(selectedMod.ModReference.ID);
         selectedTitleText.Text = selectedMod.ModReference.name ?? selectedMod.ModReference.ID;
@@ -187,12 +219,11 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         summaryText.Text =
             $"Before: {rule.BeforeIds.Count}   After: {rule.AfterIds.Count}   Required: {rule.RequiredIds.Count}   Incompatible: {rule.IncompatibleIds.Count}";
 
-        ValidationResult validation = ValidateRules();
-        validationText.Text = validation.Message;
+        validationText.Text = modValidation.Message;
 
-        if (validation.HasError)
+        if (modValidation.HasError)
             validationText.Foreground = Brushes.IndianRed;
-        else if (validation.HasWarning)
+        else if (modValidation.HasWarning)
             validationText.Foreground = Brushes.Goldenrod;
         else
             validationText.Foreground = Brushes.SeaGreen;
@@ -201,6 +232,13 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Required, "Required", "These mods are required when this mod is enabled.", rule.RequiredIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Incompatible, "Incompatible", "These mods should not be enabled together.", rule.IncompatibleIds));
+
+        if (Style.instance != null && !isApplyingStyleInternal)
+        {
+            isApplyingStyleInternal = true;
+            try { WindowThemeManager.ApplyToWindow(this, Style.instance); }
+            finally { isApplyingStyleInternal = false; }
+        }
     }
 
     private Control CreateSection(ModRelationshipKind kind, string title, string description, IReadOnlyList<string> ids)
@@ -261,6 +299,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             MinWidth = 96,
             Height = 28,
             IsEnabled = ids.Count > 0,
+            Opacity = ids.Count > 0 ? 1.0 : 0.4,
             HorizontalContentAlignment = HorizontalAlignment.Center
         };
 
@@ -412,11 +451,6 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
         if (selectedMod == null)
             return;
 
-        string title = LabelFor(kind);
-        bool confirm = await DialogService.ShowConfirmAsync(this, $"Clear all {title.ToLowerInvariant()} relationships for this mod?", $"Clear {title}");
-        if (!confirm)
-            return;
-
         PushUndo();
         GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind).Clear();
         CommitRulesChanged();
@@ -545,11 +579,23 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             .ThenBy(id => id, StringComparer.OrdinalIgnoreCase);
     }
 
-    private ValidationResult ValidateRules()
+    private ValidationResult ValidateRules(string? filterModId = null)
     {
         List<string> warnings = new();
         List<string> errors = new();
         Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
+
+        // Track which issues belong to which mods for context-sensitive display
+        Dictionary<string, List<string>> issuesPerMod = new(StringComparer.OrdinalIgnoreCase);
+        void AddIssue(string modId, string message, bool isError)
+        {
+            if (isError) errors.Add(message);
+            else warnings.Add(message);
+
+            if (!issuesPerMod.TryGetValue(modId, out List<string>? list))
+                issuesPerMod[modId] = list = new List<string>();
+            list.Add(message);
+        }
 
         foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
         {
@@ -561,10 +607,15 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             foreach (string id in kvp.Value.IncompatibleIds)
             {
                 string target = id.Trim();
+                if (string.IsNullOrWhiteSpace(target))
+                    continue;
+
                 if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
-                    errors.Add($"{DisplayLabel(ownerId)} cannot be incompatible with itself.");
+                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} cannot be incompatible with itself.", true);
+                else if (kvp.Value.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)))
+                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} cannot be both required and incompatible with {DisplayLabel(target)}.", true);
                 else if (!modIdMap.ContainsKey(target))
-                    warnings.Add($"{DisplayLabel(ownerId)} references missing mod {target}.");
+                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} references missing mod {target}.", false);
             }
         }
 
@@ -574,10 +625,22 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             {
                 if (WouldCreateCycle(graph, kvp.Key, target))
                 {
-                    errors.Add($"Circular dependency detected: {DisplayLabel(kvp.Key)} conflicts with {DisplayLabel(target)}.");
-                    return BuildValidationResult(errors, warnings);
+                    string msg = $"Circular dependency detected: {DisplayLabel(kvp.Key)} conflicts with {DisplayLabel(target)}.";
+                    AddIssue(kvp.Key, msg, true);
+                    AddIssue(target, msg, true);
                 }
             }
+        }
+
+        if (!string.IsNullOrEmpty(filterModId))
+        {
+            if (issuesPerMod.TryGetValue(filterModId, out List<string>? modIssues))
+            {
+                bool hasModError = modIssues.Any(m => errors.Contains(m));
+                bool hasModWarning = modIssues.Any(m => warnings.Contains(m));
+                return new ValidationResult(hasModError, hasModWarning, string.Join(Environment.NewLine, modIssues.Distinct()));
+            }
+            return new ValidationResult(false, false, "No conflicts detected for this mod.");
         }
 
         return BuildValidationResult(errors, warnings);
@@ -598,14 +661,14 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
 
                 if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
                 {
-                    errors.Add(category == "required"
+                    AddIssue(ownerId, category == "required"
                         ? $"{DisplayLabel(ownerId)} cannot require itself."
-                        : $"{DisplayLabel(ownerId)} cannot reference itself.");
+                        : $"{DisplayLabel(ownerId)} cannot reference itself.", true);
                     continue;
                 }
 
                 if (!modIdMap.ContainsKey(target))
-                    warnings.Add($"{DisplayLabel(ownerId)} references missing mod {target}.");
+                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} references missing mod {target}.", false);
 
                 string from = targetIsSource ? target : source;
                 string to = destinationFactory(target);
@@ -763,5 +826,105 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider
             GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind).Clear();
         }
         CommitRulesChanged();
+    }
+
+    private async Task FixConflictsAsync()
+    {
+        if (selectedMod == null)
+            return;
+
+        string ownerId = selectedMod.ModReference.ID.Trim();
+        ValidationResult modValidation = ValidateRules(ownerId);
+        if (!modValidation.HasError && !modValidation.HasWarning)
+            return;
+
+        bool confirm = await DialogService.ShowConfirmAsync(this,
+            $"Attempt to automatically fix relationship conflicts for '{selectedMod.DisplayName}'?",
+            "Fix Conflicts");
+
+        if (!confirm)
+            return;
+
+        PushUndo();
+
+        // Step 1: Clean self-references, missing mods, and direct contradictions for selectedMod
+        ModRelationshipRule rule = GetOrCreateRule(ownerId);
+        rule.BeforeIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
+        rule.AfterIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
+        rule.RequiredIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
+        rule.IncompatibleIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
+
+        rule.IncompatibleIds.RemoveAll(id => rule.RequiredIds.Any(r => string.Equals(r, id, StringComparison.OrdinalIgnoreCase)));
+        rule.AfterIds.RemoveAll(id => rule.BeforeIds.Any(b => string.Equals(b, id, StringComparison.OrdinalIgnoreCase)));
+
+        // Step 2: Resolve circular dependencies involving selectedMod
+        Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
+
+        // Build graph using all other rules first
+        foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
+        {
+            if (string.Equals(kvp.Key, ownerId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            foreach (string target in kvp.Value.BeforeIds) AddGraphEdge(graph, kvp.Key, target);
+            foreach (string target in kvp.Value.AfterIds) AddGraphEdge(graph, target, kvp.Key);
+            foreach (string target in kvp.Value.RequiredIds) AddGraphEdge(graph, target, kvp.Key);
+        }
+
+        // Re-add selectedMod's edges, dropping any edge that forms a cycle
+        List<string> validBefore = new();
+        foreach (string target in rule.BeforeIds)
+        {
+            if (!WouldCreateCycle(graph, ownerId, target))
+            {
+                validBefore.Add(target);
+                AddGraphEdge(graph, ownerId, target);
+            }
+        }
+        rule.BeforeIds = validBefore;
+
+        List<string> validAfter = new();
+        foreach (string target in rule.AfterIds)
+        {
+            if (!WouldCreateCycle(graph, target, ownerId))
+            {
+                validAfter.Add(target);
+                AddGraphEdge(graph, target, ownerId);
+            }
+        }
+        rule.AfterIds = validAfter;
+
+        List<string> validRequired = new();
+        foreach (string target in rule.RequiredIds)
+        {
+            if (!WouldCreateCycle(graph, target, ownerId))
+            {
+                validRequired.Add(target);
+                AddGraphEdge(graph, target, ownerId);
+            }
+        }
+        rule.RequiredIds = validRequired;
+
+        CommitRulesChanged();
+    }
+
+    private static void AddGraphEdge(Dictionary<string, HashSet<string>> graph, string from, string to)
+    {
+        if (!graph.TryGetValue(from, out HashSet<string>? edges))
+        {
+            edges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            graph[from] = edges;
+        }
+        edges.Add(to);
+    }
+
+    private bool IsSelfOrMissing(string ownerId, string targetId)
+    {
+        string target = targetId.Trim();
+        if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        return !modIdMap.ContainsKey(target);
     }
 }

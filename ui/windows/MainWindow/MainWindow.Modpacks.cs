@@ -176,7 +176,7 @@ public partial class MainWindow
         {
             bool sorted = await Task.Run(() => manager.ModSortEnabledMods());
             if (sorted)
-                ShowNotification("Modlist Autosorted", "sortBorderIcon.svg", 1000);
+                ShowNotification("Modlist Autosorted", "sortBorderUpdateIcon.svg", 1000);
             RefreshModlistPanels();
         }
 

@@ -259,7 +259,6 @@ namespace ModHearth
                 FindAllModsDFHackLua();
                 FindModpacks(preferredModlistName);
 
-                Console.WriteLine();
                 Console.WriteLine($"Found {modrefMap.Count} mods and {modpacks.Count} modlists");
                 Console.WriteLine();
 

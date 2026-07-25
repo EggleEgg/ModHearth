@@ -63,14 +63,19 @@
         <Border BorderThickness="1" CornerRadius="6"
                 Padding="10" Margin="0,4,0,0">
           <StackPanel Spacing="4">
-            <Grid ColumnDefinitions="*,*" HorizontalAlignment="Stretch">
-              <TextBlock Text="Relationships" FontWeight="Bold" />
+            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+              <TextBlock Text="Relationships" FontWeight="Bold" VerticalAlignment="Center" />
               <Button x:Name="clearAllRelationshipsButton" Grid.Column="1"
                       Content="Clear all relationships" Padding="10,4" VerticalAlignment="Center"
-                      HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="Bold"/>
+                      HorizontalAlignment="Right" HorizontalContentAlignment="Center" />
             </Grid>
-            <TextBlock x:Name="summaryText" />
-            <TextBlock x:Name="validationText" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch" ColumnSpacing="8">
+              <TextBlock x:Name="summaryText" />
+              <TextBlock x:Name="validationText" Grid.Row="1" TextWrapping="Wrap" />
+              <Button x:Name="fixConflictsButton" Grid.RowSpan="2" Grid.Column="1"
+                      Content="Fix conflicts" Padding="10,4" VerticalAlignment="Center"
+                      HorizontalAlignment="Right" HorizontalContentAlignment="Center" />
+            </Grid>
           </StackPanel>
         </Border>
 

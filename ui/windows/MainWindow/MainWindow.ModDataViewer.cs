@@ -8,6 +8,8 @@ using Dock.Model.Core;
 using DockOrientation = Dock.Model.Core.Orientation;
 using System.Collections.Specialized;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Dock.Controls.ProportionalStackPanel;
 
 namespace ModHearth.UI;
 
@@ -27,8 +29,9 @@ public partial class MainWindow
     private Tool? modDataTool;
     private Tool? descriptionTool;
     private readonly HashSet<ToolDock> emptyToolDocks = new();
+    private readonly HashSet<object> knownSplitters = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<ToolDock, double> reclaimedToolDockProportions = new();
-    private const double CollapsedToolDockProportion = 0.04;
+    private const double CollapsedToolDockProportion = 0.000001; //slightly sketchy but it works
     private ModReference? currentModDataModRef;
     private readonly ModInfoDockFactory factory = new();
 
@@ -134,6 +137,7 @@ public partial class MainWindow
         {
             Id = "ModInfoSplitter"
         };
+        knownSplitters.Add(splitter);
 
         ProportionalDock layoutDock = new ProportionalDock
         {
@@ -150,6 +154,8 @@ public partial class MainWindow
         {
             Id = "ModPreviewSplitter"
         };
+        knownSplitters.Add(previewSplitter);
+
 
         ProportionalDock outerLayoutDock = new ProportionalDock
         {
@@ -262,6 +268,36 @@ public partial class MainWindow
         }
     }
 
+    private void ApplyProportionToVisualTree(IDock dock, double proportion, bool isCollapsed)
+    {
+        Control? container = modInfoDockControl.GetVisualDescendants()
+            .OfType<Control>()
+            .FirstOrDefault(c => c.DataContext is IDock d && ReferenceEquals(d, dock));
+
+        if (container == null)
+        {
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"[DockRebalance] '{dock.Id}' -> no matching container found in visual tree.");
+            return;
+        }
+
+        Control? target = container;
+        while (target != null && target.GetVisualParent() is not ProportionalStackPanel)
+            target = target.GetVisualParent() as Control;
+
+        if (target == null)
+        {
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"[DockRebalance] '{dock.Id}' -> found DataContext container but no ProportionalStackPanel ancestor.");
+            return;
+        }
+
+        ProportionalStackPanel.SetProportion(target, proportion);
+        ProportionalStackPanel.SetIsCollapsed(target, isCollapsed);
+        if (isCollapsed)
+            ProportionalStackPanel.SetCollapsedProportion(target, CollapsedToolDockProportion);
+    }
+
     private void RebalanceEmptyToolDock(ToolDock dock)
     {
         bool isEmptyNow = dock.VisibleDockables == null || dock.VisibleDockables.Count == 0;
@@ -280,7 +316,7 @@ public partial class MainWindow
         }
 
         List<IDock> siblings = parent.VisibleDockables
-            .Where(d => !ReferenceEquals(d, dock) && d is IDock && d is not ProportionalDockSplitter)
+            .Where(d => !ReferenceEquals(d, dock) && d is IDock && !knownSplitters.Contains(d))
             .Cast<IDock>()
             .ToList();
         if (DevMode.IsEnabled)
@@ -324,17 +360,15 @@ public partial class MainWindow
             reclaimedToolDockProportions.Remove(dock);
         }
 
-        // Proportion values above are correct per DevMode logs, but nothing observed changing them on
-        // screen -- suggests this Dock.Avalonia version's rendering panel doesn't react to Proportion
-        // mutations made outside an active splitter-drag gesture. Forcing a fresh layout pass is a
-        // standard, version-agnostic Avalonia mechanism (not a Dock-internals guess) to make it pick
-        // the new values up.
+        //NOTE Use avalonia devtools and look into the value of "ContentPresenter" to debug proportion issues
         Dispatcher.UIThread.Post(() =>
         {
-            modInfoDockControl.InvalidateMeasure();
-            modInfoDockControl.InvalidateArrange();
+            ApplyProportionToVisualTree(dock, dock.Proportion, isCollapsed: isEmptyNow);
+            foreach (IDock sibling in siblings)
+                ApplyProportionToVisualTree(sibling, sibling.Proportion, isCollapsed: false);
+
             if (DevMode.IsEnabled)
-                Console.WriteLine($"[DockRebalance] '{dock.Id}' invalidated modInfoDockControl measure/arrange.");
+                Console.WriteLine($"[DockRebalance] '{dock.Id}' applied Proportion+IsCollapsed to visual tree (collapsed={isEmptyNow}).");
         }, DispatcherPriority.Background);
     }
 
