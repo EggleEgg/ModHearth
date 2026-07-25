@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using ModHearth.Utilities;
 
 namespace ModHearth
 {
@@ -596,7 +597,7 @@ namespace ModHearth
 
             if (conflictingKeys.Any())
             {
-                Console.WriteLine($"[ModSort] Warning: '{string.Join(", ", conflictingKeys)}' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
+                Console.WriteLine($"[ModSort] Warning: '{string.Join(", ", conflictingKeys.Select(ObjectKey.FormatForDisplay))}' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
             }
 
             List<string> available = new List<string>();

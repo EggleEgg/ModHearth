@@ -40,4 +40,22 @@ public sealed class ObjectKey : IEquatable<ObjectKey>
 
     public override string ToString()
         => $"{ObjectType}:{Id}";
+
+    /// <summary>
+    /// Turns a "ObjectType:Id" key produced by ToString() into a friendlier "Id [ObjectType]" label
+    /// for display. Falls back to the raw key unchanged if it isn't in that format.
+    /// </summary>
+    public static string FormatForDisplay(string compositeKey)
+    {
+        if (string.IsNullOrEmpty(compositeKey))
+            return compositeKey;
+
+        int separatorIndex = compositeKey.IndexOf(':');
+        if (separatorIndex < 0)
+            return compositeKey;
+
+        string objectType = compositeKey[..separatorIndex];
+        string id = compositeKey[(separatorIndex + 1)..];
+        return string.IsNullOrEmpty(objectType) ? id : $"{id} [{objectType}]";
+    }
 }

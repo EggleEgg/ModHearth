@@ -2572,6 +2572,7 @@ namespace ModHearth
                     HashSet<string> group = new HashSet<string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
                     newGroups.Add(group);
 
+                    string displayLabel = ObjectKey.FormatForDisplay(kvp.Key);
                     foreach (var modId in kvp.Value)
                     {
                         if (!newMap.TryGetValue(modId, out var objects))
@@ -2579,7 +2580,7 @@ namespace ModHearth
                             objects = new List<string>();
                             newMap[modId] = objects;
                         }
-                        objects.Add($"[Cache] Duplicate raw definition: {kvp.Key} (also in: {string.Join(", ", kvp.Value.Where(id => !string.Equals(id, modId, StringComparison.OrdinalIgnoreCase)))})");
+                        objects.Add($"[Cache] Duplicate raw definition: {displayLabel} (also in: {string.Join(", ", kvp.Value.Where(id => !string.Equals(id, modId, StringComparison.OrdinalIgnoreCase)))})");
                     }
                 }
             }

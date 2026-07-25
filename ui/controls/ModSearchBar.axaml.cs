@@ -311,7 +311,6 @@ public partial class ModSearchBar : UserControl
             ApplySearchButtonBrushes(button, searchButtonBrush, searchButtonHoverBrush, searchButtonPressedBrush);
             button.Foreground = buttonTextBrush;
             button.BorderBrush = Brushes.Transparent;
-            button.BorderThickness = new Thickness(0);
         }
 
         SearchModeTextBlock.Foreground = buttonTextBrush;
@@ -505,6 +504,7 @@ public partial class ModSearchBar : UserControl
         string iconName = GetSearchModeIconName(SearchMode);
         SearchModeIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
             ?? SearchModeIcon.Source;
+        SearchModeIcon.Margin = IsSortingEnabled ? new Thickness(0, 0, 12, 0) : new Thickness(0, 0, 6, 0);
 
         string directionIconName = SortDescending ? "sortDownIcon.svg" : "sortUpIcon.svg";
         SortDirectionIcon.Source = ImageSourceLoader.LoadFromAssetUri(directionIconName)

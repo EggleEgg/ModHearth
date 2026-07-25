@@ -115,16 +115,16 @@ public sealed class RawDatabase
         foreach (RawObject raw in Objects)
         {
             if (raw.IsCut && !string.IsNullOrWhiteSpace(raw.Id))
-                cutIds.Add(raw.Id);
+                cutIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
 
             if (raw.IsSelection && !string.IsNullOrWhiteSpace(raw.Id))
-                selectIds.Add(raw.Id);
+                selectIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
 
             if (raw.IsCopyTagsFrom && !string.IsNullOrWhiteSpace(raw.Id))
-                copyIds.Add(raw.Id);
+                copyIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
 
             if (raw.IsDefinition && !string.IsNullOrWhiteSpace(raw.Id))
-                directIds.Add(raw.Id);
+                directIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
         }
 
         bool hasVanillaEntity = false;
