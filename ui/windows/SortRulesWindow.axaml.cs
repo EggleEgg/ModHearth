@@ -187,18 +187,23 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
     private void RefreshEditor()
     {
         sectionsPanel.Children.Clear();
-        clearAllRelationshipsButton.IsEnabled = selectedMod?.HasRelationships == true;
-        clearAllRelationshipsButton.Opacity = clearAllRelationshipsButton.IsEnabled ? 1.0 : 0.4;
 
         if (selectedMod == null)
         {
-            fixConflictsButton.IsEnabled = false;
-            fixConflictsButton.Opacity = 0.4;
+            int globalRelationshipCount = CountAllRelationships();
+            clearAllRelationshipsButton.IsEnabled = globalRelationshipCount > 0;
+            clearAllRelationshipsButton.Opacity = clearAllRelationshipsButton.IsEnabled ? 1.0 : 0.4;
+            clearAllRelationshipsButton.Content = BuildCountedButtonLabel("Clear", "relationship", globalRelationshipCount, "Clear all relationships");
 
             selectedTitleText.Text = "Select a mod";
             selectedSubtitleText.Text = "Choose a mod to edit its relationships.";
             summaryText.Text = "Before: 0   After: 0   Required: 0   Incompatible: 0";
+
             ValidationResult globalValidation = ValidateRules();
+            int globalIssueCount = globalValidation.Issues?.Count ?? 0;
+            fixConflictsButton.IsEnabled = globalIssueCount > 0;
+            fixConflictsButton.Opacity = fixConflictsButton.IsEnabled ? 1.0 : 0.4;
+            fixConflictsButton.Content = BuildCountedButtonLabel("Fix", "conflict", globalIssueCount, "Fix conflicts");
 
             if (globalValidation.Issues != null && globalValidation.Issues.Count > 0)
             {
@@ -206,9 +211,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
                 validationIssuesPanel.IsVisible = true;
                 validationIssuesPanel.Children.Clear();
                 foreach (Control issueCtrl in globalValidation.Issues)
-                {
                     validationIssuesPanel.Children.Add(issueCtrl);
-                }
             }
             else
             {
@@ -228,10 +231,16 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             return;
         }
 
-        // Validation text and Fix button state are local to the selected mod
+        int modRelationshipCount = selectedMod.RelationshipCount;
+        clearAllRelationshipsButton.IsEnabled = modRelationshipCount > 0;
+        clearAllRelationshipsButton.Opacity = clearAllRelationshipsButton.IsEnabled ? 1.0 : 0.4;
+        clearAllRelationshipsButton.Content = BuildCountedButtonLabel("Clear", "relationship", modRelationshipCount, "Clear all relationships");
+
         ValidationResult modValidation = ValidateRules(selectedMod.ModReference.ID);
-        fixConflictsButton.IsEnabled = modValidation.HasError || modValidation.HasWarning;
+        int modIssueCount = modValidation.Issues?.Count ?? 0;
+        fixConflictsButton.IsEnabled = modIssueCount > 0;
         fixConflictsButton.Opacity = fixConflictsButton.IsEnabled ? 1.0 : 0.4;
+        fixConflictsButton.Content = BuildCountedButtonLabel("Fix", "conflict", modIssueCount, "Fix conflicts");
 
         ModRelationshipRule rule = GetRule(selectedMod.ModReference.ID);
         selectedTitleText.Text = selectedMod.ModReference.name ?? selectedMod.ModReference.ID;
@@ -245,9 +254,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             validationIssuesPanel.IsVisible = true;
             validationIssuesPanel.Children.Clear();
             foreach (Control issueCtrl in modValidation.Issues)
-            {
                 validationIssuesPanel.Children.Add(issueCtrl);
-            }
         }
         else
         {
@@ -595,6 +602,21 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         }
     }
 
+    private static string BuildCountedButtonLabel(string verb, string singularNoun, int count, string zeroLabel)
+    {
+        if (count <= 0)
+            return zeroLabel;
+        return $"{verb} {count} {singularNoun}{(count == 1 ? string.Empty : "s")}";
+    }
+
+    private int CountAllRelationships()
+    {
+        int total = 0;
+        foreach (ModRelationshipRule rule in rules.Values)
+            total += rule.BeforeIds.Count + rule.AfterIds.Count + rule.RequiredIds.Count + rule.IncompatibleIds.Count;
+        return total;
+    }
+
     private void NormalizeRules()
     {
         foreach (string key in rules.Keys.ToList())
@@ -917,105 +939,125 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
 
     private async Task ClearAllRelationshipsAsync()
     {
-        if (selectedMod == null)
-        {
+        bool isGlobal = selectedMod == null;
+        string? ownerId = isGlobal ? null : selectedMod!.ModReference.ID.Trim();
+        int affectedCount = isGlobal ? CountAllRelationships() : selectedMod!.RelationshipCount;
+        if (affectedCount == 0)
             return;
-        }
 
-        bool confirm = await DialogService.ShowConfirmAsync(this,
-            "Clear all relationships (Before, After, Required, Incompatible) for this mod?",
-            "Clear All Relationships");
+        string prompt = isGlobal
+            ? "Clear every relationship (Before, After, Required, Incompatible) for every mod?"
+            : "Clear all relationships (Before, After, Required, Incompatible) for this mod?";
 
+        bool confirm = await DialogService.ShowConfirmAsync(this, prompt, "Clear All Relationships");
         if (!confirm)
-        {
             return;
-        }
 
         PushUndo();
 
-        foreach (ModRelationshipKind kind in Enum.GetValues<ModRelationshipKind>())
-        {
-            GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind).Clear();
-        }
+        if (isGlobal)
+            rules.Clear();
+        else
+            foreach (ModRelationshipKind kind in Enum.GetValues<ModRelationshipKind>())
+                GetList(GetOrCreateRule(ownerId!), kind).Clear();
+
         CommitRulesChanged();
     }
 
     private async Task FixConflictsAsync()
     {
         if (selectedMod == null)
+        {
+            await FixConflictsCoreAsync(null, "Attempt to automatically fix all relationship conflicts across every mod?");
+            return;
+        }
+
+        await FixConflictsCoreAsync(
+            selectedMod.ModReference.ID.Trim(),
+            $"Attempt to automatically fix relationship conflicts for '{selectedMod.DisplayName}'?");
+    }
+
+    private async Task FixConflictsCoreAsync(string? ownerId, string confirmPrompt)
+    {
+        bool isGlobal = ownerId == null;
+        ValidationResult validation = ValidateRules(ownerId);
+        if (!validation.HasError && !validation.HasWarning)
             return;
 
-        string ownerId = selectedMod.ModReference.ID.Trim();
-        ValidationResult modValidation = ValidateRules(ownerId);
-        if (!modValidation.HasError && !modValidation.HasWarning)
-            return;
-
-        bool confirm = await DialogService.ShowConfirmAsync(this,
-            $"Attempt to automatically fix relationship conflicts for '{selectedMod.DisplayName}'?",
-            "Fix Conflicts");
-
+        bool confirm = await DialogService.ShowConfirmAsync(this, confirmPrompt, "Fix Conflicts");
         if (!confirm)
             return;
 
         PushUndo();
 
-        // Step 1: Clean self-references, missing mods, and direct contradictions for selectedMod
-        ModRelationshipRule rule = GetOrCreateRule(ownerId);
-        rule.BeforeIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
-        rule.AfterIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
-        rule.RequiredIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
-        rule.IncompatibleIds.RemoveAll(id => IsSelfOrMissing(ownerId, id));
+        List<string> ownerIds = isGlobal ? rules.Keys.ToList() : new List<string> { ownerId! };
+        Dictionary<string, ModRelationshipRule> targetRules = ownerIds.ToDictionary(
+            id => id, GetOrCreateRule, StringComparer.OrdinalIgnoreCase);
 
-        rule.IncompatibleIds.RemoveAll(id => rule.RequiredIds.Any(r => string.Equals(r, id, StringComparison.OrdinalIgnoreCase)));
-        rule.AfterIds.RemoveAll(id => rule.BeforeIds.Any(b => string.Equals(b, id, StringComparison.OrdinalIgnoreCase)));
+        // Step 1: Clean self-references, missing mods, and direct contradictions.
+        foreach ((string id, ModRelationshipRule rule) in targetRules)
+        {
+            rule.BeforeIds.RemoveAll(target => IsSelfOrMissing(id, target));
+            rule.AfterIds.RemoveAll(target => IsSelfOrMissing(id, target));
+            rule.RequiredIds.RemoveAll(target => IsSelfOrMissing(id, target));
+            rule.IncompatibleIds.RemoveAll(target => IsSelfOrMissing(id, target));
 
-        // Step 2: Resolve circular dependencies involving selectedMod
+            rule.IncompatibleIds.RemoveAll(target => rule.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)));
+            rule.AfterIds.RemoveAll(target => rule.BeforeIds.Any(b => string.Equals(b, target, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        // Step 2: Resolve circular dependencies. Fixing a single mod seeds the graph with every OTHER
+        // mod's edges first, so that mod's own edges are re-added against a stable backdrop.
+        // Fixing globally starts from an empty graph and every owner's edges compete for space in one pass, in dictionary-enumeration order.
         Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
-
-        // Build graph using all other rules first
-        foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
+        if (!isGlobal)
         {
-            if (string.Equals(kvp.Key, ownerId, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            foreach (string target in kvp.Value.BeforeIds) AddGraphEdge(graph, kvp.Key, target);
-            foreach (string target in kvp.Value.AfterIds) AddGraphEdge(graph, target, kvp.Key);
-            foreach (string target in kvp.Value.RequiredIds) AddGraphEdge(graph, target, kvp.Key);
-        }
-
-        // Re-add selectedMod's edges, dropping any edge that forms a cycle
-        List<string> validBefore = new();
-        foreach (string target in rule.BeforeIds)
-        {
-            if (!WouldCreateCycle(graph, ownerId, target))
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
             {
-                validBefore.Add(target);
-                AddGraphEdge(graph, ownerId, target);
+                if (string.Equals(kvp.Key, ownerId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (string target in kvp.Value.BeforeIds) AddGraphEdge(graph, kvp.Key, target);
+                foreach (string target in kvp.Value.AfterIds) AddGraphEdge(graph, target, kvp.Key);
+                foreach (string target in kvp.Value.RequiredIds) AddGraphEdge(graph, target, kvp.Key);
             }
         }
-        rule.BeforeIds = validBefore;
 
-        List<string> validAfter = new();
-        foreach (string target in rule.AfterIds)
+        foreach ((string id, ModRelationshipRule rule) in targetRules)
         {
-            if (!WouldCreateCycle(graph, target, ownerId))
+            List<string> validBefore = new();
+            foreach (string target in rule.BeforeIds)
             {
-                validAfter.Add(target);
-                AddGraphEdge(graph, target, ownerId);
+                if (!WouldCreateCycle(graph, id, target))
+                {
+                    validBefore.Add(target);
+                    AddGraphEdge(graph, id, target);
+                }
             }
-        }
-        rule.AfterIds = validAfter;
+            rule.BeforeIds = validBefore;
 
-        List<string> validRequired = new();
-        foreach (string target in rule.RequiredIds)
-        {
-            if (!WouldCreateCycle(graph, target, ownerId))
+            List<string> validAfter = new();
+            foreach (string target in rule.AfterIds)
             {
-                validRequired.Add(target);
-                AddGraphEdge(graph, target, ownerId);
+                if (!WouldCreateCycle(graph, target, id))
+                {
+                    validAfter.Add(target);
+                    AddGraphEdge(graph, target, id);
+                }
             }
+            rule.AfterIds = validAfter;
+
+            List<string> validRequired = new();
+            foreach (string target in rule.RequiredIds)
+            {
+                if (!WouldCreateCycle(graph, target, id))
+                {
+                    validRequired.Add(target);
+                    AddGraphEdge(graph, target, id);
+                }
+            }
+            rule.RequiredIds = validRequired;
         }
-        rule.RequiredIds = validRequired;
 
         CommitRulesChanged();
     }
