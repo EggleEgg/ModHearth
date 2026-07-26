@@ -11,6 +11,9 @@
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     <DockFluentTheme />
 
+    <Style Selector="Button">
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
     <Style Selector="Button Image">
       <Setter Property="Margin" Value="4" />
     </Style>

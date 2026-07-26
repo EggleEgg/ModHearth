@@ -110,12 +110,14 @@ internal sealed class RelationshipPickerWindow : Window
                 TextBlock addedLabel = new()
                 {
                     Text = "(Already added)",
-                    FontSize = 11,
+                    FontSize = 12,
                     FontStyle = FontStyle.Italic,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(10, 0, 5, 0),
                     Opacity = 0.7
                 };
+                if (Style.instance != null)
+                    addedLabel.Background = BrushCache.GetBrush(Style.instance.strongPanelColor.ToAvaloniaColor());
                 Grid.SetColumn(addedLabel, 1);
                 row.Children.Add(addedLabel);
             }

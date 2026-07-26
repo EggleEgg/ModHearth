@@ -31,7 +31,7 @@ public partial class MainWindow
         Application? app = Application.Current;
         if (app != null)
         {
-            app.Resources["SeparatorBrush"] = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
+            app.Resources["BorderPanelBrush"] = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
         }
 
         RefreshDescriptionHtml();
@@ -91,6 +91,7 @@ public partial class MainWindow
             sortButton,
             sortRulesButton,
             updateLogButton,
+            workshopDownloaderButton,
             redoConfigButton,
             warningIssuesButton,
             updateButton,

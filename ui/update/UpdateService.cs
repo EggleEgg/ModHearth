@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
@@ -114,11 +115,12 @@ internal static class UpdateService
 
         string baseDir = AppContext.BaseDirectory;
         UpdateLogger.Log($"Update base directory: {baseDir}");
-        if (!EnsureDirectoryWritable(baseDir, out string rightsMessage))
+
+        // Check write permission and trigger elevation if needed
+        bool needsElevation = !EnsureDirectoryWritable(baseDir);
+        if (needsElevation)
         {
-            UpdateLogger.LogError($"Update failed: {rightsMessage}");
-            await DialogService.ShowMessageAsync(owner, rightsMessage, "Update requires permission");
-            return false;
+            UpdateLogger.Log("Installation folder is read-only for current user. Elevated permissions will be requested.");
         }
 
         string tempRoot = Path.Combine(Path.GetTempPath(), $"ModHearth_update_{Guid.NewGuid():N}");
@@ -148,7 +150,7 @@ internal static class UpdateService
         if (!string.IsNullOrWhiteSpace(configBackup))
             UpdateLogger.Log($"Backed up config: {configBackup}");
 
-        if (!TryStartUpdateScript(payloadDir, baseDir, configBackup, out string? startError))
+        if (!TryStartUpdateScript(payloadDir, baseDir, configBackup, needsElevation, out string? startError))
         {
             UpdateLogger.LogError($"Update failed: {startError}");
             await DialogService.ShowMessageAsync(owner, startError ?? "Failed to start the updater.", "Update failed");
@@ -187,9 +189,8 @@ internal static class UpdateService
         throw new PlatformNotSupportedException("Unsupported operating system for auto-update.");
     }
 
-    private static bool EnsureDirectoryWritable(string directory, out string message)
+    private static bool EnsureDirectoryWritable(string directory)
     {
-        message = string.Empty;
         try
         {
             string testFile = Path.Combine(directory, $".write_test_{Guid.NewGuid():N}");
@@ -197,16 +198,8 @@ internal static class UpdateService
             File.Delete(testFile);
             return true;
         }
-        catch (UnauthorizedAccessException)
+        catch
         {
-            message = OperatingSystem.IsWindows()
-                ? "ModHearth does not have permission to update this folder. Please run ModHearth as Administrator and try again."
-                : "ModHearth does not have permission to update this folder. Please run with sudo or move ModHearth to a writable directory.";
-            return false;
-        }
-        catch (Exception ex)
-        {
-            message = $"Failed to access the application directory: {ex.Message}";
             return false;
         }
     }
@@ -316,14 +309,14 @@ internal static class UpdateService
         return backupPath;
     }
 
-    private static bool TryStartUpdateScript(string sourceDir, string destinationDir, string? configBackup, out string? error)
+    private static bool TryStartUpdateScript(string sourceDir, string destinationDir, string? configBackup, bool needsElevation, out string? error)
     {
         error = null;
         int pid = Environment.ProcessId;
         if (OperatingSystem.IsWindows())
-            return StartWindowsUpdateScript(sourceDir, destinationDir, configBackup, pid, out error);
+            return StartWindowsUpdateScript(sourceDir, destinationDir, configBackup, pid, needsElevation, out error);
 
-        return StartUnixUpdateScript(sourceDir, destinationDir, configBackup, pid, out error);
+        return StartUnixUpdateScript(sourceDir, destinationDir, configBackup, pid, needsElevation, out error);
     }
 
     private static void AppendLegacyCleanupCommands(StringBuilder script, bool isWindows, string destVarName)
@@ -340,13 +333,9 @@ internal static class UpdateService
                 // Normalize slashes to Windows backslashes
                 string winPath = path.Replace('/', '\\');
                 if (isDir)
-                {
                     script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" rmdir /s /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
-                }
                 else
-                {
                     script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" del /f /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
-                }
             }
         }
         else // Unix / Linux / macOS
@@ -366,7 +355,7 @@ internal static class UpdateService
         }
     }
 
-    private static bool StartWindowsUpdateScript(string sourceDir, string destinationDir, string? configBackup, int pid, out string? error)
+    private static bool StartWindowsUpdateScript(string sourceDir, string destinationDir, string? configBackup, int pid, bool needsElevation, out string? error)
     {
         error = null;
         try
@@ -409,14 +398,30 @@ internal static class UpdateService
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
 
-            using Process? process = Process.Start(new ProcessStartInfo
+            ProcessStartInfo psi = new ProcessStartInfo
             {
-                FileName = scriptPath,
-                UseShellExecute = true,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            });
+                FileName = "cmd.exe",
+                Arguments = $"/c \"\"{scriptPath}\"\"",
+                UseShellExecute = true
+            };
+
+            if (needsElevation)
+            {
+                psi.Verb = "runas"; // Triggers Windows UAC Prompt
+            }
+            else
+            {
+                psi.CreateNoWindow = true;
+                psi.WindowStyle = ProcessWindowStyle.Hidden;
+            }
+
+            using Process? process = Process.Start(psi);
             return true;
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) // ERROR_CANCELLED by user on UAC
+        {
+            error = "Update canceled: administrator permissions were refused.";
+            return false;
         }
         catch (Exception ex)
         {
@@ -425,7 +430,7 @@ internal static class UpdateService
         }
     }
 
-    private static bool StartUnixUpdateScript(string sourceDir, string destinationDir, string? configBackup, int pid, out string? error)
+    private static bool StartUnixUpdateScript(string sourceDir, string destinationDir, string? configBackup, int pid, bool needsElevation, out string? error)
     {
         error = null;
         try
@@ -452,6 +457,14 @@ internal static class UpdateService
             script.AppendLine("cp -a \"$SRC/.\" \"$DEST/\" >> \"$LOG\" 2>&1");
             if (!string.IsNullOrWhiteSpace(configBackup))
                 script.AppendLine("cp \"$CONFIG_BACKUP\" \"$DEST/config.json\" >> \"$LOG\" 2>&1");
+
+            // Restore user ownership if script ran with elevated privileges
+            script.AppendLine("if [ -n \"$PKEXEC_UID\" ]; then");
+            script.AppendLine("  chown -R \"$PKEXEC_UID\" \"$DEST\" >> \"$LOG\" 2>&1");
+            script.AppendLine("elif [ -n \"$SUDO_USER\" ]; then");
+            script.AppendLine("  chown -R \"$SUDO_USER\" \"$DEST\" >> \"$LOG\" 2>&1");
+            script.AppendLine("fi");
+
             script.AppendLine("if [ -f \"$EXE\" ]; then");
             script.AppendLine("  chmod +x \"$EXE\"");
             script.AppendLine("  \"$EXE\" &");
@@ -461,18 +474,45 @@ internal static class UpdateService
             script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater finished\" >> \"$LOG\"");
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
-            using Process? process = Process.Start(new ProcessStartInfo
+
+            ProcessStartInfo psi = new ProcessStartInfo
             {
-                FileName = "/bin/sh",
-                Arguments = scriptPath,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            });
+            };
+
+            if (needsElevation)
+            {
+                if (OperatingSystem.IsLinux())
+                {
+                    // pkexec launches native graphical password prompt on Linux (Polkit)
+                    psi.FileName = "pkexec";
+                    psi.Arguments = $"/bin/sh \"{scriptPath}\"";
+                }
+                else if (OperatingSystem.IsMacOS())
+                {
+                    // osascript triggers native macOS privileges prompt
+                    psi.FileName = "osascript";
+                    psi.Arguments = $"-e \"do shell script \\\"/bin/sh '{scriptPath}'\\\" with administrator privileges\"";
+                }
+                else
+                {
+                    psi.FileName = "/bin/sh";
+                    psi.Arguments = scriptPath;
+                }
+            }
+            else
+            {
+                psi.FileName = "/bin/sh";
+                psi.Arguments = scriptPath;
+            }
+
+            using Process? process = Process.Start(psi);
             return true;
         }
         catch (Exception ex)
         {
-            error = $"Failed to launch the update script: {ex.Message}";
+            error = $"Failed to launch elevated update script: {ex.Message}";
             return false;
         }
     }

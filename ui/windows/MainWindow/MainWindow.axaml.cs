@@ -250,6 +250,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         redoConfigButton.Click += async (_, _) => await RedoConfigAsync();
         updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
         updateLogButton.Click += (_, _) => OpenModUpdateLog();
+        workshopDownloaderButton.Click += (_, _) => OpenWorkshopDownloader();
 
         themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
         themeComboBox.SelectionChanged += async (_, _) => await OnThemeChangedAsync();

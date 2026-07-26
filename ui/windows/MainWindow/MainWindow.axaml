@@ -62,7 +62,7 @@
                               Margin="2,2,2,2" InitializeFactory="False" InitializeLayout="False" />
             <Grid Grid.Row="3" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
                   VerticalAlignment="Center" Margin="0,5,2,0" MinHeight="18" RowSpacing="7">
-              <Border Background="{DynamicResource SeparatorBrush}" Grid.Row="0" Grid.ColumnSpan="2" Height="2"
+              <Border Background="{DynamicResource BorderPanelBrush}" Grid.Row="0" Grid.ColumnSpan="2" Height="2"
                       HorizontalAlignment="Stretch" Margin="2,2,0,0" />
               <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6"
                           VerticalAlignment="Center">
@@ -80,7 +80,7 @@
         </Grid>
       </Border>
 
-      <Border Grid.Column="1" Background="{DynamicResource SeparatorBrush}" Width="0.5"
+      <Border Grid.Column="1" Background="{DynamicResource BorderPanelBrush}" Width="0.5"
               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,30,2,2" />
       <GridSplitter Grid.Column="1" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
                     HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
@@ -190,7 +190,7 @@
             <Button x:Name="exportButton" Grid.Column="2" Content="Export" FontSize="13" />
           </Grid>
 
-          <Border Grid.Row="5" Grid.ColumnSpan="3" Background="{DynamicResource SeparatorBrush}" Height="2" HorizontalAlignment="Stretch" Margin="0,2,0,4" />
+          <Border Grid.Row="5" Grid.ColumnSpan="3" Background="{DynamicResource BorderPanelBrush}" Height="2" HorizontalAlignment="Stretch" Margin="0,2,0,4" />
 
           <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Height="28">
             <Button x:Name="sortButton" HorizontalContentAlignment="Stretch" ToolTip.Tip="Sorts mods based on raw tag properties. Right click to autosort">
@@ -208,15 +208,16 @@
             </Button>
           </Grid>
 
-          <Grid Grid.Row="7" ColumnDefinitions="*,Auto" Height="28"
-                Margin="0,0,0,6"
-                VerticalAlignment="Bottom">
-            <Button x:Name="updateLogButton" Content="Update log" FontSize="13" />
-            <Button x:Name="clearInstalledModsButton" Grid.Column="1" Width="28"
-                    ToolTip.Tip="Delete the installed mods cache. Right click to open the installed_mods folder">
-              <Image Source="{ui:AssetImage trashIcon}" />
-            </Button>
-          </Grid>
+          <StackPanel Grid.Row="7" Spacing="8" Margin="0,0,0,6" VerticalAlignment="Bottom">
+            <Button x:Name="workshopDownloaderButton" Content="Workshop downloader" FontSize="13" Height="28" />
+            <Grid ColumnDefinitions="*,Auto" Height="28">
+              <Button x:Name="updateLogButton" Content="Update log" FontSize="13" />
+              <Button x:Name="clearInstalledModsButton" Grid.Column="1" Width="28"
+                      ToolTip.Tip="Delete the installed mods cache. Right click to open the installed_mods folder">
+                <Image Source="{ui:AssetImage trashIcon}" />
+              </Button>
+            </Grid>
+          </StackPanel>
 
           <Grid Grid.Row="8" ColumnDefinitions="Auto,*"
                 Height="62">

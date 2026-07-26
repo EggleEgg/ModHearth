@@ -14,6 +14,9 @@ public static class WindowThemeManager
 {
     private static readonly List<WeakReference<Window>> registered = new();
 
+    [ThreadStatic]
+    private static bool isApplying;
+
     public static void Register(Window window)
     {
         if (window == null)
@@ -68,100 +71,91 @@ public static class WindowThemeManager
 
     public static void ApplyToWindow(Window window, Style style)
     {
-        if (window == null)
+        if (window == null || isApplying)
             return;
 
-        foreach (ModSearchBar searchBar in window.GetVisualDescendants().OfType<ModSearchBar>())
-            searchBar.ApplyStyle(style);
-
-        IBrush formBrush = BrushCache.GetBrush(style.formColor.ToAvaloniaColor());
-        IBrush textBrush = BrushCache.GetBrush(style.textColor.ToAvaloniaColor());
-        IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
-        IBrush buttonBrush = BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor());
-        IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
-        IBrush buttonOutlineBrush = BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor());
-        IBrush borderPanelBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
-        IBrush dataGridBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
-
-        window.Background = formBrush;
-        IBrush inputTextBrush = IsDark(style.formColor) ? Brushes.White : Brushes.Black;
-
-        ThemeVariant? ownerVariant = window.Owner?.RequestedThemeVariant;
-        window.RequestedThemeVariant = ownerVariant ?? (IsDark(style.formColor) ? ThemeVariant.Dark : ThemeVariant.Light);
-
-        //Avalonia DynamicResource
-        Application? app = Application.Current;
-        if (app != null)
+        isApplying = true;
+        try
         {
-            app.Resources["SeparatorBrush"] = borderPanelBrush;
-        }
+            foreach (ModSearchBar searchBar in window.GetVisualDescendants().OfType<ModSearchBar>())
+                searchBar.ApplyStyle(style);
 
-        foreach (Visual visual in window.GetVisualDescendants())
-        {
-            // ModSearchBar (and nested ModColorPicker) fully style themselves via ApplyStyle()
-            if (visual is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
-                continue;
+            IBrush formBrush = BrushCache.GetBrush(style.formColor.ToAvaloniaColor());
+            IBrush textBrush = BrushCache.GetBrush(style.textColor.ToAvaloniaColor());
+            IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
+            IBrush strongPanelBrush = BrushCache.GetBrush(style.strongPanelColor.ToAvaloniaColor());
+            IBrush buttonBrush = BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor());
+            IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
+            IBrush buttonOutlineBrush = BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor());
+            IBrush borderPanelBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
+            IBrush dataGridBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
 
-            if (visual is Border border)
+            window.Background = formBrush;
+            IBrush inputTextBrush = IsDark(style.formColor) ? Brushes.White : Brushes.Black;
+
+            ThemeVariant? ownerVariant = window.Owner?.RequestedThemeVariant;
+            window.RequestedThemeVariant = ownerVariant ?? (IsDark(style.formColor) ? ThemeVariant.Dark : ThemeVariant.Light);
+
+            //Avalonia DynamicResource
+            Application? app = Application.Current;
+            if (app != null)
             {
-                if (!border.IsSet(Border.BackgroundProperty))
-                    border.Background = borderPanelBrush;
-                continue;
+                app.Resources["BorderPanelBrush"] = borderPanelBrush;
+                app.Resources["FormBackgroundBrush"] = formBrush;
+                app.Resources["MainTextBrush"] = textBrush;
+                app.Resources["PanelBackgroundBrush"] = panelBrush;
+                app.Resources["StrongPanelBackgroundBrush"] = strongPanelBrush;
+                app.Resources["ButtonBackgroundBrush"] = buttonBrush;
+                app.Resources["ButtonForegroundBrush"] = buttonTextBrush;
+                app.Resources["ButtonBorderBrush"] = buttonOutlineBrush;
             }
-            if (visual is TextBlock textBlock)
+
+            foreach (Visual visual in window.GetVisualDescendants())
             {
-                if (!textBlock.IsSet(TextBlock.ForegroundProperty))
+                // ModSearchBar (and nested ModColorPicker) fully style themselves via ApplyStyle()
+                if (visual is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
+                    continue;
+
+                if (visual is TextBlock textBlock && !(visual.Parent is Button))
+                {
                     textBlock.Foreground = textBrush;
-                continue;
-            }
+                    continue;
+                }
 
-            if (visual is TextBox textBox)
-            {
-                if (!textBox.IsSet(TextBox.BackgroundProperty))
+                if (visual is TextBox textBox)
+                {
                     textBox.Background = panelBrush;
-                if (!textBox.IsSet(TextBox.ForegroundProperty))
                     textBox.Foreground = inputTextBrush;
-                continue;
-            }
+                    continue;
+                }
 
-            if (visual is ComboBox comboBox)
-            {
-                if (!comboBox.IsSet(ComboBox.BackgroundProperty))
+                if (visual is ComboBox comboBox)
+                {
                     comboBox.Background = panelBrush;
-                if (!comboBox.IsSet(ComboBox.ForegroundProperty))
                     comboBox.Foreground = inputTextBrush;
-                continue;
-            }
+                    continue;
+                }
 
-            if (visual is ListBox listBox)
-            {
-                if (!listBox.IsSet(ListBox.BackgroundProperty))
+                if (visual is ListBox listBox)
+                {
                     listBox.Background = panelBrush;
-                continue;
-            }
+                    continue;
+                }
 
-            if (visual is DataGrid dataGrid)
-            {
-                if (!dataGrid.IsSet(DataGrid.BackgroundProperty))
+                if (visual is DataGrid dataGrid)
+                {
                     dataGrid.Background = dataGridBrush;
-                continue;
+                    continue;
+                }
             }
 
-            if (visual is Button button)
-            {
-                if (!button.IsSet(Button.BackgroundProperty))
-                    button.Background = buttonBrush;
-                if (!button.IsSet(Button.ForegroundProperty))
-                    button.Foreground = buttonTextBrush;
-                if (!button.IsSet(Button.BorderBrushProperty))
-                    button.BorderBrush = buttonOutlineBrush;
-                if (!button.IsSet(Button.BorderThicknessProperty))
-                    button.BorderThickness = new Thickness(1);
-            }
+            if (window is IStyleAwareWindow styleAware)
+                styleAware.ApplyCustomStyle(style);
         }
-
-        if (window is IStyleAwareWindow styleAware)
-            styleAware.ApplyCustomStyle(style);
+        finally
+        {
+            isApplying = false;
+        }
     }
 
     private static bool IsDark(SimpleColor color)

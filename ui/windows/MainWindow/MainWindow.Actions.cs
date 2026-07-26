@@ -51,6 +51,15 @@ public partial class MainWindow
         _ = dialog.ShowDialog(this);
     }
 
+    private void OpenWorkshopDownloader()
+    {
+        WorkshopDownloaderWindow dialog = new WorkshopDownloaderWindow(manager)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        dialog.Show(this);
+    }
+
     private async Task ModSortAsync()
     {
         await manager.EnsureModRawDependencyCacheAsync();

@@ -50,37 +50,39 @@
       </ListBox>
     </Grid>
 
-    <Border Grid.Column="1" Background="{DynamicResource SeparatorBrush}" Width="0.5"
+    <Border Grid.Column="1" Background="{DynamicResource BorderPanelBrush}" Width="0.5"
             HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0" />
     <GridSplitter Grid.Column="1" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
                   HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
 
     <ScrollViewer Grid.Column="2">
-      <StackPanel x:Name="editorPanel" Spacing="10">
-        <TextBlock x:Name="selectedTitleText" FontSize="18" FontWeight="Bold" />
-        <TextBlock x:Name="selectedSubtitleText" FontSize="12" Opacity="0.7" />
+      <Grid Margin="0,0,8,0">
+        <StackPanel x:Name="editorPanel" Spacing="10">
+          <TextBlock x:Name="selectedTitleText" FontSize="18" FontWeight="Bold" />
+          <TextBlock x:Name="selectedSubtitleText" FontSize="12" Opacity="0.7" />
 
-        <Border BorderThickness="1" CornerRadius="6"
-                Padding="10" Margin="0,4,0,0">
-          <StackPanel Spacing="4">
-            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
-              <TextBlock Text="Relationships" FontWeight="Bold" VerticalAlignment="Center" />
-              <Button x:Name="clearAllRelationshipsButton" Grid.Column="1"
-                      Content="Clear all relationships" Padding="10,4" VerticalAlignment="Center"
-                      HorizontalAlignment="Right" HorizontalContentAlignment="Center" />
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch" ColumnSpacing="8">
-              <TextBlock x:Name="summaryText" />
-              <TextBlock x:Name="validationText" Grid.Row="1" TextWrapping="Wrap" />
-              <Button x:Name="fixConflictsButton" Grid.RowSpan="2" Grid.Column="1"
-                      Content="Fix conflicts" Padding="10,4" VerticalAlignment="Center"
-                      HorizontalAlignment="Right" HorizontalContentAlignment="Center" />
-            </Grid>
-          </StackPanel>
-        </Border>
+          <Border BorderThickness="1" Background="{DynamicResource BorderPanelBrush}" CornerRadius="6" Padding="10" Margin="0,4,0,0">
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+                <TextBlock Text="Relationships" FontWeight="Bold" VerticalAlignment="Center" />
+                <Button x:Name="clearAllRelationshipsButton" Grid.Column="1" Foreground="{DynamicResource MainTextBrush}"
+                        Content="Clear all relationships" Padding="10,4" VerticalAlignment="Center"
+                        HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch" ColumnSpacing="8">
+                <TextBlock x:Name="summaryText" Margin="0,0,0,4"/>
+                <TextBlock x:Name="validationText" Grid.Row="1" TextWrapping="Wrap"/>
+                <StackPanel x:Name="validationIssuesPanel" Grid.Row="1" Spacing="4" IsVisible="False" />
+                <Button x:Name="fixConflictsButton" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource MainTextBrush}"
+                        Content="Fix conflicts" Padding="10,4" VerticalAlignment="Top"
+                        HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
+              </Grid>
+            </StackPanel>
+          </Border>
 
-        <StackPanel x:Name="sectionsPanel" Spacing="10" />
-      </StackPanel>
+          <StackPanel x:Name="sectionsPanel" Spacing="10" />
+        </StackPanel>
+      </Grid>
     </ScrollViewer>
   </Grid>
 </Window>

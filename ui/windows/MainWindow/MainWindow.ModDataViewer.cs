@@ -295,7 +295,17 @@ public partial class MainWindow
         ProportionalStackPanel.SetProportion(target, proportion);
         ProportionalStackPanel.SetIsCollapsed(target, isCollapsed);
         if (isCollapsed)
+        {
             ProportionalStackPanel.SetCollapsedProportion(target, CollapsedToolDockProportion);
+            ProportionalStackPanelSplitter.SetMinimumProportionSize(target, 0);
+        }
+        else
+        {
+            // Restore the library's real default rather than hardcoding 75 here, in case that default
+            // ever changes upstream. Normal, non-collapsed panes should keep their real interactive-drag
+            // floor -- only a genuinely empty/collapsed pane should be exempt from it.
+            target.ClearValue(ProportionalStackPanelSplitter.MinimumProportionSizeProperty);
+        }
     }
 
     private void RebalanceEmptyToolDock(ToolDock dock)

@@ -170,15 +170,18 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
 
     private bool isApplyingStyleInternal;
     private bool isRefreshing;
-
     public void ApplyCustomStyle(Style style)
     {
-        if (isApplyingStyleInternal) return;
         if (isRefreshing) return;
-
         isRefreshing = true;
-        try { RefreshEditor(); }
-        finally { isRefreshing = false; }
+        try
+        {
+            RefreshEditor();
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
     }
 
     private void RefreshEditor()
@@ -196,8 +199,25 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             selectedSubtitleText.Text = "Choose a mod to edit its relationships.";
             summaryText.Text = "Before: 0   After: 0   Required: 0   Incompatible: 0";
             ValidationResult globalValidation = ValidateRules();
-            validationText.Text = globalValidation.Message;
-            validationText.Foreground = globalValidation.HasError ? Brushes.IndianRed : (globalValidation.HasWarning ? Brushes.Goldenrod : Brushes.SeaGreen);
+
+            if (globalValidation.Issues != null && globalValidation.Issues.Count > 0)
+            {
+                validationText.IsVisible = false;
+                validationIssuesPanel.IsVisible = true;
+                validationIssuesPanel.Children.Clear();
+                foreach (Control issueCtrl in globalValidation.Issues)
+                {
+                    validationIssuesPanel.Children.Add(issueCtrl);
+                }
+            }
+            else
+            {
+                validationText.IsVisible = true;
+                validationIssuesPanel.IsVisible = false;
+                validationText.Text = globalValidation.Message;
+            }
+
+            validateTextColor(validationText, validationIssuesPanel, globalValidation);
 
             if (Style.instance != null && !isApplyingStyleInternal)
             {
@@ -219,14 +239,24 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         summaryText.Text =
             $"Before: {rule.BeforeIds.Count}   After: {rule.AfterIds.Count}   Required: {rule.RequiredIds.Count}   Incompatible: {rule.IncompatibleIds.Count}";
 
-        validationText.Text = modValidation.Message;
-
-        if (modValidation.HasError)
-            validationText.Foreground = Brushes.IndianRed;
-        else if (modValidation.HasWarning)
-            validationText.Foreground = Brushes.Goldenrod;
+        if (modValidation.Issues != null && modValidation.Issues.Count > 0)
+        {
+            validationText.IsVisible = false;
+            validationIssuesPanel.IsVisible = true;
+            validationIssuesPanel.Children.Clear();
+            foreach (Control issueCtrl in modValidation.Issues)
+            {
+                validationIssuesPanel.Children.Add(issueCtrl);
+            }
+        }
         else
-            validationText.Foreground = Brushes.SeaGreen;
+        {
+            validationText.IsVisible = true;
+            validationIssuesPanel.IsVisible = false;
+            validationText.Text = modValidation.Message;
+        }
+
+        validateTextColor(validationText, validationIssuesPanel, modValidation);
 
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Before, "Before", "This mod must load before these mods.", rule.BeforeIds));
         sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));
@@ -238,6 +268,46 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             isApplyingStyleInternal = true;
             try { WindowThemeManager.ApplyToWindow(this, Style.instance); }
             finally { isApplyingStyleInternal = false; }
+        }
+    }
+
+    private static void validateTextColor(TextBlock text, StackPanel issuesPanel, ValidationResult result)
+    {
+        IBrush brush;
+        if (result.HasError)
+            brush = Brushes.IndianRed;
+        else if (result.HasWarning)
+            brush = Brushes.Goldenrod;
+        else
+            brush = Brushes.SeaGreen;
+
+        text.Foreground = brush;
+
+        foreach (Control control in issuesPanel.Children)
+        {
+            ApplyBrushRecursive(control, brush);
+        }
+    }
+
+    private static void ApplyBrushRecursive(Control control, IBrush brush)
+    {
+        if (control is TextBlock tb)
+        {
+            if (tb.Tag as string != "DisplayLabel")
+            {
+                tb.Foreground = brush;
+            }
+        }
+        else if (control is Panel panel)
+        {
+            foreach (Control child in panel.Children)
+            {
+                ApplyBrushRecursive(child, brush);
+            }
+        }
+        else if (control is Border border && border.Child is Control childControl)
+        {
+            ApplyBrushRecursive(childControl, brush);
         }
     }
 
@@ -330,7 +400,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         }
 
         addButton.Click += async (_, _) => await AddRelationshipAsync(kind);
-        clearButton.Click += async (_, _) => await ClearRelationshipAsync(kind);
+        clearButton.Click += (_, _) => ClearRelationship(kind);
         return border;
     }
 
@@ -382,12 +452,22 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         return row;
     }
 
-    private static Control CreateKnownModRow(ModRefViewModel vm)
+    private Control CreateKnownModRow(ModRefViewModel vm)
     {
+
+        ModRefViewModel displayVm = new ModRefViewModel(vm.ModReference)
+        {
+            IsVanillaModSource = vm.IsVanillaModSource,
+            IsLocalModSource = vm.IsLocalModSource,
+            IsSteamModSource = vm.IsSteamModSource
+        };
+        displayVm.RefreshStyle();
+        ModListIndicatorUpdater.UpdateRelationshipBadges(new[] { displayVm }, rules);
+
         Grid grid = new() { RowDefinitions = new RowDefinitions("Auto,Auto") };
         ModRefControl modControl = new()
         {
-            DataContext = vm,
+            DataContext = displayVm,
             ShowDetailedRuleBadges = true,
             AllowContextActions = false,
             AllowRelationshipEditing = false,
@@ -446,7 +526,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         CommitRulesChanged();
     }
 
-    private async Task ClearRelationshipAsync(ModRelationshipKind kind)
+    private void ClearRelationship(ModRelationshipKind kind)
     {
         if (selectedMod == null)
             return;
@@ -581,20 +661,20 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
 
     private ValidationResult ValidateRules(string? filterModId = null)
     {
-        List<string> warnings = new();
-        List<string> errors = new();
+        List<Control> warnings = new();
+        List<Control> errors = new();
         Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
 
         // Track which issues belong to which mods for context-sensitive display
-        Dictionary<string, List<string>> issuesPerMod = new(StringComparer.OrdinalIgnoreCase);
-        void AddIssue(string modId, string message, bool isError)
+        Dictionary<string, List<Control>> issuesPerMod = new(StringComparer.OrdinalIgnoreCase);
+        void AddIssue(string modId, Control issueControl, bool isError)
         {
-            if (isError) errors.Add(message);
-            else warnings.Add(message);
+            if (isError) errors.Add(issueControl);
+            else warnings.Add(issueControl);
 
-            if (!issuesPerMod.TryGetValue(modId, out List<string>? list))
-                issuesPerMod[modId] = list = new List<string>();
-            list.Add(message);
+            if (!issuesPerMod.TryGetValue(modId, out List<Control>? list))
+                issuesPerMod[modId] = list = new List<Control>();
+            list.Add(issueControl);
         }
 
         foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
@@ -611,11 +691,11 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
                     continue;
 
                 if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
-                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} cannot be incompatible with itself.", true);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be incompatible with itself."), true);
                 else if (kvp.Value.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)))
-                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} cannot be both required and incompatible with {DisplayLabel(target)}.", true);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both required and incompatible with ", DisplayLabel(target), "."), true);
                 else if (!modIdMap.ContainsKey(target))
-                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} references missing mod {target}.", false);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), $" references missing mod {target}."), false);
             }
         }
 
@@ -625,20 +705,20 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             {
                 if (WouldCreateCycle(graph, kvp.Key, target))
                 {
-                    string msg = $"Circular dependency detected: {DisplayLabel(kvp.Key)} conflicts with {DisplayLabel(target)}.";
-                    AddIssue(kvp.Key, msg, true);
-                    AddIssue(target, msg, true);
+                    Control circularCtrl = BuildIssueControl("Circular dependency detected: ", DisplayLabel(kvp.Key), " conflicts with ", DisplayLabel(target), ".");
+                    AddIssue(kvp.Key, circularCtrl, true);
+                    AddIssue(target, circularCtrl, true);
                 }
             }
         }
 
         if (!string.IsNullOrEmpty(filterModId))
         {
-            if (issuesPerMod.TryGetValue(filterModId, out List<string>? modIssues))
+            if (issuesPerMod.TryGetValue(filterModId, out List<Control>? modIssues))
             {
                 bool hasModError = modIssues.Any(m => errors.Contains(m));
                 bool hasModWarning = modIssues.Any(m => warnings.Contains(m));
-                return new ValidationResult(hasModError, hasModWarning, string.Join(Environment.NewLine, modIssues.Distinct()));
+                return new ValidationResult(hasModError, hasModWarning, string.Empty, modIssues.Distinct().ToList());
             }
             return new ValidationResult(false, false, "No conflicts detected for this mod.");
         }
@@ -662,13 +742,13 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
                 if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
                 {
                     AddIssue(ownerId, category == "required"
-                        ? $"{DisplayLabel(ownerId)} cannot require itself."
-                        : $"{DisplayLabel(ownerId)} cannot reference itself.", true);
+                        ? BuildIssueControl(DisplayLabel(ownerId), " cannot require itself.")
+                        : BuildIssueControl(DisplayLabel(ownerId), " cannot reference itself."), true);
                     continue;
                 }
 
                 if (!modIdMap.ContainsKey(target))
-                    AddIssue(ownerId, $"{DisplayLabel(ownerId)} references missing mod {target}.", false);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), $" references missing mod {target}."), false);
 
                 string from = targetIsSource ? target : source;
                 string to = destinationFactory(target);
@@ -682,12 +762,13 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         }
     }
 
-    private static ValidationResult BuildValidationResult(List<string> errors, List<string> warnings)
+    private static ValidationResult BuildValidationResult(List<Control> errors, List<Control> warnings)
     {
+        List<Control> allIssues = errors.Concat(warnings).Distinct().ToList();
         if (errors.Count > 0)
-            return new ValidationResult(true, warnings.Count > 0, string.Join(Environment.NewLine, errors.Concat(warnings).Distinct()));
+            return new ValidationResult(true, warnings.Count > 0, string.Empty, allIssues);
         if (warnings.Count > 0)
-            return new ValidationResult(false, true, string.Join(Environment.NewLine, warnings.Distinct()));
+            return new ValidationResult(false, true, string.Empty, allIssues);
         return new ValidationResult(false, false, "No conflicts detected.");
     }
 
@@ -714,11 +795,42 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         return false;
     }
 
-    private string DisplayLabel(string id)
+    private TextBlock DisplayLabel(string id)
     {
-        return modIdMap.TryGetValue(id, out ModRefViewModel? vm)
-            ? vm.DisplayName
-            : id;
+        string label = modIdMap.TryGetValue(id, out ModRefViewModel? vm) ? vm.DisplayName : id;
+        IBrush textBrush = Style.instance != null ? BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor()) : Brushes.Black;
+
+        return new TextBlock
+        {
+            Text = label,
+            FontStyle = FontStyle.Italic,
+            FontSize = 11.5,
+            Foreground = textBrush,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Padding = new Thickness(0, 0, 0, 0.5),
+            Tag = "DisplayLabel"
+        };
+    }
+
+    private static Control BuildIssueControl(params object[] parts)
+    {
+        WrapPanel panel = new() { Orientation = Orientation.Horizontal };
+        foreach (object part in parts)
+        {
+            if (part is string s)
+            {
+                panel.Children.Add(new TextBlock
+                {
+                    Text = s,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+            else if (part is Control c)
+            {
+                panel.Children.Add(c);
+            }
+        }
+        return panel;
     }
 
     private static Dictionary<string, ModRelationshipRule> CloneRules(IDictionary<string, ModRelationshipRule> source)
@@ -801,7 +913,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         }
     }
 
-    private readonly record struct ValidationResult(bool HasError, bool HasWarning, string Message);
+    private readonly record struct ValidationResult(bool HasError, bool HasWarning, string Message, List<Control>? Issues = null);
 
     private async Task ClearAllRelationshipsAsync()
     {

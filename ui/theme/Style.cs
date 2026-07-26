@@ -87,6 +87,7 @@ namespace ModHearth.UI
         public SimpleColor searchButtonHoverColor { get; set; } = null!;
         public SimpleColor searchButtonPressedColor { get; set; } = null!;
         public SimpleColor buttonSelectionColor { get; set; } = null!;
+        public SimpleColor strongPanelColor { get; set; } = null!;
 
         // Default style.
         public Style()

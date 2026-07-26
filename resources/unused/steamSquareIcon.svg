@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   aria-label="Steam"
+   role="img"
+   viewBox="0 0 512 512"
+   fill="#ebebeb"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="steamSquareIcon.svg"
+   width="512"
+   height="512"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.78808592"
+     inkscape:cx="52.659233"
+     inkscape:cy="156.7088"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg3" />
+  <path
+     d="M 76.800781,0 C 34.25358,0 0,34.25358 0,76.800781 V 435.19922 C 0,477.74642 34.25358,512 76.800781,512 H 435.19922 C 477.74642,512 512,477.74642 512,435.19922 V 76.800781 C 512,34.25358 477.74642,0 435.19922,0 Z"
+     style="fill:#000000"
+     id="path13"
+     sodipodi:nodetypes="sssssssss" />
+  <path
+     id="path12"
+     style=""
+     d="M 340 93 C 286.61789 93 243 136.61789 243 190 C 243 190.80744 243.00946 191.61316 243.0293 192.41602 L 183.25781 279.62305 C 181.84877 279.54076 180.42904 279.5 179 279.5 C 163.71653 279.5 149.51056 284.27188 137.79688 292.40234 L 0 235.16406 L 0 321.78906 L 107.99219 366.64844 C 114.79912 399.5975 144.08718 424.5 179 424.5 C 218.92812 424.5 251.5 391.92812 251.5 352 C 251.5 350.8931 251.47531 349.79232 251.42578 348.69727 L 338 287 L 337.98047 286.97852 C 338.65234 286.9924 339.32494 287 340 287 C 393.38211 287 437 243.38211 437 190 C 437 136.61789 393.38211 93 340 93 z M 340 125 C 376.08802 125 405 153.91198 405 190 C 405 226.08802 376.08802 255 340 255 C 303.91198 255 275 226.08802 275 190 C 275 153.91198 303.91198 125 340 125 z M 340 141 A 49 49 0 0 0 291 190 A 49 49 0 0 0 340 239 A 49 49 0 0 0 389 190 A 49 49 0 0 0 340 141 z M 179 298.5 C 208.65976 298.5 232.5 322.34024 232.5 352 C 232.5 381.65976 208.65976 405.5 179 405.5 C 158.11368 405.5 140.11265 393.67767 131.29102 376.32617 L 161.65625 388.93945 C 182.05735 397.41322 205.46509 387.7446 213.93945 367.34375 C 222.41322 346.94265 212.7446 323.53491 192.34375 315.06055 L 160.40039 301.79102 C 166.1872 299.661 172.452 298.5 179 298.5 z " />
+</svg>

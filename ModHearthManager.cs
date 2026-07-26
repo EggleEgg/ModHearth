@@ -117,6 +117,9 @@ namespace ModHearth
         // Maps strings to ModReferences. The keys match DFHMods.ToString() perfectly. Given a value V, V.ToDFHMod.ToString() returns it's key.
         private volatile Dictionary<string, ModReference> modrefMap = new(StringComparer.OrdinalIgnoreCase);
 
+        // Get all currently loaded ModReferences.
+        public IReadOnlyCollection<ModReference> LoadedMods => modrefMap.Values;
+
         // Get a ModReference given a string key.
         public ModReference GetModRef(string key) => modrefMap[key];
 

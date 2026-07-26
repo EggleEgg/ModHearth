@@ -1,0 +1,141 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
+using ModHearth.Utilities.Logging;
+
+namespace ModHearth.Utilities.Workshop
+{
+    public class WorkshopItemMetadata
+    {
+        public ulong PublishedFileId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string PreviewUrl { get; set; } = string.Empty;
+        public string Author { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public bool IsCollection { get; set; }
+        public List<ulong> ChildrenIds { get; set; } = new();
+    }
+
+    public class SteamWebApiClient
+    {
+        private static readonly HttpClient HttpClient = new HttpClient();
+        private const string PublishedFileDetailsUrl = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
+        private const string CollectionDetailsUrl = "https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/";
+
+        public async Task<List<WorkshopItemMetadata>> GetPublishedFileDetailsAsync(IEnumerable<ulong> ids)
+        {
+            var idList = ids.ToList();
+            if (idList.Count == 0) return new List<WorkshopItemMetadata>();
+
+            var content = new FormUrlEncodedContent(
+                new[] { new KeyValuePair<string, string>("itemcount", idList.Count.ToString()) }
+                .Concat(idList.Select((id, i) => new KeyValuePair<string, string>($"publishedfileids[{i}]", id.ToString())))
+            );
+
+            try
+            {
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Fetching details for {idList.Count} IDs...");
+                var response = await HttpClient.PostAsync(PublishedFileDetailsUrl, content);
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Received JSON: {json}");
+
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement.GetProperty("response");
+                if (!root.TryGetProperty("publishedfiledetails", out var detailsArray))
+                {
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf("SteamWebApiClient: No 'publishedfiledetails' property found in response.");
+                    return new List<WorkshopItemMetadata>();
+                }
+
+                var results = new List<WorkshopItemMetadata>();
+                foreach (var detail in detailsArray.EnumerateArray())
+                {
+                    int resultValue = detail.GetProperty("result").GetInt32();
+                    if (resultValue != 1)
+                    {
+                        if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Item {detail.GetProperty("publishedfileid").GetString()} returned result {resultValue}");
+                        continue;
+                    }
+
+                    var meta = new WorkshopItemMetadata
+                    {
+                        PublishedFileId = ulong.Parse(detail.GetProperty("publishedfileid").GetString()!),
+                        Title = detail.GetProperty("title").GetString() ?? string.Empty,
+                        PreviewUrl = detail.TryGetProperty("preview_url", out var p) ? p.GetString() ?? string.Empty : string.Empty,
+                        FileSize = detail.TryGetProperty("file_size", out var s) ? s.GetInt64() : 0,
+                        UpdatedAt = DateTimeOffset.FromUnixTimeSeconds(detail.GetProperty("time_updated").GetInt64()).DateTime,
+                        Description = detail.TryGetProperty("description", out var d) ? d.GetString() ?? string.Empty : string.Empty,
+                        IsCollection = false 
+                    };
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Parsed metadata for '{meta.Title}' ({meta.PublishedFileId})");
+                    results.Add(meta);
+                }
+                return results;
+            }
+            catch (Exception ex)
+            {
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching file details: {ex.Message}");
+                return new List<WorkshopItemMetadata>();
+            }
+        }
+
+        public async Task<List<ulong>> GetCollectionDetailsAsync(ulong collectionId)
+        {
+            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Fetching collection details for {collectionId}...");
+            var content = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("collectioncount", "1"),
+                new KeyValuePair<string, string>("publishedfileids[0]", collectionId.ToString())
+            });
+
+            try
+            {
+                var response = await HttpClient.PostAsync(CollectionDetailsUrl, content);
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Collection JSON: {json}");
+
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement.GetProperty("response");
+                if (!root.TryGetProperty("collectiondetails", out var collections))
+                {
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf("SteamWebApiClient: No 'collectiondetails' property found in response.");
+                    return new List<ulong>();
+                }
+
+                var collection = collections.EnumerateArray().FirstOrDefault();
+                if (collection.ValueKind == JsonValueKind.Undefined || collection.GetProperty("result").GetInt32() != 1)
+                {
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Collection {collectionId} result is not 1 or undefined.");
+                    return new List<ulong>();
+                }
+
+                if (!collection.TryGetProperty("children", out var children))
+                {
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Collection {collectionId} has no children.");
+                    return new List<ulong>();
+                }
+
+                var childrenIds = children.EnumerateArray()
+                    .Select(c => ulong.Parse(c.GetProperty("publishedfileid").GetString()!))
+                    .ToList();
+                
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Found {childrenIds.Count} children for collection {collectionId}");
+                return childrenIds;
+            }
+            catch (Exception ex)
+            {
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching collection details: {ex.Message}");
+                return new List<ulong>();
+            }
+        }
+    }
+}

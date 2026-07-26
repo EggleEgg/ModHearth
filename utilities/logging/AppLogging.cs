@@ -85,6 +85,13 @@ internal static class AppLogging
         Console.Error.WriteLine(details);
     }
 
+    public static void LogError(string message)
+    {
+        Initialize();
+        string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        Console.Error.WriteLine($"[{timestamp}] ERROR: {message}");
+    }
+
     public static void Shutdown()
     {
         lock (gate)
