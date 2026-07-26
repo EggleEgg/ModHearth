@@ -57,20 +57,21 @@ namespace ModHearth.Utilities.Workshop
                 var results = new List<WorkshopItemMetadata>();
                 foreach (var detail in detailsArray.EnumerateArray())
                 {
-                    int resultValue = detail.GetProperty("result").GetInt32();
+                    int resultValue = GetIntProperty(detail, "result");
                     if (resultValue != 1)
                     {
-                        if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Item {detail.GetProperty("publishedfileid").GetString()} returned result {resultValue}");
+                        ulong rawId = GetUlongProperty(detail, "publishedfileid");
+                        if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Item {rawId} returned result {resultValue}");
                         continue;
                     }
 
                     var meta = new WorkshopItemMetadata
                     {
-                        PublishedFileId = ulong.Parse(detail.GetProperty("publishedfileid").GetString()!),
-                        Title = detail.GetProperty("title").GetString() ?? string.Empty,
+                        PublishedFileId = GetUlongProperty(detail, "publishedfileid"),
+                        Title = detail.TryGetProperty("title", out var t) ? t.GetString() ?? string.Empty : string.Empty,
                         PreviewUrl = detail.TryGetProperty("preview_url", out var p) ? p.GetString() ?? string.Empty : string.Empty,
-                        FileSize = detail.TryGetProperty("file_size", out var s) ? s.GetInt64() : 0,
-                        UpdatedAt = DateTimeOffset.FromUnixTimeSeconds(detail.GetProperty("time_updated").GetInt64()).DateTime,
+                        FileSize = GetLongProperty(detail, "file_size"),
+                        UpdatedAt = DateTimeOffset.FromUnixTimeSeconds(GetLongProperty(detail, "time_updated")).DateTime,
                         Description = detail.TryGetProperty("description", out var d) ? d.GetString() ?? string.Empty : string.Empty,
                         IsCollection = false 
                     };
@@ -112,7 +113,7 @@ namespace ModHearth.Utilities.Workshop
                 }
 
                 var collection = collections.EnumerateArray().FirstOrDefault();
-                if (collection.ValueKind == JsonValueKind.Undefined || collection.GetProperty("result").GetInt32() != 1)
+                if (collection.ValueKind == JsonValueKind.Undefined || GetIntProperty(collection, "result") != 1)
                 {
                     if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Collection {collectionId} result is not 1 or undefined.");
                     return new List<ulong>();
@@ -125,7 +126,8 @@ namespace ModHearth.Utilities.Workshop
                 }
 
                 var childrenIds = children.EnumerateArray()
-                    .Select(c => ulong.Parse(c.GetProperty("publishedfileid").GetString()!))
+                    .Select(c => GetUlongProperty(c, "publishedfileid"))
+                    .Where(id => id != 0)
                     .ToList();
                 
                 if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Found {childrenIds.Count} children for collection {collectionId}");
@@ -136,6 +138,54 @@ namespace ModHearth.Utilities.Workshop
                 if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching collection details: {ex.Message}");
                 return new List<ulong>();
             }
+        }
+
+        private static ulong GetUlongProperty(JsonElement element, string propertyName, ulong defaultValue = 0)
+        {
+            if (element.TryGetProperty(propertyName, out var prop))
+            {
+                if (prop.ValueKind == JsonValueKind.Number)
+                {
+                    if (prop.TryGetUInt64(out var val)) return val;
+                }
+                else if (prop.ValueKind == JsonValueKind.String)
+                {
+                    if (ulong.TryParse(prop.GetString(), out var val)) return val;
+                }
+            }
+            return defaultValue;
+        }
+
+        private static long GetLongProperty(JsonElement element, string propertyName, long defaultValue = 0)
+        {
+            if (element.TryGetProperty(propertyName, out var prop))
+            {
+                if (prop.ValueKind == JsonValueKind.Number)
+                {
+                    if (prop.TryGetInt64(out var val)) return val;
+                }
+                else if (prop.ValueKind == JsonValueKind.String)
+                {
+                    if (long.TryParse(prop.GetString(), out var val)) return val;
+                }
+            }
+            return defaultValue;
+        }
+
+        private static int GetIntProperty(JsonElement element, string propertyName, int defaultValue = 0)
+        {
+            if (element.TryGetProperty(propertyName, out var prop))
+            {
+                if (prop.ValueKind == JsonValueKind.Number)
+                {
+                    if (prop.TryGetInt32(out var val)) return val;
+                }
+                else if (prop.ValueKind == JsonValueKind.String)
+                {
+                    if (int.TryParse(prop.GetString(), out var val)) return val;
+                }
+            }
+            return defaultValue;
         }
     }
 }

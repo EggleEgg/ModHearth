@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Svg.Skia;
 using System.Text.RegularExpressions;
 
 namespace ModHearth.UI;
@@ -120,9 +121,21 @@ public partial class MainWindow
 
     private void SetPreviewImage(IImage? image)
     {
-        if (currentPreview is IDisposable disposable)
-            disposable.Dispose();
+        DisposePreviewImage(currentPreview);
         currentPreview = image;
         modPreviewPanelViewModel.PreviewImage = image;
+    }
+
+    // SvgImage (unlike Bitmap) doesn't implement IDisposable
+    private static void DisposePreviewImage(IImage? image)
+    {
+        if (image is SvgImage svgImage)
+        {
+            svgImage.Source?.Dispose();
+            return;
+        }
+
+        if (image is IDisposable disposable)
+            disposable.Dispose();
     }
 }

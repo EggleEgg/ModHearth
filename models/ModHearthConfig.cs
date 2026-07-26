@@ -104,5 +104,8 @@ namespace ModHearth
 
         // Normalized ratio representing the proportional split between resizable columns for SortRulesWindow GridSplitter.
         public double SortRulesWindowGridSplitterRatio { get; set; } = 0.4444;
+
+        // Default Steam Workshop download provider name. Defaults to SteamWorkerDownloadProvider.
+        public string DefaultWorkshopProvider { get; set; } = "SteamWorkerDownloadProvider";
     }
 }

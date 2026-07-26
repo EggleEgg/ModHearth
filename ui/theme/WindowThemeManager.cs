@@ -89,6 +89,7 @@ public static class WindowThemeManager
             IBrush buttonOutlineBrush = BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor());
             IBrush borderPanelBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
             IBrush dataGridBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
+            IBrush modRefHighlightBrush = BrushCache.GetBrush(style.modRefHighlightColor.ToAvaloniaColor());
 
             window.Background = formBrush;
             IBrush inputTextBrush = IsDark(style.formColor) ? Brushes.White : Brushes.Black;
@@ -108,6 +109,7 @@ public static class WindowThemeManager
                 app.Resources["ButtonBackgroundBrush"] = buttonBrush;
                 app.Resources["ButtonForegroundBrush"] = buttonTextBrush;
                 app.Resources["ButtonBorderBrush"] = buttonOutlineBrush;
+                app.Resources["ModRefHighlightBrush"] = modRefHighlightBrush;
             }
 
             foreach (Visual visual in window.GetVisualDescendants())
@@ -116,7 +118,8 @@ public static class WindowThemeManager
                 if (visual is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
                     continue;
 
-                if (visual is TextBlock textBlock && !(visual.Parent is Button))
+                if (visual is TextBlock textBlock &&
+                    visual.FindAncestorOfType<Button>() == null && visual.FindAncestorOfType<ComboBox>() == null)
                 {
                     textBlock.Foreground = textBrush;
                     continue;

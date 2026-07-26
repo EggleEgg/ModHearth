@@ -11,7 +11,7 @@
       <TextBlock Text="Paste Workshop URLs or collection IDs (one per line):" FontSize="12" Foreground="{DynamicResource MainTextBrush}" Opacity="0.6" />
       <TextBox Grid.Row="1" x:Name="WorkshopUrlTextBox" Height="80" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="e.g. https://steamcommunity.com/sharedfiles/filedetails/?id=2897791846" />
       <Grid Grid.Row="2" ColumnDefinitions="*, *" ColumnSpacing="10">
-        <Button Grid.Column="0" x:Name="BtnDownloadFromClipboard" Content="Download from Clipboard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Height="30" />
+        <ToggleButton Grid.Column="0" x:Name="BtnDownloadFromClipboard" Content="Monitor Clipboard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Height="30" />
         <Button Grid.Column="1" x:Name="BtnResolveAndQueue" Content="Resolve &amp; Queue" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Height="30" />
       </Grid>
     </Grid>
@@ -41,19 +41,19 @@
           </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="workshop:WorkshopDownloadItem">
-              <Border BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,0,0,1" Padding="10">
+              <Border BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,0,0,1" Padding="10,6">
                 <Grid ColumnDefinitions="*, 120">
                   <!-- Left: Details -->
                   <StackPanel Grid.Column="0" Spacing="4">
                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="14" ShowProgressText="False" Margin="0,2,0,2" />
+                    <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="10" ShowProgressText="False" Margin="0,2" Foreground="{DynamicResource ModRefHighlightBrush}"/>
                     <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{DynamicResource MainTextBrush}" Opacity="0.6" />
                   </StackPanel>
 
                   <!-- Right: Actions -->
                   <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6">
-                    <Button Content="Retry" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" Padding="8,4" FontSize="11" />
-                    <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="8,4" FontSize="11" />
+                    <Button Content="Retry" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" Padding="8,4" FontSize="12" />
+                    <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="8,4" FontSize="12" />
                   </StackPanel>
                 </Grid>
               </Border>
@@ -64,9 +64,12 @@
     </Grid>
 
     <!-- Queue Actions -->
-    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-      <Button x:Name="BtnClearCompleted" Content="Clear Completed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
-      <Button x:Name="BtnClose" Content="Close" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
-    </StackPanel>
+    <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
+      <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MainTextBrush}" Opacity="0.8" TextTrimming="CharacterEllipsis" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+        <Button x:Name="BtnClearCompleted" Content="Clear Completed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+        <Button x:Name="BtnClose" Content="Close" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+      </StackPanel>
+    </Grid>
   </Grid>
 </Window>

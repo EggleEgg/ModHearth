@@ -1351,5 +1351,12 @@ namespace ModHearth
             Config.SortRulesWindowGridSplitterRatio = ratio;
             SaveConfigFile("SortRulesWindow GridSplitter ratio");
         }
+
+        public static string GetDefaultWorkshopProvider() => Config.DefaultWorkshopProvider;
+        public static void SetDefaultWorkshopProvider(string providerName)
+        {
+            Config.DefaultWorkshopProvider = providerName;
+            SaveConfigFile("Default Workshop Provider");
+        }
     }
 }

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Threading;
+using ModHearth;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities.Workshop
@@ -122,8 +123,11 @@ namespace ModHearth.Utilities.Workshop
             Providers.Add(new SteamCmdDownloadProvider());
             Providers.Add(new WorkshopDlDownloadProvider());
 
-            // Select first available provider
-            SelectedProvider = Providers.FirstOrDefault(p => p.IsAvailable);
+            // Select default configured provider, or fallback to SteamWorkerDownloadProvider
+            string savedProviderName = ConfigManager.GetDefaultWorkshopProvider();
+            SelectedProvider = Providers.FirstOrDefault(p => string.Equals(p.GetType().Name, savedProviderName, StringComparison.OrdinalIgnoreCase))
+                ?? Providers.FirstOrDefault(p => string.Equals(p.GetType().Name, "SteamWorkerDownloadProvider", StringComparison.OrdinalIgnoreCase))
+                ?? Providers.FirstOrDefault();
         }
 
         public ModStatusClassification ClassifyMod(ulong id, List<ulong>? allSelectedIds = null)
@@ -208,7 +212,7 @@ namespace ModHearth.Utilities.Workshop
 
             if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Fetching metadata for {ids.Count} IDs...");
             var metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
-            
+
             if (metadataList.Count == 0)
             {
                 if (DevMode.IsEnabled) InfoLogger.LogRunDf("WorkshopQueueManager: Steam API returned no metadata for the given IDs.");
@@ -216,7 +220,7 @@ namespace ModHearth.Utilities.Workshop
             }
 
             var itemsToEnqueue = new List<WorkshopItemMetadata>();
-            
+
             foreach (var meta in metadataList)
             {
                 if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Checking if {meta.PublishedFileId} ('{meta.Title}') is a collection...");
@@ -363,7 +367,10 @@ namespace ModHearth.Utilities.Workshop
                     Dispatcher.UIThread.Post(() =>
                     {
                         item.ProgressPercentage = p.Percentage;
-                        item.StatusText = $"Downloading {p.Percentage:F1}%";
+                        if (p.Percentage >= 1)
+                            item.StatusText = $"Download complete";
+                        else
+                            item.StatusText = $"Downloading {p.Percentage:F1}%";
                     });
                 });
 

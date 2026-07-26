@@ -212,11 +212,6 @@ internal static class ImageSourceLoader
             if (IsSvgPath(path))
                 return LoadSvgImage(new Uri(fullPath, UriKind.Absolute).ToString());
 
-            string svgCandidate = ReplaceExtension(fullPath, ".svg");
-            IImage? svgCandidateImage = LoadSvgImage(new Uri(svgCandidate, UriKind.Absolute).ToString());
-            if (svgCandidateImage != null)
-                return svgCandidateImage;
-
             return new Bitmap(fullPath);
         }
         catch

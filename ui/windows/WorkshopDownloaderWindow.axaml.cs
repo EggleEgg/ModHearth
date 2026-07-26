@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
@@ -13,6 +15,8 @@ namespace ModHearth.UI
     public partial class WorkshopDownloaderWindow : Window, IStyleAwareWindow
     {
         private readonly WorkshopQueueManager _queueManager;
+        private string _lastClipboard = string.Empty;
+        private CancellationTokenSource? _statusCts;
 
         public WorkshopDownloaderWindow() : this(null!) { }
 
@@ -25,20 +29,48 @@ namespace ModHearth.UI
 
             ProviderComboBox.ItemsSource = _queueManager.Providers;
             ProviderComboBox.SelectedItem = _queueManager.SelectedProvider;
-            ProviderComboBox.SelectionChanged += (_, _) => _queueManager.SelectedProvider = ProviderComboBox.SelectedItem as IWorkshopDownloadProvider;
+            ProviderComboBox.SelectionChanged += (_, _) =>
+            {
+                var provider = ProviderComboBox.SelectedItem as IWorkshopDownloadProvider;
+                _queueManager.SelectedProvider = provider;
+                if (provider != null)
+                {
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Provider changed to {provider.Name}");
+                    ConfigManager.SetDefaultWorkshopProvider(provider.GetType().Name);
+                }
+            };
 
             DownloadQueueList.ItemsSource = _queueManager.Queue;
 
-            BtnDownloadFromClipboard.Click += async (_, _) =>
+            // Setup clipboard monitoring
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            timer.Tick += async (_, _) =>
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf("WorkshopDownloaderWindow: Download from Clipboard clicked.");
-                await DownloadFromClipboardAsync();
+                if (BtnDownloadFromClipboard.IsChecked != true) return;
+
+                string text = await GetClipboardTextAsync();
+                if (!string.IsNullOrWhiteSpace(text) && text != _lastClipboard)
+                {
+                    _lastClipboard = text;
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Auto-detected clipboard change: {text}");
+                    
+                    await Dispatcher.UIThread.InvokeAsync(async () => {
+                        var currentText = WorkshopUrlTextBox.Text ?? string.Empty;
+                        if (!currentText.Contains(text))
+                        {
+                            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Appending clipboard text to TextBox.");
+                            WorkshopUrlTextBox.Text = string.IsNullOrWhiteSpace(currentText) ? text : currentText + Environment.NewLine + text;
+                        }
+                        await ResolveAndEnqueueAsync(text);
+                    });
+                }
             };
+            timer.Start();
 
             BtnResolveAndQueue.Click += async (_, _) =>
             {
                 if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Resolve & Queue clicked. Input: {WorkshopUrlTextBox.Text}");
-                await ResolveAndEnqueueAsync(WorkshopUrlTextBox.Text);
+                await ResolveAndEnqueueAsync(WorkshopUrlTextBox.Text ?? string.Empty);
             };
 
             BtnClearCompleted.Click += (_, _) =>
@@ -59,22 +91,56 @@ namespace ModHearth.UI
             WindowThemeManager.ApplyToWindow(this, style);
         }
 
-        private async Task DownloadFromClipboardAsync()
+        private async Task<string> GetClipboardTextAsync()
         {
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            if (clipboard == null)
+            if (clipboard == null) return string.Empty;
+
+            try
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf("WorkshopDownloaderWindow: Clipboard not available.");
+                var extType = typeof(IClipboard).Assembly.GetType("Avalonia.Input.Platform.ClipboardExtensions");
+                if (extType != null)
+                {
+                    var method = extType.GetMethod("GetTextAsync", new[] { typeof(IClipboard) });
+                    if (method != null)
+                    {
+                        var task = method.Invoke(null, new object[] { clipboard }) as Task<string?>;
+                        if (task != null)
+                        {
+                            return await task ?? string.Empty;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Error reading clipboard: {ex.Message}");
+            }
+            return string.Empty;
+        }
+
+        private void SetStatus(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                StatusTextBlock.Text = string.Empty;
                 return;
             }
 
-            string text = await clipboard.TryGetTextAsync() ?? string.Empty;
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Clipboard text: {text}");
+            StatusTextBlock.Text = message;
+            _statusCts?.Cancel();
+            _statusCts = new CancellationTokenSource();
+            var token = _statusCts.Token;
 
-            if (!string.IsNullOrWhiteSpace(text))
+            Task.Delay(5000, token).ContinueWith(t =>
             {
-                await ResolveAndEnqueueAsync(text);
-            }
+                if (!t.IsCanceled)
+                {
+                    Dispatcher.UIThread.Post(() => {
+                        if (StatusTextBlock.Text == message) StatusTextBlock.Text = string.Empty;
+                    });
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
         }
 
         private async Task ResolveAndEnqueueAsync(string input)
@@ -85,8 +151,37 @@ namespace ModHearth.UI
                 return;
             }
 
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Resolving input: {input}");
-            await _queueManager.ResolveAndEnqueueUrlsAsync(input, async (collectionMetadata) =>
+            // Filter out existing mods instead of returning when 1 input id already exists
+            var ids = WorkshopUrlResolver.ParseUrls(input);
+            var nonExistingIds = new List<ulong>();
+            int ignoredCount = 0;
+            foreach (var id in ids)
+            {
+                if (_queueManager.ClassifyMod(id) == ModStatusClassification.AlreadyInstalled)
+                {
+                    ignoredCount++;
+                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Mod {id} already exists on disk, ignoring.");
+                }
+                else
+                {
+                    nonExistingIds.Add(id);
+                }
+            }
+
+            if (ignoredCount > 0)
+            {
+                SetStatus($"Ignored {ignoredCount} existing mod(s).");
+            }
+
+            if (nonExistingIds.Count == 0)
+            {
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf("WorkshopDownloaderWindow: All input mods already exist on disk.");
+                return;
+            }
+
+            var filteredInput = string.Join(" ", nonExistingIds);
+            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Resolving input with {nonExistingIds.Count} detected IDs ({ignoredCount} ignored).");
+            await _queueManager.ResolveAndEnqueueUrlsAsync(filteredInput, async (collectionMetadata) =>
             {
                 if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderWindow: Collection found with {collectionMetadata.Count} items. Showing checklist...");
                 await Dispatcher.UIThread.InvokeAsync(async () =>
