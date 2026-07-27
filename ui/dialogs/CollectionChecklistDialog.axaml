@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="using:ModHearth.UI"
         x:Class="ModHearth.UI.CollectionChecklistDialog"
-        Width="650" Height="500"
+        Width="550" MinWidth="550" Height="700" MinHeight="400"
         WindowStartupLocation="CenterOwner"
         Title="Collection Contents Checklist">
   <Grid RowDefinitions="Auto, *, Auto" Margin="16">
@@ -12,9 +12,9 @@
       <TextBlock Text="Select the mods you wish to download or update:" Foreground="Gray" />
       <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
         <Button x:Name="BtnDownloadAll" Content="Download All" Padding="12,6" />
+        <Button x:Name="BtnClearAll" Content="Clear All" Padding="12,6" />
         <Button x:Name="BtnDownloadMissing" Content="Download Missing" Padding="12,6" />
         <Button x:Name="BtnUpdateExisting" Content="Update Existing" Padding="12,6" />
-        <Button x:Name="BtnClearAll" Content="Clear All" Padding="12,6" />
       </StackPanel>
     </StackPanel>
 
@@ -41,8 +41,8 @@
 
     <!-- Footer buttons -->
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
-      <Button x:Name="BtnConfirm" Content="Import Checked" Classes="accent" Padding="16,8" IsDefault="True" />
-      <Button x:Name="BtnCancel" Content="Cancel" Padding="16,8" IsCancel="True" />
+      <Button x:Name="BtnConfirm" Content="Import Checked" Classes="accent" Tag="Themed" Padding="16,5" IsDefault="True" />
+      <Button x:Name="BtnCancel" Content="Cancel" Padding="16,5" Tag="Themed" IsCancel="True" />
     </StackPanel>
   </Grid>
 </Window>

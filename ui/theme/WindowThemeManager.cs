@@ -155,6 +155,8 @@ public static class WindowThemeManager
             app.Resources["ModRefHighlightBrush"] = brushes.ModRefHighlight;
             app.Resources["ModRefHighlightDarkBrush"] = brushes.ModRefHighlightDark;
             app.Resources["ModRefPanelClearBrush"] = brushes.PanelClear;
+            app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.buttonSelectionColor.ToAvaloniaColor());
+            app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.GetBrush(Color.FromArgb(120, (byte)style.buttonSelectionColor.R, (byte)style.buttonSelectionColor.G, (byte)style.buttonSelectionColor.B));
         }
 
         // Single top-down $O(N)$ pass through the visual tree

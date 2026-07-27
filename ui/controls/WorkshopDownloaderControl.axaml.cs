@@ -45,7 +45,6 @@ namespace ModHearth.UI
         private CancellationTokenSource? _statusCts;
 
         public event EventHandler? CloseRequested;
-        public event EventHandler? DockToggleRequested;
 
         public WorkshopDownloaderControl() : this(null!) { }
 
@@ -136,11 +135,6 @@ namespace ModHearth.UI
             BtnClearCompleted.Click += (_, _) =>
             {
                 _queueManager.ClearCompleted();
-            };
-
-            BtnDockToggle.Click += (_, _) =>
-            {
-                DockToggleRequested?.Invoke(this, EventArgs.Empty);
             };
 
             BtnClose.Click += (_, _) =>

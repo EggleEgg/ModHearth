@@ -2,12 +2,16 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 
 namespace ModHearth.UI
 {
-    public class DockingManager<TControl, TWindow> 
-        where TControl : UserControl 
+    /// <summary>
+    /// Scalable logic for docking sub-windows into MainWindow
+    /// </summary>
+    public class DockingManager<TControl, TWindow>
+        where TControl : UserControl
         where TWindow : Window
     {
         private readonly Window _parentWindow;
@@ -16,10 +20,11 @@ namespace ModHearth.UI
         private readonly int _contentColumnIndex;
         private readonly Control _splitterControl;
         private readonly ContentControl _dockHostControl;
-        
+        private readonly Border? _previewBorder;
+
         private readonly Func<TControl> _controlCreator;
         private readonly Func<TControl, TWindow> _windowCreator;
-        
+
         private readonly double _defaultWidth;
         private readonly double _minWidth;
         private readonly double _maxWidth;
@@ -27,8 +32,10 @@ namespace ModHearth.UI
 
         private TControl? _sharedControl;
         private TWindow? _floatingWindow;
-        private bool _isDocked = true;
+        private bool _isDocked = false;
         private bool _isExpanded;
+        private bool _isOverDockTarget;
+        private DispatcherTimer? _dragEndTimer;
 
         private bool _isDraggingSplitter;
         private Point _splitterStartPoint;
@@ -50,6 +57,7 @@ namespace ModHearth.UI
             int contentColumnIndex,
             Control splitterControl,
             ContentControl dockHostControl,
+            Border? previewBorder,
             Func<TControl> controlCreator,
             Func<TControl, TWindow> windowCreator,
             double defaultWidth,
@@ -63,6 +71,7 @@ namespace ModHearth.UI
             _contentColumnIndex = contentColumnIndex;
             _splitterControl = splitterControl ?? throw new ArgumentNullException(nameof(splitterControl));
             _dockHostControl = dockHostControl ?? throw new ArgumentNullException(nameof(dockHostControl));
+            _previewBorder = previewBorder;
             _controlCreator = controlCreator ?? throw new ArgumentNullException(nameof(controlCreator));
             _windowCreator = windowCreator ?? throw new ArgumentNullException(nameof(windowCreator));
             _defaultWidth = defaultWidth;
@@ -95,6 +104,7 @@ namespace ModHearth.UI
             CollapsePanel();
             _dockHostControl.Content = null;
             _dockHostControl.IsVisible = false;
+            _isDocked = false; // Reset dock state on close
 
             if (_floatingWindow != null)
             {
@@ -103,7 +113,7 @@ namespace ModHearth.UI
                 win.Content = null;
                 win.Close();
             }
-            
+
             RefreshStyles();
             Closed?.Invoke(this, EventArgs.Empty);
         }
@@ -111,7 +121,7 @@ namespace ModHearth.UI
         public void ToggleDock()
         {
             _isDocked = !_isDocked;
-            
+
             if (_isDocked)
             {
                 if (_floatingWindow != null)
@@ -132,7 +142,7 @@ namespace ModHearth.UI
                 _dockHostControl.IsVisible = false;
                 ShowFloatingWindow();
             }
-            
+
             DockStateChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -153,6 +163,17 @@ namespace ModHearth.UI
             if (_floatingWindow == null)
             {
                 _floatingWindow = _windowCreator(_sharedControl!);
+                _floatingWindow.PositionChanged += OnFloatingWindowPositionChanged;
+
+                // Instant dock on pointer release if over target zone
+                _floatingWindow.AddHandler(InputElement.PointerReleasedEvent, (sender, e) =>
+                {
+                    if (_isOverDockTarget)
+                    {
+                        Dock();
+                    }
+                }, RoutingStrategies.Tunnel);
+
                 _floatingWindow.Closed += (sender, args) =>
                 {
                     var win = _floatingWindow;
@@ -161,34 +182,137 @@ namespace ModHearth.UI
                     {
                         win.Content = null;
                     }
-                    if (!_isDocked)
-                    {
-                        _isDocked = true;
-                        ExpandPanel();
-                        _dockHostControl.Content = _sharedControl;
-                        _dockHostControl.IsVisible = true;
-                        RefreshStyles();
-                        DockStateChanged?.Invoke(this, EventArgs.Empty);
-                    }
+                    HidePreview();
                 };
             }
             _floatingWindow.Show(_parentWindow);
             RefreshStyles();
         }
 
+        private void OnFloatingWindowPositionChanged(object? sender, PixelPointEventArgs e)
+        {
+            if (_floatingWindow == null || _isDocked) return;
+
+            try
+            {
+                PixelPoint parentTopLeft = _parentWindow.PointToScreen(new Point(0, 0));
+                double parentWidth = _parentWindow.ClientSize.Width;
+                double parentHeight = _parentWindow.ClientSize.Height;
+
+                // So that position does not break on High-DPI displays
+                double scale = _floatingWindow.DesktopScaling;
+                PixelPoint floatingPos = _floatingWindow.Position;
+                PixelPoint floatingCenter = new PixelPoint(
+                    floatingPos.X + (int)(_floatingWindow.ClientSize.Width * scale / 2),
+                    floatingPos.Y + (int)(_floatingWindow.ClientSize.Height * scale / 2)
+                );
+
+                int snapThresholdPixels = _previewBorder != null ? (int)_previewBorder.Width : 300;
+                int rightHalfStartX = parentTopLeft.X + (int)parentWidth - snapThresholdPixels;
+                int rightHalfEndX = parentTopLeft.X + (int)parentWidth;
+                int parentStartY = parentTopLeft.Y;
+                int parentEndY = parentTopLeft.Y + (int)parentHeight;
+
+                bool isOverRightHalf = floatingCenter.X >= rightHalfStartX && floatingCenter.X <= rightHalfEndX &&
+                                       floatingCenter.Y >= parentStartY && floatingCenter.Y <= parentEndY;
+
+                _isOverDockTarget = isOverRightHalf;
+                UpdatePreviewVisibility(isOverRightHalf);
+
+                if (isOverRightHalf)
+                {
+                    ResetDragEndTimer();
+                }
+                else
+                {
+                    _dragEndTimer?.Stop();
+                }
+            }
+            catch
+            {
+                // Ignore transient window coordinate exceptions during initialization/closing
+            }
+        }
+
+        private void UpdatePreviewVisibility(bool show)
+        {
+            if (!show)
+            {
+                if (_previewBorder != null)
+                {
+                    _previewBorder.IsVisible = false;
+                }
+            }
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_previewBorder != null)
+                {
+                    _previewBorder.IsVisible = show;
+                }
+            });
+        }
+
+        private void HidePreview()
+        {
+            if (_previewBorder != null)
+            {
+                _previewBorder.IsVisible = false;
+            }
+            _dragEndTimer?.Stop();
+            _isOverDockTarget = false;
+        }
+
+        private void ResetDragEndTimer()
+        {
+            if (_dragEndTimer == null)
+            {
+                _dragEndTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+                _dragEndTimer.Tick += (_, _) =>
+                {
+                    _dragEndTimer.Stop();
+                    if (_isOverDockTarget)
+                    {
+                        Dock();
+                    }
+                };
+            }
+
+            _dragEndTimer.Stop();
+            _dragEndTimer.Start();
+        }
+
+        public void Dock()
+        {
+            if (_isDocked) return;
+            _isDocked = true;
+            HidePreview();
+            if (_floatingWindow != null)
+            {
+                var win = _floatingWindow;
+                _floatingWindow = null;
+                win.Content = null;
+                win.Close();
+            }
+            ExpandPanel();
+            _dockHostControl.Content = _sharedControl;
+            _dockHostControl.IsVisible = true;
+            RefreshStyles();
+            DockStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         private void ExpandPanel()
         {
             if (_isExpanded) return;
-            
+
             _parentWindow.Width += _defaultWidth + _splitterWidth;
             _parentWindow.MinWidth += _defaultWidth + _splitterWidth;
-            
+
             if (_mainGrid != null && _mainGrid.ColumnDefinitions.Count > _contentColumnIndex)
             {
                 _mainGrid.ColumnDefinitions[_splitterColumnIndex].Width = new GridLength(_splitterWidth, GridUnitType.Pixel);
                 _mainGrid.ColumnDefinitions[_contentColumnIndex].Width = new GridLength(_defaultWidth, GridUnitType.Pixel);
             }
-            
+
             _splitterControl.IsVisible = true;
             _isExpanded = true;
         }
@@ -196,16 +320,16 @@ namespace ModHearth.UI
         private void CollapsePanel()
         {
             if (!_isExpanded) return;
-            
+
             _parentWindow.Width -= _defaultWidth + _splitterWidth;
             _parentWindow.MinWidth -= _defaultWidth + _splitterWidth;
-            
+
             if (_mainGrid != null && _mainGrid.ColumnDefinitions.Count > _contentColumnIndex)
             {
                 _mainGrid.ColumnDefinitions[_splitterColumnIndex].Width = new GridLength(0, GridUnitType.Pixel);
                 _mainGrid.ColumnDefinitions[_contentColumnIndex].Width = new GridLength(0, GridUnitType.Pixel);
             }
-            
+
             _splitterControl.IsVisible = false;
             _isExpanded = false;
         }

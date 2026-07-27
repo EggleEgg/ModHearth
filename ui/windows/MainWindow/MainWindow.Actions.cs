@@ -62,10 +62,10 @@ public partial class MainWindow
             contentColumnIndex: 5,
             workshopSplitter,
             workshopDockHost,
+            workshopDockPreviewBorder,
             () =>
             {
                 var ctrl = new WorkshopDownloaderControl(manager);
-                ctrl.DockToggleRequested += (_, _) => _workshopDockManager?.ToggleDock();
                 ctrl.CloseRequested += (_, _) => _workshopDockManager?.Close();
                 return ctrl;
             },

@@ -8,7 +8,7 @@
   <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="12,16" RowSpacing="12">
     <!-- Header Controls -->
     <Grid Grid.Row="0" RowDefinitions="Auto, Auto, Auto" RowSpacing="6">
-      <TextBlock Text="Paste Workshop URLs or collection IDs (one per line):" FontSize="12" />
+      <TextBlock Text="Paste workshop mods or collection URLs (one per line):" FontSize="12" />
       <TextBox Grid.Row="1" x:Name="WorkshopUrlTextBox" Height="80" AcceptsReturn="True" TextWrapping="Wrap"
                PlaceholderText="e.g. https://steamcommunity.com/sharedfiles/filedetails/?id=2897791846" />
       <Grid Grid.Row="2" ColumnDefinitions="*, *" ColumnSpacing="10">
@@ -82,9 +82,8 @@
     <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
       <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" />
       <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-        <Button x:Name="BtnClearCompleted" Content="Clear Completed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
-        <Button x:Name="BtnDockToggle" Content="Dock/Undock" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
-        <Button x:Name="BtnClose" Content="Close" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+        <Button x:Name="BtnClearCompleted" Content="Clear Completed" Tag="Themed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+        <Button x:Name="BtnClose" Content="Close" Tag="Themed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
       </StackPanel>
     </Grid>
   </Grid>
