@@ -95,8 +95,50 @@ namespace ModHearth.Utilities.Workshop
             }
         }
 
+        // Helper methods to immediately refresh the ui
+        public void SetState(DownloadState state)
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                State = state;
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() => State = state);
+            }
+        }
+        public void SetProgress(double percentage, string statusText)
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                ProgressPercentage = percentage;
+                StatusText = statusText;
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    ProgressPercentage = percentage;
+                    StatusText = statusText;
+                });
+            }
+        }
+        public void SetStatus(string statusText)
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                StatusText = statusText;
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() => StatusText = statusText);
+            }
+        }
+
         public bool CanRetry => State == DownloadState.Failed || State == DownloadState.Cancelled;
         public bool CanCancel => State == DownloadState.Waiting || State == DownloadState.Resolving || State == DownloadState.Downloading;
+
+        public int AutoRetryCount { get; set; } = 0;
 
         public CancellationTokenSource? Cts { get; set; }
 
@@ -109,6 +151,30 @@ namespace ModHearth.Utilities.Workshop
         private readonly SemaphoreSlim _concurrencySemaphore = new SemaphoreSlim(3, 3);
         private readonly SteamWebApiClient _apiClient = new();
         private readonly ModHearthManager _manager;
+
+        // Timer for debouncing UI reloads
+        private DispatcherTimer? _reloadTimer;
+
+        private void TriggerDebouncedUIReload()
+        {
+            // Marshal timer reset to the UI Thread
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_reloadTimer == null)
+                {
+                    _reloadTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000) };
+                    _reloadTimer.Tick += (_, _) =>
+                    {
+                        _reloadTimer.Stop();
+                        _manager.TriggerUIReload();
+                    };
+                }
+
+                // Restart the timer (resets the 500ms window on every completed download)
+                _reloadTimer.Stop();
+                _reloadTimer.Start();
+            });
+        }
 
         public ObservableCollection<WorkshopDownloadItem> Queue { get; } = new();
         public List<IWorkshopDownloadProvider> Providers { get; } = new();
@@ -236,8 +302,8 @@ namespace ModHearth.Utilities.Workshop
                 }
                 else
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} is a normal workshop item.");
-                    itemsToEnqueue.Add(meta);
+                    // Enqueue immediately so the UI populates in real time. May be a performance issue in the future with enough downloads
+                    await Dispatcher.UIThread.InvokeAsync(() => Enqueue(meta));
                 }
             }
 
@@ -256,6 +322,12 @@ namespace ModHearth.Utilities.Workshop
 
         public void Enqueue(WorkshopItemMetadata meta)
         {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(() => Enqueue(meta));
+                return;
+            }
+
             if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Attempting to enqueue {meta.PublishedFileId} ('{meta.Title}')...");
             if (Queue.Any(i => i.PublishedFileId == meta.PublishedFileId && i.State != DownloadState.Completed && i.State != DownloadState.Failed && i.State != DownloadState.Cancelled))
             {
@@ -286,33 +358,101 @@ namespace ModHearth.Utilities.Workshop
 
         public static void CancelDownload(WorkshopDownloadItem item)
         {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(() => CancelDownload(item));
+                return;
+            }
+
             if (item.CanCancel)
             {
                 item.Cts?.Cancel();
-                item.State = DownloadState.Cancelled;
-                item.StatusText = "Cancelled";
+                item.SetState(DownloadState.Cancelled);
+                item.SetStatus("Cancelled");
             }
         }
 
         public void RetryDownload(WorkshopDownloadItem item)
         {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(() => RetryDownload(item));
+                return;
+            }
+
             if (item.CanRetry)
             {
-                item.State = DownloadState.Waiting;
-                item.StatusText = "Waiting...";
-                item.ProgressPercentage = 0;
+                item.AutoRetryCount = 0;
+                item.SetState(DownloadState.Waiting);
+                item.SetProgress(0, "Waiting...");
                 _ = ProcessQueueItemAsync(item);
             }
         }
 
+        private void FailOrAutoRetry(WorkshopDownloadItem item, string statusText)
+        {
+            if (ConfigManager.IsAutoRetryAllEnabled() && item.AutoRetryCount < 3)
+            {
+                item.AutoRetryCount++;
+                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Auto-retrying download for {item.PublishedFileId} (attempt {item.AutoRetryCount}/3)...");
+                item.SetState(DownloadState.Waiting);
+                item.SetProgress(0, $"Auto-retrying ({item.AutoRetryCount}/3)...");
+                _ = ProcessQueueItemAsync(item);
+                return;
+            }
+
+            item.SetState(DownloadState.Failed);
+            item.SetStatus(statusText);
+        }
+
         public void RemoveFromQueue(WorkshopDownloadItem item)
         {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(() => RemoveFromQueue(item));
+                return;
+            }
+
             CancelDownload(item);
             Queue.Remove(item);
         }
 
+        public void RetryAll()
+        {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(RetryAll);
+                return;
+            }
+
+            foreach (var item in Queue.Where(i => i.CanRetry).ToList())
+            {
+                RetryDownload(item);
+            }
+        }
+
+        public void CancelAll()
+        {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(CancelAll);
+                return;
+            }
+
+            foreach (var item in Queue.Where(i => i.CanCancel).ToList())
+            {
+                CancelDownload(item);
+            }
+        }
+
         public void ClearCompleted()
         {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(ClearCompleted);
+                return;
+            }
+
             var completed = Queue.Where(i => i.State == DownloadState.Completed).ToList();
             foreach (var item in completed)
             {
@@ -335,15 +475,14 @@ namespace ModHearth.Utilities.Workshop
                 item.Cts = new CancellationTokenSource();
                 var token = item.Cts.Token;
 
-                item.State = DownloadState.Downloading;
-                item.StatusText = "Downloading...";
+                item.SetState(DownloadState.Downloading);
+                item.SetStatus("Downloading...");
 
                 var provider = SelectedProvider ?? Providers.FirstOrDefault(p => p.IsAvailable);
                 if (provider == null)
                 {
                     if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: No available download provider found for {item.PublishedFileId}.");
-                    item.State = DownloadState.Failed;
-                    item.StatusText = "No download provider available";
+                    FailOrAutoRetry(item, "No download provider available");
                     return;
                 }
 
@@ -353,8 +492,7 @@ namespace ModHearth.Utilities.Workshop
                 if (string.IsNullOrEmpty(modsDir) || !Directory.Exists(modsDir))
                 {
                     if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Mods folder not found at '{modsDir}'. Download failed for {item.PublishedFileId}.");
-                    item.State = DownloadState.Failed;
-                    item.StatusText = "Mods folder not configured/found";
+                    FailOrAutoRetry(item, "Mods folder not configured/found");
                     return;
                 }
 
@@ -363,17 +501,13 @@ namespace ModHearth.Utilities.Workshop
 
                 var progressReporter = new Progress<DownloadProgress>(p =>
                 {
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (item.State == DownloadState.Failed || item.State == DownloadState.Cancelled || item.State == DownloadState.Completed)
-                            return;
+                    if (item.State == DownloadState.Failed || item.State == DownloadState.Cancelled || item.State == DownloadState.Completed)
+                        return;
 
-                        item.ProgressPercentage = p.Percentage;
-                        if (p.Percentage >= 100)
-                            item.StatusText = $"Download complete";
-                        else
-                            item.StatusText = $"Downloading {p.Percentage:F1}%";
-                    });
+                    if (p.Percentage >= 100)
+                        item.SetProgress(100, "Download complete");
+                    else
+                        item.SetProgress(p.Percentage, $"Downloading {p.Percentage:F1}%");
                 });
 
                 if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Starting download for {item.PublishedFileId}...");
@@ -382,31 +516,28 @@ namespace ModHearth.Utilities.Workshop
                 if (success && !token.IsCancellationRequested)
                 {
                     InfoLogger.LogRunDf($"WorkshopQueueManager: Download successful for {item.PublishedFileId}. Triggering mod list reload.");
-                    item.State = DownloadState.Completed;
-                    item.StatusText = "Completed";
-                    item.ProgressPercentage = 100;
+                    item.SetState(DownloadState.Completed);
+                    item.SetProgress(100, "Completed");
 
-                    _manager.TriggerUIReload();
+                    TriggerDebouncedUIReload();
                 }
                 else if (token.IsCancellationRequested)
                 {
                     InfoLogger.LogRunDf($"WorkshopQueueManager: Download cancelled for {item.PublishedFileId}.");
-                    item.State = DownloadState.Cancelled;
-                    item.StatusText = "Cancelled";
+                    item.SetState(DownloadState.Cancelled);
+                    item.SetStatus("Cancelled");
                 }
                 else
                 {
                     InfoLogger.LogRunDf($"WorkshopQueueManager: Download failed for {item.PublishedFileId} via {provider.Name}.");
-                    item.State = DownloadState.Failed;
-                    item.StatusText = "Download failed";
+                    FailOrAutoRetry(item, "Download failed");
                 }
             }
             catch (Exception ex)
             {
                 InfoLogger.LogRunDf($"WorkshopQueueManager: Exception during download of {item.PublishedFileId}: {ex.Message}");
                 AppLogging.LogException($"QueueManager error downloading {item.PublishedFileId}", ex);
-                item.State = DownloadState.Failed;
-                item.StatusText = $"Error: {ex.Message}";
+                FailOrAutoRetry(item, $"Error: {ex.Message}");
             }
             finally
             {

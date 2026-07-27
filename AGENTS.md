@@ -8,7 +8,8 @@
 
 ## Codebase structure
 
-- To add a color to styles, follow `style.dark.json` and `style.light.json` -> `Style.cs` -> (usually) `WindowThemeManager.cs`
+- To add a color to styles, see `style.dark.json` and `style.light.json` -> `Style.cs` -> (usually) `WindowThemeManager.cs`
+- To save a setting in config, see `ModHearthConfig` -> `ConfigManager`
 
 ## Git Workflow
 

@@ -11,6 +11,14 @@ internal static class Program
     {
         RuntimeBootstrap.Initialize();
         ConfigManager.AttemptLoadConfig(false);
+        try
+        {
+            ConfigManager.LoadStyle(false);
+        }
+        catch
+        {
+            // Ignore early style load failures
+        }
 
         if (OperatingSystem.IsLinux() && !ModHearthManager.Config.showConsole)
         {

@@ -201,7 +201,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             int totalAfter = rules.Values.Sum(r => r.AfterIds.Count);
             int totalRequired = rules.Values.Sum(r => r.RequiredIds.Count);
             int totalIncompatible = rules.Values.Sum(r => r.IncompatibleIds.Count);
-            summaryText.Text = $"Before: {totalBefore}   After: {totalAfter}   Required: {totalRequired}   Incompatible: {totalIncompatible}";
+            SetSummary(totalBefore, totalAfter, totalRequired, totalIncompatible);
 
             ValidationResult globalValidation = ValidateRules();
             int globalIssueCount = globalValidation.Issues?.Count ?? 0;
@@ -249,8 +249,7 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         ModRelationshipRule rule = GetRule(selectedMod.ModReference.ID);
         selectedTitleText.Text = selectedMod.ModReference.name ?? selectedMod.ModReference.ID;
         selectedSubtitleText.Text = $"{selectedMod.ModReference.author}   {selectedMod.ModReference.ID}";
-        summaryText.Text =
-            $"Before: {rule.BeforeIds.Count}   After: {rule.AfterIds.Count}   Required: {rule.RequiredIds.Count}   Incompatible: {rule.IncompatibleIds.Count}";
+        SetSummary(rule.BeforeIds.Count, rule.AfterIds.Count, rule.RequiredIds.Count, rule.IncompatibleIds.Count);
 
         if (modValidation.Issues != null && modValidation.Issues.Count > 0)
         {
@@ -611,6 +610,11 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             }
             e.Handled = true;
         }
+    }
+
+    private void SetSummary(int beforeCount, int afterCount, int requiredCount, int incompatibleCount)
+    {
+        summaryText.Text = $"Before: {beforeCount}   After: {afterCount}   Required: {requiredCount}   Incompatible: {incompatibleCount}";
     }
 
     private static string BuildCountedButtonLabel(string verb, string singularNoun, int count, string zeroLabel)

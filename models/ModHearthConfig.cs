@@ -63,6 +63,9 @@ namespace ModHearth
         // Automatically resolve and queue workshop URLs when input changes.
         public bool IsAutoResolveAndQueueEnabled { get; set; } = false;
 
+        // Automatically retry failed or cancelled workshop downloads.
+        public bool IsAutoRetryAllEnabled { get; set; } = false;
+
         // Optional GitHub repository URL from which to load community modsort_rules.json.
         public string CommunitySortRulesUrl { get; set; } = string.Empty;
 

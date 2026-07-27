@@ -80,7 +80,16 @@ public partial class MainWindow
 
         if (!didReload)
         {
-            SearchLogging.Log("ReloadModpacksFromDisk skipped: a reload was already in progress");
+            SearchLogging.Log("ReloadModpacksFromDisk skipped: a reload was already in progress. Queuing retry...");
+            if (!pendingReloadQueued)
+            {
+                pendingReloadQueued = true;
+                _ = Task.Delay(500).ContinueWith(async _ =>
+                {
+                    pendingReloadQueued = false;
+                    await Dispatcher.UIThread.InvokeAsync(async () => await ReloadModpacksFromDisk());
+                });
+            }
             return;
         }
 

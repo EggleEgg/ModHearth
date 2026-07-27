@@ -37,18 +37,9 @@ internal static class Program
             return Fail($"Invalid workshop id: '{args[1]}'");
 
         PublishedFileId_t id = new PublishedFileId_t(rawId);
-        string appIdFilePath = Path.Combine(AppContext.BaseDirectory, "steam_appid.txt");
-        // If a caller already dropped the file there for a batch of concurrent workers, don't
-        // write/delete it ourselves — the content is identical (same App ID) for every action,
-        // so the caller owns its lifetime for the whole batch instead of each process racing
-        // to write-then-delete around its own short lifetime.
-        bool ownsAppIdFile = !File.Exists(appIdFilePath);
 
         try
         {
-            if (ownsAppIdFile)
-                File.WriteAllText(appIdFilePath, DwarfFortressSteamAppId);
-
             if (!SteamAPI.Init())
                 return Fail("SteamAPI.Init() failed. Is Steam running and logged in?");
 
@@ -71,13 +62,6 @@ internal static class Program
         catch (Exception ex)
         {
             return Fail(ex.Message);
-        }
-        finally
-        {
-            if (ownsAppIdFile)
-            {
-                try { if (File.Exists(appIdFilePath)) File.Delete(appIdFilePath); } catch { /* best effort */ }
-            }
         }
     }
 

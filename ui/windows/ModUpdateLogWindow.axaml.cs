@@ -141,7 +141,7 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             case ModUpdateChangeType.Updated:
                 return Brushes.DeepSkyBlue;
             case ModUpdateChangeType.Added:
-                return Brushes.Gold;
+                return Brushes.LimeGreen;
         }
 
         if (isActive)

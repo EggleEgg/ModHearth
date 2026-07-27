@@ -36,6 +36,23 @@ namespace ModHearth.UI
             }
         }
 
+        public bool IsAutoRetryAllEnabled
+        {
+            get => ConfigManager.IsAutoRetryAllEnabled();
+            set
+            {
+                if (value != ConfigManager.IsAutoRetryAllEnabled())
+                {
+                    ConfigManager.SetAutoRetryAllEnabled(value);
+                    NotifyOfPropertyChange();
+                    if (value)
+                    {
+                        _queueManager.RetryAll();
+                    }
+                }
+            }
+        }
+
         private readonly WorkshopQueueManager _queueManager;
         private string _lastResolvedInput = string.Empty;
         private string _lastRawClipboard = string.Empty;
@@ -69,6 +86,25 @@ namespace ModHearth.UI
             };
 
             DownloadQueueList.ItemsSource = _queueManager.Queue;
+            _queueManager.Queue.CollectionChanged += (_, e) =>
+            {
+                if (e.NewItems != null)
+                {
+                    foreach (WorkshopDownloadItem item in e.NewItems)
+                    {
+                        item.PropertyChanged += Item_PropertyChanged;
+                    }
+                }
+                if (e.OldItems != null)
+                {
+                    foreach (WorkshopDownloadItem item in e.OldItems)
+                    {
+                        item.PropertyChanged -= Item_PropertyChanged;
+                    }
+                }
+                UpdateQueueActionStates();
+            };
+            UpdateQueueActionStates();
 
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             timer.Tick += async (_, _) =>
@@ -102,7 +138,11 @@ namespace ModHearth.UI
                         }
                     }
 
-                    await ResolveAndEnqueueAsync(text);
+                    if (IsAutoResolveAndQueueEnabled)
+                    {
+                        _lastResolvedInput = WorkshopUrlTextBox.Text ?? string.Empty;
+                        await ResolveAndEnqueueAsync(text);
+                    }
                 }
                 finally
                 {
@@ -132,15 +172,11 @@ namespace ModHearth.UI
                 }
             };
 
-            BtnClearCompleted.Click += (_, _) =>
-            {
-                _queueManager.ClearCompleted();
-            };
-
-            BtnClose.Click += (_, _) =>
-            {
-                CloseRequested?.Invoke(this, EventArgs.Empty);
-            };
+            BtnClearCompleted.Click += (_, _) => _queueManager.ClearCompleted();
+            BtnRetryAll.Click += (_, _) => _queueManager.RetryAll();
+            BtnRetryAll.AddHandler(InputElement.PointerPressedEvent, BtnRetryAllPointerPressed, RoutingStrategies.Tunnel, true);
+            BtnCancelAll.Click += (_, _) => _queueManager.CancelAll();
+            BtnClose.Click += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
         }
 
         private async Task<string> GetClipboardTextAsync()
@@ -156,11 +192,11 @@ namespace ModHearth.UI
                     return string.Empty;
 
                 _lastRawClipboard = rawText;
-                var parsedIds = WorkshopUrlResolver.ParseUrls(rawText);
-                if (parsedIds.Count == 0)
+                string filteredText = WorkshopUrlResolver.FilterUrls(rawText);
+                if (string.IsNullOrWhiteSpace(filteredText))
                     return string.Empty;
 
-                return rawText;
+                return filteredText;
             }
             catch (Exception ex)
             {
@@ -260,13 +296,41 @@ namespace ModHearth.UI
             }
         }
 
-        private void BtnResolveAndQueuePointerPressed(object? sender, PointerPressedEventArgs e)
+        private async void BtnResolveAndQueuePointerPressed(object? sender, PointerPressedEventArgs e)
         {
             if (!e.GetCurrentPoint(BtnResolveAndQueue).Properties.IsRightButtonPressed)
                 return;
 
             e.Handled = true;
             IsAutoResolveAndQueueEnabled = !IsAutoResolveAndQueueEnabled;
+            if (IsAutoResolveAndQueueEnabled)
+                await ResolveAndEnqueueAsync(WorkshopUrlTextBox.Text ?? string.Empty);
+
+        }
+
+        private void BtnRetryAllPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (!e.GetCurrentPoint(BtnRetryAll).Properties.IsRightButtonPressed)
+                return;
+
+            e.Handled = true;
+            IsAutoRetryAllEnabled = !IsAutoRetryAllEnabled;
+        }
+
+        private void Item_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(WorkshopDownloadItem.State) ||
+                e.PropertyName == nameof(WorkshopDownloadItem.CanRetry) ||
+                e.PropertyName == nameof(WorkshopDownloadItem.CanCancel))
+            {
+                Dispatcher.UIThread.Post(UpdateQueueActionStates);
+            }
+        }
+
+        private void UpdateQueueActionStates()
+        {
+            if (BtnCancelAll != null)
+                BtnCancelAll.IsEnabled = _queueManager.Queue.Any(i => i.CanCancel);
         }
     }
 }

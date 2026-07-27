@@ -15,10 +15,11 @@ namespace ModHearth.Utilities.Workshop
         private static readonly Regex WorkshopIdRegex = new Regex(@"(?:id=|filepage/|sharedfiles/|filedetails/|changelog/)(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex PlainIdRegex = new Regex(@"^\d+$", RegexOptions.Compiled);
 
-        public static List<ulong> ParseUrls(string input)
+        private static IEnumerable<(ulong Id, string Token)> ExtractEntries(string input)
         {
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: Parsing input: {input}");
-            var results = new HashSet<ulong>();
+            if (string.IsNullOrWhiteSpace(input))
+                yield break;
+
             var lines = input.Split(new[] { '\r', '\n', ' ', '\t', ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var line in lines)
@@ -31,8 +32,7 @@ namespace ModHearth.Utilities.Workshop
                 {
                     if (ulong.TryParse(trimmed, out ulong id))
                     {
-                        if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: Found plain ID: {id}");
-                        results.Add(id);
+                        yield return (id, trimmed);
                     }
                     continue;
                 }
@@ -43,18 +43,46 @@ namespace ModHearth.Utilities.Workshop
                 {
                     if (ulong.TryParse(match.Groups[1].Value, out ulong idout))
                     {
-                        if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: Found ID from URL: {idout} (Source: {trimmed})");
-                        results.Add(idout);
+                        yield return (idout, trimmed);
                     }
                 }
-                else
+            }
+        }
+
+        public static List<ulong> ParseUrls(string input)
+        {
+            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: Parsing input: {input}");
+            var results = new HashSet<ulong>();
+
+            foreach (var (id, token) in ExtractEntries(input))
+            {
+                if (results.Add(id) && DevMode.IsEnabled)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: No match found for: {trimmed}");
+                    if (PlainIdRegex.IsMatch(token))
+                        InfoLogger.LogRunDf($"WorkshopUrlResolver: Found plain ID: {id}");
+                    else
+                        InfoLogger.LogRunDf($"WorkshopUrlResolver: Found ID from URL: {id} (Source: {token})");
                 }
             }
 
             if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: Total unique IDs found: {results.Count}");
             return new List<ulong>(results);
+        }
+
+        public static string FilterUrls(string input)
+        {
+            var results = new List<string>();
+            var seen = new HashSet<ulong>();
+
+            foreach (var (id, token) in ExtractEntries(input))
+            {
+                if (seen.Add(id))
+                {
+                    results.Add(token);
+                }
+            }
+
+            return string.Join(Environment.NewLine, results);
         }
     }
 }

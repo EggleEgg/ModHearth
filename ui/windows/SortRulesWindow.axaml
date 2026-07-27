@@ -70,7 +70,7 @@
                         HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
               </Grid>
               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch" ColumnSpacing="8">
-                <TextBlock x:Name="summaryText" Margin="0,0,0,4"/>
+                <TextBlock x:Name="summaryText" Margin="0,0,0,4" />
                 <TextBlock x:Name="validationText" Grid.Row="1" TextWrapping="Wrap"/>
                 <StackPanel x:Name="validationIssuesPanel" Grid.Row="1" Spacing="4" IsVisible="False" />
                 <Button x:Name="fixConflictsButton" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource MainTextBrush}"

@@ -27,6 +27,10 @@ namespace ModHearth
 
         private static List<string>? _cachedSteamLibraryRoots;
         private static readonly object _steamLibraryRootsLock = new object();
+        private static List<string>? _cachedSteamAppsRoots;
+        private static readonly object _steamAppsRootsLock = new object();
+        private static List<string>? _cachedWorkshopContentPaths;
+        private static readonly object _workshopContentPathsLock = new object();
         private static void LogAdvancedSteam(string message) => SteamConnectionLogger.LogInfo(message);
         private static string DFHackExeName =>
             OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
@@ -267,6 +271,14 @@ namespace ModHearth
         {
             Config.IsAutoResolveAndQueueEnabled = enabled;
             SaveConfigFile("Auto-resolve and queue");
+        }
+
+        public static bool IsAutoRetryAllEnabled() => Config.IsAutoRetryAllEnabled;
+
+        public static void SetAutoRetryAllEnabled(bool enabled)
+        {
+            Config.IsAutoRetryAllEnabled = enabled;
+            SaveConfigFile("Auto-retry all");
         }
 
         public static string GetLeftSearchBarState() => Config.LeftSearchBarState;
@@ -1037,54 +1049,72 @@ namespace ModHearth
 
         public static IEnumerable<string> EnumerateSteamAppsRoots()
         {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> steamAppsRoots = new HashSet<string>(comparer);
-
-            foreach (string libraryRoot in EnumerateSteamLibraryRoots())
+            lock (_steamAppsRootsLock)
             {
-                if (string.IsNullOrWhiteSpace(libraryRoot))
-                    continue;
+                if (_cachedSteamAppsRoots != null)
+                {
+                    return _cachedSteamAppsRoots;
+                }
 
-                string steamAppsRoot = NormalizeFileSystemPath(Path.Combine(libraryRoot, steamApps));
-                if (string.IsNullOrWhiteSpace(steamAppsRoot))
-                    continue;
+                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                HashSet<string> steamAppsRoots = new HashSet<string>(comparer);
 
-                if (!Directory.Exists(steamAppsRoot))
-                    continue;
+                foreach (string libraryRoot in EnumerateSteamLibraryRoots())
+                {
+                    if (string.IsNullOrWhiteSpace(libraryRoot))
+                        continue;
 
-                steamAppsRoots.Add(steamAppsRoot);
+                    string steamAppsRoot = NormalizeFileSystemPath(Path.Combine(libraryRoot, steamApps));
+                    if (string.IsNullOrWhiteSpace(steamAppsRoot))
+                        continue;
+
+                    if (!Directory.Exists(steamAppsRoot))
+                        continue;
+
+                    steamAppsRoots.Add(steamAppsRoot);
+                }
+
+                LogAdvancedSteam($"SteamApps roots ({steamAppsRoots.Count}): {FormatPathListForLog(steamAppsRoots)}");
+                _cachedSteamAppsRoots = steamAppsRoots.ToList();
+                return _cachedSteamAppsRoots;
             }
-
-            LogAdvancedSteam($"SteamApps roots ({steamAppsRoots.Count}): {FormatPathListForLog(steamAppsRoots)}");
-            return steamAppsRoots;
         }
 
         public static IEnumerable<string> GetSteamWorkshopContentPaths()
         {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> paths = new HashSet<string>(comparer);
-            List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
-            LogAdvancedSteam($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
-            foreach (string steamAppsRoot in steamAppsRoots)
+            lock (_workshopContentPathsLock)
             {
-                string candidate = NormalizeFileSystemPath(
-                    Path.Combine(steamAppsRoot, "workshop", "content", DwarfFortressSteamAppId));
-                if (string.IsNullOrWhiteSpace(candidate))
-                    continue;
+                if (_cachedWorkshopContentPaths != null)
+                {
+                    return _cachedWorkshopContentPaths;
+                }
 
-                if (Directory.Exists(candidate))
+                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                HashSet<string> paths = new HashSet<string>(comparer);
+                List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
+                LogAdvancedSteam($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
+                foreach (string steamAppsRoot in steamAppsRoots)
                 {
-                    paths.Add(candidate);
-                    LogAdvancedSteam($"Workshop content path found: {candidate}");
+                    string candidate = NormalizeFileSystemPath(
+                        Path.Combine(steamAppsRoot, "workshop", "content", DwarfFortressSteamAppId));
+                    if (string.IsNullOrWhiteSpace(candidate))
+                        continue;
+
+                    if (Directory.Exists(candidate))
+                    {
+                        paths.Add(candidate);
+                        LogAdvancedSteam($"Workshop content path found: {candidate}");
+                    }
+                    else
+                    {
+                        LogAdvancedSteam($"Workshop content path missing: {candidate}");
+                    }
                 }
-                else
-                {
-                    LogAdvancedSteam($"Workshop content path missing: {candidate}");
-                }
+
+                LogAdvancedSteam($"Workshop content paths discovered ({paths.Count}): {FormatPathListForLog(paths)}");
+                _cachedWorkshopContentPaths = paths.ToList();
+                return _cachedWorkshopContentPaths;
             }
-
-            LogAdvancedSteam($"Workshop content paths discovered ({paths.Count}): {FormatPathListForLog(paths)}");
-            return paths;
         }
 
         public static IEnumerable<string> GetSteamWorkshopAcfPaths()

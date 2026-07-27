@@ -14,24 +14,40 @@ namespace ModHearth.Utilities.Workshop
         public string Name => "Steam Client (via SteamAPI)";
         public bool IsAvailable => new SteamWorkshopService().IsAvailable;
 
-        public Task<bool> DownloadAsync(
+        public async Task<bool> DownloadAsync(
             ulong workshopId, 
             string downloadPath, 
             IProgress<DownloadProgress> progress, 
             CancellationToken cancellationToken)
         {
-            progress.Report(new DownloadProgress(0, 100, 10));
-            
-            // Execute SteamWorkshopService.Download
-            bool success = SteamWorkshopService.Download(workshopId);
-            
+            progress.Report(new DownloadProgress(0, 100, 5));
+
+            // Run the synchronous Steam API download on a background thread
+            var downloadTask = Task.Run(() => SteamWorkshopService.Download(workshopId), cancellationToken);
+
+            // Poll while waiting for Steam to finish downloading
+            int pseudoProgress = 10;
+            while (!downloadTask.IsCompleted)
+            {
+                await Task.Delay(250, cancellationToken);
+                
+                // If SteamWorkshopService has a method to get progress, call it here.
+                // Otherwise, keep the UI responsive showing an active download state.
+                if (pseudoProgress < 90)
+                {
+                    pseudoProgress += 5;
+                    progress.Report(new DownloadProgress(pseudoProgress, 100, pseudoProgress));
+                }
+            }
+
+            bool success = await downloadTask;
             if (success)
             {
                 progress.Report(new DownloadProgress(100, 100, 100));
-                return Task.FromResult(true);
+                return true;
             }
-            
-            return Task.FromResult(false);
+
+            return false;
         }
     }
 
@@ -100,18 +116,38 @@ namespace ModHearth.Utilities.Workshop
 
             var outputTask = Task.Run(async () =>
             {
+                var charBuffer = new char[1024];
+                var lineBuilder = new System.Text.StringBuilder();
+
                 while (!process.StandardOutput.EndOfStream)
                 {
-                    string? line = await process.StandardOutput.ReadLineAsync();
-                    if (line == null) break;
+                    int read = await process.StandardOutput.ReadAsync(charBuffer, 0, charBuffer.Length);
+                    if (read == 0) break;
 
-                    var match = ProgressRegex.Match(line);
-                    if (match.Success && double.TryParse(match.Groups[1].Value, out double pct))
+                    for (int i = 0; i < read; i++)
                     {
-                        progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
+                        char c = charBuffer[i];
+                        if (c == '\r' || c == '\n')
+                        {
+                            string line = lineBuilder.ToString();
+                            lineBuilder.Clear();
+
+                            if (!string.IsNullOrWhiteSpace(line))
+                            {
+                                var match = ProgressRegex.Match(line);
+                                if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double pct))
+                                {
+                                    progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
+                                }
+                            }
+                        }
+                        else
+                        {
+                            lineBuilder.Append(c);
+                        }
                     }
                 }
-            });
+            }, cancellationToken);
 
             await Task.Run(() => process.WaitForExit());
             await outputTask;

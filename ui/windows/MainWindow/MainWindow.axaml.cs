@@ -136,6 +136,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 
     private IImage? currentPreview;
     private bool updateInProgress;
+    private bool pendingReloadQueued;
     private string? currentSelectedModId;
     private string? previousSelectedModId;
     private string? currentDescriptionBBCode;

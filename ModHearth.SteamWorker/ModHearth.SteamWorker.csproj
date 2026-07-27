@@ -17,6 +17,13 @@
         <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="..\steam_appid.txt" Link="steam_appid.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+    </ItemGroup>
+
     <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
         <None Include="..\libs\steam_api64.dll" Link="steam_api64.dll">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>

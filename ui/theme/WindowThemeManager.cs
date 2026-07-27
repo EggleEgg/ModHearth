@@ -49,6 +49,11 @@ public static class WindowThemeManager
 
         window.Opened += OnWindowOpened;
         window.Closed += OnWindowClosed;
+
+        if (Style.instance != null)
+        {
+            ApplyToWindow(window, Style.instance);
+        }
     }
 
     public static void ApplyToOpenWindows()
@@ -173,9 +178,13 @@ public static class WindowThemeManager
         bool inSearchBar = false,
         bool inDockHeader = false,
         bool inButtonOrCombo = false,
-        bool inDockPanel = false)
+        bool inDockPanel = false,
+        bool inDataGrid = false)
     {
         if (visual == null)
+            return;
+
+        if (visual is Control control && control.Tag is string ignoreTag && string.Equals(ignoreTag, "IgnoreTheme", StringComparison.OrdinalIgnoreCase))
             return;
 
         // 1. ModSearchBar styling context
@@ -212,7 +221,34 @@ public static class WindowThemeManager
         if (visual is TextBlock textBlock)
         {
             if (!inButtonOrCombo && !inDockHeader)
-                textBlock.Foreground = brushes.Text;
+            {
+                if (inDataGrid)
+                {
+                    ModUpdateLogItemViewModel? vm = textBlock.DataContext as ModUpdateLogItemViewModel;
+                    Visual? current = textBlock;
+                    while (current != null && vm == null)
+                    {
+                        vm = current.DataContext as ModUpdateLogItemViewModel;
+                        current = current.GetVisualParent();
+                    }
+
+                    bool hasSpecialColor = vm != null && (
+                        vm.Entry.ChangeType == ModUpdateChangeType.Deleted ||
+                        vm.Entry.ChangeType == ModUpdateChangeType.Updated ||
+                        vm.Entry.ChangeType == ModUpdateChangeType.Added ||
+                        vm.IsActive
+                    );
+
+                    if (!hasSpecialColor)
+                    {
+                        textBlock.Foreground = brushes.Text;
+                    }
+                }
+                else
+                {
+                    textBlock.Foreground = brushes.Text;
+                }
+            }
         }
         else if (visual is TextBox textBox)
         {
@@ -230,6 +266,7 @@ public static class WindowThemeManager
         }
         else if (visual is Button button)
         {
+            // Used for important buttons
             if (button.GetValue(IsThemedProperty) || (button.Tag is string tag && string.Equals(tag, "Themed", StringComparison.OrdinalIgnoreCase)))
             {
                 button.Background = brushes.Button;
@@ -242,6 +279,11 @@ public static class WindowThemeManager
         else if (visual is DataGrid dataGrid)
         {
             dataGrid.Background = brushes.DataGrid;
+            inDataGrid = true;
+        }
+        else if (typeName is "DataGridCell" || typeName.Contains("DataGrid"))
+        {
+            inDataGrid = true;
         }
         else if (visual is DockPanel)
         {
@@ -251,7 +293,7 @@ public static class WindowThemeManager
         // 5. Recurse down to children without heap allocations or ancestor searches
         foreach (Visual child in visual.GetVisualChildren())
         {
-            ApplyToVisualRecursive(child, style, brushes, inSearchBar, inDockHeader, inButtonOrCombo, inDockPanel);
+            ApplyToVisualRecursive(child, style, brushes, inSearchBar, inDockHeader, inButtonOrCombo, inDockPanel, inDataGrid);
         }
     }
 
