@@ -74,7 +74,7 @@
                 <TextBlock x:Name="validationText" Grid.Row="1" TextWrapping="Wrap"/>
                 <StackPanel x:Name="validationIssuesPanel" Grid.Row="1" Spacing="4" IsVisible="False" />
                 <Button x:Name="fixConflictsButton" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource MainTextBrush}"
-                        Content="Fix conflicts" Padding="10,4" VerticalAlignment="Top"
+                        Content="Fix conflicts" Padding="10,4" VerticalAlignment="Top" BorderBrush="Transparent"
                         HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
               </Grid>
             </StackPanel>

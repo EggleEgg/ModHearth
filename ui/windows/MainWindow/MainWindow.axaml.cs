@@ -17,7 +17,7 @@ using ModHearth.UI;
 
 namespace ModHearth.UI;
 
-public partial class MainWindow : Window, INotifyPropertyChanged
+public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWindow
 {
     public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -100,6 +100,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly SemaphoreSlim autoActionGate = new SemaphoreSlim(1, 1); // lives with SetAndMarkChangesAsync's other state
     private bool autoActionRerunRequested;
 
+    private DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>? _workshopDockManager;
     private ModHearthManager manager;
     private bool changesMade;
     private bool isBatchSelecting;
@@ -143,7 +144,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow()
     {
         InitializeComponent();
+        WindowThemeManager.Register(this);
         InitializeModInfoDock();
+        InitializeDockingManagers();
         saveButton.DataContext = this;
         sortButton.DataContext = this;
         reloadButton.DataContext = this;

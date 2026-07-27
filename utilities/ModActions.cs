@@ -167,6 +167,8 @@ namespace ModHearth
 
             SteamConnectionLogger.Log($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
+            List<ulong> successfullyUnsubscribedIds = new List<ulong>();
+
             for (int index = 0; index < steamItemIds.Count; index++)
             {
                 string steamItemId = steamItemIds[index];
@@ -184,6 +186,7 @@ namespace ModHearth
                 }
                 else
                 {
+                    successfullyUnsubscribedIds.Add(workshopId);
                     SteamConnectionLogger.LogInfo(
                         $"Requested Steam API unsubscribe for workshop item {steamItemId}.");
 
@@ -220,6 +223,11 @@ namespace ModHearth
             }
 
             SteamConnectionLogger.Log($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+
+            if (successfullyUnsubscribedIds.Count > 0)
+            {
+                SteamManifestAuditor.MarkAsUnsubscribed(successfullyUnsubscribedIds);
+            }
 
             if (failures.Count == 0)
             {

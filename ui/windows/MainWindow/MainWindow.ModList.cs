@@ -74,10 +74,20 @@ public partial class MainWindow
 
     private void UpdateModlistHeaders()
     {
-        leftHeaderLabel.Text = $"Inactive [{manager?.disabledMods?.Count ?? 0}]";
-        rightHeaderLabel.Text = $"Active [{manager?.enabledMods?.Count ?? 0}]";
+        int inactiveCount = manager?.disabledMods?.Count ?? 0;
+        int inactiveSelected = leftModlist.SelectedItems?.Count ?? 0;
+        int activeCount = manager?.enabledMods?.Count ?? 0;
+        int activeSelected = rightModlist.SelectedItems?.Count ?? 0;
+
+        leftHeaderLabel.Text = inactiveSelected > 0
+            ? $"Inactive [{inactiveCount} / {inactiveSelected} selected]"
+            : $"Inactive [{inactiveCount}]";
+        rightHeaderLabel.Text = activeSelected > 0
+            ? $"Active [{activeCount} / {activeSelected} selected]"
+            : $"Active [{activeCount}]";
+
         if (clearModlistButton != null)
-            clearModlistButton.IsEnabled = manager?.enabledMods?.Count > 0;
+            clearModlistButton.IsEnabled = activeCount > 0;
     }
 
 
@@ -88,11 +98,15 @@ public partial class MainWindow
         {
             if (sender is ListBox filteredList)
                 modListController.UpdateSelectionState(filteredList);
+            UpdateModlistHeaders();
             return;
         }
 
         if (sender is ListBox list && modListController.HandleSelectionChanged(list))
+        {
+            UpdateModlistHeaders();
             return;
+        }
 
         if (sender == leftModlist && leftModlist.SelectedItems?.Count > 0)
             rightModlist.SelectedItems?.Clear();
@@ -108,6 +122,8 @@ public partial class MainWindow
             TrackSelectedMod(selected);
             ShowModInfo(selected.ModReference);
         }
+
+        UpdateModlistHeaders();
     }
 
     private async void ModlistDropped(ModListDropContext context)

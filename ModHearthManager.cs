@@ -2129,6 +2129,8 @@ namespace ModHearth
                 enabledMods = newEnabledMods;
                 disabledMods = newDisabledMods;
             }
+            //dont show stale problems in the inactive list
+            FindModlistProblems();
         }
 
         public void MoveMods(List<DFHMod> mods, int newIndex, bool sourceLeft, bool destinationLeft)

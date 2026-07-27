@@ -68,7 +68,7 @@
                       HorizontalAlignment="Stretch" Margin="2,2,0,0" />
               <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6"
                           VerticalAlignment="Center">
-                <Button x:Name="updateButton" Width="23" Height="23" Padding="0"
+                <Button x:Name="updateButton" Width="23" Height="23" Padding="0" Tag="Themed"
                         ToolTip.Tip="Check for updates">
                   <Image Source="{ui:AssetImage updateIcon}"
                          Stretch="Uniform" />
@@ -152,7 +152,7 @@
           </Grid.Styles>
 
           <Grid ColumnDefinitions="*,*,*,*" Height="42">
-            <Button x:Name="saveButton" Grid.Column="0"
+            <Button x:Name="saveButton" Grid.Column="0" Tag="Themed"
                     ToolTip.Tip="Save the current modlist. Right click to toggle autosave">
               <Grid>
                 <Image Source="{ui:AssetImage saveIcon}" />
@@ -161,13 +161,13 @@
                        Margin="0" IsVisible="{Binding IsAutoSaveEnabled}" />
               </Grid>
             </Button>
-            <Button x:Name="runDwarfFortressButton" Grid.Column="1" ToolTip.Tip="Run Dwarf Fortress">
+            <Button x:Name="runDwarfFortressButton" Grid.Column="1" Tag="Themed" ToolTip.Tip="Run Dwarf Fortress">
               <Image Source="{ui:AssetImage arrowPlayIcon}" />
             </Button>
-            <Button x:Name="undoChangesButton" Grid.Column="2" ToolTip.Tip="Undo unsaved changes">
+            <Button x:Name="undoChangesButton" Grid.Column="2" Tag="Themed" ToolTip.Tip="Undo unsaved changes">
               <Image Source="{ui:AssetImage undoIcon}" />
             </Button>
-            <Button x:Name="reloadButton" Grid.Column="3" ToolTip.Tip="Reload local/steam workshop modlists and mods. Right click to autoreload">
+            <Button x:Name="reloadButton" Grid.Column="3" Tag="Themed" ToolTip.Tip="Reload local/steam workshop modlists and mods. Right click to autoreload">
               <Grid>
                 <Image Source="{ui:AssetImage reloadIcon}" />
                 <Image x:Name="autoReloadIndicator" Source="{ui:AssetImage updateBorderIcon}"
@@ -180,23 +180,23 @@
           <ComboBox x:Name="modpackComboBox" Grid.Row="2" Height="30" HorizontalAlignment="Stretch" />
 
           <Grid Grid.Row="3" ColumnDefinitions="*,*,*" Height="28">
-            <Button x:Name="newListButton" Content="New" FontSize="12" ToolTip.Tip="Create a new modpack"/>
-            <Button x:Name="renameListButton" Grid.Column="1" Content="Rename" FontSize="12" ToolTip.Tip="Rename this modpack"/>
-            <Button x:Name="deleteListButton" Grid.Column="2" Content="Delete" FontSize="12" ToolTip.Tip="Delete this modpack"/>
+            <Button x:Name="newListButton" Content="New" Tag="Themed" FontSize="12" ToolTip.Tip="Create a new modpack"/>
+            <Button x:Name="renameListButton" Grid.Column="1" Content="Rename" Tag="Themed" FontSize="12" ToolTip.Tip="Rename this modpack"/>
+            <Button x:Name="deleteListButton" Grid.Column="2" Content="Delete" Tag="Themed" FontSize="12" ToolTip.Tip="Delete this modpack"/>
           </Grid>
 
           <Grid Grid.Row="4" ColumnDefinitions="Auto,*,*" Height="28">
-            <Button x:Name="clearModlistButton" ToolTip.Tip="Clear the current modlist" Width="28" Padding="0,0,-1,-3">
+            <Button x:Name="clearModlistButton" Tag="Themed" ToolTip.Tip="Clear the current modlist" Width="28" Padding="0,0,-1,-3">
               <Image Source="{ui:AssetImage broomMenuIcon.svg}"/>
             </Button>
-            <Button x:Name="importButton" Grid.Column="1" Content="Import" FontSize="13" />
-            <Button x:Name="exportButton" Grid.Column="2" Content="Export" FontSize="13" />
+            <Button x:Name="importButton" Grid.Column="1" Tag="Themed" Content="Import" FontSize="13" />
+            <Button x:Name="exportButton" Grid.Column="2" Tag="Themed" Content="Export" FontSize="13" />
           </Grid>
 
           <Border Grid.Row="5" Grid.ColumnSpan="3" Background="{DynamicResource BorderPanelBrush}" Height="2" HorizontalAlignment="Stretch" Margin="0,2,0,4" />
 
           <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Height="28">
-            <Button x:Name="sortButton" HorizontalContentAlignment="Stretch" ToolTip.Tip="Sorts mods based on raw tag properties. Right click to autosort">
+            <Button x:Name="sortButton" Tag="Themed" HorizontalContentAlignment="Stretch" ToolTip.Tip="Sorts mods based on raw tag properties. Right click to autosort">
               <Grid>
                 <TextBlock Text="Sort" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Image x:Name="autoSortIndicator"
@@ -205,17 +205,17 @@
                        HorizontalAlignment="Left" VerticalAlignment="Center" Margin="6,0,0,0"/>
               </Grid>
             </Button>
-            <Button x:Name="sortRulesButton" Grid.Column="1"
+            <Button x:Name="sortRulesButton" Grid.Column="1" Tag="Themed"
                     ToolTip.Tip="Custom sorting rules. These override automatic sorting">
               <Image Source="{ui:AssetImage gearIcon}" />
             </Button>
           </Grid>
 
           <StackPanel Grid.Row="7" Spacing="8" Margin="0,0,0,6" VerticalAlignment="Bottom">
-            <Button x:Name="workshopDownloaderButton" Content="Workshop downloader" FontSize="13" Height="28" />
+            <Button x:Name="workshopDownloaderButton" Tag="Themed" Content="Workshop downloader" FontSize="13" Height="28" />
             <Grid ColumnDefinitions="*,Auto" Height="28">
-              <Button x:Name="updateLogButton" Content="Update log" FontSize="13" />
-              <Button x:Name="clearInstalledModsButton" Grid.Column="1" Width="28"
+              <Button x:Name="updateLogButton" Tag="Themed" Content="Update log" FontSize="13" />
+              <Button x:Name="clearInstalledModsButton" Grid.Column="1" Tag="Themed" Width="28"
                       ToolTip.Tip="Delete the installed mods cache. Right click to open the installed_mods folder">
                 <Image Source="{ui:AssetImage trashIcon}" />
               </Button>
@@ -224,22 +224,22 @@
 
           <Grid Grid.Row="8" ColumnDefinitions="Auto,*"
                 Height="62">
-            <Button x:Name="warningIssuesButton" IsVisible="False" IsEnabled="False" Width="62"
+            <Button x:Name="warningIssuesButton" Tag="Themed" IsVisible="False" IsEnabled="False" Width="62"
                     ToolTip.Tip="Issues detected in mods">
               <Image x:Name="warningIssuesIcon"
                      Source="{ui:AssetImage errorIcon}" />
             </Button>
             <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="10">
               <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch" />
-              <Button Grid.Row="1" x:Name="redoConfigButton" Content="Redo Config" FontSize="12"
+              <Button Grid.Row="1" x:Name="redoConfigButton" Tag="Themed" Content="Redo Config" FontSize="12"
                       HorizontalAlignment="Right" Padding="6,0,6,0" />
             </Grid>
           </Grid>
         </Grid>
       </Border>
 
-      <GridSplitter Grid.Column="4" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
-                    HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="6,0,2,0" />
+      <Border x:Name="workshopSplitter" Grid.Column="4" Width="10" Background="Transparent" Cursor="SizeWestEast"
+              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="10, 30" IsVisible="False" />
 
       <ContentControl x:Name="workshopDockHost" Grid.Column="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="1,0,0,0" IsVisible="False" />
     </Grid>

@@ -21,6 +21,7 @@ public partial class MainWindow
         SetPreviewImage(LoadFallbackPreview("modhearth_icon_v2.ico"));
         ShowFallbackHelpText();
         PopulateModDataViewer(null);
+        UpdateModlistHeaders();
     }
 
     private void RefreshDescriptionHtml()

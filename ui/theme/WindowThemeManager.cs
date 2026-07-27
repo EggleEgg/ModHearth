@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
-using Avalonia.Controls.Generators;
 
 namespace ModHearth.UI;
 
@@ -12,10 +11,33 @@ namespace ModHearth.UI;
 /// </summary>
 public static class WindowThemeManager
 {
+    public static readonly AttachedProperty<bool> IsThemedProperty =
+        AvaloniaProperty.RegisterAttached<Button, Button, bool>("IsThemed", false);
+
+    public static bool GetIsThemed(Button element) => element.GetValue(IsThemedProperty);
+    public static void SetIsThemed(Button element, bool value) => element.SetValue(IsThemedProperty, value);
+
     private static readonly List<WeakReference<Window>> registered = new();
 
     [ThreadStatic]
     private static bool isApplying;
+
+    // Cache brushes to reduce memory usage
+    private readonly record struct StyleBrushes(
+        IBrush Form,
+        IBrush Text,
+        IBrush Panel,
+        IBrush PanelClear,
+        IBrush StrongPanel,
+        IBrush Button,
+        IBrush ButtonText,
+        IBrush ButtonOutline,
+        IBrush BorderPanel,
+        IBrush DataGrid,
+        IBrush ModRefHighlight,
+        IBrush ModRefHighlightDark,
+        IBrush InputText
+    );
 
     public static void Register(Window window)
     {
@@ -40,9 +62,9 @@ public static class WindowThemeManager
             return;
 
         Cleanup();
-        foreach (WeakReference<Window> weak in registered.ToList())
+        for (int i = 0; i < registered.Count; i++)
         {
-            if (weak.TryGetTarget(out Window? window))
+            if (registered[i].TryGetTarget(out Window? window))
                 ApplyToWindow(window, style);
         }
     }
@@ -56,7 +78,8 @@ public static class WindowThemeManager
         if (style == null)
             return;
 
-        ApplyToWindow(window, style);
+        // Ensure the visual tree is fully loaded and built before styling
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyToWindow(window, style), Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
     private static void OnWindowClosed(object? sender, EventArgs e)
@@ -71,95 +94,182 @@ public static class WindowThemeManager
 
     public static void ApplyToWindow(Window window, Style style)
     {
-        if (window == null || isApplying)
+        if (window == null || style == null || isApplying)
             return;
 
+        Style.instance = style;
         isApplying = true;
         try
         {
-            foreach (ModSearchBar searchBar in window.GetVisualDescendants().OfType<ModSearchBar>())
-                searchBar.ApplyStyle(style);
-
-            IBrush formBrush = BrushCache.GetBrush(style.formColor.ToAvaloniaColor());
-            IBrush textBrush = BrushCache.GetBrush(style.textColor.ToAvaloniaColor());
-            IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
-            IBrush strongPanelBrush = BrushCache.GetBrush(style.strongPanelColor.ToAvaloniaColor());
-            IBrush buttonBrush = BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor());
-            IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
-            IBrush buttonOutlineBrush = BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor());
-            IBrush borderPanelBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
-            IBrush dataGridBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
-            IBrush modRefHighlightBrush = BrushCache.GetBrush(style.modRefHighlightColor.ToAvaloniaColor());
-            IBrush modRefHighlightDarkBrush = BrushCache.GetBrush(style.modRefHighlightDarkColor.ToAvaloniaColor());
-
-            window.Background = formBrush;
-            IBrush inputTextBrush = IsDark(style.formColor) ? Brushes.White : Brushes.Black;
-
-            ThemeVariant? ownerVariant = window.Owner?.RequestedThemeVariant;
-            window.RequestedThemeVariant = ownerVariant ?? (IsDark(style.formColor) ? ThemeVariant.Dark : ThemeVariant.Light);
-
-            //Avalonia DynamicResource
-            Application? app = Application.Current;
-            if (app != null)
-            {
-                app.Resources["BorderPanelBrush"] = borderPanelBrush;
-                app.Resources["FormBackgroundBrush"] = formBrush;
-                app.Resources["MainTextBrush"] = textBrush;
-                app.Resources["PanelBackgroundBrush"] = panelBrush;
-                app.Resources["StrongPanelBackgroundBrush"] = strongPanelBrush;
-                app.Resources["ButtonBackgroundBrush"] = buttonBrush;
-                app.Resources["ButtonForegroundBrush"] = buttonTextBrush;
-                app.Resources["ButtonBorderBrush"] = buttonOutlineBrush;
-                app.Resources["ModRefHighlightBrush"] = modRefHighlightBrush;
-                app.Resources["ModRefHighlightDarkBrush"] = modRefHighlightDarkBrush;
-            }
-
-            foreach (Visual visual in window.GetVisualDescendants())
-            {
-                // ModSearchBar (and nested ModColorPicker) fully style themselves via ApplyStyle()
-                if (visual is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
-                    continue;
-
-                if (visual is TextBlock textBlock &&
-                    visual.FindAncestorOfType<Button>() == null && visual.FindAncestorOfType<ComboBox>() == null)
-                {
-                    textBlock.Foreground = textBrush;
-                    continue;
-                }
-
-                if (visual is TextBox textBox)
-                {
-                    textBox.Background = panelBrush;
-                    textBox.Foreground = inputTextBrush;
-                    continue;
-                }
-
-                if (visual is ComboBox comboBox)
-                {
-                    comboBox.Background = panelBrush;
-                    comboBox.Foreground = inputTextBrush;
-                    continue;
-                }
-
-                if (visual is ListBox listBox)
-                {
-                    listBox.Background = panelBrush;
-                    continue;
-                }
-
-                if (visual is DataGrid dataGrid)
-                {
-                    dataGrid.Background = dataGridBrush;
-                    continue;
-                }
-            }
-
-            if (window is IStyleAwareWindow styleAware)
-                styleAware.ApplyCustomStyle(style);
+            ApplyToVisual(window, style);
         }
         finally
         {
             isApplying = false;
+        }
+    }
+
+    public static void ApplyToVisual(Visual visual, Style style)
+    {
+        if (visual == null || style == null)
+            return;
+
+        Style.instance = style;
+
+        bool isDark = IsDark(style.formColor);
+        StyleBrushes brushes = new(
+            Form: BrushCache.GetBrush(style.formColor.ToAvaloniaColor()),
+            Text: BrushCache.GetBrush(style.textColor.ToAvaloniaColor()),
+            Panel: BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor()),
+            PanelClear: BrushCache.GetBrush(style.modRefPanelColorClear.ToAvaloniaColor()),
+            StrongPanel: BrushCache.GetBrush(style.strongPanelColor.ToAvaloniaColor()),
+            Button: BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor()),
+            ButtonText: BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor()),
+            ButtonOutline: BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor()),
+            BorderPanel: BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor()),
+            DataGrid: BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor()),
+            ModRefHighlight: BrushCache.GetBrush(style.modRefHighlightColor.ToAvaloniaColor()),
+            ModRefHighlightDark: BrushCache.GetBrush(style.modRefHighlightDarkColor.ToAvaloniaColor()),
+            InputText: isDark ? Brushes.White : Brushes.Black
+        );
+
+        if (visual is Window window)
+        {
+            window.Background = brushes.Form;
+            ThemeVariant? ownerVariant = window.Owner?.RequestedThemeVariant;
+            window.RequestedThemeVariant = ownerVariant ?? (isDark ? ThemeVariant.Dark : ThemeVariant.Light);
+        }
+
+        // Set global DynamicResource values once per apply pass
+        Application? app = Application.Current;
+        if (app != null)
+        {
+            app.Resources["BorderPanelBrush"] = brushes.BorderPanel;
+            app.Resources["FormBackgroundBrush"] = brushes.Form;
+            app.Resources["MainTextBrush"] = brushes.Text;
+            app.Resources["PanelBackgroundBrush"] = brushes.Panel;
+            app.Resources["StrongPanelBackgroundBrush"] = brushes.StrongPanel;
+            app.Resources["ButtonBackgroundBrush"] = brushes.Button;
+            app.Resources["ButtonForegroundBrush"] = brushes.ButtonText;
+            app.Resources["ButtonBorderBrush"] = brushes.ButtonOutline;
+            app.Resources["ModRefHighlightBrush"] = brushes.ModRefHighlight;
+            app.Resources["ModRefHighlightDarkBrush"] = brushes.ModRefHighlightDark;
+            app.Resources["ModRefPanelClearBrush"] = brushes.PanelClear;
+        }
+
+        // Single top-down $O(N)$ pass through the visual tree
+        ApplyToVisualRecursive(visual, style, brushes);
+
+        if (visual is IStyleAwareWindow styleAware)
+            styleAware.ApplyCustomStyle(style);
+    }
+
+    private static void ApplyToVisualRecursive(
+        Visual visual,
+        Style style,
+        in StyleBrushes brushes,
+        bool inSearchBar = false,
+        bool inDockHeader = false,
+        bool inButtonOrCombo = false,
+        bool inDockPanel = false)
+    {
+        if (visual == null)
+            return;
+
+        // 1. ModSearchBar styling context
+        if (visual is ModSearchBar searchBar)
+        {
+            searchBar.ApplyStyle(style);
+            inSearchBar = true;
+        }
+        else if (inSearchBar)
+        {
+            // ModSearchBar (and nested ModColorPicker) manage their own internal styling
+            return;
+        }
+
+        // 2. Notification container custom styling
+        if (visual is StackPanel spContainer && spContainer.Name == "notificationContainer")
+        {
+            StyleNotificationContainer(spContainer, brushes);
+            return; // Skip default child processing
+        }
+
+        // 3. Dock chrome / host context calculation
+        string typeName = visual.GetType().Name;
+        if (visual is Control ctrl && (ctrl.Name == "PART_ContentPresenter" || typeName == "DeferredContentPresenter"))
+        {
+            inDockHeader = false; // Reset when entering dock body content host
+        }
+        else if (typeName is "ToolChromeControl" or "ToolDockControl" or "DockControl" || (visual is Control grip && grip.Name == "PART_Grip"))
+        {
+            inDockHeader = true; // Set when inside dock title/header
+        }
+
+        // 4. Element-specific styling
+        if (visual is TextBlock textBlock)
+        {
+            if (!inButtonOrCombo && !inDockHeader)
+                textBlock.Foreground = brushes.Text;
+        }
+        else if (visual is TextBox textBox)
+        {
+            textBox.Background = brushes.Panel;
+            textBox.Foreground = brushes.InputText;
+        }
+        else if (visual is ComboBox comboBox)
+        {
+            comboBox.Background = brushes.Panel;
+            inButtonOrCombo = true;
+        }
+        else if (visual is ListBox listBox)
+        {
+            listBox.Background = brushes.Panel;
+        }
+        else if (visual is Button button)
+        {
+            if (button.GetValue(IsThemedProperty) || (button.Tag is string tag && string.Equals(tag, "Themed", StringComparison.OrdinalIgnoreCase)))
+            {
+                button.Background = brushes.Button;
+                button.Foreground = brushes.ButtonText;
+                button.BorderBrush = brushes.ButtonOutline;
+                button.BorderThickness = new Thickness(1);
+            }
+            inButtonOrCombo = true;
+        }
+        else if (visual is DataGrid dataGrid)
+        {
+            dataGrid.Background = brushes.DataGrid;
+        }
+        else if (visual is DockPanel)
+        {
+            inDockPanel = true;
+        }
+
+        // 5. Recurse down to children without heap allocations or ancestor searches
+        foreach (Visual child in visual.GetVisualChildren())
+        {
+            ApplyToVisualRecursive(child, style, brushes, inSearchBar, inDockHeader, inButtonOrCombo, inDockPanel);
+        }
+    }
+
+    private static void StyleNotificationContainer(StackPanel container, in StyleBrushes brushes)
+    {
+        foreach (var child in container.Children)
+        {
+            if (child is Border b)
+            {
+                b.Background = brushes.PanelClear;
+                b.BorderBrush = brushes.ButtonOutline;
+                if (b.Child is StackPanel innerSp)
+                {
+                    foreach (var innerChild in innerSp.Children)
+                    {
+                        if (innerChild is TextBlock tb)
+                            tb.Foreground = brushes.Text;
+                    }
+                }
+            }
         }
     }
 

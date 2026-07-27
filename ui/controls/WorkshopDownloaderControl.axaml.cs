@@ -40,6 +40,8 @@ namespace ModHearth.UI
         private string _lastResolvedInput = string.Empty;
         private string _lastRawClipboard = string.Empty;
         private bool _isCheckingClipboard;
+        private bool _suppressClipboardTextBoxAutoResolve;
+        private readonly HashSet<ulong> _idsBeingResolved = new();
         private CancellationTokenSource? _statusCts;
 
         public event EventHandler? CloseRequested;
@@ -88,9 +90,17 @@ namespace ModHearth.UI
                     var currentText = WorkshopUrlTextBox.Text ?? string.Empty;
                     if (!currentText.Contains(text))
                     {
-                        WorkshopUrlTextBox.Text = string.IsNullOrWhiteSpace(currentText)
-                            ? text
-                            : currentText + Environment.NewLine + text;
+                        _suppressClipboardTextBoxAutoResolve = true;
+                        try
+                        {
+                            WorkshopUrlTextBox.Text = string.IsNullOrWhiteSpace(currentText)
+                                ? text
+                                : currentText + Environment.NewLine + text;
+                        }
+                        finally
+                        {
+                            _suppressClipboardTextBoxAutoResolve = false;
+                        }
                     }
 
                     await ResolveAndEnqueueAsync(text);
@@ -111,7 +121,7 @@ namespace ModHearth.UI
 
             WorkshopUrlTextBox.TextChanged += async (_, _) =>
             {
-                if (!IsAutoResolveAndQueueEnabled) return;
+                if (_suppressClipboardTextBoxAutoResolve || !IsAutoResolveAndQueueEnabled) return;
                 string text = WorkshopUrlTextBox.Text ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(text) || text == _lastResolvedInput) return;
 
@@ -198,11 +208,17 @@ namespace ModHearth.UI
             var ids = WorkshopUrlResolver.ParseUrls(input);
             var nonExistingIds = new List<ulong>();
             int ignoredCount = 0;
+            int inFlightCount = 0;
             foreach (var id in ids)
             {
                 if (_queueManager.ClassifyMod(id) == ModStatusClassification.AlreadyInstalled)
                 {
                     ignoredCount++;
+                }
+                else if (!_idsBeingResolved.Add(id))
+                {
+                    // Already being resolved by an overlapping trigger (e.g. the clipboard monitor and a manual "Resolve and Queue" click landing on the same id at once)
+                    inFlightCount++;
                 }
                 else
                 {
@@ -210,33 +226,44 @@ namespace ModHearth.UI
                 }
             }
 
+            List<string> statusParts = new();
             if (ignoredCount > 0)
-            {
-                SetStatus($"Ignored {ignoredCount} existing mod(s).");
-            }
+                statusParts.Add($"Ignored {ignoredCount} existing mod(s).");
+            if (inFlightCount > 0)
+                statusParts.Add($"Skipped {inFlightCount} mod(s) already resolving.");
+            if (statusParts.Count > 0)
+                SetStatus(string.Join(" ", statusParts));
 
             if (nonExistingIds.Count == 0)
                 return;
 
-            var filteredInput = string.Join(" ", nonExistingIds);
-            await _queueManager.ResolveAndEnqueueUrlsAsync(filteredInput, async (collectionMetadata) =>
+            try
             {
-                await Dispatcher.UIThread.InvokeAsync(async () =>
+                var filteredInput = string.Join(" ", nonExistingIds);
+                await _queueManager.ResolveAndEnqueueUrlsAsync(filteredInput, async (collectionMetadata) =>
                 {
-                    var ownerWindow = TopLevel.GetTopLevel(this) as Window;
-                    if (ownerWindow != null)
+                    await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        var selected = await CollectionChecklistDialog.ShowAsync(ownerWindow, collectionMetadata, _queueManager);
-                        if (selected != null && selected.Count > 0)
+                        var ownerWindow = TopLevel.GetTopLevel(this) as Window;
+                        if (ownerWindow != null)
                         {
-                            foreach (var meta in selected)
+                            var selected = await CollectionChecklistDialog.ShowAsync(ownerWindow, collectionMetadata, _queueManager);
+                            if (selected != null && selected.Count > 0)
                             {
-                                _queueManager.Enqueue(meta);
+                                foreach (var meta in selected)
+                                {
+                                    _queueManager.Enqueue(meta);
+                                }
                             }
                         }
-                    }
+                    });
                 });
-            });
+            }
+            finally
+            {
+                foreach (var id in nonExistingIds)
+                    _idsBeingResolved.Remove(id);
+            }
         }
 
         private void BtnResolveAndQueuePointerPressed(object? sender, PointerPressedEventArgs e)

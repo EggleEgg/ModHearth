@@ -18,7 +18,6 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
     private ModRefControl? contextMenuHost;
     private IBrush backgroundColorBrush = Brushes.Transparent;
 
-
     // Just so avalonia doesnt complain
     public ModUpdateLogWindow() : this(null) { }
     public ModUpdateLogWindow(ModHearthManager? manager)
@@ -70,30 +69,6 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
             ?? list.SelectedItems?.OfType<ModUpdateLogItemViewModel>().FirstOrDefault();
         if (selected != null)
             contextMenuHost.DataContext = new ModRefViewModel(selected.ModReference);
-    }
-
-    private void LogListContextRequested(object? sender, ContextRequestedEventArgs e)
-    {
-        if (sender is not DataGrid grid)
-            return;
-
-        ModUpdateLogItemViewModel? contextLogItemVm = grid.SelectedItem as ModUpdateLogItemViewModel;
-        if (contextLogItemVm == null)
-        {
-            contextLogItemVm = grid.SelectedItems?.OfType<ModUpdateLogItemViewModel>().FirstOrDefault();
-        }
-
-        if (contextLogItemVm == null)
-            return;
-
-        selectionController.TryRestoreContextSelection(grid, contextLogItemVm);
-        ModContextMenuSupport.EnsureContextItemSelected(grid.SelectedItems, contextLogItemVm);
-        selectionController.UpdateSelectionState(grid);
-
-        if (contextMenuHost != null)
-        {
-            contextMenuHost.DataContext = new ModRefViewModel(contextLogItemVm.ModReference);
-        }
     }
 
     private event PropertyChangedEventHandler? propertyChanged;
@@ -156,13 +131,19 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
         return Brushes.White;
     }
 
-    // non configurable for now
+    // TODO Make these configurable with reusable generic colors other windows may use
     private static IBrush GetRowBrush(ModUpdateLogEntry entry, IBrush defaultBrush, bool isActive)
     {
-        if (entry.ChangeType == ModUpdateChangeType.Deleted)
-            return Brushes.Red;
-        if (entry.ChangeType == ModUpdateChangeType.Updated)
-            return Brushes.DeepSkyBlue;
+        switch (entry.ChangeType)
+        {
+            case ModUpdateChangeType.Deleted:
+                return Brushes.Red;
+            case ModUpdateChangeType.Updated:
+                return Brushes.DeepSkyBlue;
+            case ModUpdateChangeType.Added:
+                return Brushes.Gold;
+        }
+
         if (isActive)
             return Brushes.LimeGreen;
         return defaultBrush;
@@ -236,9 +217,6 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow, INotifyProp
         e.Row.Bind(
             DataGridRow.BackgroundProperty,
             new Binding(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay });
-        e.Row.Bind(
-            DataGridRow.ForegroundProperty,
-            new Binding(nameof(ModUpdateLogItemViewModel.RowBrush)) { Mode = BindingMode.OneWay });
 
         if (e.Row.DataContext is ModUpdateLogItemViewModel vm && DevMode.IsEnabled)
             Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");

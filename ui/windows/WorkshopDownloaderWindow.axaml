@@ -1,10 +1,10 @@
+<!-- Configure any actual ui in WorkshopDownloaderControl.axaml. This file is needed for the window to work -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:ModHearth.UI"
         x:Class="ModHearth.UI.WorkshopDownloaderWindow"
         x:DataType="ui:WorkshopDownloaderWindow"
-        Width="520" Height="600"
-        MinWidth="420" MinHeight="400"
+        Width="400" MinWidth="400" MaxWidth="600" Height="600" MinHeight="400"
         WindowStartupLocation="CenterOwner"
         Title="Steam Workshop Downloader">
   <ui:WorkshopDownloaderControl x:Name="DownloaderControl" />

@@ -8,6 +8,20 @@ namespace ModHearth.Utilities
 {
     internal static class SteamManifestAuditor
     {
+        private static readonly HashSet<ulong> recentlyUnsubscribedIds = new();
+        private static readonly object unsubscribedGate = new();
+
+        public static void MarkAsUnsubscribed(IEnumerable<ulong> workshopIds)
+        {
+            lock (unsubscribedGate)
+            {
+                foreach (ulong id in workshopIds)
+                {
+                    recentlyUnsubscribedIds.Add(id);
+                }
+            }
+        }
+
         public static void Audit(SteamWorkshopService steamService)
         {
             if (steamService == null || !steamService.IsAvailable)
@@ -75,6 +89,12 @@ namespace ModHearth.Utilities
             {
                 if (!ulong.TryParse(kvp.Key, out ulong itemId))
                     continue;
+
+                lock (unsubscribedGate)
+                {
+                    if (recentlyUnsubscribedIds.Contains(itemId))
+                        continue;
+                }
 
                 string itemPath = Path.Combine(workshopContentDir, kvp.Key);
 

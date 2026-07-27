@@ -199,7 +199,7 @@ namespace ModHearth.Utilities.Workshop
             return ModStatusClassification.New;
         }
 
-        public async Task ResolveAndEnqueueUrlsAsync(string inputUrls, Action<List<WorkshopItemMetadata>> onCollectionFound)
+        public async Task ResolveAndEnqueueUrlsAsync(string inputUrls, Func<List<WorkshopItemMetadata>, Task>? onCollectionFound)
         {
             if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Resolving URLs: {inputUrls}");
             var ids = WorkshopUrlResolver.ParseUrls(inputUrls);
@@ -231,8 +231,8 @@ namespace ModHearth.Utilities.Workshop
                     meta.ChildrenIds = children;
 
                     var childrenMeta = await _apiClient.GetPublishedFileDetailsAsync(children);
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Fetched metadata for {childrenMeta.Count} children of collection {meta.PublishedFileId}.");
-                    onCollectionFound?.Invoke(childrenMeta);
+                    if (onCollectionFound != null)
+                        await onCollectionFound(childrenMeta);
                 }
                 else
                 {
