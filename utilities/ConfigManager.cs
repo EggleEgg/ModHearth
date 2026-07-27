@@ -261,6 +261,14 @@ namespace ModHearth
             SaveConfigFile("Autosort");
         }
 
+        public static bool IsAutoResolveAndQueueEnabled() => Config.IsAutoResolveAndQueueEnabled;
+
+        public static void SetAutoResolveAndQueueEnabled(bool enabled)
+        {
+            Config.IsAutoResolveAndQueueEnabled = enabled;
+            SaveConfigFile("Auto-resolve and queue");
+        }
+
         public static string GetLeftSearchBarState() => Config.LeftSearchBarState;
         public static void SetLeftSearchBarState(string state)
         {

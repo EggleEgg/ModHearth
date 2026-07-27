@@ -69,6 +69,7 @@ namespace ModHearth.UI
         // Colors.
         public SimpleColor backgroundColor { get; set; } = null!;
         public SimpleColor modRefHighlightColor { get; set; } = null!;
+        public SimpleColor modRefHighlightDarkColor { get; set; } = null!;
         public SimpleColor modRefJumpHighlightColor { get; set; } = null!;
         public SimpleColor modRefCacheBarColor { get; set; } = null!;
         public SimpleColor modRefPanelColor { get; set; } = null!;

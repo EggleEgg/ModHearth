@@ -197,7 +197,11 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
 
             selectedTitleText.Text = "Select a mod";
             selectedSubtitleText.Text = "Choose a mod to edit its relationships.";
-            summaryText.Text = "Before: 0   After: 0   Required: 0   Incompatible: 0";
+            int totalBefore = rules.Values.Sum(r => r.BeforeIds.Count);
+            int totalAfter = rules.Values.Sum(r => r.AfterIds.Count);
+            int totalRequired = rules.Values.Sum(r => r.RequiredIds.Count);
+            int totalIncompatible = rules.Values.Sum(r => r.IncompatibleIds.Count);
+            summaryText.Text = $"Before: {totalBefore}   After: {totalAfter}   Required: {totalRequired}   Incompatible: {totalIncompatible}";
 
             ValidationResult globalValidation = ValidateRules();
             int globalIssueCount = globalValidation.Issues?.Count ?? 0;
@@ -597,7 +601,14 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         }
         else if (e.Key == Key.Escape)
         {
-            Close();
+            if (selectedMod != null)
+            {
+                modTreeList.SelectedItem = null;
+            }
+            else
+            {
+                Close();
+            }
             e.Handled = true;
         }
     }

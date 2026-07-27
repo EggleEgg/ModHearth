@@ -73,7 +73,7 @@ namespace ModHearth
     {
         public event Action? RequestUIReload;
 
-        private void OnRequestUIReload()
+        public void TriggerUIReload()
         {
             RequestUIReload?.Invoke();
         }

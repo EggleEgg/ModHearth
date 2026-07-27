@@ -11,7 +11,7 @@ namespace ModHearth.Utilities.Workshop
 {
     public class SteamWorkerDownloadProvider : IWorkshopDownloadProvider
     {
-        public string Name => "Steam Client (via Worker)";
+        public string Name => "Steam Client (via SteamAPI)";
         public bool IsAvailable => new SteamWorkshopService().IsAvailable;
 
         public Task<bool> DownloadAsync(
@@ -167,110 +167,6 @@ namespace ModHearth.Utilities.Workshop
                 string destSubDir = Path.Combine(destinationDir, Path.GetFileName(subDir));
                 CopyDirectory(subDir, destSubDir);
             }
-        }
-
-        private static bool TryFindInPath(string tool)
-        {
-            var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? Array.Empty<string>();
-            foreach (var path in paths)
-            {
-                try
-                {
-                    if (File.Exists(Path.Combine(path, tool)))
-                        return true;
-                }
-                catch { /* ignore */ }
-            }
-            return false;
-        }
-    }
-
-    public class WorkshopDlDownloadProvider : IWorkshopDownloadProvider
-    {
-        private static readonly Regex ProgressRegex = new Regex(@"([0-9.]+)%", RegexOptions.Compiled);
-
-        public string Name => "WorkshopDL";
-        public bool IsAvailable
-        {
-            get
-            {
-                string cmd = OperatingSystem.IsWindows() ? "workshop-dl.exe" : "workshop-dl";
-                return TryFindInPath(cmd) || File.Exists(Path.Combine(AppContext.BaseDirectory, cmd));
-            }
-        }
-
-        public string WorkshopDlPath { get; set; } = string.Empty;
-
-        private string ResolveExecutable()
-        {
-            if (!string.IsNullOrEmpty(WorkshopDlPath) && File.Exists(WorkshopDlPath))
-                return WorkshopDlPath;
-
-            string cmd = OperatingSystem.IsWindows() ? "workshop-dl.exe" : "workshop-dl";
-            if (File.Exists(Path.Combine(AppContext.BaseDirectory, cmd)))
-                return Path.Combine(AppContext.BaseDirectory, cmd);
-
-            return cmd;
-        }
-
-        public async Task<bool> DownloadAsync(
-            ulong workshopId, 
-            string downloadPath, 
-            IProgress<DownloadProgress> progress, 
-            CancellationToken cancellationToken)
-        {
-            string exe = ResolveExecutable();
-            // workshop-dl -i <workshopId> -o <downloadPath>
-            string args = $"-i {workshopId} -o \"{downloadPath}\"";
-
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDL: Running {exe} {args}");
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = exe,
-                Arguments = args,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-
-            using var process = new Process { StartInfo = startInfo };
-            try
-            {
-                process.Start();
-            }
-            catch (Exception ex)
-            {
-                if (DevMode.IsEnabled) AppLogging.LogException("WorkshopDL start failed", ex);
-                return false;
-            }
-
-            var outputTask = Task.Run(async () =>
-            {
-                while (!process.StandardOutput.EndOfStream)
-                {
-                    string? line = await process.StandardOutput.ReadLineAsync();
-                    if (line == null) break;
-
-                    var match = ProgressRegex.Match(line);
-                    if (match.Success && double.TryParse(match.Groups[1].Value, out double pct))
-                    {
-                        progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
-                    }
-                }
-            });
-
-            await Task.Run(() => process.WaitForExit());
-            await outputTask;
-
-            if (process.ExitCode == 0)
-            {
-                progress.Report(new DownloadProgress(100, 100, 100));
-                return true;
-            }
-
-            return false;
         }
 
         private static bool TryFindInPath(string tool)

@@ -51,13 +51,128 @@ public partial class MainWindow
         _ = dialog.ShowDialog(this);
     }
 
+    private WorkshopDownloaderControl? _sharedWorkshopControl;
+    private WorkshopDownloaderWindow? _workshopWindow;
+    private bool _isWorkshopDocked = true;
+    private bool _isPanelExpanded;
+    private const double WorkshopPanelWidth = 520;
+    private const double SplitterWidth = 7;
+
+    private void ExpandPanel()
+    {
+        if (_isPanelExpanded) return;
+        Width += WorkshopPanelWidth + SplitterWidth;
+        MinWidth += WorkshopPanelWidth + SplitterWidth;
+        if (mainGrid != null && mainGrid.ColumnDefinitions.Count > 5)
+        {
+            mainGrid.ColumnDefinitions[4].Width = new GridLength(SplitterWidth, GridUnitType.Pixel);
+            mainGrid.ColumnDefinitions[5].Width = new GridLength(WorkshopPanelWidth, GridUnitType.Pixel);
+        }
+        _isPanelExpanded = true;
+    }
+
+    private void CollapsePanel()
+    {
+        if (!_isPanelExpanded) return;
+        Width -= WorkshopPanelWidth + SplitterWidth;
+        MinWidth -= WorkshopPanelWidth + SplitterWidth;
+        if (mainGrid != null && mainGrid.ColumnDefinitions.Count > 5)
+        {
+            mainGrid.ColumnDefinitions[4].Width = new GridLength(0, GridUnitType.Pixel);
+            mainGrid.ColumnDefinitions[5].Width = new GridLength(0, GridUnitType.Pixel);
+        }
+        _isPanelExpanded = false;
+    }
+
     private void OpenWorkshopDownloader()
     {
-        WorkshopDownloaderWindow dialog = new WorkshopDownloaderWindow(manager)
+        if (_sharedWorkshopControl == null)
         {
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-        dialog.Show(this);
+            _sharedWorkshopControl = new WorkshopDownloaderControl(manager);
+            _sharedWorkshopControl.DockToggleRequested += (_, _) => ToggleWorkshopDock();
+            _sharedWorkshopControl.CloseRequested += (_, _) => CloseWorkshopPanel();
+        }
+
+        if (_isWorkshopDocked)
+        {
+            ExpandPanel();
+            workshopDockHost.Content = _sharedWorkshopControl;
+            workshopDockHost.IsVisible = true;
+            WindowThemeManager.ApplyToOpenWindows();
+        }
+        else
+        {
+            ShowWorkshopWindow();
+        }
+    }
+
+    private void ToggleWorkshopDock()
+    {
+        _isWorkshopDocked = !_isWorkshopDocked;
+        if (_isWorkshopDocked)
+        {
+            if (_workshopWindow != null)
+            {
+                _workshopWindow.Content = null;
+                _workshopWindow.Close();
+                _workshopWindow = null;
+            }
+            ExpandPanel();
+            workshopDockHost.Content = _sharedWorkshopControl;
+            workshopDockHost.IsVisible = true;
+            WindowThemeManager.ApplyToOpenWindows();
+        }
+        else
+        {
+            CollapsePanel();
+            workshopDockHost.Content = null;
+            workshopDockHost.IsVisible = false;
+            ShowWorkshopWindow();
+            WindowThemeManager.ApplyToOpenWindows();
+        }
+    }
+
+    private void ShowWorkshopWindow()
+    {
+        CollapsePanel();
+        workshopDockHost.Content = null;
+        workshopDockHost.IsVisible = false;
+
+        if (_workshopWindow == null)
+        {
+            _workshopWindow = new WorkshopDownloaderWindow(manager, _sharedWorkshopControl)
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            _workshopWindow.Closed += (_, _) =>
+            {
+                _workshopWindow = null;
+                if (!_isWorkshopDocked)
+                {
+                    _isWorkshopDocked = true;
+                    if (_workshopWindow != null) _workshopWindow.Content = null;
+                    ExpandPanel();
+                    workshopDockHost.Content = _sharedWorkshopControl;
+                    workshopDockHost.IsVisible = true;
+                    WindowThemeManager.ApplyToOpenWindows();
+                }
+            };
+        }
+        _workshopWindow.Show(this);
+        WindowThemeManager.ApplyToOpenWindows();
+    }
+
+    private void CloseWorkshopPanel()
+    {
+        CollapsePanel();
+        workshopDockHost.Content = null;
+        workshopDockHost.IsVisible = false;
+        if (_workshopWindow != null)
+        {
+            _workshopWindow.Close();
+            _workshopWindow = null;
+        }
+        WindowThemeManager.ApplyToOpenWindows();
     }
 
     private async Task ModSortAsync()

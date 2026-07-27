@@ -90,6 +90,7 @@ public static class WindowThemeManager
             IBrush borderPanelBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
             IBrush dataGridBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
             IBrush modRefHighlightBrush = BrushCache.GetBrush(style.modRefHighlightColor.ToAvaloniaColor());
+            IBrush modRefHighlightDarkBrush = BrushCache.GetBrush(style.modRefHighlightDarkColor.ToAvaloniaColor());
 
             window.Background = formBrush;
             IBrush inputTextBrush = IsDark(style.formColor) ? Brushes.White : Brushes.Black;
@@ -110,6 +111,7 @@ public static class WindowThemeManager
                 app.Resources["ButtonForegroundBrush"] = buttonTextBrush;
                 app.Resources["ButtonBorderBrush"] = buttonOutlineBrush;
                 app.Resources["ModRefHighlightBrush"] = modRefHighlightBrush;
+                app.Resources["ModRefHighlightDarkBrush"] = modRefHighlightDarkBrush;
             }
 
             foreach (Visual visual in window.GetVisualDescendants())

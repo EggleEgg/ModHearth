@@ -42,6 +42,8 @@
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="11*" />
         <ColumnDefinition Width="200" />
+        <ColumnDefinition Width="0" />
+        <ColumnDefinition Width="0" />
       </Grid.ColumnDefinitions>
       <Grid.RowDefinitions>
         <RowDefinition Height="*" />
@@ -129,6 +131,7 @@
         </Grid>
       </Border>
 
+      <!-- Right buttons main panel -->
       <Border Grid.Column="3" Margin="0,3,3,3">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*, Auto" RowSpacing="6">
           <Grid.Styles>
@@ -234,6 +237,11 @@
           </Grid>
         </Grid>
       </Border>
+
+      <GridSplitter Grid.Column="4" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
+                    HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="6,0,2,0" />
+
+      <ContentControl x:Name="workshopDockHost" Grid.Column="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="1,0,0,0" IsVisible="False" />
     </Grid>
 
     <StackPanel x:Name="notificationContainer"

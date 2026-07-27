@@ -225,7 +225,7 @@ namespace ModHearth
             {
                 // Reload mod manager if all unsubscriptions and deletions were successful
                 TryRequestModManagerReload(out _, out _);
-                OnRequestUIReload();
+                TriggerUIReload();
             }
 
             ShowNotification($"Unsubscribed {steamItemIds.Count} workshop items. {failures.Count} failure(s).", "steamRemoveIcon.svg");

@@ -121,7 +121,6 @@ namespace ModHearth.Utilities.Workshop
             // Initialize providers
             Providers.Add(new SteamWorkerDownloadProvider());
             Providers.Add(new SteamCmdDownloadProvider());
-            Providers.Add(new WorkshopDlDownloadProvider());
 
             // Select default configured provider, or fallback to SteamWorkerDownloadProvider
             string savedProviderName = ConfigManager.GetDefaultWorkshopProvider();
@@ -366,8 +365,11 @@ namespace ModHearth.Utilities.Workshop
                 {
                     Dispatcher.UIThread.Post(() =>
                     {
+                        if (item.State == DownloadState.Failed || item.State == DownloadState.Cancelled || item.State == DownloadState.Completed)
+                            return;
+
                         item.ProgressPercentage = p.Percentage;
-                        if (p.Percentage >= 1)
+                        if (p.Percentage >= 100)
                             item.StatusText = $"Download complete";
                         else
                             item.StatusText = $"Downloading {p.Percentage:F1}%";
@@ -379,30 +381,30 @@ namespace ModHearth.Utilities.Workshop
 
                 if (success && !token.IsCancellationRequested)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Download successful for {item.PublishedFileId}. Triggering mod list reload.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Download successful for {item.PublishedFileId}. Triggering mod list reload.");
                     item.State = DownloadState.Completed;
                     item.StatusText = "Completed";
                     item.ProgressPercentage = 100;
 
-                    _ = Task.Run(() => _manager.FindAllModsFromDisk());
+                    _manager.TriggerUIReload();
                 }
                 else if (token.IsCancellationRequested)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Download cancelled for {item.PublishedFileId}.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Download cancelled for {item.PublishedFileId}.");
                     item.State = DownloadState.Cancelled;
                     item.StatusText = "Cancelled";
                 }
                 else
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Download failed for {item.PublishedFileId} via {provider.Name}.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Download failed for {item.PublishedFileId} via {provider.Name}.");
                     item.State = DownloadState.Failed;
                     item.StatusText = "Download failed";
                 }
             }
             catch (Exception ex)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Exception during download of {item.PublishedFileId}: {ex.Message}");
-                if (DevMode.IsEnabled) AppLogging.LogException($"QueueManager error downloading {item.PublishedFileId}", ex);
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Exception during download of {item.PublishedFileId}: {ex.Message}");
+                AppLogging.LogException($"QueueManager error downloading {item.PublishedFileId}", ex);
                 item.State = DownloadState.Failed;
                 item.StatusText = $"Error: {ex.Message}";
             }

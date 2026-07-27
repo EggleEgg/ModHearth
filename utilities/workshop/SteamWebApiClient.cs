@@ -13,6 +13,7 @@ namespace ModHearth.Utilities.Workshop
         public ulong PublishedFileId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string PreviewUrl { get; set; } = string.Empty;
+        //Not fetched correctly, as it needs either the steam api or web api key (ISteamUser/GetPlayerSummaries)
         public string Author { get; set; } = string.Empty;
         public long FileSize { get; set; }
         public DateTime UpdatedAt { get; set; }
@@ -82,7 +83,7 @@ namespace ModHearth.Utilities.Workshop
             }
             catch (Exception ex)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching file details: {ex.Message}");
+                InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching file details: {ex.Message}");
                 return new List<WorkshopItemMetadata>();
             }
         }
@@ -135,7 +136,7 @@ namespace ModHearth.Utilities.Workshop
             }
             catch (Exception ex)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching collection details: {ex.Message}");
+                InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching collection details: {ex.Message}");
                 return new List<ulong>();
             }
         }

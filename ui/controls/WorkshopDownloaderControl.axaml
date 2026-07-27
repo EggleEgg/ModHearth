@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:workshop="using:ModHearth.Utilities.Workshop"
+             xmlns:ui="clr-namespace:ModHearth.UI"
+             x:Class="ModHearth.UI.WorkshopDownloaderControl"
+             x:DataType="ui:WorkshopDownloaderControl">
+  <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="16" RowSpacing="12" Background="{DynamicResource PanelBackgroundBrush}">
+    <!-- Header Controls -->
+    <Grid Grid.Row="0" RowDefinitions="Auto, Auto, Auto" RowSpacing="6">
+      <TextBlock Text="Paste Workshop URLs or collection IDs (one per line):" FontSize="12" Foreground="{DynamicResource MainTextBrush}"/>
+      <TextBox Grid.Row="1" x:Name="WorkshopUrlTextBox" Height="80" AcceptsReturn="True" TextWrapping="Wrap"
+               PlaceholderText="e.g. https://steamcommunity.com/sharedfiles/filedetails/?id=2897791846" Foreground="{DynamicResource MainTextBrush}"/>
+      <Grid Grid.Row="2" ColumnDefinitions="*, *" ColumnSpacing="10">
+        <ToggleButton Grid.Column="0" x:Name="BtnDownloadFromClipboard" Content="Monitor Clipboard" ToolTip.Tip="Click to enable automatic clipboard monitoring"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Height="30" />
+        <Button Grid.Column="1" x:Name="BtnResolveAndQueue" HorizontalAlignment="Stretch" VerticalContentAlignment="Center" Height="30" ToolTip.Tip="Resolve and queue URLs. Right click to toggle auto-resolve">
+          <Grid>
+            <TextBlock Text="Resolve and Queue" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Image x:Name="autoResolveIndicator"
+                   Source="{ui:AssetImage updateBorderIcon}" IsVisible="{Binding IsAutoResolveAndQueueEnabled}"
+                   Width="16" Height="16"
+                   HorizontalAlignment="Left" VerticalAlignment="Center" Margin="6,0,0,0"/>
+          </Grid>
+        </Button>
+      </Grid>
+    </Grid>
+
+    <!-- Provider Settings -->
+    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" ColumnSpacing="10" VerticalAlignment="Center">
+      <TextBlock Text="Download Provider:" VerticalAlignment="Center" FontSize="12" />
+      <ComboBox Grid.Column="1" x:Name="ProviderComboBox" HorizontalAlignment="Stretch" Height="30">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="workshop:IWorkshopDownloadProvider">
+            <TextBlock Text="{Binding Name}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </Grid>
+
+    <!-- Queue Area -->
+    <Grid Grid.Row="2" RowDefinitions="Auto, *">
+      <TextBlock Grid.Row="0" Text="Download Queue" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6" />
+      <Border Grid.Row="1" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="1" CornerRadius="4">
+        <ListBox x:Name="DownloadQueueList" Background="{DynamicResource PanelBackgroundBrush}" SelectionMode="Single">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="Margin" Value="0" />
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="workshop:WorkshopDownloadItem">
+              <Border BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+                <Grid ColumnDefinitions="*, Auto">
+                  <!-- Left: Details -->
+                  <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <Grid Height="10" Margin="0,2">
+                      <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="10" ShowProgressText="False" Foreground="{DynamicResource ModRefHighlightDarkBrush}"/>
+                      <ui:ModBackground UnderlayBrush="{DynamicResource ModRefHighlightBrush}" IsHitTestVisible="False"/>
+                    </Grid>
+                    <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{DynamicResource MainTextBrush}" Width="200"/>
+                  </StackPanel>
+
+                  <!-- Right: Actions -->
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6" Margin="8,0,0,0">
+                    <Button Content="Retry" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" Padding="8,4" FontSize="12" />
+                    <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="8,4" FontSize="12" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+    </Grid>
+
+    <!-- Queue Actions -->
+    <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
+      <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource MainTextBrush}" TextTrimming="CharacterEllipsis" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+        <Button x:Name="BtnClearCompleted" Content="Clear Completed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+        <Button x:Name="BtnDockToggle" Content="Dock/Undock" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+        <Button x:Name="BtnClose" Content="Close" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

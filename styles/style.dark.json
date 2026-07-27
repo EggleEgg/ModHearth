@@ -11,6 +11,12 @@
     "B": 53,
     "A": 255
   },
+  "modRefHighlightDarkColor": {
+    "R": 173,
+    "G": 54,
+    "B": 33,
+    "A": 255
+  },
   "modRefJumpHighlightColor": {
     "R": 255,
     "G": 0,

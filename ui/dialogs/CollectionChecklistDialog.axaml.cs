@@ -6,10 +6,14 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Microsoft.VisualBasic;
 using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
 {
+    /// <summary>
+    /// Handles downloading steam workshop collections
+    /// </summary>
     public class CollectionChecklistItem : INotifyPropertyChanged
     {
         private bool _isChecked = true;
@@ -23,7 +27,6 @@ namespace ModHearth.UI
 
         public WorkshopItemMetadata Metadata { get; set; } = null!;
         public string Title => Metadata.Title;
-        public string Author => Metadata.Author;
         public ModStatusClassification Classification { get; set; }
 
         public bool IsChecked
