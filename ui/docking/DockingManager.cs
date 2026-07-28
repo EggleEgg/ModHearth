@@ -63,7 +63,8 @@ namespace ModHearth.UI
             double defaultWidth,
             double minWidth,
             double maxWidth,
-            double splitterWidth = 7)
+            double splitterWidth = 7,
+            bool initialDocked = false)
         {
             _parentWindow = parentWindow ?? throw new ArgumentNullException(nameof(parentWindow));
             _mainGrid = mainGrid ?? throw new ArgumentNullException(nameof(mainGrid));
@@ -78,6 +79,7 @@ namespace ModHearth.UI
             _minWidth = minWidth;
             _maxWidth = maxWidth;
             _splitterWidth = splitterWidth;
+            _isDocked = initialDocked;
 
             RegisterSplitterEvents();
         }
@@ -104,15 +106,18 @@ namespace ModHearth.UI
             CollapsePanel();
             _dockHostControl.Content = null;
             _dockHostControl.IsVisible = false;
-            _isDocked = false; // Reset dock state on close
 
             if (_floatingWindow != null)
             {
                 var win = _floatingWindow;
                 _floatingWindow = null;
+                win.PositionChanged -= OnFloatingWindowPositionChanged;
                 win.Content = null;
                 win.Close();
             }
+
+            (_sharedControl as IDisposable)?.Dispose();
+            _sharedControl = null;
 
             RefreshStyles();
             Closed?.Invoke(this, EventArgs.Empty);
@@ -126,6 +131,7 @@ namespace ModHearth.UI
             {
                 if (_floatingWindow != null)
                 {
+                    _floatingWindow.PositionChanged -= OnFloatingWindowPositionChanged;
                     _floatingWindow.Content = null;
                     _floatingWindow.Close();
                     _floatingWindow = null;
@@ -141,6 +147,41 @@ namespace ModHearth.UI
                 _dockHostControl.Content = null;
                 _dockHostControl.IsVisible = false;
                 ShowFloatingWindow();
+            }
+
+            DockStateChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void SetDocked(bool docked)
+        {
+            if (_isDocked == docked) return;
+            _isDocked = docked;
+
+            if (_isDocked)
+            {
+                if (_floatingWindow != null)
+                {
+                    _floatingWindow.Content = null;
+                    _floatingWindow.Close();
+                    _floatingWindow = null;
+                }
+                if (IsOpen)
+                {
+                    ExpandPanel();
+                    _dockHostControl.Content = _sharedControl;
+                    _dockHostControl.IsVisible = true;
+                    RefreshStyles();
+                }
+            }
+            else
+            {
+                CollapsePanel();
+                _dockHostControl.Content = null;
+                _dockHostControl.IsVisible = false;
+                if (IsOpen)
+                {
+                    ShowFloatingWindow();
+                }
             }
 
             DockStateChanged?.Invoke(this, EventArgs.Empty);
@@ -180,6 +221,7 @@ namespace ModHearth.UI
                     _floatingWindow = null;
                     if (win != null)
                     {
+                        win.PositionChanged -= OnFloatingWindowPositionChanged;
                         win.Content = null;
                     }
                     HidePreview();
@@ -290,6 +332,7 @@ namespace ModHearth.UI
             {
                 var win = _floatingWindow;
                 _floatingWindow = null;
+                win.PositionChanged -= OnFloatingWindowPositionChanged;
                 win.Content = null;
                 win.Close();
             }

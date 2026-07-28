@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using Steamworks;
 using ModHearth.Utilities;
 using ModHearth.UI;
@@ -168,25 +169,30 @@ namespace ModHearth
             SteamConnectionLogger.Log($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
             List<ulong> successfullyUnsubscribedIds = new List<ulong>();
+            ConcurrentBag<string> failureBag = new ConcurrentBag<string>();
+            ConcurrentBag<ulong> successBag = new ConcurrentBag<ulong>();
 
-            for (int index = 0; index < steamItemIds.Count; index++)
+            Parallel.ForEach(steamItemIds, new ParallelOptions
             {
-                string steamItemId = steamItemIds[index];
-                ModReference modrefToDelete = steamModRefs[steamItemId];
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, steamItemId =>
+            {
+                if (!steamModRefs.TryGetValue(steamItemId, out ModReference? modrefToDelete))
+                    return;
 
                 if (!ulong.TryParse(steamItemId, out ulong workshopId))
                 {
-                    failures.Add($"Invalid workshop id \'{steamItemId}\'.");
-                    continue;
+                    failureBag.Add($"Invalid workshop id '{steamItemId}'.");
+                    return;
                 }
 
-                if (!steam.Unsubscribe(workshopId))
+                if (!SteamWorkshopService.Unsubscribe(workshopId))
                 {
-                    failures.Add($"Failed to unsubscribe workshop item {steamItemId}.");
+                    failureBag.Add($"Failed to unsubscribe workshop item {steamItemId}.");
                 }
                 else
                 {
-                    successfullyUnsubscribedIds.Add(workshopId);
+                    successBag.Add(workshopId);
                     SteamConnectionLogger.LogInfo(
                         $"Requested Steam API unsubscribe for workshop item {steamItemId}.");
 
@@ -208,8 +214,8 @@ namespace ModHearth
                         }
                         catch (Exception ex)
                         {
-                            failures.Add($"Failed to delete mod folder \'{modrefToDelete.path}\': {ex.Message}");
-                            SteamConnectionLogger.LogError($"Failed to delete mod folder \'{modrefToDelete.path}\': {ex.Message}");
+                            failureBag.Add($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
+                            SteamConnectionLogger.LogError($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
                         }
                     }
                     else
@@ -217,10 +223,10 @@ namespace ModHearth
                         SteamConnectionLogger.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.path}");
                     }
                 }
+            });
 
-                if (index < steamItemIds.Count - 1)
-                    Thread.Sleep(SteamActionGap);
-            }
+            failures.AddRange(failureBag);
+            successfullyUnsubscribedIds = successBag.ToList();
 
             SteamConnectionLogger.Log($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
 
@@ -260,21 +266,24 @@ namespace ModHearth
             SteamConnectionLogger.Log(
                 $"Steam resubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
-            // Staging: unsubscribe all -> wait -> subscribe all -> wait -> download/validate.
-            for (int index = 0; index < steamItemIds.Count; index++)
+            List<ulong> workshopIds = new List<ulong>();
+            foreach (string steamItemId in steamItemIds)
             {
-                string steamItemId = steamItemIds[index];
-                if (!ulong.TryParse(steamItemId, out ulong workshopId))
+                if (ulong.TryParse(steamItemId, out ulong workshopId))
                 {
-                    failures.Add($"Invalid workshop id \'{steamItemId}\'.");
-                    continue;
-                }
-
-                if (!steam.Unsubscribe(workshopId))
-                {
-                    failures.Add($"Failed to unsubscribe workshop item {steamItemId} (resubscribe stage).");
+                    workshopIds.Add(workshopId);
                 }
                 else
+                {
+                    failures.Add($"Invalid workshop id '{steamItemId}'.");
+                }
+            }
+
+            if (workshopIds.Count > 0)
+            {
+                // Unsubscribe all in parallel
+                SteamWorkshopService.UnsubscribeMany(workshopIds);
+                foreach (string steamItemId in steamItemIds)
                 {
                     SteamConnectionLogger.LogInfo($"Unsubscribed workshop item {steamItemId} (resubscribe stage).");
                     lock (installedCacheGate)
@@ -284,48 +293,20 @@ namespace ModHearth
                     }
                 }
 
-                if (index < steamItemIds.Count - 1)
-                    Thread.Sleep(SteamActionGap);
-            }
+                Thread.Sleep(SteamResubscribeUnsubscribeWait);
 
-            Thread.Sleep(SteamResubscribeUnsubscribeWait);
-
-            for (int index = 0; index < steamItemIds.Count; index++)
-            {
-                string steamItemId = steamItemIds[index];
-                if (!ulong.TryParse(steamItemId, out ulong workshopId))
-                {
-                    continue;
-                }
-
-                if (!SteamWorkshopService.Subscribe(workshopId))
-                {
-                    failures.Add($"Failed to subscribe workshop item {steamItemId} (resubscribe stage).");
-                }
-                else
+                // Subscribe all in parallel
+                SteamWorkshopService.SubscribeMany(workshopIds);
+                foreach (string steamItemId in steamItemIds)
                 {
                     SteamConnectionLogger.LogInfo($"Subscribed to workshop item {steamItemId} (resubscribe stage).");
                 }
 
-                if (index < steamItemIds.Count - 1)
-                    Thread.Sleep(SteamActionGap);
-            }
+                Thread.Sleep(SteamResubscribeSubscribeWait);
 
-            Thread.Sleep(SteamResubscribeSubscribeWait);
-
-            for (int index = 0; index < steamItemIds.Count; index++)
-            {
-                string steamItemId = steamItemIds[index];
-                if (!ulong.TryParse(steamItemId, out ulong workshopId))
-                {
-                    continue;
-                }
-
-                if (!SteamWorkshopService.Download(workshopId))
-                {
-                    failures.Add($"Failed to trigger download/validation for workshop item {steamItemId}.");
-                }
-                else
+                // Download all in parallel
+                SteamWorkshopService.DownloadMany(workshopIds);
+                foreach (string steamItemId in steamItemIds)
                 {
                     SteamConnectionLogger.LogInfo($"Requested Steam download/validation for workshop item {steamItemId}.");
                 }

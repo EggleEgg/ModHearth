@@ -255,6 +255,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
         updateLogButton.Click += (_, _) => OpenModUpdateLog();
         workshopDownloaderButton.Click += (_, _) => OpenWorkshopDownloader();
+        workshopDownloaderButton.AddHandler(InputElement.PointerPressedEvent, WorkshopDownloaderButtonPointerPressed, RoutingStrategies.Tunnel, true);
 
         themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
         themeComboBox.SelectionChanged += async (_, _) => await OnThemeChangedAsync();
@@ -267,6 +268,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
             SaveMainWindowGridSplitterRatio();
             SaveModInfoDockLayout();
             SaveSearchBarStates();
+            _workshopDockManager?.Close();
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();
             dfHackStatusTimer?.Stop();

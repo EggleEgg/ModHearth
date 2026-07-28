@@ -148,6 +148,8 @@ namespace ModHearth.Utilities.Workshop
 
     public class WorkshopQueueManager
     {
+        public const int MaxQueueSize = 100;
+
         private readonly SemaphoreSlim _concurrencySemaphore = new SemaphoreSlim(3, 3);
         private readonly SteamWebApiClient _apiClient = new();
         private readonly ModHearthManager _manager;
@@ -350,6 +352,16 @@ namespace ModHearth.Utilities.Workshop
 
             item.RetryCommand = new SimpleCommand(() => RetryDownload(item), () => item.CanRetry);
             item.CancelCommand = new SimpleCommand(() => CancelDownload(item), () => item.CanCancel);
+
+            while (Queue.Count >= MaxQueueSize)
+            {
+                var oldestRemovable = Queue.FirstOrDefault(i => i.State == DownloadState.Completed || i.State == DownloadState.Failed || i.State == DownloadState.Cancelled)
+                    ?? Queue.FirstOrDefault();
+                if (oldestRemovable != null)
+                    RemoveFromQueue(oldestRemovable);
+                else
+                    break;
+            }
 
             Queue.Add(item);
             if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} added to queue. Queue size: {Queue.Count}");

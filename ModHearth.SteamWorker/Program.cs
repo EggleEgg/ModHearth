@@ -14,10 +14,10 @@ namespace ModHearth.SteamWorker;
 /// means ModHearth.exe itself never has anything for Steam to (mis)attribute App 975370's "running"
 /// state to -- not "closed sooner", structurally absent.
 ///
-/// Usage: ModHearth.SteamWorker &lt;action&gt; &lt;workshopId&gt;
+/// Usage: ModHearth.SteamWorker <action> <workshopId>
 ///   subscribe;      -- SteamUGC.SubscribeItem, waits for the callback
 ///   unsubscribe;    -- SteamUGC.UnsubscribeItem, waits for the callback
-///   download;       -- SteamUGC.DownloadItem (highPriority), fire-and-forget
+///   download;       -- SteamUGC.DownloadItem (highPriority), waits for callback & reports progress
 ///   issubscribed;   -- SteamUGC.GetItemState / GetSubscribedItems, synchronous
 ///
 /// Exit code 0 = success, 1 = failure (details on stderr).
@@ -26,6 +26,13 @@ internal static class Program
 {
     private const string DwarfFortressSteamAppId = "975370";
     private static readonly TimeSpan CallbackWaitTimeout = TimeSpan.FromSeconds(15);
+    // Actual content downloads (unlike subscribe/unsubscribe, which are near-instant metadata
+    // operations) can legitimately take minutes for larger mods or when several are sharing
+    // bandwidth, so RunDownload gets a much longer budget before giving up. If this changes, keep
+    // SteamWorkshopService.DownloadWorkerTimeout longer than this -- otherwise the parent process
+    // kills this worker before it ever gets a chance to report whether the download finished.
+    private static readonly TimeSpan DownloadCallbackWaitTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan ProgressReportInterval = TimeSpan.FromMilliseconds(500);
 
     private static int Main(string[] args)
     {
@@ -118,11 +125,64 @@ internal static class Program
 
     private static int RunDownload(PublishedFileId_t id)
     {
-        return SteamUGC.DownloadItem(id, true)
+        // DownloadItem only *starts* the download/update; a `true` return means the request was
+        // accepted, not that the content is on disk. Steam's docs are explicit: register and wait
+        // for DownloadItemResult_t before touching the item on disk.
+        if (!SteamUGC.DownloadItem(id, true))
+            return Fail("SteamUGC.DownloadItem returned false (invalid id, or not logged in).");
+
+        AppId_t runningAppId = SteamUtils.GetAppID();
+        bool completed = false;
+        EResult result = EResult.k_EResultFail;
+
+        // DownloadItemResult_t is a global callback -- per Steam's docs it fires for every item
+        // download completion regardless of which app requested it, so both the app id and the
+        // published file id must be checked before treating a callback as "ours."
+        using Callback<DownloadItemResult_t> callback = Callback<DownloadItemResult_t>.Create(res =>
+        {
+            if (res.m_unAppID != runningAppId || res.m_nPublishedFileId != id)
+                return;
+
+            completed = true;
+            result = res.m_eResult;
+        });
+
+        if (!WaitForDownloadCompletion(id, () => completed, DownloadCallbackWaitTimeout))
+            return Fail($"Timed out after {DownloadCallbackWaitTimeout.TotalMinutes:0} minute(s) waiting for the download to complete.");
+
+        return result == EResult.k_EResultOK
             ? Success()
-            : Fail("SteamUGC.DownloadItem returned false.");
+            : Fail($"Download did not complete successfully (result: {result}).");
     }
 
+    // Like WaitForCallback, but also polls and reports real download progress on stdout as
+    // "PROGRESS <bytesDownloaded> <bytesTotal>" lines, since GetItemDownloadInfo is only meaningful
+    // while a download is actively in flight. Consumed by SteamWorkshopService.RunWorker on the
+    // parent process side; throttled independently of the callback-pump cadence to avoid flooding
+    // stdout on long downloads.
+    private static bool WaitForDownloadCompletion(PublishedFileId_t id, Func<bool> isDone, TimeSpan timeout)
+    {
+        DateTime start = DateTime.UtcNow;
+        DateTime nextProgressReportUtc = DateTime.UtcNow;
+
+        while (!isDone() && (DateTime.UtcNow - start) < timeout)
+        {
+            SteamAPI.RunCallbacks();
+
+            if (DateTime.UtcNow >= nextProgressReportUtc &&
+                SteamUGC.GetItemDownloadInfo(id, out ulong bytesDownloaded, out ulong bytesTotal) &&
+                bytesTotal > 0)
+            {
+                Console.WriteLine($"PROGRESS {bytesDownloaded} {bytesTotal}");
+                nextProgressReportUtc = DateTime.UtcNow.Add(ProgressReportInterval);
+            }
+
+            Thread.Sleep(50);
+        }
+
+        return isDone();
+    }
+    
     private static int RunIsSubscribed(PublishedFileId_t id)
     {
         uint state = SteamUGC.GetItemState(id);
@@ -144,10 +204,11 @@ internal static class Program
         return Fail("Not subscribed.");
     }
 
-    private static void WaitForCallback(Func<bool> isDone)
+    private static void WaitForCallback(Func<bool> isDone, TimeSpan? timeout = null)
     {
+        TimeSpan effectiveTimeout = timeout ?? CallbackWaitTimeout;
         DateTime start = DateTime.UtcNow;
-        while (!isDone() && (DateTime.UtcNow - start) < CallbackWaitTimeout)
+        while (!isDone() && (DateTime.UtcNow - start) < effectiveTimeout)
         {
             SteamAPI.RunCallbacks();
             Thread.Sleep(50);

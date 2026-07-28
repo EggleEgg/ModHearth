@@ -55,6 +55,7 @@ public partial class MainWindow
 
     private void InitializeDockingManagers()
     {
+        bool initialDocked = ConfigManager.GetIsWorkshopDownloaderDocked();
         _workshopDockManager = new DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>(
             this,
             mainGrid,
@@ -75,8 +76,20 @@ public partial class MainWindow
             },
             WorkshopDownloaderWindow.DefaultWidth,
             WorkshopDownloaderWindow.DefaultMinWidth,
-            WorkshopDownloaderWindow.DefaultMaxWidth
+            WorkshopDownloaderWindow.DefaultMaxWidth,
+            splitterWidth: 7,
+            initialDocked: initialDocked
         );
+        _workshopDockManager.DockStateChanged += (_, _) =>
+        {
+            bool docked = _workshopDockManager.IsDocked;
+            if (ConfigManager.GetIsWorkshopDownloaderDocked() != docked)
+            {
+                ConfigManager.SetIsWorkshopDownloaderDocked(docked);
+                UpdateWorkshopDownloaderButtonModeImage();
+            }
+        };
+        UpdateWorkshopDownloaderButtonModeImage();
     }
 
     private void OpenWorkshopDownloader()

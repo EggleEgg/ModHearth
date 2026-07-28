@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI;
 

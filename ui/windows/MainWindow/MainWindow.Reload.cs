@@ -45,17 +45,17 @@ public partial class MainWindow
     {
         DismissAllNotifications();
 
-        SearchLogging.Log("ReloadModpacksFromDisk begin");
+        ReloadLogging.Log("ReloadModpacksFromDisk begin");
         searchDebounceTimer?.Stop();
         ModSelectionSnapshot selectionSnapshot = CaptureSelectionSnapshot();
         SearchFilterStateSnapshot filterStateSnapshot = CaptureSearchFilterStateSnapshot();
         ensureSearchResultVisibleOnNextFilter = true;
-        SearchLogging.Log("ReloadModpacksFromDisk scheduled ensure-visible on next filter");
+        ReloadLogging.Log("ReloadModpacksFromDisk scheduled ensure-visible on next filter");
         string? preferredName = manager.modpacks.Count > 0
             ? manager.SelectedModlist?.name
             : null;
 
-        SearchLogging.Log("Refreshing modlists from disk.");
+        ReloadLogging.Log("Refreshing modlists from disk.");
         bool didReload;
         try
         {
@@ -80,7 +80,7 @@ public partial class MainWindow
 
         if (!didReload)
         {
-            SearchLogging.Log("ReloadModpacksFromDisk skipped: a reload was already in progress. Queuing retry...");
+            ReloadLogging.Log("ReloadModpacksFromDisk skipped: a reload was already in progress. Queuing retry...");
             if (!pendingReloadQueued)
             {
                 pendingReloadQueued = true;
@@ -113,14 +113,14 @@ public partial class MainWindow
 
         modifyingComboBox = false;
 
-        SearchLogging.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
+        ReloadLogging.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
 
         RestoreSearchFilterStateSnapshot(filterStateSnapshot);
         RefreshModlistPanels();
         await SetAndMarkChangesAsync(false);
         RestoreSelectionSnapshot(selectionSnapshot);
 
-        SearchLogging.Log("ReloadModpacksFromDisk end");
+        ReloadLogging.Log("ReloadModpacksFromDisk end");
 
         if (!string.IsNullOrWhiteSpace(manager.LastMissingModsMessage))
             _ = DialogService.ShowMessageAsync(this, manager.LastMissingModsMessage, "Missing Mods");
@@ -183,7 +183,7 @@ public partial class MainWindow
 
         StackPanel panel = new StackPanel
         {
-            Margin = new Thickness(2),
+            Margin = new Thickness(6),
             Spacing = 8,
         };
         panel.Children.Add(autoReloadEnabledCheckBox);
@@ -191,6 +191,7 @@ public partial class MainWindow
 
         reloadOptionsFlyout = new Flyout
         {
+            FlyoutPresenterClasses = { "compact-flyout" },
             Placement = PlacementMode.Bottom,
             Content = panel
         };

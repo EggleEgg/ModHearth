@@ -1396,5 +1396,12 @@ namespace ModHearth
             Config.DefaultWorkshopProvider = providerName;
             SaveConfigFile("Default Workshop Provider");
         }
+
+        public static bool GetIsWorkshopDownloaderDocked() => Config.IsWorkshopDownloaderDocked;
+        public static void SetIsWorkshopDownloaderDocked(bool docked)
+        {
+            Config.IsWorkshopDownloaderDocked = docked;
+            SaveConfigFile("Workshop downloader docked");
+        }
     }
 }

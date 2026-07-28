@@ -7,6 +7,7 @@ using System.Reflection;
 using ModHearth.UI;
 using ModHearth.Utilities;
 using System.Collections.Concurrent;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth
 {

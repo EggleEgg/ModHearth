@@ -99,8 +99,19 @@ namespace ModHearth.UI
 
             dialog._items = checklistItems;
             dialog.ItemsList.ItemsSource = checklistItems;
+            dialog.SetMissingAndUpdatesChecked();
 
             return await dialog.ShowDialog<List<WorkshopItemMetadata>?>(owner);
+        }
+
+        private void SetMissingAndUpdatesChecked()
+        {
+            foreach (var item in _items)
+            {
+                item.IsChecked = item.Classification == ModStatusClassification.New || 
+                                 item.Classification == ModStatusClassification.MissingDependency ||
+                                 item.Classification == ModStatusClassification.UpdateAvailable;
+            }
         }
 
         private void SetAllChecked(bool value)

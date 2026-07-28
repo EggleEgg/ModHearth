@@ -113,5 +113,11 @@ namespace ModHearth
 
         // Default Steam Workshop download provider name. Defaults to SteamWorkerDownloadProvider.
         public string DefaultWorkshopProvider { get; set; } = "SteamWorkerDownloadProvider";
+
+        // Path to SteamCMD executable.
+        public string SteamCmdPath { get; set; } = string.Empty;
+
+        // Whether workshop downloader opens in docked mode by default.
+        public bool IsWorkshopDownloaderDocked { get; set; } = false;
     }
 }

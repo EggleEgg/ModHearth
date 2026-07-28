@@ -1,4 +1,5 @@
 using ModHearth.Utilities;
+using ModHearth.Utilities.Logging;
 using System.Collections.Concurrent;
 
 namespace ModHearth;

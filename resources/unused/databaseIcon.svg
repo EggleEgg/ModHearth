@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   fill="#000000"
+   width="476.88889"
+   height="531.77777"
+   viewBox="0 -8 42.92 47.859999"
+   id="Layer_1"
+   data-name="Layer 1"
+   version="1.1"
+   sodipodi:docname="databaseIcon.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.2521875"
+     inkscape:cx="-465.92317"
+     inkscape:cy="196.28253"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="Layer_1" />
+  <title
+     id="title1">database</title>
+  <g
+     id="g6"
+     data-name="Layer 1"
+     transform="translate(-14.54,-12.07)"
+     style="fill:#000000;fill-opacity:1">
+    <path
+       d="m 36,4.07 c -11.85,0 -21.46,3.21 -21.46,7.19 v 5.89 c 0,4 9.61,7.19 21.46,7.19 11.85,0 21.45,-3.21 21.45,-7.19 V 11.26 C 57.46,7.28 47.85,4.07 36,4.07 Z"
+       id="path4"
+       style="fill:#000000;fill-opacity:1" />
+    <path
+       d="m 36,27.78 c -11.32,0 -20.64,-2.93 -21.46,-6.66 0,0.18 0,9.75 0,9.75 0,4 9.61,7.18 21.46,7.18 11.85,0 21.45,-3.21 21.45,-7.18 0,0 0,-9.57 0,-9.75 -0.82,3.73 -10.13,6.66 -21.45,6.66 z"
+       id="path5"
+       style="fill:#000000;fill-opacity:1" />
+    <path
+       d="M 57.44,35 C 56.62,38.72 47.32,41.66 36.01,41.66 24.7,41.66 15.37,38.72 14.55,35 v 9.75 c 0,4 9.61,7.18 21.46,7.18 11.85,0 21.45,-3.21 21.45,-7.18 z"
+       id="path6"
+       style="fill:#000000;fill-opacity:1" />
+  </g>
+</svg>

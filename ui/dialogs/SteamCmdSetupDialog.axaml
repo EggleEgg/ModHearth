@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ModHearth.UI.SteamCmdSetupDialog"
+        Width="480"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        Title="SteamCMD Setup">
+  <StackPanel Margin="16" Spacing="14">
+    <TextBlock Text="SteamCMD is required for the SteamCMD download provider but is not set up or found."
+               TextWrapping="Wrap" FontWeight="SemiBold" />
+    <TextBlock Text="Choose whether to automatically install SteamCMD in a new folder inside ModHearth or select an existing SteamCMD executable location on your system."
+               TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource MainTextBrush}" />
+
+    <StackPanel x:Name="ProgressPanel" Spacing="6" IsVisible="False">
+      <ProgressBar x:Name="SetupProgressBar" IsIndeterminate="True" Height="8" Foreground="{DynamicResource ModRefHighlightBrush}" />
+      <TextBlock x:Name="StatusTextBlock" Text="Preparing..." FontSize="11" TextTrimming="CharacterEllipsis" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,14,0,0">
+      <Button x:Name="BtnInstall" Content="Install SteamCMD" Tag="Themed" />
+      <Button x:Name="BtnBrowse" Content="Browse Existing..." />
+      <Button x:Name="BtnCancel" Content="Cancel" />
+    </StackPanel>
+  </StackPanel>
+</Window>

@@ -10,11 +10,12 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using ModHearth.Utilities.Logging;
 using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
 {
-    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged
+    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable
     {
         public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -54,6 +55,7 @@ namespace ModHearth.UI
         }
 
         private readonly WorkshopQueueManager _queueManager;
+        private readonly DispatcherTimer _clipboardTimer;
         private string _lastResolvedInput = string.Empty;
         private string _lastRawClipboard = string.Empty;
         private bool _isCheckingClipboard;
@@ -74,9 +76,17 @@ namespace ModHearth.UI
 
             ProviderComboBox.ItemsSource = _queueManager.Providers;
             ProviderComboBox.SelectedItem = _queueManager.SelectedProvider;
-            ProviderComboBox.SelectionChanged += (_, _) =>
+            ProviderComboBox.SelectionChanged += async (_, _) =>
             {
                 var provider = ProviderComboBox.SelectedItem as IWorkshopDownloadProvider;
+                if (provider is SteamCmdDownloadProvider && !provider.IsAvailable)
+                {
+                    var ownerWindow = TopLevel.GetTopLevel(this) as Window;
+                    if (ownerWindow != null)
+                    {
+                        await SteamCmdSetupDialog.ShowAsync(ownerWindow);
+                    }
+                }
                 _queueManager.SelectedProvider = provider;
                 if (provider != null)
                 {
@@ -106,8 +116,8 @@ namespace ModHearth.UI
             };
             UpdateQueueActionStates();
 
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            timer.Tick += async (_, _) =>
+            _clipboardTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _clipboardTimer.Tick += async (_, _) =>
             {
                 if (BtnDownloadFromClipboard.IsChecked != true || _isCheckingClipboard)
                     return;
@@ -149,7 +159,7 @@ namespace ModHearth.UI
                     _isCheckingClipboard = false;
                 }
             };
-            timer.Start();
+            _clipboardTimer.Start();
 
             BtnResolveAndQueue.Click += async (_, _) =>
             {
@@ -331,6 +341,14 @@ namespace ModHearth.UI
         {
             if (BtnCancelAll != null)
                 BtnCancelAll.IsEnabled = _queueManager.Queue.Any(i => i.CanCancel);
+        }
+
+        public void Dispose()
+        {
+            _clipboardTimer?.Stop();
+            _statusCts?.Cancel();
+            _statusCts?.Dispose();
+            _queueManager?.CancelAll();
         }
     }
 }
