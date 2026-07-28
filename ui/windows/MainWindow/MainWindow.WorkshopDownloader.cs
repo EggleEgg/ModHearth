@@ -14,7 +14,7 @@ public partial class MainWindow
         workshopModeIndicator.Source = ImageSourceLoader.LoadFromAssetUri(iconName) ?? workshopModeIndicator.Source;
     }
 
-    private void WorkshopDownloaderButtonPointerPressed(object? sender, PointerPressedEventArgs e)
+    private async void WorkshopDownloaderButtonPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(workshopDownloaderButton).Properties.IsRightButtonPressed)
             return;
@@ -26,5 +26,9 @@ public partial class MainWindow
         UpdateWorkshopDownloaderButtonModeImage();
 
         ShowNotification(docked ? "Downloader set to docked mode" : "Downloader set to window mode", docked ? "windowIcon.svg" : "windowDoubleIcon.svg");
+        if (_workshopDockManager?.SharedControl != null)
+        {
+            await _workshopDockManager.SharedControl.CheckProviderSetupAsync();
+        }
     }
 }

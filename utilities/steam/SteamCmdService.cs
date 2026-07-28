@@ -161,7 +161,7 @@ namespace ModHearth.Utilities.Steam
                     if (File.Exists(shPath))
                     {
                         // Ensure executable
-                        var chmodProcess = Process.Start("chmod", $"+x \"{shPath}\"");
+                        using var chmodProcess = Process.Start("chmod", $"+x \"{shPath}\"");
                         if (chmodProcess != null)
                         {
                             await chmodProcess.WaitForExitAsync(cancellationToken);
@@ -198,7 +198,7 @@ namespace ModHearth.Utilities.Steam
             }
             catch (Exception ex)
             {
-                if (DevMode.IsEnabled) AppLogging.LogException("SteamCmd Install failed", ex);
+                AppLogging.LogException("SteamCmd Install failed", ex);
                 progress.Report($"Error: {ex.Message}");
                 throw;
             }
@@ -227,7 +227,7 @@ namespace ModHearth.Utilities.Steam
                 RedirectStandardError = true
             };
 
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamCmd: Executing {exe} {arguments}");
+            InfoLogger.LogRunDf($"SteamCmd: Executing {exe} {arguments}");
 
             using var process = new Process { StartInfo = startInfo };
             try
@@ -236,7 +236,7 @@ namespace ModHearth.Utilities.Steam
             }
             catch (Exception ex)
             {
-                if (DevMode.IsEnabled) AppLogging.LogException("SteamCmd execution failed to start", ex);
+                AppLogging.LogException("SteamCmd execution failed to start", ex);
                 throw;
             }
 
@@ -254,7 +254,7 @@ namespace ModHearth.Utilities.Steam
                     if (!string.IsNullOrWhiteSpace(line))
                     {
                         progress?.Report(line);
-                        if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamCmd stdout: {line}");
+                        InfoLogger.LogRunDf($"SteamCmd stdout: {line}");
                     }
                 }
             }, cancellationToken);
@@ -268,7 +268,7 @@ namespace ModHearth.Utilities.Steam
                     if (!string.IsNullOrWhiteSpace(line))
                     {
                         progress?.Report($"[ERR] {line}");
-                        if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamCmd stderr: {line}");
+                        InfoLogger.LogRunDf($"SteamCmd stderr: {line}");
                     }
                 }
             }, cancellationToken);

@@ -6,11 +6,24 @@
              x:DataType="ui:WorkshopDownloaderControl">
 
   <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="12" RowSpacing="12">
+    <ui:ModRefControl x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" AllowRelationshipEditing="False" />
     <!-- Header Controls -->
     <Grid Grid.Row="0" RowDefinitions="Auto, Auto, Auto" RowSpacing="6">
-      <TextBlock Text="Paste workshop mods or collection URLs (one per line):" FontSize="12" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="Paste workshop mods or collection URLs (one per line):" FontSize="12" Margin="0,0,0,2" VerticalAlignment="Bottom"/>
+        <Button x:Name="BtnClearText" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom" Padding="0,0,-1,-3"
+                Margin="2,0,0,0" Width="25" Height="25" ToolTip.Tip="Clear text">
+          <Image Source="{ui:AssetImage broomMenuIcon}" Stretch="Uniform"/>
+        </Button>
+      </Grid>
       <TextBox Grid.Row="1" x:Name="WorkshopUrlTextBox" Height="80" AcceptsReturn="True" TextWrapping="Wrap"
-               PlaceholderText="e.g. https://steamcommunity.com/sharedfiles/filedetails/?id=2897791846" />
+               PlaceholderText="e.g. https://steamcommunity.com/sharedfiles/filedetails/?id=2897791846">
+        <TextBox.Styles>
+          <Style Selector="TextBox.workshopUrl:empty /template/ TextBlock#PART_PlaceholderTextPresenter">
+            <Setter Property="FontStyle" Value="Italic"/>
+          </Style>
+        </TextBox.Styles>
+      </TextBox>
       <Grid Grid.Row="2" ColumnDefinitions="*, *" ColumnSpacing="10">
         <ToggleButton Grid.Column="0" x:Name="BtnDownloadFromClipboard" Content="Monitor Clipboard" ToolTip.Tip="Click to enable automatic clipboard monitoring"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Height="30" Tag="Themed" />
@@ -73,7 +86,13 @@
                 <Grid ColumnDefinitions="*, Auto">
                   <!-- Left: Details -->
                   <StackPanel Grid.Column="0" Spacing="4">
-                    <TextBlock Text="{Binding Title}" Tag="IgnoreTheme" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="6">
+                      <Border Grid.Column="0" Background="{DynamicResource FormBackgroundBrush}" CornerRadius="3" Padding="4,1" IsVisible="{Binding IsBatched}" VerticalAlignment="Center">
+                        <TextBlock Text="Batched" FontSize="10" FontWeight="SemiBold" FontStyle="Italic" Tag="IgnoreTheme"
+                                   ToolTip.Tip="Batching eliminates SteamCmd process overhead and reuses tcp connections. Network download speed limits may still apply."/>
+                      </Border>
+                      <TextBlock Grid.Column="1" Text="{Binding Title}" Tag="IgnoreTheme" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    </Grid>
                     <Grid Height="10" >
                       <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="10"  Margin="0,2"
                                    BorderBrush="{DynamicResource StrongPanelBackgroundBrush}" BorderThickness="0.5" CornerRadius="4"
@@ -81,7 +100,8 @@
                                    ShowProgressText="True" Foreground="{DynamicResource ModRefHighlightDarkBrush}">
                         <ProgressBar.Template>
                           <ControlTemplate TargetType="ProgressBar">
-                            <Border Name="PART_Track" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" ClipToBounds="True">
+                            <Border Name="PART_Track" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" ClipToBounds="True">
                               <Border Margin="1" CornerRadius="3" ClipToBounds="True">
                                 <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left">
                                   <ui:ModBackground UnderlayBrush="{DynamicResource ModRefHighlightBrush}" IsHitTestVisible="False"/>
@@ -112,8 +132,8 @@
     <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
       <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" />
       <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-        <Button x:Name="BtnClearCompleted" Content="Clear Completed" Tag="Themed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
-        <Button x:Name="BtnClose" Content="Close" Tag="Themed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+        <Button x:Name="BtnClearCompleted" Content="Clear Completed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+        <Button x:Name="BtnClose" Content="Close" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
       </StackPanel>
     </Grid>
   </Grid>

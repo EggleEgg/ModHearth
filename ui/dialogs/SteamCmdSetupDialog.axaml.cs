@@ -32,6 +32,7 @@ namespace ModHearth.UI
             BtnInstall.IsEnabled = false;
             BtnBrowse.IsEnabled = false;
             ProgressPanel.IsVisible = true;
+            _cts?.Dispose();
             _cts = new CancellationTokenSource();
 
             string installDir = Path.Combine(AppContext.BaseDirectory, "steamcmd");
@@ -98,6 +99,13 @@ namespace ModHearth.UI
             BtnInstall.IsEnabled = true;
             BtnBrowse.IsEnabled = true;
             ProgressPanel.IsVisible = false;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            _cts?.Dispose();
+            _cts = null;
         }
 
         public static async Task<bool> ShowAsync(Window owner)

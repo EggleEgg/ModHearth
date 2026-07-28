@@ -71,10 +71,8 @@ public partial class MainWindow : IModRefContextMenuProvider
             case "copy-id":
                 ModContextCopyId(item, new RoutedEventArgs());
                 break;
-
         }
     }
-
 
     private async void ModContextDeleteMod(object? sender, RoutedEventArgs e)
     {

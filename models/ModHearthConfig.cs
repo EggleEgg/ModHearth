@@ -55,7 +55,7 @@ namespace ModHearth
         public string DFHackFolderPath { get; set; } = string.Empty;
 
         // Automatically save modlist changes.
-        public bool IsAutoSaveEnabled { get; set; } = false;
+        public bool IsAutoSaveEnabled { get; set; } = true;
 
         // Automatically sort modlist changes.
         public bool IsAutoSortEnabled { get; set; } = false;
@@ -111,8 +111,8 @@ namespace ModHearth
         // Normalized ratio representing the proportional split between resizable columns for SortRulesWindow GridSplitter.
         public double SortRulesWindowGridSplitterRatio { get; set; } = 0.4444;
 
-        // Default Steam Workshop download provider name. Defaults to SteamWorkerDownloadProvider.
-        public string DefaultWorkshopProvider { get; set; } = "SteamWorkerDownloadProvider";
+        // Default Steam Workshop download provider name.
+        public string DefaultWorkshopProvider { get; set; } = "SteamCmdDownloadProvider";
 
         // Path to SteamCMD executable.
         public string SteamCmdPath { get; set; } = string.Empty;

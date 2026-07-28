@@ -202,6 +202,7 @@ namespace ModHearth
                         try
                         {
                             Directory.Delete(modrefToDelete.path, true);
+                            ShowNotification($"Deleted mod folder: {Path.GetFileName(modrefToDelete.path)}", "trashIcon.svg");
                             SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.path}");
 
                             if (!string.IsNullOrWhiteSpace(modrefToDelete.ID))
@@ -372,7 +373,7 @@ namespace ModHearth
             List<ModReference> localDeletableMods)
         {
             // Local mods take precedence even if they carry steam metadata.
-            (_, bool isLocal, _) = ModSourceClassifier.Classify(
+            (_, bool isLocal, _, _) = ModSourceClassifier.Classify(
                 modref,
                 ConfigManager.Config.ModsPath,
                 ConfigManager.GetVanillaModsPath());
@@ -394,10 +395,10 @@ namespace ModHearth
             HashSet<string> uniqueSteamIds,
             List<ModReference> steamActionableMods)
         {
-            if (ConfigManager.IsLikelySteamShadowCopy(modref.path, out _))
+            if (ConfigManager.IsLikelySteamShadowCopy(modref.path, modref.steamID, out _))
                 return;
 
-            (_, _, bool isSteam) = ModSourceClassifier.Classify(
+            (_, _, bool isSteam, _) = ModSourceClassifier.Classify(
                 modref,
                 ConfigManager.Config.ModsPath,
                 ConfigManager.GetVanillaModsPath());
@@ -424,7 +425,7 @@ namespace ModHearth
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
-                    desktop.MainWindow is UI.MainWindow mainWindow)
+                    desktop.MainWindow is MainWindow mainWindow)
                 {
                     mainWindow.ShowNotification(message, icon);
                 }

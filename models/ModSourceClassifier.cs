@@ -2,40 +2,52 @@ namespace ModHearth;
 
 public static class ModSourceClassifier
 {
-    public static (bool IsVanilla, bool IsLocal, bool IsSteam) Classify(
+    public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamFolder) Classify(
         ModReference modref,
         string? modsFolderPath,
         string? vanillaFolderPath)
     {
         if (modref == null)
-            return (false, false, false);
+            return (false, false, false, false);
 
         string path = modref.path?.Trim() ?? string.Empty;
 
         modref.IsIgnored = IsPathIgnored(path);
         if (modref.IsIgnored)
         {
-            return (false, false, false);
+            return (false, false, false, false);
         }
 
         bool isVanilla = IsPathUnderRootOrEqual(path, vanillaFolderPath);
+        if (isVanilla)
+            return (true, false, false, false);
 
-        bool isLocal = !isVanilla && IsPathUnderRoot(path, modsFolderPath);
-
+        bool isLocalPath = IsPathUnderRoot(path, modsFolderPath);
+        bool isSteamShadowCopy = isLocalPath && ConfigManager.IsLikelySteamShadowCopy(path, modref.steamID, out _);
+        
         bool hasSteamId = !string.IsNullOrWhiteSpace(modref.steamID) &&
                           long.TryParse(modref.steamID, out _);
+
+        // A mod is a Steam Folder mod if it is in the local mods folder AND (is a shadow copy OR has a Steam ID).
+        bool isSteamFolder = isLocalPath && (isSteamShadowCopy || hasSteamId);
+
+        if (isSteamFolder)
+            return (false, false, false, true);
+
+        if (isLocalPath)
+            return (false, true, false, false);
+
         bool steamPathHint = path.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 ||
                              path.IndexOf("workshop", StringComparison.OrdinalIgnoreCase) >= 0;
 
-        bool isSteamShadowCopy = isLocal && ConfigManager.IsLikelySteamShadowCopy(path, out _);
-        if (isSteamShadowCopy)
-            isLocal = false;
+        bool isSteam = hasSteamId || steamPathHint;
+        if (isSteam)
+            return (false, false, true, false);
 
-        bool isSteam = !isVanilla && (isSteamShadowCopy || (!isLocal && (hasSteamId || steamPathHint)));
-        return (isVanilla, isLocal, isSteam);
+        return (false, false, false, false);
     }
 
-    public static (bool IsVanilla, bool IsLocal, bool IsSteam) Classify(ModReference modref, string? modsFolderPath)
+    public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamFolder) Classify(ModReference modref, string? modsFolderPath)
         => Classify(modref, modsFolderPath, null);
 
     private static bool IsPathUnderRoot(string path, string? root)

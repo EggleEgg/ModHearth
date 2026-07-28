@@ -786,6 +786,7 @@ namespace ModHearth
             try
             {
                 Directory.Delete(modPath, true);
+                ShowNotification($"Deleted mod folder: {Path.GetFileName(modPath)}", "trashIcon.svg");
             }
             catch (Exception ex)
             {
@@ -853,7 +854,10 @@ namespace ModHearth
                 try
                 {
                     if (Directory.Exists(entry))
+                    {
                         Directory.Delete(entry, true);
+                        ShowNotification($"Deleted folder: {Path.GetFileName(entry)}", "trashIcon.svg");
+                    }
                     else if (File.Exists(entry))
                         File.Delete(entry);
                     deleted++;
@@ -1626,14 +1630,26 @@ namespace ModHearth
             string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort", "dwarfort.exe", "df.exe", "dwarf_fortress" };
             foreach (string name in candidateNames)
             {
+                Process[]? procs = null;
                 try
                 {
-                    if (Process.GetProcessesByName(name).Length > 0)
+                    procs = Process.GetProcessesByName(name);
+                    if (procs.Length > 0)
                         return true;
                 }
                 catch
                 {
                     // Ignore query failures for this candidate name.
+                }
+                finally
+                {
+                    if (procs != null)
+                    {
+                        foreach (var p in procs)
+                        {
+                            p?.Dispose();
+                        }
+                    }
                 }
             }
 
@@ -2237,7 +2253,7 @@ namespace ModHearth
                         if (hasInstalledModsPath && !string.IsNullOrWhiteSpace(m.path) && IsPathUnderRoot(m.path, installedModsPath))
                             return false;
 
-                        if (ConfigManager.IsLikelySteamShadowCopy(m.path, out _))
+                        if (ConfigManager.IsLikelySteamShadowCopy(m.path, m.steamID, out _))
                             return false;
 
                         return true;

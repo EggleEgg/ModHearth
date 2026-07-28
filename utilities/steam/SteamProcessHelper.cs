@@ -26,14 +26,26 @@ internal static class SteamProcessHelper
         {
             foreach (string name in CandidateProcessNames)
             {
+                Process[]? procs = null;
                 try
                 {
-                    if (Process.GetProcessesByName(name).Length > 0 && seen.Add(name))
+                    procs = Process.GetProcessesByName(name);
+                    if (procs.Length > 0 && seen.Add(name))
                         runningProcesses.Add(name);
                 }
                 catch
                 {
                     // Ignore process query failures for one process name.
+                }
+                finally
+                {
+                    if (procs != null)
+                    {
+                        foreach (var p in procs)
+                        {
+                            p?.Dispose();
+                        }
+                    }
                 }
             }
         }

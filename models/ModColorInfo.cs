@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using ModHearth.UI;
 
 namespace ModHearth.Models;
 
@@ -38,7 +39,7 @@ public class ModColorInfo : INotifyPropertyChanged
         }
     }
 
-    public IBrush Brush => new SolidColorBrush(Color);
+    public IBrush Brush => BrushCache.GetBrush(Color);
 
     public string Name
     {

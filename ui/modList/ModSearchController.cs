@@ -12,7 +12,7 @@ namespace ModHearth.UI;
 /// Orchestrates the relationship between a ModSearchBar and a ListBox,
 /// handling filtering, sorting, debouncing, and selection state restoration.
 /// </summary>
-public sealed class ModSearchController
+public sealed class ModSearchController : IDisposable
 {
     private readonly ModSearchBar searchBar;
     private readonly ListBox? listBox;
@@ -107,5 +107,10 @@ public sealed class ModSearchController
         {
             isInitialApply = false;
         }
+    }
+
+    public void Dispose()
+    {
+        try { debounceTimer.Stop(); } catch { }
     }
 }

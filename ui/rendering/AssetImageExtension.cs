@@ -420,6 +420,7 @@ internal static class ImageSourceLoader
 }
 public sealed class TintedAssetConverter : IValueConverter
 {
+    public static TintedAssetConverter Instance { get; } = new TintedAssetConverter();
     public object? Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
     {
         if (parameter is not string assetName)

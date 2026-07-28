@@ -15,7 +15,7 @@ using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
 {
-    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable
+    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable, IModRefContextMenuProvider
     {
         public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -62,6 +62,9 @@ namespace ModHearth.UI
         private bool _suppressClipboardTextBoxAutoResolve;
         private readonly HashSet<ulong> _idsBeingResolved = new();
         private CancellationTokenSource? _statusCts;
+        private System.Collections.Specialized.NotifyCollectionChangedEventHandler? _queueCollectionChangedHandler;
+        private ModRefControl? _contextMenuHost;
+        private bool _isSetupDialogShowing;
 
         public event EventHandler? CloseRequested;
 
@@ -71,6 +74,7 @@ namespace ModHearth.UI
         {
             InitializeComponent();
             DataContext = this;
+            Loaded += async (_, _) => await CheckProviderSetupAsync();
 
             _queueManager = new WorkshopQueueManager(manager);
 
@@ -79,24 +83,25 @@ namespace ModHearth.UI
             ProviderComboBox.SelectionChanged += async (_, _) =>
             {
                 var provider = ProviderComboBox.SelectedItem as IWorkshopDownloadProvider;
-                if (provider is SteamCmdDownloadProvider && !provider.IsAvailable)
-                {
-                    var ownerWindow = TopLevel.GetTopLevel(this) as Window;
-                    if (ownerWindow != null)
-                    {
-                        await SteamCmdSetupDialog.ShowAsync(ownerWindow);
-                    }
-                }
                 _queueManager.SelectedProvider = provider;
                 if (provider != null)
                 {
                     if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderControl: Provider changed to {provider.Name}");
                     ConfigManager.SetDefaultWorkshopProvider(provider.GetType().Name);
                 }
+
+                if (provider is SteamCmdDownloadProvider && !provider.IsAvailable)
+                {
+                    await ShowSteamCmdSetupAsync();
+                }
             };
 
             DownloadQueueList.ItemsSource = _queueManager.Queue;
-            _queueManager.Queue.CollectionChanged += (_, e) =>
+            _contextMenuHost = this.FindControl<ModRefControl>("ContextMenuHost");
+            if (_contextMenuHost != null)
+                DownloadQueueList.ContextMenu = _contextMenuHost.ContextMenu;
+            DownloadQueueList.SelectionChanged += DownloadQueueListSelectionChanged;
+            _queueCollectionChangedHandler = (_, e) =>
             {
                 if (e.NewItems != null)
                 {
@@ -114,7 +119,20 @@ namespace ModHearth.UI
                 }
                 UpdateQueueActionStates();
             };
+            _queueManager.Queue.CollectionChanged += _queueCollectionChangedHandler;
+            foreach (var item in _queueManager.Queue)
+            {
+                item.PropertyChanged += Item_PropertyChanged;
+            }
             UpdateQueueActionStates();
+
+            BtnDownloadFromClipboard.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == ToggleButton.IsCheckedProperty && BtnDownloadFromClipboard.IsChecked == true)
+                {
+                    _lastRawClipboard = string.Empty;
+                }
+            };
 
             _clipboardTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _clipboardTimer.Tick += async (_, _) =>
@@ -182,6 +200,7 @@ namespace ModHearth.UI
                 }
             };
 
+            BtnClearText.Click += (_, _) => WorkshopUrlTextBox.Text = string.Empty;
             BtnClearCompleted.Click += (_, _) => _queueManager.ClearCompleted();
             BtnRetryAll.Click += (_, _) => _queueManager.RetryAll();
             BtnRetryAll.AddHandler(InputElement.PointerPressedEvent, BtnRetryAllPointerPressed, RoutingStrategies.Tunnel, true);
@@ -225,6 +244,7 @@ namespace ModHearth.UI
 
             StatusTextBlock.Text = message;
             _statusCts?.Cancel();
+            _statusCts?.Dispose();
             _statusCts = new CancellationTokenSource();
             var token = _statusCts.Token;
 
@@ -343,12 +363,124 @@ namespace ModHearth.UI
                 BtnCancelAll.IsEnabled = _queueManager.Queue.Any(i => i.CanCancel);
         }
 
+        private void DownloadQueueListSelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (sender is not ListBox list)
+                return;
+
+            WorkshopDownloadItem? selected = list.SelectedItem as WorkshopDownloadItem
+                ?? list.SelectedItems?.OfType<WorkshopDownloadItem>().FirstOrDefault();
+            if (selected != null && _contextMenuHost != null)
+            {
+                _contextMenuHost.DataContext = new ModRefViewModel(new ModReference
+                {
+                    ID = selected.PublishedFileId.ToString(),
+                    numericVersion = "0",
+                    name = selected.Title,
+                    author = selected.Author,
+                    steamID = selected.PublishedFileId.ToString(),
+                    Source = ModSource.Steam
+                });
+            }
+        }
+
+        public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
+
+        public ModHearthManager? GetManager() => _queueManager?.Manager;
+
+        public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm)
+        {
+            if (DownloadQueueList.SelectedItems != null && DownloadQueueList.SelectedItems.Count > 0)
+            {
+                return DownloadQueueList.SelectedItems.Cast<WorkshopDownloadItem>()
+                    .Select(selected => new ModReference
+                    {
+                        ID = selected.PublishedFileId.ToString(),
+                        numericVersion = "0",
+                        name = selected.Title,
+                        author = selected.Author,
+                        steamID = selected.PublishedFileId.ToString(),
+                        Source = ModSource.Steam
+                    })
+                    .ToList();
+            }
+            return new[] { contextVm.ModReference };
+        }
+
+        public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+        {
+            var manager = _queueManager?.Manager;
+            if (manager == null)
+                return;
+
+            var ownerWindow = TopLevel.GetTopLevel(this) as Window;
+            if (ownerWindow == null)
+                return;
+
+            switch (item.Tag?.ToString())
+            {
+                case ModContextMenuSupport.OpenSteamTag:
+                    await ModContextMenuSupport.OpenSteamPageAsync(ownerWindow, vm.ModReference);
+                    break;
+                case ModContextMenuSupport.CopyIdTag:
+                    await ModContextMenuSupport.CopyModIdAsync(ownerWindow, vm.ModReference);
+                    break;
+                case ModContextMenuSupport.RedownloadTag:
+                    await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, new[] { vm.ModReference });
+                    break;
+                case ModContextMenuSupport.UnsubscribeTag:
+                    await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, new[] { vm.ModReference });
+                    break;
+            }
+        }
+
         public void Dispose()
         {
             _clipboardTimer?.Stop();
             _statusCts?.Cancel();
             _statusCts?.Dispose();
             _queueManager?.CancelAll();
+            _queueManager?.Dispose();
+            if (_queueManager?.Queue != null)
+            {
+                if (_queueCollectionChangedHandler != null)
+                {
+                    _queueManager.Queue.CollectionChanged -= _queueCollectionChangedHandler;
+                }
+                foreach (var item in _queueManager.Queue)
+                {
+                    item.PropertyChanged -= Item_PropertyChanged;
+                }
+            }
+        }
+
+        private async Task ShowSteamCmdSetupAsync()
+        {
+            if (_isSetupDialogShowing)
+                return;
+
+            _isSetupDialogShowing = true;
+            try
+            {
+                var ownerWindow = TopLevel.GetTopLevel(this) as Window;
+                if (ownerWindow != null)
+                {
+                    await SteamCmdSetupDialog.ShowAsync(ownerWindow);
+                }
+            }
+            finally
+            {
+                _isSetupDialogShowing = false;
+            }
+        }
+
+        public async Task CheckProviderSetupAsync()
+        {
+            var provider = _queueManager?.SelectedProvider;
+            if (provider is SteamCmdDownloadProvider && !provider.IsAvailable)
+            {
+                await ShowSteamCmdSetupAsync();
+            }
         }
     }
 }

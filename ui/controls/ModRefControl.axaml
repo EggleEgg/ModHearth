@@ -10,7 +10,6 @@
              MinHeight="20">
 
   <UserControl.Resources>
-    <ui:TintedAssetConverter x:Key="TintedAssetConverter" />
     <ui:BoolToTextConverter x:Key="SteamTextConverter" TrueValue="Open URL in steam" FalseValue="Open URL in browser" />
     <ui:BoolToTextConverter x:Key="IdTextConverter" TrueValue="Copy Steam File ID" FalseValue="Copy Mod ID" />
   </UserControl.Resources>
@@ -110,6 +109,9 @@
         Source="{ui:AssetImage dwarfIcon}"
         IsVisible="{Binding IsVanillaModSource}"/>
       <Image
+        Source="{ui:AssetImage steamFolderIcon}"
+        IsVisible="{Binding IsSteamFolderModSource}"/>
+      <Image
         Source="{ui:AssetImage folderIcon}"
         IsVisible="{Binding IsLocalModSource}"/>
       <Image
@@ -168,7 +170,7 @@
 
         <Image Width="10" Height="10" Margin="0"
                VerticalAlignment="Center"
-               Source="{Binding TextBrush, Converter={StaticResource TintedAssetConverter}, ConverterParameter=filterIcon.svg}" />
+               Source="{Binding TextBrush, Converter={x:Static ui:TintedAssetConverter.Instance}, ConverterParameter=filterIcon.svg}" />
         <TextBlock Text="{Binding RelationshipCount}"
                    FontSize="11"
                    FontWeight="Medium"

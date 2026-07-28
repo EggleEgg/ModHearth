@@ -984,8 +984,9 @@ namespace ModHearth
 
         // Detects Dwarf Fortress's own Steam-integration habit of materializing a workshop mod's content directly into the Mods\ folder, named after
         // its numeric Steam Workshop file id, with a trailing " (<version>)" suffix, ex: "Mods\3445635304 (20)" or "Mods\3445635304".
+        // Also detects manual copies of workshop mods placed into the Mods\ folder if they have a matching Steam file id.
         // See steam discussion https://steamcommunity.com/app/975370/discussions/0/599642674183563431/ as reference of this (likely unpatched) bug
-        public static bool IsLikelySteamShadowCopy(string? folderPath, out string workshopId)
+        public static bool IsLikelySteamShadowCopy(string? folderPath, string? steamId, out string workshopId)
         {
             workshopId = string.Empty;
             if (string.IsNullOrWhiteSpace(folderPath))
@@ -993,27 +994,49 @@ namespace ModHearth
 
             string normalizedFolderPath = NormalizeFileSystemPath(folderPath);
             string folderName = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+            // Try identifying by folder name (canonical shadow copy)
+            string? candidateIdFromFolder = null;
             Match match = SteamShadowCopyFolderNameRegex.Match(folderName);
-            if (!match.Success)
+            if (match.Success)
+                candidateIdFromFolder = match.Groups["id"].Value;
+
+            // Try identifying by provided steamId
+            string? candidateIdFromMetadata = null;
+            if (!string.IsNullOrWhiteSpace(steamId) && long.TryParse(steamId, out _))
+                candidateIdFromMetadata = steamId.Trim();
+
+            // We check both sources. If either points to an existing workshop directory, this is a shadow/local copy.
+            string[] candidateIds = new[] { candidateIdFromFolder, candidateIdFromMetadata }
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToArray()!;
+
+            if (candidateIds.Length == 0)
                 return false;
 
-            string candidateId = match.Groups["id"].Value;
             foreach (string workshopContentRoot in GetSteamWorkshopContentPaths())
             {
-                string canonicalPath = NormalizeFileSystemPath(Path.Combine(workshopContentRoot, candidateId));
-
-                if (string.Equals(normalizedFolderPath, canonicalPath, GetFileSystemPathComparison()))
-                    continue;
-
-                if (Directory.Exists(canonicalPath))
+                foreach (string candidateId in candidateIds)
                 {
-                    workshopId = candidateId;
-                    return true;
+                    string canonicalPath = NormalizeFileSystemPath(Path.Combine(workshopContentRoot, candidateId));
+
+                    if (string.Equals(normalizedFolderPath, canonicalPath, GetFileSystemPathComparison()))
+                        continue;
+
+                    if (Directory.Exists(canonicalPath))
+                    {
+                        workshopId = candidateId;
+                        return true;
+                    }
                 }
             }
 
             return false;
         }
+
+        public static bool IsLikelySteamShadowCopy(string? folderPath, out string workshopId)
+            => IsLikelySteamShadowCopy(folderPath, null, out workshopId);
 
         public static bool TryParsePositiveSteamId(string? rawSteamId, out string steamItemId)
         {

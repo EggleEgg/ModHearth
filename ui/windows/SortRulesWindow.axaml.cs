@@ -102,10 +102,11 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
             .OrderBy(m => DisplayNameFor(m), StringComparer.OrdinalIgnoreCase))
         {
             ModRefViewModel vm = new ModRefViewModel(modref);
-            (bool isVanilla, bool isLocal, bool isSteam) = ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
+            (bool isVanilla, bool isLocal, bool isSteam, bool isSteamFolder) = ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
             vm.IsVanillaModSource = isVanilla;
             vm.IsLocalModSource = isLocal;
             vm.IsSteamModSource = isSteam;
+            vm.IsSteamFolderModSource = isSteamFolder;
             vm.RefreshStyle();
             allMods.Add(vm);
             modIdMap[modref.ID.Trim()] = vm;
@@ -469,7 +470,8 @@ public partial class SortRulesWindow : Window, IModRefContextMenuProvider, IStyl
         {
             IsVanillaModSource = vm.IsVanillaModSource,
             IsLocalModSource = vm.IsLocalModSource,
-            IsSteamModSource = vm.IsSteamModSource
+            IsSteamModSource = vm.IsSteamModSource,
+            IsSteamFolderModSource = vm.IsSteamFolderModSource
         };
         displayVm.RefreshStyle();
         ModListIndicatorUpdater.UpdateRelationshipBadges(new[] { displayVm }, rules);

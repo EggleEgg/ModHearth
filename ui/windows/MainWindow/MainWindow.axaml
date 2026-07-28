@@ -215,7 +215,7 @@
             <Button x:Name="workshopDownloaderButton" Tag="Themed" Width="42" Height="42"
                     ToolTip.Tip="Open the Steam Workshop Downloader. Right click for options" HorizontalAlignment="Right">
               <Grid>
-                <Image Source="{ui:AssetImage steamDownloadIcon}" Margin="4,4,1,-1" />
+                <Image Source="{ui:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
                 <Image x:Name="workshopModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
                        Width="18" Height="18" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1.5,0,0" />
               </Grid>

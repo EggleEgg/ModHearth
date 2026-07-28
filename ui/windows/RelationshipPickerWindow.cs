@@ -45,10 +45,11 @@ internal sealed class RelationshipPickerWindow : Window
             .Select(vm =>
             {
                 ModRefViewModel copy = new ModRefViewModel(vm.ModReference);
-                (bool isVanilla, bool isLocal, bool isSteam) = ModSourceClassifier.Classify(vm.ModReference, modsFolderPath, vanillaFolderPath);
+                (bool isVanilla, bool isLocal, bool isSteam, bool isSteamFolder) = ModSourceClassifier.Classify(vm.ModReference, modsFolderPath, vanillaFolderPath);
                 copy.IsVanillaModSource = isVanilla;
                 copy.IsLocalModSource = isLocal;
                 copy.IsSteamModSource = isSteam;
+                copy.IsSteamFolderModSource = isSteamFolder;
                 copy.RefreshStyle();
                 return copy;
             })

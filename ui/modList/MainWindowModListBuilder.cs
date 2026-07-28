@@ -25,13 +25,14 @@ internal static class MainWindowModListBuilder
             string key = dfm.ToString();
             ModReference modref = manager.GetModRef(key);
             ModRefViewModel vm = new ModRefViewModel(modref);
-            (bool isVanillaMod, bool isLocalMod, bool isSteamMod) = ModSourceClassifier.Classify(
+            (bool isVanillaMod, bool isLocalMod, bool isSteamMod, bool isSteamFolderMod) = ModSourceClassifier.Classify(
                 modref,
                 modsFolderPath,
                 vanillaFolderPath);
             vm.IsVanillaModSource = isVanillaMod;
             vm.IsLocalModSource = isLocalMod;
             vm.IsSteamModSource = isSteamMod;
+            vm.IsSteamFolderModSource = isSteamFolderMod;
             vm.RefreshStyle();
             results[i] = (key, vm);
         });

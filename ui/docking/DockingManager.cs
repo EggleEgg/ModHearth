@@ -104,6 +104,7 @@ namespace ModHearth.UI
         public void Close()
         {
             CollapsePanel();
+            _dragEndTimer?.Stop();
             _dockHostControl.Content = null;
             _dockHostControl.IsVisible = false;
 

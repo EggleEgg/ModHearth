@@ -92,9 +92,13 @@ public partial class MainWindow
         UpdateWorkshopDownloaderButtonModeImage();
     }
 
-    private void OpenWorkshopDownloader()
+    private async void OpenWorkshopDownloader()
     {
         _workshopDockManager?.Open();
+        if (_workshopDockManager?.SharedControl != null)
+        {
+            await _workshopDockManager.SharedControl.CheckProviderSetupAsync();
+        }
     }
 
     private async Task ModSortAsync()

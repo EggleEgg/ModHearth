@@ -252,6 +252,9 @@ public partial class MainWindow
         SearchFilterMode mode,
         bool hideFiltered)
     {
+        if (!DevMode.IsEnabled)
+            return;
+
         int total = 0;
         int vmVisible = 0;
         foreach (ModRefViewModel vm in source)

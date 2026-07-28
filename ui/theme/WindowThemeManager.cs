@@ -150,6 +150,7 @@ public static class WindowThemeManager
         if (app != null)
         {
             app.Resources["BorderPanelBrush"] = brushes.BorderPanel;
+            // The background color
             app.Resources["FormBackgroundBrush"] = brushes.Form;
             app.Resources["MainTextBrush"] = brushes.Text;
             app.Resources["PanelBackgroundBrush"] = brushes.Panel;
