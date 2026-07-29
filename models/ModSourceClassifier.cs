@@ -24,12 +24,10 @@ public static class ModSourceClassifier
 
         bool isLocalPath = IsPathUnderRoot(path, modsFolderPath);
         bool isSteamShadowCopy = isLocalPath && ConfigManager.IsLikelySteamShadowCopy(path, modref.steamID, out _);
-        
-        bool hasSteamId = !string.IsNullOrWhiteSpace(modref.steamID) &&
-                          long.TryParse(modref.steamID, out _);
 
-        // A mod is a Steam Folder mod if it is in the local mods folder AND (is a shadow copy OR has a Steam ID).
-        bool isSteamFolder = isLocalPath && (isSteamShadowCopy || hasSteamId);
+        bool hasSteamId = ConfigManager.TryParsePositiveSteamId(modref.steamID, out _);
+
+        bool isSteamFolder = isLocalPath && isSteamShadowCopy;
 
         if (isSteamFolder)
             return (false, false, false, true);

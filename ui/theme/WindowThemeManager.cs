@@ -47,6 +47,9 @@ public static class WindowThemeManager
         Cleanup();
         registered.Add(new WeakReference<Window>(window));
 
+        // Hidden until fully styled. Nothing is painted until we explicitly reveal it below, so there's no frame where the wrong colors can be seen.
+        window.Opacity = 0;
+
         window.Opened += OnWindowOpened;
         window.Closed += OnWindowClosed;
 
@@ -81,10 +84,18 @@ public static class WindowThemeManager
 
         Style? style = Style.instance;
         if (style == null)
+        {
+            // No style to apply (shouldn't happen in practice), don't leave the window permanently invisible.
+            window.Opacity = 1;
             return;
+        }
 
         // Ensure the visual tree is fully loaded and built before styling
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyToWindow(window, style), Avalonia.Threading.DispatcherPriority.Loaded);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            ApplyToWindow(window, style);
+            window.Opacity = 1;
+        }, Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
     private static void OnWindowClosed(object? sender, EventArgs e)

@@ -79,6 +79,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         }
     }
 
+    public bool IsOpenSteamFolderEnabled
+    {
+        get => ConfigManager.GetOpenSteamFolder();
+        set
+        {
+            if (value != ConfigManager.GetOpenSteamFolder())
+            {
+                ConfigManager.SetOpenSteamFolder(value);
+                NotifyOfPropertyChange();
+            }
+        }
+    }
+
     public bool IsCopySteamFileIdEnabled
     {
         get => ConfigManager.GetCopySteamFileId();

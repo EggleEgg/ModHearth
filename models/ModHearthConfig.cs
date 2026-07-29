@@ -96,6 +96,9 @@ namespace ModHearth
         // Option to open Steam Workshop pages in the Steam client instead of a browser.
         public bool OpenSteamInClient { get; set; } = false;
 
+        // Option to open Steam folder instead of local folder for SteamFolderMod mods.
+        public bool OpenSteamFolder { get; set; } = false;
+
         // Option to copy Steam File ID instead of Mod ID from context menu.
         public bool CopySteamFileId { get; set; } = false;
 

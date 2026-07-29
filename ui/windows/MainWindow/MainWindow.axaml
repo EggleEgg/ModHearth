@@ -186,7 +186,7 @@
           </Grid>
 
           <Grid Grid.Row="4" ColumnDefinitions="Auto,*,*" Height="28">
-            <Button x:Name="clearModlistButton" Tag="Themed" ToolTip.Tip="Clear the current modlist" Width="28" Padding="0,0,-1,-3">
+            <Button x:Name="clearModlistButton" Tag="Themed" ToolTip.Tip="Clear the active mods list" Width="28" Padding="0,0,-1,-3">
               <Image Source="{ui:AssetImage broomMenuIcon}"/>
             </Button>
             <Button x:Name="importButton" Grid.Column="1" Tag="Themed" Content="Import" FontSize="13" />

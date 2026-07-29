@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Media;
 
 namespace ModHearth.Utilities.Workshop
 {
@@ -23,6 +25,7 @@ namespace ModHearth.Utilities.Workshop
     {
         string Name { get; }
         bool IsAvailable { get; }
+        IBrush StatusBrush => IsAvailable ? Brushes.LimeGreen : Brushes.Red;
         
         Task<bool> DownloadAsync(
             ulong workshopId, 

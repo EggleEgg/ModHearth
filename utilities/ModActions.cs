@@ -373,11 +373,11 @@ namespace ModHearth
             List<ModReference> localDeletableMods)
         {
             // Local mods take precedence even if they carry steam metadata.
-            (_, bool isLocal, _, _) = ModSourceClassifier.Classify(
+            (_, bool isLocal, _, bool isSteamFolder) = ModSourceClassifier.Classify(
                 modref,
                 ConfigManager.Config.ModsPath,
                 ConfigManager.GetVanillaModsPath());
-            if (!isLocal || !CanDeleteModFromModsFolder(modref))
+            if ((!isLocal && !isSteamFolder) || !CanDeleteModFromModsFolder(modref))
                 return false;
 
             string localKey = BuildLocalActionKey(modref);
@@ -395,14 +395,11 @@ namespace ModHearth
             HashSet<string> uniqueSteamIds,
             List<ModReference> steamActionableMods)
         {
-            if (ConfigManager.IsLikelySteamShadowCopy(modref.path, modref.steamID, out _))
-                return;
-
-            (_, _, bool isSteam, _) = ModSourceClassifier.Classify(
+            (_, _, bool isSteam, bool isSteamFolder) = ModSourceClassifier.Classify(
                 modref,
                 ConfigManager.Config.ModsPath,
                 ConfigManager.GetVanillaModsPath());
-            if (!isSteam)
+            if (!isSteam && !isSteamFolder)
                 return;
             if (!TryGetSteamWorkshopItemId(modref, out string steamId))
                 return;

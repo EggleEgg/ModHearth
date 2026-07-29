@@ -37,6 +37,20 @@ namespace ModHearth.UI
             }
         }
 
+        private IWorkshopDownloadProvider? _selectedProvider;
+        public IWorkshopDownloadProvider? SelectedProvider
+        {
+            get => _selectedProvider;
+            set
+            {
+                if (_selectedProvider != value)
+                {
+                    _selectedProvider = value;
+                    NotifyOfPropertyChange();
+                }
+            }
+        }
+
         public bool IsAutoRetryAllEnabled
         {
             get => ConfigManager.IsAutoRetryAllEnabled();
@@ -78,12 +92,14 @@ namespace ModHearth.UI
 
             _queueManager = new WorkshopQueueManager(manager);
 
+            SelectedProvider = _queueManager.SelectedProvider;
             ProviderComboBox.ItemsSource = _queueManager.Providers;
-            ProviderComboBox.SelectedItem = _queueManager.SelectedProvider;
+            ProviderComboBox.SelectedItem = SelectedProvider;
             ProviderComboBox.SelectionChanged += async (_, _) =>
             {
                 var provider = ProviderComboBox.SelectedItem as IWorkshopDownloadProvider;
                 _queueManager.SelectedProvider = provider;
+                SelectedProvider = provider;
                 if (provider != null)
                 {
                     if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderControl: Provider changed to {provider.Name}");

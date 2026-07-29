@@ -48,6 +48,7 @@ namespace ModHearth.Utilities.Workshop
     public class SteamCmdDownloadProvider : IWorkshopDownloadProvider
     {
         private static readonly Regex ProgressRegex = new Regex(@"progress:\s+([0-9.]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex DownloadingItemRegex = new Regex(@"Downloading item (\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly ISteamCmdService _steamCmdService = new SteamCmdService();
 
         public string Name => "SteamCMD";
@@ -71,6 +72,9 @@ namespace ModHearth.Utilities.Workshop
 
             var progressProxy = new Progress<string>(line =>
             {
+                if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
+                    return;
+
                 var match = ProgressRegex.Match(line);
                 if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double pct))
                 {
@@ -119,7 +123,7 @@ namespace ModHearth.Utilities.Workshop
             {
                 try
                 {
-                    CopyDirectory(workshopSource, fullDownloadPath);
+                    MoveOrCopyDirectory(workshopSource, fullDownloadPath);
                 }
                 catch (Exception ex)
                 {
@@ -138,7 +142,6 @@ namespace ModHearth.Utilities.Workshop
             return false;
         }
 
-        // TODO Windows limits command-line argument lengths to 8,191 characters. This may be an issue with large collections!
         public async Task<Dictionary<ulong, bool>> DownloadBatchAsync(
             IEnumerable<BatchDownloadItem> items,
             CancellationToken cancellationToken)
@@ -150,77 +153,75 @@ namespace ModHearth.Utilities.Workshop
 
             string appId = ConfigManager.DwarfFortressSteamAppId;
             string stagingPath = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "ModHearth_Batch_" + Guid.NewGuid().ToString("N")));
-            string quotedStaging = $"\"{stagingPath}\"";
+            Directory.CreateDirectory(stagingPath);
 
-            var sb = new System.Text.StringBuilder();
-            sb.Append($"+force_install_dir {quotedStaging} +login anonymous");
-            foreach (var item in itemList)
+            string scriptPath = Path.Combine(stagingPath, "download_batch.txt");
+            try
             {
-                result[item.WorkshopId] = false;
-                sb.Append($" +workshop_download_item {appId} {item.WorkshopId} validate");
+                using (var writer = new StreamWriter(scriptPath))
+                {
+                    writer.WriteLine($"force_install_dir \"{stagingPath}\"");
+                    writer.WriteLine("login anonymous");
+                    foreach (var item in itemList)
+                    {
+                        result[item.WorkshopId] = false;
+                        writer.WriteLine($"workshop_download_item {appId} {item.WorkshopId} validate");
+                    }
+                    writer.WriteLine("quit");
+                }
             }
-            sb.Append(" +quit");
-            string args = sb.ToString();
+            catch (Exception ex)
+            {
+                AppLogging.LogException($"Failed to write SteamCMD batch script at {scriptPath}", ex);
+                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch { }
+                return result;
+            }
+
+            string args = $"+runscript \"{scriptPath}\"";
+
+            ulong currentlyDownloadingId = 0;
+            var itemLookup = itemList.ToDictionary(i => i.WorkshopId);
 
             var progressProxy = new Progress<string>(line =>
             {
+                if (line.Contains("Downloading item", StringComparison.OrdinalIgnoreCase))
+                {
+                    var matchId = DownloadingItemRegex.Match(line);
+                    if (matchId.Success && ulong.TryParse(matchId.Groups[1].Value, out ulong id))
+                        currentlyDownloadingId = id;
+                }
+
+                if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
+                    return;
+
                 var match = ProgressRegex.Match(line);
                 if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double pct))
                 {
                     var prog = new DownloadProgress((long)(pct * 1000), 100000, pct);
-                    foreach (var item in itemList)
+                    if (currentlyDownloadingId != 0 && itemLookup.TryGetValue(currentlyDownloadingId, out var activeItem))
                     {
-                        item.Progress.Report(prog);
+                        activeItem.Progress.Report(prog);
                     }
                 }
             });
 
-            int exitCode = await _steamCmdService.ExecuteAsync(args, progressProxy, cancellationToken);
-
-            if (cancellationToken.IsCancellationRequested)
+            try
             {
-                try { Directory.Delete(stagingPath, true); } catch { }
-                return result;
-            }
+                int exitCode = await _steamCmdService.ExecuteAsync(args, progressProxy, cancellationToken);
 
-            foreach (var item in itemList)
-            {
-                ulong workshopId = item.WorkshopId;
-                string fullDownloadPath = Path.GetFullPath(item.DownloadPath);
-                Directory.CreateDirectory(fullDownloadPath);
-
-                string nestedContentDir = Path.Combine(stagingPath, "steamapps", "workshop", "content", appId, workshopId.ToString());
-                FlattenNestedContent(nestedContentDir, fullDownloadPath);
-
-                if (HasModContent(fullDownloadPath))
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    item.Progress.Report(new DownloadProgress(100, 100, 100));
-                    result[workshopId] = true;
-                    continue;
+                    return result;
                 }
 
-                string exe = _steamCmdService.GetExecutablePath();
-                string steamCmdDir = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? AppContext.BaseDirectory;
-                string workshopSource = Path.Combine(steamCmdDir, "steamapps", "workshop", "content", appId, workshopId.ToString());
-
-                if (!Directory.Exists(workshopSource))
+                foreach (var item in itemList)
                 {
-                    string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                    string homeFallback = Path.Combine(home, ".steam", "steamcmd", "steamapps", "workshop", "content", appId, workshopId.ToString());
-                    if (Directory.Exists(homeFallback))
-                        workshopSource = homeFallback;
-                }
+                    ulong workshopId = item.WorkshopId;
+                    string fullDownloadPath = Path.GetFullPath(item.DownloadPath);
+                    Directory.CreateDirectory(fullDownloadPath);
 
-                if (Directory.Exists(workshopSource))
-                {
-                    try
-                    {
-                        CopyDirectory(workshopSource, fullDownloadPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        AppLogging.LogException($"SteamCmd copy failed from {workshopSource} to {fullDownloadPath}", ex);
-                    }
+                    string nestedContentDir = Path.Combine(stagingPath, "steamapps", "workshop", "content", appId, workshopId.ToString());
+                    FlattenNestedContent(nestedContentDir, fullDownloadPath);
 
                     if (HasModContent(fullDownloadPath))
                     {
@@ -228,10 +229,44 @@ namespace ModHearth.Utilities.Workshop
                         result[workshopId] = true;
                         continue;
                     }
+
+                    string exe = _steamCmdService.GetExecutablePath();
+                    string steamCmdDir = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? AppContext.BaseDirectory;
+                    string workshopSource = Path.Combine(steamCmdDir, "steamapps", "workshop", "content", appId, workshopId.ToString());
+
+                    if (!Directory.Exists(workshopSource))
+                    {
+                        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                        string homeFallback = Path.Combine(home, ".steam", "steamcmd", "steamapps", "workshop", "content", appId, workshopId.ToString());
+                        if (Directory.Exists(homeFallback))
+                            workshopSource = homeFallback;
+                    }
+
+                    if (Directory.Exists(workshopSource))
+                    {
+                        try
+                        {
+                            MoveOrCopyDirectory(workshopSource, fullDownloadPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            AppLogging.LogException($"SteamCmd copy failed from {workshopSource} to {fullDownloadPath}", ex);
+                        }
+
+                        if (HasModContent(fullDownloadPath))
+                        {
+                            item.Progress.Report(new DownloadProgress(100, 100, 100));
+                            result[workshopId] = true;
+                            continue;
+                        }
+                    }
                 }
             }
+            finally
+            {
+                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch { }
+            }
 
-            try { Directory.Delete(stagingPath, true); } catch { }
             return result;
         }
 
@@ -276,6 +311,31 @@ namespace ModHearth.Utilities.Workshop
         private static bool HasModContent(string path)
         {
             return !string.IsNullOrWhiteSpace(ConfigManager.ResolveInfoFilePath(path));
+        }
+
+        private static void MoveOrCopyDirectory(string sourceDir, string destinationDir)
+        {
+            Directory.CreateDirectory(destinationDir);
+            try
+            {
+                // Fast path: attempt moving files directly
+                foreach (string file in Directory.GetFiles(sourceDir))
+                {
+                    string destFile = Path.Combine(destinationDir, Path.GetFileName(file));
+                    if (File.Exists(destFile)) File.Delete(destFile);
+                    File.Move(file, destFile);
+                }
+                foreach (string subDir in Directory.GetDirectories(sourceDir))
+                {
+                    string destSubDir = Path.Combine(destinationDir, Path.GetFileName(subDir));
+                    MoveOrCopyDirectory(subDir, destSubDir);
+                }
+            }
+            catch (IOException)
+            {
+                // Fallback for cross-volume moves
+                CopyDirectory(sourceDir, destinationDir);
+            }
         }
 
         private static void CopyDirectory(string sourceDir, string destinationDir)

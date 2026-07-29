@@ -302,6 +302,13 @@ namespace ModHearth
             SaveConfigFile("Context menu");
         }
 
+        public static bool GetOpenSteamFolder() => Config.OpenSteamFolder;
+        public static void SetOpenSteamFolder(bool openSteamFolder)
+        {
+            Config.OpenSteamFolder = openSteamFolder;
+            SaveConfigFile("Context menu");
+        }
+
         public static bool GetCopySteamFileId() => Config.CopySteamFileId;
         public static void SetCopySteamFileId(bool copySteamFileId)
         {
@@ -1003,9 +1010,8 @@ namespace ModHearth
 
             // Try identifying by provided steamId
             string? candidateIdFromMetadata = null;
-            if (!string.IsNullOrWhiteSpace(steamId) && long.TryParse(steamId, out _))
-                candidateIdFromMetadata = steamId.Trim();
-
+            if (TryParsePositiveSteamId(steamId, out string normalizedSteamId))
+                candidateIdFromMetadata = normalizedSteamId;
             // We check both sources. If either points to an existing workshop directory, this is a shadow/local copy.
             string[] candidateIds = new[] { candidateIdFromFolder, candidateIdFromMetadata }
                 .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -1038,6 +1044,7 @@ namespace ModHearth
         public static bool IsLikelySteamShadowCopy(string? folderPath, out string workshopId)
             => IsLikelySteamShadowCopy(folderPath, null, out workshopId);
 
+        //IMPORTANT: Local mods often contain [STEAM_FILE_ID:] and related steam tags. Steam/Vanilla/Local/Etc mod sorting should be done by their root folder location!
         public static bool TryParsePositiveSteamId(string? rawSteamId, out string steamItemId)
         {
             steamItemId = string.Empty;

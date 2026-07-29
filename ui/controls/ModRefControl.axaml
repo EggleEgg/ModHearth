@@ -11,6 +11,7 @@
 
   <UserControl.Resources>
     <ui:BoolToTextConverter x:Key="SteamTextConverter" TrueValue="Open URL in steam" FalseValue="Open URL in browser" />
+    <ui:BoolToTextConverter x:Key="FolderTextConverter" TrueValue="Open Steam Folder" FalseValue="Open Local Folder" />
     <ui:BoolToTextConverter x:Key="IdTextConverter" TrueValue="Copy Steam File ID" FalseValue="Copy Mod ID" />
   </UserControl.Resources>
 
@@ -38,6 +39,15 @@
             </ControlTemplate>
           </Setter>
         </Style>
+        <Style Selector="MenuItem.remove-arrow-row TextBlock">
+          <Setter Property="MinWidth" Value="150" />
+          <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="MenuItem.remove-arrow-row CheckBox">
+          <Setter Property="Grid.Column" Value="1" />
+          <Setter Property="Margin" Value="25,0,0,0" />
+          <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
       </ContextMenu.Styles>
 
       <MenuItem Header="Relations" Tag="relations-root">
@@ -52,16 +62,27 @@
       <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <Separator Tag="separator-1" />
-      <MenuItem Header="Open Folder" Tag="open" Click="OnContextMenuItemClick" />
+      <MenuItem Tag="open" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
+        <MenuItem.Header>
+          <Panel>
+            <TextBlock Text="Open Folder"
+                       IsVisible="{Binding !IsSteamFolderModSource}" />
+            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch"
+                  IsVisible="{Binding IsSteamFolderModSource}">
+              <TextBlock Text="{Binding #OpenSteamFolderCheckBox.IsChecked, Converter={StaticResource FolderTextConverter}}" />
+              <CheckBox x:Name="OpenSteamFolderCheckBox"
+                        IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamFolderEnabled, FallbackValue=False}" />
+            </Grid>
+          </Panel>
+        </MenuItem.Header>
+      </MenuItem>
       <MenuItem Tag="open-steam" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
         <MenuItem.Header>
           <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
             <TextBlock x:Name="OpenSteamText"
-                       Text="{Binding #OpenSteamInClientCheckBox.IsChecked, Converter={StaticResource SteamTextConverter}}"
-                       MinWidth="150" VerticalAlignment="Center" />
-            <CheckBox x:Name="OpenSteamInClientCheckBox" Grid.Column="1"
-                      IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}"
-                      Margin="25,0,0,0" VerticalAlignment="Center" />
+                       Text="{Binding #OpenSteamInClientCheckBox.IsChecked, Converter={StaticResource SteamTextConverter}}" />
+            <CheckBox x:Name="OpenSteamInClientCheckBox"
+                      IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}" />
           </Grid>
         </MenuItem.Header>
       </MenuItem>
@@ -70,11 +91,9 @@
         <MenuItem.Header>
           <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
             <TextBlock x:Name="CopyIdText"
-                       Text="{Binding #CopySteamFileIdCheckBox.IsChecked, Converter={StaticResource IdTextConverter}}"
-                       MinWidth="150" VerticalAlignment="Center" />
-            <CheckBox x:Name="CopySteamFileIdCheckBox" Grid.Column="1"
-                      IsChecked="{Binding $parent[ui:MainWindow].IsCopySteamFileIdEnabled, FallbackValue=False}"
-                      Margin="25,0,0,0" VerticalAlignment="Center" />
+                       Text="{Binding #CopySteamFileIdCheckBox.IsChecked, Converter={StaticResource IdTextConverter}}" />
+            <CheckBox x:Name="CopySteamFileIdCheckBox"
+                      IsChecked="{Binding $parent[ui:MainWindow].IsCopySteamFileIdEnabled, FallbackValue=False}" />
           </Grid>
         </MenuItem.Header>
       </MenuItem>
@@ -107,16 +126,20 @@
               ZIndex="2" />
       <Image
         Source="{ui:AssetImage dwarfIcon}"
-        IsVisible="{Binding IsVanillaModSource}"/>
+        IsVisible="{Binding IsVanillaModSource}"
+        ToolTip.Tip="Vanilla source mod"/>
       <Image
         Source="{ui:AssetImage steamFolderIcon}"
-        IsVisible="{Binding IsSteamFolderModSource}"/>
+        IsVisible="{Binding IsSteamFolderModSource}"
+        ToolTip.Tip="Steam and local mod"/>
       <Image
         Source="{ui:AssetImage folderIcon}"
-        IsVisible="{Binding IsLocalModSource}"/>
+        IsVisible="{Binding IsLocalModSource}"
+        ToolTip.Tip="Local mod"/>
       <Image
         Source="{ui:AssetImage steamIcon}"
-        IsVisible="{Binding IsSteamModSource}"/>
+        IsVisible="{Binding IsSteamModSource}"
+        ToolTip.Tip="Steam mod"/>
 
       <TextBlock Grid.Column="2"
                  Text="{Binding DisplayName}"

@@ -10,7 +10,8 @@ internal readonly record struct ModContextMenuState(
     int SteamCount,
     bool CanOpenFolder,
     bool HasSteamPage,
-    bool ShowSteamActionsForContext)
+    bool ShowSteamActionsForContext,
+    bool IsSteamFolder)
 {
     public bool HasLocalActions => LocalCount > 0;
     public bool HasSteamActions => ShowSteamActionsForContext && SteamCount > 0;
@@ -94,12 +95,18 @@ internal static class ModContextMenuSupport
         bool canOpenFolder = !string.IsNullOrWhiteSpace(contextMod.path) && Directory.Exists(contextMod.path);
         bool hasSteamPage = ModHearthManager.TryGetSteamWorkshopItemId(contextMod, out _);
 
+        (_, _, _, bool isSteamFolder) = ModSourceClassifier.Classify(
+            contextMod,
+            ModHearthManager.GetModsPath(),
+            ModHearthManager.GetVanillaModsPath());
+
         return new ModContextMenuState(
             localMods.Count,
             steamMods.Count,
             canOpenFolder,
             hasSteamPage,
-            steamMods.Count > 0);
+            steamMods.Count > 0,
+            isSteamFolder);
     }
 
     public static void ApplyState(ContextMenu menu, ModContextMenuState state)
@@ -109,19 +116,19 @@ internal static class ModContextMenuSupport
             DeleteTag,
             state.HasLocalActions,
             state.HasLocalActions,
-            state.LocalCount > 1 ? $"Delete {state.LocalCount} local mods" : "Delete local mod");
+            state.LocalCount > 1 ? $"Delete {state.LocalCount} local mods" : (state.IsSteamFolder ? "Delete local mod copy" : "Delete local mod"));
         SetMenuItem(
             menu,
             UnsubscribeTag,
             state.HasSteamActions,
             state.HasSteamActions,
-            state.SteamCount > 1 ? $"Unsubscribe from {state.SteamCount} steam mods" : "Unsubscribe from steam mod");
+            state.SteamCount > 1 ? $"Unsubscribe from {state.SteamCount} steam mods" : (state.IsSteamFolder ? "Unsubscribe from steam mod copy" : "Unsubscribe from steam"));
         SetMenuItem(
             menu,
             RedownloadTag,
             state.HasSteamActions,
             state.HasSteamActions,
-            state.SteamCount > 1 ? $"Redownload {state.SteamCount} mods" : "Redownload steam mod");
+            state.SteamCount > 1 ? $"Redownload {state.SteamCount} mods" : (state.IsSteamFolder ? "Redownload steam mod copy" : "Redownload from steam"));
         SetMenuItem(menu, OpenFolderTag, true, state.CanOpenFolder);
         SetMenuItem(menu, OpenSteamTag, state.HasSteamPage, state.HasSteamPage);
     }
@@ -288,6 +295,21 @@ internal static class ModContextMenuSupport
     public static async Task OpenFolderAsync(Window owner, ModReference modref)
     {
         string path = modref.path;
+        if (ConfigManager.GetOpenSteamFolder() &&
+            ConfigManager.IsLikelySteamShadowCopy(modref.path, modref.steamID, out string workshopId) &&
+            !string.IsNullOrWhiteSpace(workshopId))
+        {
+            foreach (string workshopContentRoot in ConfigManager.GetSteamWorkshopContentPaths())
+            {
+                string steamFolder = Path.Combine(workshopContentRoot, workshopId);
+                if (Directory.Exists(steamFolder))
+                {
+                    path = steamFolder;
+                    break;
+                }
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
         {
             await DialogService.ShowMessageAsync(owner, "Mod folder not found.", "Open Folder");

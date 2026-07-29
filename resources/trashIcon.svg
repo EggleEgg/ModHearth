@@ -4,7 +4,7 @@
 <svg
    width="265.39841"
    height="298.57321"
-   viewBox="0 0 7.9619524 8.9571964"
+   viewBox="0 0 7.9619524 8.9571961"
    fill="none"
    version="1.1"
    id="svg2"
@@ -25,9 +25,9 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#505050"
-     inkscape:zoom="0.35664698"
-     inkscape:cx="489.27934"
-     inkscape:cy="88.322631"
+     inkscape:zoom="0.3535534"
+     inkscape:cx="-275.77164"
+     inkscape:cy="29.698484"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="-8"
@@ -35,13 +35,13 @@
      inkscape:window-maximized="1"
      inkscape:current-layer="svg2" />
   <path
-     d="M 2.3885857,0.398097 V 0.796195 H 0.39809762 C 0.17823627,0.796195 0,0.974431 0,1.194292 V 1.59239 C 0,1.812251 0.17823627,1.990488 0.39809762,1.990488 H 7.5638547 c 0.2198693,0 0.3980977,-0.178237 0.3980977,-0.398098 V 1.194292 c 0,-0.219861 -0.1782284,-0.398097 -0.3980977,-0.398097 H 5.5733666 V 0.398097 C 5.5733666,0.178234 5.3951383,0 5.175269,0 H 2.7866833 C 2.566822,0 2.3885857,0.178234 2.3885857,0.398097 Z"
+     d="M 2.3885857,0.398097 V 0.796195 H 0.3980976 C 0.17823627,0.796195 0,0.974431 0,1.194292 V 1.59239 c 0,0.219861 0.17823627,0.398098 0.3980976,0.398098 h 7.1657571 c 0.2198693,0 0.3980977,-0.178237 0.3980977,-0.398098 V 1.194292 c 0,-0.219861 -0.1782284,-0.398097 -0.3980977,-0.398097 H 5.5733666 V 0.398097 C 5.5733666,0.178234 5.3951383,0 5.175269,0 H 2.7866833 C 2.566822,0 2.3885857,0.178234 2.3885857,0.398097 Z"
      fill="#000000"
      id="path1"
-     style="stroke-width:0.398098" />
+     style="stroke:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers" />
   <path
-     d="M 0.76558153,2.786683 H 7.1962912 L 6.8211638,7.851122 C 6.7749447,8.474781 6.2555069,8.957196 5.6301354,8.957196 H 2.3317533 c -0.6253636,0 -1.1448332,-0.482415 -1.1910285,-1.106074 z"
+     d="M 0.7655816,2.786683 H 7.1962912 L 6.8211638,7.851122 C 6.7749447,8.474781 6.2555069,8.957196 5.6301354,8.957196 H 2.3317533 c -0.6253636,0 -1.1448332,-0.482415 -1.1910285,-1.106074 z"
      fill="#000000"
      id="path2"
-     style="stroke-width:0.398098" />
+     style="stroke:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers" />
 </svg>
