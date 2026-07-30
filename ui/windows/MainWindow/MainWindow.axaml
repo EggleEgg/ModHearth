@@ -33,6 +33,13 @@
       <Setter Property="Focusable" Value="False" />
       <Setter Property="IsTabStop" Value="False" />
     </Style>
+    <Style Selector="Border[Tag=DockPreviewBorder]">
+      <Setter Property="Background" Value="{DynamicResource WorkshopDockPreviewBackgroundBrush}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource ButtonSelectionBrush}"/>
+      <Setter Property="BorderThickness" Value="2"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="IsVisible" Value="False"/>
+    </Style>
   </Window.Styles>
 
   <Panel>
@@ -53,10 +60,33 @@
         <RowDefinition Height="0" />
       </Grid.RowDefinitions>
 
-      <ContentControl x:Name="leftDockHost" Grid.Column="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,0,1,0" IsVisible="False" />
+      <Grid.Styles>
+        <Style Selector="Button[Tag=DockSplitterCloseButton]">
+          <Setter Property="Padding" Value="0"/>
+          <Setter Property="Width" Value="24"/>
+          <Setter Property="Height" Value="24"/>
+          <Setter Property="Background" Value="Transparent"/>
+          <Setter Property="ToolTip.Tip" Value="Close docked window" />
+          <Setter Property="Content">
+            <Template>
+              <Image Source="{Binding Source={DynamicResource BorderPanelBrush}, Converter={x:Static ui:TintedAssetConverter.Instance}, ConverterParameter=cancelIcon.svg}" Stretch="Uniform" />
+            </Template>
+          </Setter>
+        </Style>
+        <Style Selector="ContentControl[Tag=DockHost]">
+          <Setter Property="HorizontalAlignment" Value="Stretch"/>
+          <Setter Property="VerticalAlignment" Value="Stretch"/>
+          <Setter Property="Background" Value="{DynamicResource FormBackgroundBrush}"/>
+          <Setter Property="BorderBrush" Value="{DynamicResource BorderPanelBrush}"/>
+          <Setter Property="IsVisible" Value="False"/>
+        </Style>
+
+      </Grid.Styles>
+
+      <ContentControl x:Name="leftDockHost" Tag="DockHost" Grid.Column="0" BorderThickness="0,0,1,0" />
 
       <Border x:Name="leftDockSplitter" Grid.Column="1" Width="10" Background="Transparent" Cursor="SizeWestEast"
-              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 10" IsVisible="False" />
+              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 36, 0, 0" IsVisible="False" />
 
       <Border Grid.Column="2" Margin="3">
         <Grid>
@@ -280,28 +310,33 @@
         </Grid>
       </Border>
 
-      <Border x:Name="mainDockSplitter" Grid.Column="6" Width="10" Background="Transparent" Cursor="SizeWestEast"
-              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 10" IsVisible="False" />
+      <Border x:Name="rightDockSplitter" Grid.Column="6" Width="10" Background="Transparent" Cursor="SizeWestEast"
+              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 36, 0, 0" IsVisible="False" />
 
-      <ContentControl x:Name="mainDockHost" Grid.Column="7" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="1,0,0,0" IsVisible="False" />
+      <ContentControl x:Name="rightDockHost" Tag="DockHost" Grid.Column="7" BorderThickness="1,0,0,0" />
 
       <Border x:Name="bottomDockSplitter" Grid.Row="1" Grid.ColumnSpan="8" Height="7" Background="Transparent" Cursor="SizeNorthSouth"
-              HorizontalAlignment="Stretch" VerticalAlignment="Center" IsVisible="False" />
+              HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0, 0, 36, 0" IsVisible="False" />
 
-      <ContentControl x:Name="bottomDockHost" Grid.Row="2" Grid.ColumnSpan="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,1,0,0" IsVisible="False" />
+      <ContentControl x:Name="bottomDockHost" Tag="DockHost" Grid.Row="2" Grid.ColumnSpan="8" BorderThickness="0,1,0,0" />
+
+      <!-- TODO Refactor to stop using weird "magic number" margins to center the buttons -->
+      <Button x:Name="leftDockSplitterCloseButton" Grid.Column="1" Tag="DockSplitterCloseButton"
+              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0, -12, 7.5, 0"
+              IsVisible="{Binding IsVisible, ElementName=leftDockSplitter}" />
+
+      <Button x:Name="rightDockSplitterCloseButton" Grid.Column="6" Tag="DockSplitterCloseButton"
+              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="7.5, -12, 0, 0"
+              IsVisible="{Binding IsVisible, ElementName=rightDockSplitter}" />
+
+      <Button x:Name="bottomDockSplitterCloseButton" Grid.Row="1" Grid.ColumnSpan="8" Tag="DockSplitterCloseButton"
+              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0, 7.5, -12, 0"
+              IsVisible="{Binding IsVisible, ElementName=bottomDockSplitter}" />
     </Grid>
 
-    <Border x:Name="leftDockPreviewBorder" Background="{DynamicResource WorkshopDockPreviewBackgroundBrush}"
-            BorderBrush="{DynamicResource ButtonSelectionBrush}" HorizontalAlignment="Left" VerticalAlignment="Stretch"
-            BorderThickness="2" IsVisible="False" Margin="0" Width="420" />
-
-    <Border x:Name="mainDockPreviewBorder" Background="{DynamicResource WorkshopDockPreviewBackgroundBrush}"
-            BorderBrush="{DynamicResource ButtonSelectionBrush}" HorizontalAlignment="Right" VerticalAlignment="Stretch"
-            BorderThickness="2" IsVisible="False" Margin="0" Width="360" />
-
-    <Border x:Name="bottomDockPreviewBorder" Background="{DynamicResource WorkshopDockPreviewBackgroundBrush}"
-            BorderBrush="{DynamicResource ButtonSelectionBrush}" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
-            BorderThickness="2" IsVisible="False" Margin="0" Height="260" />
+    <Border x:Name="leftDockPreviewBorder" Tag="DockPreviewBorder" Width="420" HorizontalAlignment="Left" VerticalAlignment="Stretch"/>
+    <Border x:Name="rightDockPreviewBorder" Tag="DockPreviewBorder" Width="360" HorizontalAlignment="Right" VerticalAlignment="Stretch"/>
+    <Border x:Name="bottomDockPreviewBorder" Tag="DockPreviewBorder" Height="260" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" />
 
     <StackPanel x:Name="notificationContainer"
                 HorizontalAlignment="Left"

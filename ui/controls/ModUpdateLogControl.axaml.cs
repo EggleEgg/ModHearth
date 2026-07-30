@@ -224,7 +224,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
             DataGridRow.BackgroundProperty,
             new Binding(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay });
 
-        if (e.Row.DataContext is ModUpdateLogItemViewModel vm && DevMode.IsEnabled)
+        if (e.Row.DataContext is ModUpdateLogItemViewModel vm)
             Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
     }
 

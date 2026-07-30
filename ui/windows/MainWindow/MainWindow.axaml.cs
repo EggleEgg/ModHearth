@@ -236,6 +236,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         updateLogButton.Click += (_, _) => OpenModUpdateLog();
         workshopDownloaderButton.Click += (_, _) => OpenWorkshopDownloader();
 
+        leftDockSplitterCloseButton.Click += (_, _) => CloseDockedWindowOnSide(DockSide.Left);
+        rightDockSplitterCloseButton.Click += (_, _) => CloseDockedWindowOnSide(DockSide.Right);
+        bottomDockSplitterCloseButton.Click += (_, _) => CloseDockedWindowOnSide(DockSide.Bottom);
+
         themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
         themeComboBox.SelectionChanged += async (_, _) => await OnThemeChangedAsync();
 

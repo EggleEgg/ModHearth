@@ -12,6 +12,22 @@ namespace ModHearth.UI;
 
 public partial class MainWindow
 {
+    private void CloseDockedWindowOnSide(DockSide side)
+    {
+        if (_workshopDockManager != null && _workshopDockManager.IsDocked && _workshopDockManager.ActiveSide == side)
+        {
+            _workshopDockManager.Close();
+        }
+        if (_updateLogDockManager != null && _updateLogDockManager.IsDocked && _updateLogDockManager.ActiveSide == side)
+        {
+            _updateLogDockManager.Close();
+        }
+        if (_sortRulesDockManager != null && _sortRulesDockManager.IsDocked && _sortRulesDockManager.ActiveSide == side)
+        {
+            _sortRulesDockManager.Close();
+        }
+    }
+
     private async Task OpenSortRulesAsync()
     {
         if (_sortRulesDockManager?.IsOpen == true && _sortRulesDockManager.IsDocked)
@@ -58,9 +74,9 @@ public partial class MainWindow
                 Side = DockSide.Right,
                 SplitterIndex = 6,
                 ContentIndex = 7,
-                SplitterControl = mainDockSplitter,
-                DockHostControl = mainDockHost,
-                PreviewBorder = mainDockPreviewBorder
+                SplitterControl = rightDockSplitter,
+                DockHostControl = rightDockHost,
+                PreviewBorder = rightDockPreviewBorder
             },
             [DockSide.Bottom] = new DockingTarget
             {
@@ -129,9 +145,7 @@ public partial class MainWindow
             DockSide.Right,
             () =>
             {
-                var ctrl = new WorkshopDownloaderControl(manager);
-                ctrl.CloseRequested += (_, _) => _workshopDockManager?.Close();
-                return ctrl;
+                return new WorkshopDownloaderControl(manager);
             },
             control => new WorkshopDownloaderWindow(manager, control)
             {

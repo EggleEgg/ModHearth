@@ -80,8 +80,6 @@ namespace ModHearth.UI
         private ModRefControl? _contextMenuHost;
         private bool _isSetupDialogShowing;
 
-        public event EventHandler? CloseRequested;
-
         public WorkshopDownloaderControl() : this(null!) { }
 
         public WorkshopDownloaderControl(ModHearthManager manager)
@@ -102,7 +100,7 @@ namespace ModHearth.UI
                 SelectedProvider = provider;
                 if (provider != null)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopDownloaderControl: Provider changed to {provider.Name}");
+                    InfoLogger.LogRunDf($"WorkshopDownloaderControl: Provider changed to {provider.Name}");
                     ConfigManager.SetDefaultWorkshopProvider(provider.GetType().Name);
                 }
 
@@ -163,8 +161,7 @@ namespace ModHearth.UI
                     if (string.IsNullOrWhiteSpace(text))
                         return;
 
-                    if (DevMode.IsEnabled)
-                        InfoLogger.LogRunDf($"WorkshopDownloaderControl: Auto-detected clipboard change: {text}");
+                    InfoLogger.LogRunDf($"WorkshopDownloaderControl: Auto-detected clipboard change: {text}");
 
                     var currentText = WorkshopUrlTextBox.Text ?? string.Empty;
                     if (!currentText.Contains(text))
@@ -221,7 +218,6 @@ namespace ModHearth.UI
             BtnRetryAll.Click += (_, _) => _queueManager.RetryAll();
             BtnRetryAll.AddHandler(InputElement.PointerPressedEvent, BtnRetryAllPointerPressed, RoutingStrategies.Tunnel, true);
             BtnCancelAll.Click += (_, _) => _queueManager.CancelAll();
-            BtnClose.Click += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
         }
 
         private async Task<string> GetClipboardTextAsync()

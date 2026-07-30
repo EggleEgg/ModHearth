@@ -60,12 +60,12 @@ namespace ModHearth.Utilities.Workshop
 
         public static List<ulong> ParseUrls(string input)
         {
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: Parsing input: {input}");
+            InfoLogger.LogRunDf($"WorkshopUrlResolver: Parsing input: {input}");
             var results = new HashSet<ulong>();
 
             foreach (var (id, token) in ExtractEntries(input))
             {
-                if (results.Add(id) && DevMode.IsEnabled)
+                if (results.Add(id))
                 {
                     if (PlainIdRegex.IsMatch(token))
                         InfoLogger.LogRunDf($"WorkshopUrlResolver: Found plain ID: {id}");
@@ -74,7 +74,7 @@ namespace ModHearth.Utilities.Workshop
                 }
             }
 
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopUrlResolver: Total unique IDs found: {results.Count}");
+            InfoLogger.LogRunDf($"WorkshopUrlResolver: Total unique IDs found: {results.Count}");
             return new List<ulong>(results);
         }
 

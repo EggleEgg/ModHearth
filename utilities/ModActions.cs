@@ -372,10 +372,9 @@ namespace ModHearth
             HashSet<string> uniqueLocalKeys,
             List<ModReference> localDeletableMods)
         {
-            // Local mods take precedence even if they carry steam metadata.
             (_, bool isLocal, _, bool isSteamLocal) = ModSourceClassifier.Classify(
                 modref,
-                ConfigManager.Config.ModsPath,
+                ConfigManager.GetModsPath(),
                 ConfigManager.GetVanillaModsPath());
             if ((!isLocal && !isSteamLocal) || !CanDeleteModFromModsFolder(modref))
                 return false;
@@ -397,7 +396,7 @@ namespace ModHearth
         {
             (_, _, bool isSteam, bool isSteamLocal) = ModSourceClassifier.Classify(
                 modref,
-                ConfigManager.Config.ModsPath,
+                ConfigManager.GetModsPath(),
                 ConfigManager.GetVanillaModsPath());
             if (!isSteam && !isSteamLocal)
                 return;

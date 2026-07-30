@@ -100,22 +100,24 @@ internal static class MainWindowModListBuilder
         ModHearthManager manager,
         IReadOnlyDictionary<string, ModRefViewModel> modViewMap)
     {
-        return manager.disabledMods
+        var vms = manager.disabledMods
             .OrderBy(m => manager.GetRefFromDFHMod(m).name ?? string.Empty)
             .Select(m => modViewMap.TryGetValue(m.ToString(), out ModRefViewModel? vm) ? vm : null)
             .Where(vm => vm != null)
             .Cast<ModRefViewModel>()
             .ToList();
+        return CollapseByModId(vms);
     }
 
     public static List<ModRefViewModel> BuildActiveList(
         ModHearthManager manager,
         IReadOnlyDictionary<string, ModRefViewModel> modViewMap)
     {
-        return manager.enabledMods
+        var vms = manager.enabledMods
             .Select(m => modViewMap.TryGetValue(m.ToString(), out ModRefViewModel? vm) ? vm : null)
             .Where(vm => vm != null)
             .Cast<ModRefViewModel>()
             .ToList();
+        return CollapseByModId(vms);
     }
 }

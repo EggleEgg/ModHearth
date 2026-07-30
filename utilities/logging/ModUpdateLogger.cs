@@ -108,23 +108,19 @@ public static class ModUpdateLogger
             {
                 if (!File.Exists(LogPath))
                 {
-                    if (DevMode.IsEnabled)
-                        InfoLogger.LogRunDf($"ModUpdateLogger: Log file does not exist at path: {LogPath}");
+                    InfoLogger.LogRunDf($"ModUpdateLogger: Log file does not exist at path: {LogPath}");
                     return Array.Empty<ModUpdateLogEntry>();
                 }
 
                 FileInfo fileInfo = new FileInfo(LogPath);
-                if (DevMode.IsEnabled)
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Loading log file from '{LogPath}'. Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTimeUtc} UTC");
+                InfoLogger.LogRunDf($"ModUpdateLogger: Loading log file from '{LogPath}'. Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTimeUtc} UTC");
 
                 string json = File.ReadAllText(LogPath);
-                if (DevMode.IsEnabled)
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Read JSON content length: {json.Length} chars");
+                InfoLogger.LogRunDf($"ModUpdateLogger: Read JSON content length: {json.Length} chars");
 
                 List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json);
                 int count = entries?.Count ?? 0;
-                if (DevMode.IsEnabled)
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Successfully deserialized {count} log entries.");
+                InfoLogger.LogRunDf($"ModUpdateLogger: Successfully deserialized {count} log entries.");
 
                 return entries ?? new List<ModUpdateLogEntry>();
             }

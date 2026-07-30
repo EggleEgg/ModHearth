@@ -283,20 +283,20 @@ namespace ModHearth.Utilities.Workshop
 
         public async Task ResolveAndEnqueueUrlsAsync(string inputUrls, Func<List<WorkshopItemMetadata>, Task>? onCollectionFound)
         {
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Resolving URLs: {inputUrls}");
+            InfoLogger.LogRunDf($"WorkshopQueueManager: Resolving URLs: {inputUrls}");
             var ids = WorkshopUrlResolver.ParseUrls(inputUrls);
             if (ids.Count == 0)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf("WorkshopQueueManager: No valid IDs found in input.");
+                InfoLogger.LogRunDf("WorkshopQueueManager: No valid IDs found in input.");
                 return;
             }
 
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Fetching metadata for {ids.Count} IDs...");
+            InfoLogger.LogRunDf($"WorkshopQueueManager: Fetching metadata for {ids.Count} IDs...");
             var metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
 
             if (metadataList.Count == 0)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf("WorkshopQueueManager: Steam API returned no metadata for the given IDs.");
+                InfoLogger.LogRunDf("WorkshopQueueManager: Steam API returned no metadata for the given IDs.");
                 return;
             }
 
@@ -304,11 +304,11 @@ namespace ModHearth.Utilities.Workshop
 
             foreach (var meta in metadataList)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Checking if {meta.PublishedFileId} ('{meta.Title}') is a collection...");
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Checking if {meta.PublishedFileId} ('{meta.Title}') is a collection...");
                 var children = await _apiClient.GetCollectionDetailsAsync(meta.PublishedFileId);
                 if (children.Count > 0)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} is a collection with {children.Count} children.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} is a collection with {children.Count} children.");
                     meta.IsCollection = true;
                     meta.ChildrenIds = children;
 
@@ -325,7 +325,7 @@ namespace ModHearth.Utilities.Workshop
 
             if (itemsToEnqueue.Count > 0)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Enqueueing {itemsToEnqueue.Count} items to UI thread...");
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Enqueueing {itemsToEnqueue.Count} items to UI thread...");
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     foreach (var item in itemsToEnqueue)
@@ -344,10 +344,10 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Attempting to enqueue {meta.PublishedFileId} ('{meta.Title}')...");
+            InfoLogger.LogRunDf($"WorkshopQueueManager: Attempting to enqueue {meta.PublishedFileId} ('{meta.Title}')...");
             if (Queue.Any(i => i.PublishedFileId == meta.PublishedFileId && i.State != DownloadState.Completed && i.State != DownloadState.Failed && i.State != DownloadState.Cancelled))
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} is already in the queue and active. Skipping.");
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} is already in the queue and active. Skipping.");
                 return;
             }
 
@@ -378,7 +378,7 @@ namespace ModHearth.Utilities.Workshop
             }
 
             Queue.Insert(0, item);
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} added to queue. Queue size: {Queue.Count}");
+            InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} added to queue. Queue size: {Queue.Count}");
             _ = ProcessQueueItemAsync(item);
         }
 
@@ -420,7 +420,7 @@ namespace ModHearth.Utilities.Workshop
             if (ConfigManager.IsAutoRetryAllEnabled() && item.AutoRetryCount < 3)
             {
                 item.AutoRetryCount++;
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Auto-retrying download for {item.PublishedFileId} (attempt {item.AutoRetryCount}/3)...");
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Auto-retrying download for {item.PublishedFileId} (attempt {item.AutoRetryCount}/3)...");
                 item.SetState(DownloadState.Waiting);
                 item.SetProgress(0, $"Auto-retrying ({item.AutoRetryCount}/3)...");
                 _ = ProcessQueueItemAsync(item);
@@ -488,30 +488,30 @@ namespace ModHearth.Utilities.Workshop
 
         private async Task ProcessQueueItemAsync(WorkshopDownloadItem item)
         {
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Processing queue item {item.PublishedFileId} ('{item.Title}'). Waiting for semaphore...");
+            InfoLogger.LogRunDf($"WorkshopQueueManager: Processing queue item {item.PublishedFileId} ('{item.Title}'). Waiting for semaphore...");
             await _concurrencySemaphore.WaitAsync();
             try
             {
                 if (item.State == DownloadState.Cancelled || item.State != DownloadState.Waiting)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Item {item.PublishedFileId} was cancelled or already processed.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Item {item.PublishedFileId} was cancelled or already processed.");
                     return;
                 }
 
                 var provider = SelectedProvider ?? Providers.FirstOrDefault(p => p.IsAvailable);
                 if (provider == null)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: No available download provider found for {item.PublishedFileId}.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: No available download provider found for {item.PublishedFileId}.");
                     FailOrAutoRetry(item, "No download provider available");
                     return;
                 }
 
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Using provider '{provider.Name}' for {item.PublishedFileId}.");
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Using provider '{provider.Name}' for {item.PublishedFileId}.");
 
                 string modsDir = ConfigManager.GetModsPath();
                 if (string.IsNullOrEmpty(modsDir))
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Mods folder not configured. Download failed for {item.PublishedFileId}.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Mods folder not configured. Download failed for {item.PublishedFileId}.");
                     FailOrAutoRetry(item, "Mods folder not configured");
                     return;
                 }
@@ -522,7 +522,7 @@ namespace ModHearth.Utilities.Workshop
                 }
                 catch (Exception ex)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Failed to create mods folder at '{modsDir}': {ex.Message}");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Failed to create mods folder at '{modsDir}': {ex.Message}");
                     FailOrAutoRetry(item, "Mods folder creation failed");
                     return;
                 }
@@ -561,7 +561,7 @@ namespace ModHearth.Utilities.Workshop
 
                 if (batchGroup.Count >= 2 && provider is SteamCmdDownloadProvider steamCmdProvider)
                 {
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Batching {batchGroup.Count} items into single SteamCMD run.");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Batching {batchGroup.Count} items into single SteamCMD run.");
 
                     var batchItems = new List<BatchDownloadItem>();
                     var ctsList = batchGroup.Select(b => b.Cts!).ToList();
@@ -618,7 +618,7 @@ namespace ModHearth.Utilities.Workshop
                 {
                     var token = item.Cts!.Token;
                     string targetDir = Path.Combine(modsDir, item.PublishedFileId.ToString());
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Target directory for {item.PublishedFileId}: {targetDir}");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Target directory for {item.PublishedFileId}: {targetDir}");
 
                     var progressReporter = new Progress<DownloadProgress>(p =>
                     {
@@ -631,7 +631,7 @@ namespace ModHearth.Utilities.Workshop
                             item.SetProgress(p.Percentage, $"Downloading {p.Percentage:F1}%");
                     });
 
-                    if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Starting download for {item.PublishedFileId}...");
+                    InfoLogger.LogRunDf($"WorkshopQueueManager: Starting download for {item.PublishedFileId}...");
                     bool success = await provider.DownloadAsync(item.PublishedFileId, targetDir, progressReporter, token);
 
                     if (success && !token.IsCancellationRequested)
@@ -663,7 +663,7 @@ namespace ModHearth.Utilities.Workshop
             }
             finally
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"WorkshopQueueManager: Releasing semaphore for {item.PublishedFileId}.");
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Releasing semaphore for {item.PublishedFileId}.");
                 _concurrencySemaphore.Release();
             }
         }

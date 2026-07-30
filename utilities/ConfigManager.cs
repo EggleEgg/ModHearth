@@ -1388,14 +1388,22 @@ namespace ModHearth
                 yield return root;
         }
 
+        // IMPORTANT: order matters here. When the same mod (same id, same numeric_version) exists both as
+        // a Steam Workshop subscription and as a shadow/manual copy under the local Mods\ folder --
+        // Dwarf Fortress's own well-documented habit, see IsLikelySteamShadowCopy -- FindAllModsFromDisk's
+        // "first occurrence wins" duplicate handling means whichever root is enumerated first becomes the
+        // one visible ModReference for that mod, and ModSourceClassifier.Classify's result comes from
+        // THAT copy's path. The local Mods\ copy is what Dwarf Fortress actually loads in that situation,
+        // so it must win the primacy slot -- enumerating it before the workshop content paths accomplishes
+        // that without needing a special-cased duplicate-resolution pass elsewhere.
         public static IEnumerable<string> EnumerateConfiguredModRoots()
         {
-            foreach (string workshopPath in GetSteamWorkshopContentPaths())
-                yield return workshopPath;
-
             string modsPath = GetModsPath();
             if (!string.IsNullOrWhiteSpace(modsPath))
                 yield return modsPath;
+
+            foreach (string workshopPath in GetSteamWorkshopContentPaths())
+                yield return workshopPath;
 
             if (!string.IsNullOrWhiteSpace(Config.DFFolderPath))
             {

@@ -92,7 +92,7 @@ namespace ModHearth.Utilities.Workshop
 
             if (exitCode != 0)
             {
-                if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamCmd exited with code {exitCode} for {workshopId}; skipping content check.");
+                InfoLogger.LogRunDf($"SteamCmd exited with code {exitCode} for {workshopId}; skipping content check.");
                 return false;
             }
 
@@ -138,7 +138,7 @@ namespace ModHearth.Utilities.Workshop
                 }
             }
 
-            if (DevMode.IsEnabled) InfoLogger.LogRunDf($"SteamCmd completed but no valid mod content was found for {workshopId} under '{nestedContentDir}' or '{workshopSource}'.");
+            InfoLogger.LogRunDf($"SteamCmd completed but no valid mod content was found for {workshopId} under '{nestedContentDir}' or '{workshopSource}'.");
             return false;
         }
 

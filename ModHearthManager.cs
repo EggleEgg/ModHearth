@@ -1087,7 +1087,7 @@ namespace ModHearth
             {
                 if (currentRoot != null)
                 {
-                    InfoLogger.Log($"Disk mod scan root='{NormalizeFileSystemPath(currentRoot)}' candidates={candidateCount}, added={addedCount}, duplicates={duplicateCount}, total_registered={newModrefMap.Count}.");
+                    InfoLogger.Log($"Disk mod scan root: '{NormalizeFileSystemPath(currentRoot)}' candidates: {candidateCount}, added: {addedCount}, duplicates: {duplicateCount}, total registered: {newModrefMap.Count}.");
                 }
             }
 
@@ -1131,7 +1131,7 @@ namespace ModHearth
 
             PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs);
 
-            InfoLogger.Log($"Disk mod scan completed. Total registered mods={newModrefMap.Count}.");
+            InfoLogger.Log($"Disk mod scan completed. Total registered mods: {newModrefMap.Count}.");
         }
 
         // Parallel safe
@@ -1527,7 +1527,7 @@ namespace ModHearth
                 string modId = modDataEntry.TryGetValue("id", out string? unresolvedId)
                     ? (unresolvedId ?? string.Empty)
                     : string.Empty;
-                InfoLogger.Log($"ResolveModPath fallback unresolved. id='{modId}', raw_src='{rawSrcDir}', resolved='{NormalizeFileSystemPath(fullPath)}'.");
+                InfoLogger.Log($"ResolveModPath fallback unresolved. id: '{modId}', raw_src: '{rawSrcDir}', resolved: '{NormalizeFileSystemPath(fullPath)}'.");
             }
 
             return NormalizeFileSystemPath(fullPath);

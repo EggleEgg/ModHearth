@@ -62,7 +62,7 @@
       <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <Separator Tag="separator-1" />
-      <MenuItem Tag="open" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
+      <MenuItem Tag="open" Classes="remove-arrow-row" Click="OnContextMenuItemClick" PointerPressed="OnContextMenuItemPointerPressed">
         <MenuItem.Header>
           <Panel>
             <TextBlock Text="Open Folder"
@@ -76,7 +76,7 @@
           </Panel>
         </MenuItem.Header>
       </MenuItem>
-      <MenuItem Tag="open-steam" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
+      <MenuItem Tag="open-steam" Classes="remove-arrow-row" Click="OnContextMenuItemClick" PointerPressed="OnContextMenuItemPointerPressed">
         <MenuItem.Header>
           <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
             <TextBlock x:Name="OpenSteamText"
@@ -87,7 +87,7 @@
         </MenuItem.Header>
       </MenuItem>
 
-      <MenuItem Tag="copy-id" Classes="remove-arrow-row" Click="OnContextMenuItemClick">
+      <MenuItem Tag="copy-id" Classes="remove-arrow-row" Click="OnContextMenuItemClick" PointerPressed="OnContextMenuItemPointerPressed">
         <MenuItem.Header>
           <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
             <TextBlock x:Name="CopyIdText"

@@ -147,7 +147,6 @@
       <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" />
       <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
         <Button x:Name="BtnClearCompleted" Content="Clear Completed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
-        <Button x:Name="BtnClose" Content="Close" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
       </StackPanel>
     </Grid>
   </Grid>

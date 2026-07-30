@@ -174,6 +174,13 @@ public partial class ModRefControl : UserControl
 
         foreach (Control item in menu.Items.OfType<Control>())
         {
+            // Change checkbox state on right click
+            if (item is MenuItem menuItem)
+            {
+                menuItem.PointerPressed -= OnContextMenuItemPointerPressed;
+                menuItem.PointerPressed += OnContextMenuItemPointerPressed;
+            }
+
             string? tag = (item as MenuItem)?.Tag?.ToString() ?? (item as Separator)?.Tag?.ToString();
 
             // Only ever suppress here, never re-enable. Preserves per-item decisions providers already made (e.g. hiding "Open Steam Page" for non-steam mods).
@@ -219,11 +226,26 @@ public partial class ModRefControl : UserControl
             return;
 
         IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
-        if (DevMode.IsEnabled)
-            Console.WriteLine($"[ModRefControl] OnContextMenuItemClick - Provider found: {provider != null}");
+        Console.WriteLine($"[ModRefControl] OnContextMenuItemClick - Provider found: {provider != null}");
         if (provider != null)
         {
             provider.OnModRefContextMenuItemClicked(item, vm);
+        }
+    }
+
+    private void OnContextMenuItemPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (sender is not MenuItem item)
+            return;
+
+        if (!e.GetCurrentPoint(item).Properties.IsRightButtonPressed)
+            return;
+
+        var checkBox = item.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault();
+        if (checkBox != null)
+        {
+            checkBox.IsChecked = !(checkBox.IsChecked ?? false);
+            e.Handled = true;
         }
     }
 }

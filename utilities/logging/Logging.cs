@@ -22,8 +22,7 @@ namespace ModHearth.Utilities.Logging
     {
         public static void Log(string message)
         {
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"[DIAG] {message}");
+            Console.WriteLine($"[DIAG] {message}");
         }
 
         public static void LogRunDf(string message)
@@ -37,8 +36,6 @@ namespace ModHearth.Utilities.Logging
     {
         public static void Log(string message)
         {
-            if (!DevMode.IsEnabled)
-                return;
             Console.WriteLine($"[ReloadManager] {message}");
         }
     }
