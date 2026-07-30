@@ -66,44 +66,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         }
     }
 
-    public bool IsOpenSteamInClientEnabled
-    {
-        get => ConfigManager.GetOpenSteamInClient();
-        set
-        {
-            if (value != ConfigManager.GetOpenSteamInClient())
-            {
-                ConfigManager.SetOpenSteamInClient(value);
-                NotifyOfPropertyChange();
-            }
-        }
-    }
 
-    public bool IsOpenSteamFolderEnabled
-    {
-        get => ConfigManager.GetOpenSteamFolder();
-        set
-        {
-            if (value != ConfigManager.GetOpenSteamFolder())
-            {
-                ConfigManager.SetOpenSteamFolder(value);
-                NotifyOfPropertyChange();
-            }
-        }
-    }
-
-    public bool IsCopySteamFileIdEnabled
-    {
-        get => ConfigManager.GetCopySteamFileId();
-        set
-        {
-            if (value != ConfigManager.GetCopySteamFileId())
-            {
-                ConfigManager.SetCopySteamFileId(value);
-                NotifyOfPropertyChange();
-            }
-        }
-    }
 
     private readonly ObservableCollection<ModRefViewModel> inactiveMods = new();
     private readonly ObservableCollection<ModRefViewModel> activeMods = new();
@@ -114,6 +77,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private bool autoActionRerunRequested;
 
     private DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>? _workshopDockManager;
+    private DockingManager<ModUpdateLogControl, ModUpdateLogWindow>? _updateLogDockManager;
+    private DockingManager<SortRulesControl, SortRulesWindow>? _sortRulesDockManager;
     private ModHearthManager manager;
     private bool changesMade;
     private bool isBatchSelecting;
@@ -167,6 +132,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         SetWindowIcon();
         SetPreviewImage(LoadFallbackPreview("modhearth_icon_v2.ico"));
         ShowFallbackHelpText();
+        HorizontalScrollHelper.EnableSidewaysScrolling(dfhackStatusScrollViewer);
 
         manager = new ModHearthManager();
         manager.RequestUIReload += () => Dispatcher.UIThread.Post(async () => await ReloadModpacksFromDisk());
@@ -193,10 +159,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         modListController.RegisterList(rightModlist, allowReorder: true);
 
         double mainRatio = ConfigManager.GetMainWindowGridSplitterRatio();
-        if (mainRatio > 0 && mainRatio < 1 && mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+        if (mainRatio > 0 && mainRatio < 1 && mainGrid != null && mainGrid.ColumnDefinitions.Count >= 5)
         {
-            mainGrid.ColumnDefinitions[0].Width = new GridLength(mainRatio, GridUnitType.Star);
-            mainGrid.ColumnDefinitions[2].Width = new GridLength(1.0 - mainRatio, GridUnitType.Star);
+            //Change these if MainWindow layouts change!
+            mainGrid.ColumnDefinitions[2].Width = new GridLength(mainRatio, GridUnitType.Star);
+            mainGrid.ColumnDefinitions[4].Width = new GridLength(1.0 - mainRatio, GridUnitType.Star);
         }
 
         leftModlist.SelectionChanged += ModlistSelectionChanged;
@@ -268,7 +235,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
         updateLogButton.Click += (_, _) => OpenModUpdateLog();
         workshopDownloaderButton.Click += (_, _) => OpenWorkshopDownloader();
-        workshopDownloaderButton.AddHandler(InputElement.PointerPressedEvent, WorkshopDownloaderButtonPointerPressed, RoutingStrategies.Tunnel, true);
 
         themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
         themeComboBox.SelectionChanged += async (_, _) => await OnThemeChangedAsync();
@@ -281,7 +247,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
             SaveMainWindowGridSplitterRatio();
             SaveModInfoDockLayout();
             SaveSearchBarStates();
-            _workshopDockManager?.Close();
+            _workshopDockManager?.Dispose();
+            _updateLogDockManager?.Dispose();
+            _sortRulesDockManager?.Dispose();
             modManagerWatcher?.Dispose();
             modManagerReloadTimer?.Stop();
             dfHackStatusTimer?.Stop();
@@ -297,13 +265,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 
     private void SaveMainWindowGridSplitterRatio()
     {
-        if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 3)
+        if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 5)
         {
-            double w0 = mainGrid.ColumnDefinitions[0].ActualWidth;
             double w2 = mainGrid.ColumnDefinitions[2].ActualWidth;
-            if (w0 + w2 > 0)
+            double w4 = mainGrid.ColumnDefinitions[4].ActualWidth;
+            if (w2 + w4 > 0)
             {
-                double ratio = w0 / (w0 + w2);
+                double ratio = w2 / (w2 + w4);
                 ratio = Math.Clamp(ratio, 0.05, 0.95);
                 ConfigManager.SetMainWindowGridSplitterRatio(ratio);
             }

@@ -10,8 +10,8 @@
         Title="Mod Hearth"
         Width="1264"
         Height="828"
-        MinWidth="1020"
-        MinHeight="640">
+        MinWidth="850"
+        MinHeight="540">
   <Window.DataTemplates>
     <DataTemplate DataType="ui:ModRefViewModel" x:DataType="ui:ModRefViewModel">
       <ui:ModRefControl ShowColorUnderlay="True" Padding="0" Margin="0,0,-3,0"
@@ -38,6 +38,8 @@
   <Panel>
     <Grid x:Name="mainGrid" Margin="12">
       <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="0" /> <!-- Left Content (0) -->
+        <ColumnDefinition Width="0" /> <!-- Left Splitter (1) -->
         <ColumnDefinition Width="10*" />
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="11*" />
@@ -47,8 +49,16 @@
       </Grid.ColumnDefinitions>
       <Grid.RowDefinitions>
         <RowDefinition Height="*" />
+        <RowDefinition Height="0" />
+        <RowDefinition Height="0" />
       </Grid.RowDefinitions>
-      <Border Grid.Column="0" Margin="3">
+
+      <ContentControl x:Name="leftDockHost" Grid.Column="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,0,1,0" IsVisible="False" />
+
+      <Border x:Name="leftDockSplitter" Grid.Column="1" Width="10" Background="Transparent" Cursor="SizeWestEast"
+              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 10" IsVisible="False" />
+
+      <Border Grid.Column="2" Margin="3">
         <Grid>
           <Grid RowSpacing="1">
             <Grid.RowDefinitions>
@@ -75,19 +85,34 @@
                 </Button>
                 <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
               </StackPanel>
-              <TextBlock x:Name="dfhackStatusLabel" Grid.Row="1" Grid.Column="1" FontSize="11"
-                         HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="False" />
+              <ScrollViewer x:Name="dfhackStatusScrollViewer" Grid.Row="1" Grid.Column="1"
+                            HorizontalScrollBarVisibility="Auto" Margin="4,0,0,0"
+                            VerticalScrollBarVisibility="Disabled"
+                            AllowAutoHide="False"
+                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                            IsVisible="False">
+                <ScrollViewer.Styles>
+                  <Style Selector="ScrollBar:horizontal">
+                    <Setter Property="Height" Value="5"/>
+                    <Setter Property="MinHeight" Value="5"/>
+                    <Setter Property="MaxHeight" Value="5"/>
+                    <Setter Property="ClipToBounds" Value="True"/>
+                  </Style>
+                </ScrollViewer.Styles>
+                <TextBlock x:Name="dfhackStatusLabel" FontSize="11"
+                           VerticalAlignment="Center" />
+              </ScrollViewer>
             </Grid>
           </Grid>
         </Grid>
       </Border>
 
-      <Border Grid.Column="1" Background="{DynamicResource BorderPanelBrush}" Width="0.5"
+      <Border Grid.Column="3" Background="{DynamicResource BorderPanelBrush}" Width="0.5"
               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,30,2,2" />
-      <GridSplitter Grid.Column="1" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
+      <GridSplitter Grid.Column="3" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
                     HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
 
-      <Border Grid.Column="2" Margin="3">
+      <Border Grid.Column="4" Margin="3">
         <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
 
           <Grid.Styles>
@@ -132,7 +157,7 @@
       </Border>
 
       <!-- Right buttons main panel -->
-      <Border Grid.Column="3" Margin="0,3,3,3">
+      <Border Grid.Column="5" Margin="0,3,3,3">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*, Auto" RowSpacing="6">
           <Grid.Styles>
             <Style Selector="Button">
@@ -206,8 +231,12 @@
               </Grid>
             </Button>
             <Button x:Name="sortRulesButton" Grid.Column="1" Tag="Themed"
-                    ToolTip.Tip="Custom sorting rules. These override automatic sorting">
-              <Image Source="{ui:AssetImage gearIcon}" />
+                    ToolTip.Tip="Custom sorting rules. Right click to toggle docking mode">
+              <Grid>
+                <Image Source="{ui:AssetImage gearIcon}" />
+                <Image x:Name="sortRulesModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
+                       Width="15" Height="15" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1,0,0"/>
+              </Grid>
             </Button>
           </Grid>
 
@@ -217,11 +246,18 @@
               <Grid>
                 <Image Source="{ui:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
                 <Image x:Name="workshopModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
-                       Width="18" Height="18" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1.5,0,0" />
+                       Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1.5,0,0" />
               </Grid>
             </Button>
             <Grid ColumnDefinitions="*,Auto" Height="28">
-              <Button x:Name="updateLogButton" Tag="Themed" Content="Update log" FontSize="13" />
+              <Button x:Name="updateLogButton" Tag="Themed" FontSize="13" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                      ToolTip.Tip="Open the Mod Update Log. Right click to toggle docking mode">
+                <Grid>
+                  <TextBlock Text="Update log" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  <Image x:Name="updateLogModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
+                         Width="18" Height="18" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"/>
+                </Grid>
+              </Button>
               <Button x:Name="clearInstalledModsButton" Grid.Column="1" Tag="Themed" Width="28" Padding="-1,-1,-1,-3"
                       ToolTip.Tip="Delete the installed mods cache. Right click to open the installed_mods folder">
                 <Image Source="{ui:AssetImage trashDatabaseIcon}" />
@@ -244,15 +280,28 @@
         </Grid>
       </Border>
 
-      <Border x:Name="workshopSplitter" Grid.Column="4" Width="10" Background="Transparent" Cursor="SizeWestEast"
+      <Border x:Name="mainDockSplitter" Grid.Column="6" Width="10" Background="Transparent" Cursor="SizeWestEast"
               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 10" IsVisible="False" />
 
-      <ContentControl x:Name="workshopDockHost" Grid.Column="5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="1,0,0,0" IsVisible="False" />
+      <ContentControl x:Name="mainDockHost" Grid.Column="7" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="1,0,0,0" IsVisible="False" />
+
+      <Border x:Name="bottomDockSplitter" Grid.Row="1" Grid.ColumnSpan="8" Height="7" Background="Transparent" Cursor="SizeNorthSouth"
+              HorizontalAlignment="Stretch" VerticalAlignment="Center" IsVisible="False" />
+
+      <ContentControl x:Name="bottomDockHost" Grid.Row="2" Grid.ColumnSpan="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="{DynamicResource FormBackgroundBrush}" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,1,0,0" IsVisible="False" />
     </Grid>
 
-    <Border x:Name="workshopDockPreviewBorder" Background="{DynamicResource WorkshopDockPreviewBackgroundBrush}"
+    <Border x:Name="leftDockPreviewBorder" Background="{DynamicResource WorkshopDockPreviewBackgroundBrush}"
+            BorderBrush="{DynamicResource ButtonSelectionBrush}" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+            BorderThickness="2" IsVisible="False" Margin="0" Width="420" />
+
+    <Border x:Name="mainDockPreviewBorder" Background="{DynamicResource WorkshopDockPreviewBackgroundBrush}"
             BorderBrush="{DynamicResource ButtonSelectionBrush}" HorizontalAlignment="Right" VerticalAlignment="Stretch"
             BorderThickness="2" IsVisible="False" Margin="0" Width="360" />
+
+    <Border x:Name="bottomDockPreviewBorder" Background="{DynamicResource WorkshopDockPreviewBackgroundBrush}"
+            BorderBrush="{DynamicResource ButtonSelectionBrush}" HorizontalAlignment="Stretch" VerticalAlignment="Bottom"
+            BorderThickness="2" IsVisible="False" Margin="0" Height="260" />
 
     <StackPanel x:Name="notificationContainer"
                 HorizontalAlignment="Left"

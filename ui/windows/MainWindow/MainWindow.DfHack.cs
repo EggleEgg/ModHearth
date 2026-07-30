@@ -78,6 +78,8 @@ public partial class MainWindow
             dfhackStatusLabel.Text = dfStatus;
 
         dfhackStatusLabel.IsVisible = true;
+        if (dfhackStatusScrollViewer != null)
+            dfhackStatusScrollViewer.IsVisible = true;
     }
 
     private void ApplyDwarfFortressButtonStatus(bool dfRunning, bool dfFound)
@@ -108,6 +110,8 @@ public partial class MainWindow
 
         dfhackStatusLabel.Text = transientStatusNotice;
         dfhackStatusLabel.IsVisible = true;
+        if (dfhackStatusScrollViewer != null)
+            dfhackStatusScrollViewer.IsVisible = true;
         return true;
     }
 }

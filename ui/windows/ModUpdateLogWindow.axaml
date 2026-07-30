@@ -2,44 +2,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:ModHearth.UI"
         x:Class="ModHearth.UI.ModUpdateLogWindow"
-        x:DataType="ui:ModUpdateLogWindow"
         Title="Mod Update Log"
         Width="980"
-        Height="560"
+        Height="320"
         MinWidth="820"
-        MinHeight="480">
-
-  <Grid Margin="12" RowDefinitions="Auto,*">
-    <ui:ModRefControl x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" />
-    <DataGrid x:Name="logList" Grid.Row="1"
-              ItemsSource="{Binding Entries}"
-              CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
-              IsReadOnly="True" GridLinesVisibility="None" LoadingRow="LogListLoadingRow">
-      <DataGrid.Resources>
-        <!-- DataGridColumn properties (other than a column's own Binding) resolve against the DataGrid's DataContext, not each row's item a "DataGridCell TextBlock" Styles
-        selector with {Binding RowBrush} looks correct but doesn't reliably re-evaluate on virtualized row/cell recycling. CellTheme is Avalonia's documented fix for this: a
-        ControlTheme applied per-column to each generated DataGridCell, whose bindings correctly resolve against (and refresh for) that cell's own row item. -->
-        <ControlTheme x:Key="ModUpdateLogRowForegroundCellTheme"
-                      TargetType="DataGridCell"
-                      BasedOn="{StaticResource {x:Type DataGridCell}}"
-                      x:DataType="ui:ModUpdateLogItemViewModel">
-          <Setter Property="Foreground" Value="{Binding RowBrush}" />
-        </ControlTheme>
-      </DataGrid.Resources>
-      <DataGrid.Styles>
-        <Style Selector="DataGridRow:selected /template/ Rectangle">
-          <Setter Property="Fill" Value="Transparent" />
-        </Style>
-      </DataGrid.Styles>
-      <DataGrid.Columns>
-        <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="160" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-        <DataGridTextColumn Header="Mod" Binding="{Binding ModName}" Width="220" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-        <DataGridTextColumn Header="Type" Binding="{Binding SourceType}" Width="120" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-        <DataGridTextColumn Header="State" Binding="{Binding StateText}" SortMemberPath="StateSortRank" Width="120" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-        <DataGridTextColumn Header="Active" Binding="{Binding ActiveText}" Width="80" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-        <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="*" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-      </DataGrid.Columns>
-    </DataGrid>
-
-  </Grid>
+        MinHeight="240"
+        MaxWidth="1200"
+        MaxHeight="600">
+  <ui:ModUpdateLogControl x:Name="LogControl" />
 </Window>

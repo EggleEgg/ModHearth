@@ -11,7 +11,7 @@ internal readonly record struct ModContextMenuState(
     bool CanOpenFolder,
     bool HasSteamPage,
     bool ShowSteamActionsForContext,
-    bool IsSteamFolder)
+    bool IsSteamLocal)
 {
     public bool HasLocalActions => LocalCount > 0;
     public bool HasSteamActions => ShowSteamActionsForContext && SteamCount > 0;
@@ -95,7 +95,7 @@ internal static class ModContextMenuSupport
         bool canOpenFolder = !string.IsNullOrWhiteSpace(contextMod.path) && Directory.Exists(contextMod.path);
         bool hasSteamPage = ModHearthManager.TryGetSteamWorkshopItemId(contextMod, out _);
 
-        (_, _, _, bool isSteamFolder) = ModSourceClassifier.Classify(
+        (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(
             contextMod,
             ModHearthManager.GetModsPath(),
             ModHearthManager.GetVanillaModsPath());
@@ -106,7 +106,7 @@ internal static class ModContextMenuSupport
             canOpenFolder,
             hasSteamPage,
             steamMods.Count > 0,
-            isSteamFolder);
+            isSteamLocal);
     }
 
     public static void ApplyState(ContextMenu menu, ModContextMenuState state)
@@ -116,19 +116,19 @@ internal static class ModContextMenuSupport
             DeleteTag,
             state.HasLocalActions,
             state.HasLocalActions,
-            state.LocalCount > 1 ? $"Delete {state.LocalCount} local mods" : (state.IsSteamFolder ? "Delete local mod copy" : "Delete local mod"));
+            state.LocalCount > 1 ? $"Delete {state.LocalCount} local mods" : (state.IsSteamLocal ? "Delete local mod copy" : "Delete local mod"));
         SetMenuItem(
             menu,
             UnsubscribeTag,
             state.HasSteamActions,
             state.HasSteamActions,
-            state.SteamCount > 1 ? $"Unsubscribe from {state.SteamCount} steam mods" : (state.IsSteamFolder ? "Unsubscribe from steam mod copy" : "Unsubscribe from steam"));
+            state.SteamCount > 1 ? $"Unsubscribe from {state.SteamCount} steam mods" : (state.IsSteamLocal ? "Unsubscribe from steam mod copy" : "Unsubscribe from steam"));
         SetMenuItem(
             menu,
             RedownloadTag,
             state.HasSteamActions,
             state.HasSteamActions,
-            state.SteamCount > 1 ? $"Redownload {state.SteamCount} mods" : (state.IsSteamFolder ? "Redownload steam mod copy" : "Redownload from steam"));
+            state.SteamCount > 1 ? $"Redownload {state.SteamCount} mods" : (state.IsSteamLocal ? "Redownload steam mod copy" : "Redownload from steam"));
         SetMenuItem(menu, OpenFolderTag, true, state.CanOpenFolder);
         SetMenuItem(menu, OpenSteamTag, state.HasSteamPage, state.HasSteamPage);
     }

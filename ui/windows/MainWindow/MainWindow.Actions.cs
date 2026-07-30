@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.Media;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -13,57 +14,119 @@ public partial class MainWindow
 {
     private async Task OpenSortRulesAsync()
     {
-        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
-        List<ModReference> modRefs = new();
-        foreach (DFHMod mod in manager.modPool)
+        if (_sortRulesDockManager?.IsOpen == true && _sortRulesDockManager.IsDocked)
         {
-            ModReference modref = manager.GetRefFromDFHMod(mod);
-            if (modref == null)
-                continue;
-            string id = modref.ID?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(id))
-                continue;
-            if (seen.Add(id))
-                modRefs.Add(modref);
+            _sortRulesDockManager.Close();
+            return;
         }
 
-        SortRulesWindow dialog = new SortRulesWindow(
-            manager.GetModRelationshipRules(),
-            modRefs,
-            ModHearthManager.GetModRelationshipRulesPath(),
-            rules =>
-            {
-                manager.SetModRelationshipRules(rules);
-                manager.FindModlistProblems();
-                RefreshModlistPanels();
-            })
-        {
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-
-        await dialog.ShowDialog(this);
+        _workshopDockManager?.Close();
+        _updateLogDockManager?.Close();
+        _sortRulesDockManager?.Open();
+        await Task.CompletedTask;
     }
 
     private void OpenModUpdateLog()
     {
-        ModUpdateLogWindow dialog = new ModUpdateLogWindow(manager)
+        if (_updateLogDockManager?.IsOpen == true && _updateLogDockManager.IsDocked)
         {
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
+            _updateLogDockManager.Close();
+            return;
+        }
+
+        _workshopDockManager?.Close();
+        _updateLogDockManager?.Open();
+    }
+
+    private IReadOnlyDictionary<DockSide, DockingTarget> CreateDockSideTargets()
+    {
+        return new Dictionary<DockSide, DockingTarget>
+        {
+            [DockSide.Left] = new DockingTarget
+            {
+                MainGrid = mainGrid,
+                Side = DockSide.Left,
+                SplitterIndex = 1,
+                ContentIndex = 0,
+                SplitterControl = leftDockSplitter,
+                DockHostControl = leftDockHost,
+                PreviewBorder = leftDockPreviewBorder
+            },
+            [DockSide.Right] = new DockingTarget
+            {
+                MainGrid = mainGrid,
+                Side = DockSide.Right,
+                SplitterIndex = 6,
+                ContentIndex = 7,
+                SplitterControl = mainDockSplitter,
+                DockHostControl = mainDockHost,
+                PreviewBorder = mainDockPreviewBorder
+            },
+            [DockSide.Bottom] = new DockingTarget
+            {
+                MainGrid = mainGrid,
+                Side = DockSide.Bottom,
+                SplitterIndex = 1,
+                ContentIndex = 2,
+                SplitterControl = bottomDockSplitter,
+                DockHostControl = bottomDockHost,
+                PreviewBorder = bottomDockPreviewBorder
+            }
         };
-        _ = dialog.ShowDialog(this);
+    }
+
+    private bool IsDockSideAvailable(DockSide side, object? requestingManager)
+    {
+        return !IsDockSideOccupiedByOther(_workshopDockManager, side, requestingManager)
+            && !IsDockSideOccupiedByOther(_updateLogDockManager, side, requestingManager)
+            && !IsDockSideOccupiedByOther(_sortRulesDockManager, side, requestingManager);
+    }
+
+    private static bool IsDockSideOccupiedByOther<TControl, TWindow>(
+        DockingManager<TControl, TWindow>? manager,
+        DockSide side,
+        object? requestingManager)
+        where TControl : UserControl
+        where TWindow : Window
+    {
+        return manager != null
+            && !ReferenceEquals(manager, requestingManager)
+            && manager.IsDocked
+            && manager.ActiveSide == side;
+    }
+
+    private void AcquireDockSide(DockSide side, object acquiringManager)
+    {
+        UndockIfOccupyingSide(_workshopDockManager, side, acquiringManager);
+        UndockIfOccupyingSide(_updateLogDockManager, side, acquiringManager);
+        UndockIfOccupyingSide(_sortRulesDockManager, side, acquiringManager);
+    }
+
+    private static void UndockIfOccupyingSide<TControl, TWindow>(
+        DockingManager<TControl, TWindow>? manager,
+        DockSide side,
+        object acquiringManager)
+        where TControl : UserControl
+        where TWindow : Window
+    {
+        if (manager != null
+            && !ReferenceEquals(manager, acquiringManager)
+            && manager.IsDocked
+            && manager.ActiveSide == side)
+        {
+            manager.SetDocked(false);
+        }
     }
 
     private void InitializeDockingManagers()
     {
-        bool initialDocked = ConfigManager.GetIsWorkshopDownloaderDocked();
+        var sideTargets = CreateDockSideTargets();
+
+        bool workshopInitialDocked = ConfigManager.GetIsWorkshopDownloaderDocked();
         _workshopDockManager = new DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>(
             this,
-            mainGrid,
-            splitterColumnIndex: 4,
-            contentColumnIndex: 5,
-            workshopSplitter,
-            workshopDockHost,
-            workshopDockPreviewBorder,
+            sideTargets,
+            DockSide.Right,
             () =>
             {
                 var ctrl = new WorkshopDownloaderControl(manager);
@@ -77,8 +140,10 @@ public partial class MainWindow
             WorkshopDownloaderWindow.DefaultWidth,
             WorkshopDownloaderWindow.DefaultMinWidth,
             WorkshopDownloaderWindow.DefaultMaxWidth,
-            splitterWidth: 7,
-            initialDocked: initialDocked
+            splitterSize: 7,
+            initialDocked: workshopInitialDocked,
+            isSideAvailable: side => IsDockSideAvailable(side, _workshopDockManager),
+            onSideAcquired: side => AcquireDockSide(side, _workshopDockManager!)
         );
         _workshopDockManager.DockStateChanged += (_, _) =>
         {
@@ -86,14 +151,111 @@ public partial class MainWindow
             if (ConfigManager.GetIsWorkshopDownloaderDocked() != docked)
             {
                 ConfigManager.SetIsWorkshopDownloaderDocked(docked);
-                UpdateWorkshopDownloaderButtonModeImage();
+                UpdateDockingButtonModeImages();
             }
         };
-        UpdateWorkshopDownloaderButtonModeImage();
+
+        _updateLogDockManager = new DockingManager<ModUpdateLogControl, ModUpdateLogWindow>(
+            this,
+            sideTargets,
+            DockSide.Bottom,
+            () =>
+            {
+                return new ModUpdateLogControl(manager);
+            },
+            control => new ModUpdateLogWindow(manager, control)
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            },
+            ModUpdateLogWindow.DefaultHeight,
+            ModUpdateLogWindow.DefaultMinHeight,
+            ModUpdateLogWindow.DefaultMaxHeight,
+            splitterSize: 7,
+            initialDocked: ConfigManager.GetIsModUpdateLogDocked(),
+            isSideAvailable: side => IsDockSideAvailable(side, _updateLogDockManager),
+            onSideAcquired: side => AcquireDockSide(side, _updateLogDockManager!)
+        );
+
+        _updateLogDockManager.DockStateChanged += (_, _) =>
+        {
+            bool docked = _updateLogDockManager.IsDocked;
+            if (ConfigManager.GetIsModUpdateLogDocked() != docked)
+            {
+                ConfigManager.SetIsModUpdateLogDocked(docked);
+                UpdateDockingButtonModeImages();
+            }
+        };
+
+        bool sortRulesInitialDocked = ConfigManager.GetIsSortRulesDocked();
+        _sortRulesDockManager = new DockingManager<SortRulesControl, SortRulesWindow>(
+            this,
+            sideTargets,
+            DockSide.Left,
+            () =>
+            {
+                List<ModReference> modRefs = manager.modPool
+                    .Select(mod => manager.GetRefFromDFHMod(mod))
+                    .Where(modref => modref != null && !string.IsNullOrWhiteSpace(modref.ID))
+                    .ToList();
+
+                var ctrl = new SortRulesControl(
+                    manager.GetModRelationshipRules(),
+                    modRefs,
+                    ModHearthManager.GetModRelationshipRulesPath(),
+                    rules =>
+                    {
+                        manager.SetModRelationshipRules(rules);
+                        manager.FindModlistProblems();
+                        RefreshModlistPanels();
+                    });
+                ctrl.CloseRequested += (_, _) => _sortRulesDockManager?.Close();
+                return ctrl;
+            },
+            control => new SortRulesWindow(
+                manager.GetModRelationshipRules(),
+                manager.modPool.Select(mod => manager.GetRefFromDFHMod(mod)).Where(m => m != null && !string.IsNullOrWhiteSpace(m.ID))!,
+                ModHearthManager.GetModRelationshipRulesPath(),
+                rules =>
+                {
+                    manager.SetModRelationshipRules(rules);
+                    manager.FindModlistProblems();
+                    RefreshModlistPanels();
+                })
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            },
+            SortRulesWindow.DefaultWidth,
+            SortRulesWindow.DefaultMinWidth,
+            SortRulesWindow.DefaultMaxWidth,
+            splitterSize: 7,
+            initialDocked: sortRulesInitialDocked,
+            isSideAvailable: side => IsDockSideAvailable(side, _sortRulesDockManager),
+            onSideAcquired: side => AcquireDockSide(side, _sortRulesDockManager!)
+        );
+
+        _sortRulesDockManager.DockStateChanged += (_, _) =>
+        {
+            bool docked = _sortRulesDockManager.IsDocked;
+            if (ConfigManager.GetIsSortRulesDocked() != docked)
+            {
+                ConfigManager.SetIsSortRulesDocked(docked);
+                UpdateDockingButtonModeImages();
+            }
+        };
+
+        InitializeDockingButtons();
     }
+
 
     private async void OpenWorkshopDownloader()
     {
+        if (_workshopDockManager?.IsOpen == true && _workshopDockManager.IsDocked)
+        {
+            _workshopDockManager.Close();
+            return;
+        }
+
+        _updateLogDockManager?.Close();
         _workshopDockManager?.Open();
         if (_workshopDockManager?.SharedControl != null)
         {

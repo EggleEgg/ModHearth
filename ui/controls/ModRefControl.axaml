@@ -66,12 +66,12 @@
         <MenuItem.Header>
           <Panel>
             <TextBlock Text="Open Folder"
-                       IsVisible="{Binding !IsSteamFolderModSource}" />
+                       IsVisible="{Binding !IsSteamLocalModSource}" />
             <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch"
-                  IsVisible="{Binding IsSteamFolderModSource}">
+                  IsVisible="{Binding IsSteamLocalModSource}">
               <TextBlock Text="{Binding #OpenSteamFolderCheckBox.IsChecked, Converter={StaticResource FolderTextConverter}}" />
               <CheckBox x:Name="OpenSteamFolderCheckBox"
-                        IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamFolderEnabled, FallbackValue=False}" />
+                        IsChecked="{Binding IsOpenSteamFolderEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
             </Grid>
           </Panel>
         </MenuItem.Header>
@@ -82,7 +82,7 @@
             <TextBlock x:Name="OpenSteamText"
                        Text="{Binding #OpenSteamInClientCheckBox.IsChecked, Converter={StaticResource SteamTextConverter}}" />
             <CheckBox x:Name="OpenSteamInClientCheckBox"
-                      IsChecked="{Binding $parent[ui:MainWindow].IsOpenSteamInClientEnabled, FallbackValue=False}" />
+                      IsChecked="{Binding IsOpenSteamInClientEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
           </Grid>
         </MenuItem.Header>
       </MenuItem>
@@ -93,7 +93,7 @@
             <TextBlock x:Name="CopyIdText"
                        Text="{Binding #CopySteamFileIdCheckBox.IsChecked, Converter={StaticResource IdTextConverter}}" />
             <CheckBox x:Name="CopySteamFileIdCheckBox"
-                      IsChecked="{Binding $parent[ui:MainWindow].IsCopySteamFileIdEnabled, FallbackValue=False}" />
+                      IsChecked="{Binding IsCopySteamFileIdEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
           </Grid>
         </MenuItem.Header>
       </MenuItem>
@@ -130,7 +130,7 @@
         ToolTip.Tip="Vanilla source mod"/>
       <Image
         Source="{ui:AssetImage steamFolderIcon}"
-        IsVisible="{Binding IsSteamFolderModSource}"
+        IsVisible="{Binding IsSteamLocalModSource}"
         ToolTip.Tip="Steam and local mod"/>
       <Image
         Source="{ui:AssetImage folderIcon}"

@@ -26,7 +26,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     private bool isVanillaModSource;
     private bool isLocalModSource;
     private bool isSteamModSource;
-    private bool isSteamFolderModSource;
+    private bool isSteamLocalModSource;
     private bool showDropAbove;
     private bool showDropBelow;
     private ReferenceOverlayKind referenceOverlay;
@@ -200,14 +200,14 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         }
     }
 
-    public bool IsSteamFolderModSource
+    public bool IsSteamLocalModSource
     {
-        get => isSteamFolderModSource;
+        get => isSteamLocalModSource;
         set
         {
-            if (isSteamFolderModSource == value)
+            if (isSteamLocalModSource == value)
                 return;
-            isSteamFolderModSource = value;
+            isSteamLocalModSource = value;
             OnPropertyChanged();
         }
     }

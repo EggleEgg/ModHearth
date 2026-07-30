@@ -2,7 +2,7 @@ namespace ModHearth;
 
 public static class ModSourceClassifier
 {
-    public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamFolder) Classify(
+    public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamLocal) Classify(
         ModReference modref,
         string? modsFolderPath,
         string? vanillaFolderPath)
@@ -27,9 +27,9 @@ public static class ModSourceClassifier
 
         bool hasSteamId = ConfigManager.TryParsePositiveSteamId(modref.steamID, out _);
 
-        bool isSteamFolder = isLocalPath && isSteamShadowCopy;
+        bool isSteamLocal = isLocalPath && isSteamShadowCopy;
 
-        if (isSteamFolder)
+        if (isSteamLocal)
             return (false, false, false, true);
 
         if (isLocalPath)
@@ -45,7 +45,7 @@ public static class ModSourceClassifier
         return (false, false, false, false);
     }
 
-    public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamFolder) Classify(ModReference modref, string? modsFolderPath)
+    public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamLocal) Classify(ModReference modref, string? modsFolderPath)
         => Classify(modref, modsFolderPath, null);
 
     private static bool IsPathUnderRoot(string path, string? root)

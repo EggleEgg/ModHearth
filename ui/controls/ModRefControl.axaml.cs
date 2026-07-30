@@ -143,6 +143,11 @@ public partial class ModRefControl : UserControl
         if (DataContext is not ModRefViewModel vm)
             return;
 
+        // The ContextMenu can be reassigned to a different owning control (ModUpdateLogWindow and
+        // WorkshopDownloaderWindow both do this via a hidden ContextMenuHost), so its own DataContext
+        // inheritance can't be relied on -- bind the Header content directly against the resolved vm.
+        menu.DataContext = vm;
+
         IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
 
         // 1. Centralized preparation if a manager is available via the provider.

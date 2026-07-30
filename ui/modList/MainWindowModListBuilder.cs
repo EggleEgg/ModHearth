@@ -24,17 +24,7 @@ internal static class MainWindowModListBuilder
             DFHMod dfm = modList[i];
             string key = dfm.ToString();
             ModReference modref = manager.GetModRef(key);
-            ModRefViewModel vm = new ModRefViewModel(modref);
-            (bool isVanillaMod, bool isLocalMod, bool isSteamMod, bool isSteamFolderMod) = ModSourceClassifier.Classify(
-                modref,
-                modsFolderPath,
-                vanillaFolderPath);
-            vm.IsVanillaModSource = isVanillaMod;
-            vm.IsLocalModSource = isLocalMod;
-            vm.IsSteamModSource = isSteamMod;
-            vm.IsSteamFolderModSource = isSteamFolderMod;
-            vm.RefreshStyle();
-            results[i] = (key, vm);
+            results[i] = (key, CreateViewModel(modref, modsFolderPath, vanillaFolderPath));
         });
 
         foreach ((string Key, ModRefViewModel Vm)? result in results)
@@ -42,6 +32,68 @@ internal static class MainWindowModListBuilder
             if (result != null)
                 modViewMap[result.Value.Key] = result.Value.Vm;
         }
+    }
+
+    public static ModRefViewModel CreateViewModel(ModReference modref, string modsFolderPath, string vanillaFolderPath)
+    {
+        ModRefViewModel vm = new ModRefViewModel(modref);
+        ApplyClassification(vm, modref, modsFolderPath, vanillaFolderPath);
+        return vm;
+    }
+
+    public static void ApplyClassification(ModRefViewModel vm, ModReference modref, string modsFolderPath, string vanillaFolderPath)
+    {
+        (bool isVanilla, bool isLocal, bool isSteam, bool isSteamLocal) =
+            ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
+        vm.IsVanillaModSource = isVanilla;
+        vm.IsLocalModSource = isLocal;
+        vm.IsSteamModSource = isSteam;
+        vm.IsSteamLocalModSource = isSteamLocal;
+        vm.RefreshStyle();
+    }
+
+    public static void CopyClassification(ModRefViewModel target, ModRefViewModel source)
+    {
+        target.IsVanillaModSource = source.IsVanillaModSource;
+        target.IsLocalModSource = source.IsLocalModSource;
+        target.IsSteamModSource = source.IsSteamModSource;
+        target.IsSteamLocalModSource = source.IsSteamLocalModSource;
+        target.RefreshStyle();
+    }
+
+    public static List<ModRefViewModel> CollapseByModId(IEnumerable<ModRefViewModel> viewModels)
+    {
+        Dictionary<string, ModRefViewModel> best = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (ModRefViewModel vm in viewModels)
+        {
+            string id = vm.ModReference.ID?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id))
+                continue;
+
+            if (!best.TryGetValue(id, out ModRefViewModel? existing) || IsPreferredForCollapsing(vm, existing))
+                best[id] = vm;
+        }
+
+        return best.Values.ToList();
+    }
+
+    private static bool IsPreferredForCollapsing(ModRefViewModel candidate, ModRefViewModel current)
+    {
+        int candidateRank = CollapsingRank(candidate);
+        int currentRank = CollapsingRank(current);
+        if (candidateRank != currentRank)
+            return candidateRank > currentRank;
+
+        return (candidate.LastModifiedTime ?? DateTime.MinValue) > (current.LastModifiedTime ?? DateTime.MinValue);
+    }
+
+    private static int CollapsingRank(ModRefViewModel vm)
+    {
+        if (vm.IsSteamLocalModSource) return 3;
+        if (vm.IsLocalModSource) return 2;
+        if (vm.IsSteamModSource) return 1;
+        return 0;
     }
 
     public static List<ModRefViewModel> BuildInactiveList(

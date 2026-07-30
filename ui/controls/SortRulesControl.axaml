@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ModHearth.UI"
+             x:Class="ModHearth.UI.SortRulesControl">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="ui:ModRefViewModel">
+      <ui:ModRefControl ShowColorUnderlay="True"
+                        ShowDetailedRuleBadges="True"
+                        AllowRelationshipEditing="True"
+                        AllowContextActions="False"
+                        AllowColorEditing="False"
+                        AllowSeparators="False"
+                        Margin="0"
+                        Padding="2,0"
+                        ToolTip.Tip="{Binding HoverTooltip}" />
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <Grid x:Name="MainGrid" Margin="12" ColumnSpacing="4" SizeChanged="OnMainGridSizeChanged">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="320" MinWidth="200" />
+      <ColumnDefinition Width="Auto" />
+      <ColumnDefinition Width="*" MinWidth="400" />
+    </Grid.ColumnDefinitions>
+
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+      <TextBlock Text="Mods" FontWeight="Bold" />
+      <ui:ModSearchBar x:Name="modSearchBar"
+                       Grid.Row="1"
+                       IsSortingEnabled="True"
+                       HideFiltered="True" />
+
+      <ListBox x:Name="modTreeList"
+               Grid.Row="2"
+               SelectionMode="Single"
+               AutoScrollToSelectedItem="False">
+        <ListBox.ItemContainerTheme>
+          <ControlTheme TargetType="ListBoxItem" x:DataType="ui:ModRefViewModel">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+          </ControlTheme>
+        </ListBox.ItemContainerTheme>
+      </ListBox>
+    </Grid>
+
+    <Border Grid.Column="1" Background="{DynamicResource BorderPanelBrush}" Width="0.5"
+            HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0" />
+    <GridSplitter Grid.Column="1" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
+                  HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
+
+    <ScrollViewer Grid.Column="2">
+      <Grid Margin="0,0,8,0">
+        <StackPanel x:Name="editorPanel" Spacing="10">
+          <ScrollViewer x:Name="titleScrollViewer" ScrollViewer.HorizontalScrollBarVisibility="Auto" >
+            <StackPanel Margin="0,0,0,4">
+              <TextBlock x:Name="selectedTitleText" FontSize="18" FontWeight="Bold" />
+              <TextBlock x:Name="selectedSubtitleText" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+          </ScrollViewer>
+
+          <Border BorderThickness="1" Background="{DynamicResource BorderPanelBrush}" CornerRadius="6" Padding="10" Margin="0,4,0,0">
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+                <TextBlock Text="Relationships" FontWeight="Bold" VerticalAlignment="Center" />
+                <Button x:Name="clearAllRelationshipsButton" Grid.Column="1" Foreground="{DynamicResource MainTextBrush}"
+                        Content="Clear all relationships" Padding="10,4" VerticalAlignment="Center"
+                        HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch" ColumnSpacing="8">
+                <TextBlock x:Name="summaryText" Margin="0,0,0,4" />
+                <TextBlock x:Name="validationText" Grid.Row="1" TextWrapping="Wrap"/>
+                <StackPanel x:Name="validationIssuesPanel" Grid.Row="1" Spacing="4" IsVisible="False" />
+                <Button x:Name="fixConflictsButton" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource MainTextBrush}"
+                        Content="Fix conflicts" Padding="10,4" VerticalAlignment="Top" BorderBrush="Transparent"
+                        HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <StackPanel x:Name="sectionsPanel" Spacing="10" />
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
+  </Grid>
+</UserControl>

@@ -1433,5 +1433,19 @@ namespace ModHearth
             Config.IsWorkshopDownloaderDocked = docked;
             SaveConfigFile("Workshop downloader docked");
         }
+
+        public static bool GetIsModUpdateLogDocked() => Config.IsModUpdateLogDocked;
+        public static void SetIsModUpdateLogDocked(bool docked)
+        {
+            Config.IsModUpdateLogDocked = docked;
+            SaveConfigFile("Mod update log docked");
+        }
+
+        public static bool GetIsSortRulesDocked() => Config.IsSortRulesDocked;
+        public static void SetIsSortRulesDocked(bool docked)
+        {
+            Config.IsSortRulesDocked = docked;
+            SaveConfigFile("Sort rules docked");
+        }
     }
 }

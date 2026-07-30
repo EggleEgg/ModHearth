@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ModHearth.UI"
+             x:Class="ModHearth.UI.ModUpdateLogControl"
+             x:DataType="ui:ModUpdateLogControl">
+
+  <Grid Margin="12" RowDefinitions="Auto,*">
+    <ui:ModRefControl x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" />
+    <DataGrid x:Name="logList" Grid.Row="1"
+              ItemsSource="{Binding Entries}"
+              CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
+              IsReadOnly="True" GridLinesVisibility="None"
+              ScrollViewer.HorizontalScrollBarVisibility="Auto">
+      <DataGrid.Resources>
+        <ControlTheme x:Key="ModUpdateLogRowForegroundCellTheme"
+                      TargetType="DataGridCell"
+                      BasedOn="{StaticResource {x:Type DataGridCell}}"
+                      x:DataType="ui:ModUpdateLogItemViewModel">
+          <Setter Property="Foreground" Value="{Binding RowBrush}" />
+        </ControlTheme>
+      </DataGrid.Resources>
+      <DataGrid.Styles>
+        <Style Selector="DataGridRow:selected /template/ Rectangle">
+          <Setter Property="Fill" Value="Transparent" />
+        </Style>
+      </DataGrid.Styles>
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="160" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
+        <DataGridTextColumn Header="Mod" Binding="{Binding ModName}" Width="220" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
+        <DataGridTextColumn Header="Type" Binding="{Binding SourceType}" Width="80" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
+        <DataGridTextColumn Header="State" Binding="{Binding StateText}" SortMemberPath="StateSortRank" Width="80" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
+        <DataGridTextColumn Header="Active" Binding="{Binding ActiveText}" Width="80" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
+        <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="*" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
+      </DataGrid.Columns>
+    </DataGrid>
+
+  </Grid>
+</UserControl>

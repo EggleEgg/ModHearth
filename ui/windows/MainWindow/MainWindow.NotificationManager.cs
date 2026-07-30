@@ -26,7 +26,7 @@ public partial class MainWindow
             while (container.Children.Count >= 3)
             {
                 var oldest = container.Children[container.Children.Count - 1];
-                if (oldest is Border b && b.Tag is System.Threading.CancellationTokenSource oldCts)
+                if (oldest is Border b && b.Tag is CancellationTokenSource oldCts)
                 {
                     oldCts.Cancel();
                     oldCts.Dispose();
@@ -35,7 +35,7 @@ public partial class MainWindow
             }
 
             // Create notification border and elements
-            var notificationCts = new System.Threading.CancellationTokenSource();
+            var notificationCts = new CancellationTokenSource();
 
             var border = new Border
             {
@@ -155,7 +155,7 @@ public partial class MainWindow
 
     public void DismissNotification(Border border)
     {
-        if (border.Tag is System.Threading.CancellationTokenSource cts)
+        if (border.Tag is CancellationTokenSource cts)
         {
             cts.Cancel();
             cts.Dispose();
@@ -176,7 +176,7 @@ public partial class MainWindow
         {
             foreach (var child in container.Children)
             {
-                if (child is Border b && b.Tag is System.Threading.CancellationTokenSource cts)
+                if (child is Border b && b.Tag is CancellationTokenSource cts)
                 {
                     cts.Cancel();
                     cts.Dispose();

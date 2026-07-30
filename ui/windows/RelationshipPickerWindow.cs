@@ -37,20 +37,12 @@ internal sealed class RelationshipPickerWindow : Window
         this.ownerId = ownerId.Trim();
         this.alreadyAdded = new HashSet<string>(alreadyAdded, StringComparer.OrdinalIgnoreCase);
 
-        // Wrap fresh ModRefViewModel instances instead of reusing the ones the opening window is already displaying
-        string modsFolderPath = ConfigManager.GetModsPath();
-        string vanillaFolderPath = ConfigManager.GetVanillaModsPath();
         allMods = candidates
             .Where(vm => !string.Equals(vm.ModReference.ID, this.ownerId, StringComparison.OrdinalIgnoreCase))
             .Select(vm =>
             {
                 ModRefViewModel copy = new ModRefViewModel(vm.ModReference);
-                (bool isVanilla, bool isLocal, bool isSteam, bool isSteamFolder) = ModSourceClassifier.Classify(vm.ModReference, modsFolderPath, vanillaFolderPath);
-                copy.IsVanillaModSource = isVanilla;
-                copy.IsLocalModSource = isLocal;
-                copy.IsSteamModSource = isSteam;
-                copy.IsSteamFolderModSource = isSteamFolder;
-                copy.RefreshStyle();
+                MainWindowModListBuilder.CopyClassification(copy, vm);
                 return copy;
             })
             .OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -103,7 +95,8 @@ internal sealed class RelationshipPickerWindow : Window
                 Padding = new Thickness(2, 0),
                 ShowDetailedRuleBadges = true,
                 AllowContextActions = false,
-                AllowRelationshipEditing = false // Disable context menu in picker
+                AllowColorEditing = false,
+                AllowRelationshipEditing = false
             };
 
             if (isAdded)

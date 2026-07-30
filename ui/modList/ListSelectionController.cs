@@ -336,7 +336,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (hit == null)
             return false;
 
-        if (!TryFindContextMenu(list, point.Position, out ContextMenu? menu, out Control? target))
+        if (!TryFindContextMenu(list, point.Position, out _, out _))
             return false;
 
         if (list.SelectedItems != null &&
@@ -347,8 +347,6 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         }
 
         UpdateSelectionState(list);
-        menu!.DataContext = hit;
-
         e.Handled = true;
         return true;
     }
@@ -359,7 +357,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (hit == null)
             return false;
 
-        if (!TryFindContextMenu(grid, point.Position, out ContextMenu? menu, out Control? target))
+        if (!TryFindContextMenu(grid, point.Position, out _, out _))
             return false;
 
         if (grid.SelectedItems != null &&
@@ -370,8 +368,6 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         }
 
         UpdateSelectionState(grid);
-        menu!.DataContext = hit;
-
         e.Handled = true;
         return true;
     }

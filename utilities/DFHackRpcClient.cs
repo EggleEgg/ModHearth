@@ -14,8 +14,9 @@ namespace ModHearth.Utilities
             error = string.Empty;
             int port = ResolveDFHackPort(dfFolderPath);
 
-            //TODO This will be spammed if modhearth modlist changes exist but DF is not yet in the world creation screen. I dont know what the best approach for this is
-            Console.WriteLine($"DFHackRpcClient: Attempting RPC connection to 127.0.0.1:{port} for command \'{command}\'");
+            // This will be spammed if modhearth modlist changes exist but DF is not yet in the world creation screen
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"DFHackRpcClient: Attempting RPC connection to 127.0.0.1:{port} for command \'{command}\'");
 
             try
             {

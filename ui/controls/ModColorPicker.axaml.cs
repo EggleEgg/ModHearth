@@ -75,31 +75,7 @@ public partial class ModColorPicker : UserControl
         var scrollViewer = this.FindControl<ScrollViewer>("ColorScrollViewer");
         if (scrollViewer != null)
         {
-            scrollViewer.AddHandler(InputElement.PointerPressedEvent, (sender, args) =>
-                {
-                    if (args.Source is Visual visual && visual.FindAncestorOfType<ScrollBar>(includeSelf: true) != null)
-                    {
-                        args.Handled = true;
-                    }
-                }, RoutingStrategies.Tunnel);
-
-            scrollViewer.PointerWheelChanged += (sender, args) =>
-            {
-                // If the user rolls a standard vertical wheel (Delta.Y is not 0)
-                if (args.Delta.Y != 0)
-                {
-                    var currentOffset = scrollViewer.Offset;
-                    // Adjust this number (e.g., 40) to change how fast/smoothly it scrolls per notch
-                    double scrollSpeed = 40;
-
-                    double newX = currentOffset.X - (args.Delta.Y * scrollSpeed);
-                    double maxX = scrollViewer.Extent.Width - scrollViewer.Viewport.Width;
-                    newX = Math.Clamp(newX, 0, Math.Max(0, maxX));
-
-                    scrollViewer.Offset = new Vector(newX, currentOffset.Y);
-                    args.Handled = true;
-                }
-            };
+            HorizontalScrollHelper.EnableSidewaysScrolling(scrollViewer);
         }
 
         var clearSelectionButton = this.FindControl<Button>("ClearSelectionButton");

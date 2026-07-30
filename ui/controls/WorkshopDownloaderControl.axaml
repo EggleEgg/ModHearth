@@ -46,17 +46,18 @@
       <TextBlock Text="Download Provider:" VerticalAlignment="Center" FontSize="12" />
       <Grid Grid.Column="1">
         <ComboBox x:Name="ProviderComboBox" HorizontalAlignment="Stretch" Height="30">
+          <!-- ComboBox.ItemTemplate bindings utterly fail to update dynamically. -->
+          <!-- TODO Research some way to brute-force StatusBrush to update in the dropdown list -->
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="workshop:IWorkshopDownloadProvider">
               <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{Binding StatusBrush}" />
                 <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
               </StackPanel>
             </DataTemplate>
           </ComboBox.ItemTemplate>
           <ComboBox.SelectionBoxItemTemplate>
             <DataTemplate x:DataType="workshop:IWorkshopDownloadProvider">
-              <TextBlock Margin="18,0,0,0" Text="{Binding Name}" VerticalAlignment="Center" />
+              <TextBlock Margin="16,0,0,0" Text="{Binding Name}" VerticalAlignment="Center" />
             </DataTemplate>
           </ComboBox.SelectionBoxItemTemplate>
         </ComboBox>
@@ -74,7 +75,7 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
           <Button x:Name="BtnRetryAll" Padding="8,4" Height="26" VerticalContentAlignment="Center" FontSize="11"
                   ToolTip.Tip="Retry all failed or cancelled downloads. Right click to toggle auto-retry" >
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="2">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
               <Image x:Name="autoRetryAllIndicator"
                      Source="{ui:AssetImage updateIcon}" IsVisible="{Binding IsAutoRetryAllEnabled}"
                      Width="14" Height="14"
