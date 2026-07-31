@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using System.ComponentModel;
 using System.Linq;
 
 namespace ModHearth.UI;
@@ -102,7 +103,7 @@ public partial class ModRefControl : UserControl
         }
     }
 
-    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ModRefViewModel.RuleBadges) ||
             e.PropertyName == nameof(ModRefViewModel.RelationshipCount))

@@ -307,6 +307,12 @@ namespace ModHearth.UI
 
             _isDocked = docked;
 
+            if (!IsOpen)
+            {
+                DockStateChanged?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
             if (_isDocked)
             {
                 if (_dragTracker != null)
@@ -514,6 +520,17 @@ namespace ModHearth.UI
                     floatingCenter.Y <= parentTopLeft.Y + snapThreshold,
                 _ => false
             };
+        }
+
+        // Vacates this manager's docked side without immediately creating a floating window. Used when another DockingManager is claiming the same side.
+        internal void ForceUndockForSideHandoff()
+        {
+            if (_isDisposed || !_isDocked) return;
+
+            CollapsePanel();
+            ClearDockHost(ActiveTarget);
+            _isDocked = false;
+            DockStateChanged?.Invoke(this, EventArgs.Empty);
         }
 
         private static double GetDistanceToSideEdge(

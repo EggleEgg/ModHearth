@@ -45,7 +45,7 @@
       </ListBox>
     </Grid>
 
-    <Border Grid.Column="1" Background="{DynamicResource BorderPanelBrush}" Width="0.5"
+    <Border Grid.Column="1" Background="{DynamicResource BorderPanelDarkBrush}" Width="0.5"
             HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0" />
     <GridSplitter Grid.Column="1" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
                   HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />

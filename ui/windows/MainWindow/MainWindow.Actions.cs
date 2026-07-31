@@ -36,8 +36,6 @@ public partial class MainWindow
             return;
         }
 
-        _workshopDockManager?.Close();
-        _updateLogDockManager?.Close();
         _sortRulesDockManager?.Open();
         await Task.CompletedTask;
     }
@@ -50,7 +48,6 @@ public partial class MainWindow
             return;
         }
 
-        _workshopDockManager?.Close();
         _updateLogDockManager?.Open();
     }
 
@@ -112,7 +109,7 @@ public partial class MainWindow
             && manager.IsDocked
             && manager.ActiveSide == side)
         {
-            manager.SetDocked(false);
+            manager.ForceUndockForSideHandoff();
         }
     }
 
@@ -248,7 +245,6 @@ public partial class MainWindow
             return;
         }
 
-        _updateLogDockManager?.Close();
         _workshopDockManager?.Open();
         if (_workshopDockManager?.SharedControl != null)
         {

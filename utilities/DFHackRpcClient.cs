@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -254,8 +255,8 @@ namespace ModHearth.Utilities
                 }
                 catch (SocketException ex) when (ex.SocketErrorCode == SocketError.WouldBlock)
                 {
-                    var writeList = new System.Collections.ArrayList { socket };
-                    var errorList = new System.Collections.ArrayList { socket };
+                    var writeList = new ArrayList { socket };
+                    var errorList = new ArrayList { socket };
                     Socket.Select(null, writeList, errorList, 100000); // 100ms in microseconds
                     if (writeList.Count > 0 && socket.Connected)
                     {

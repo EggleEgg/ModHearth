@@ -1,4 +1,5 @@
-﻿using Avalonia;
+﻿using System.Collections;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -13,9 +14,9 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
     private bool suppressSelectionHandling;
     private bool suppressSelectionForScrollbar;
     private List<T>? suppressSelectionSnapshot;
-    private System.Collections.IList? suppressSelectionList;
+    private IList? suppressSelectionList;
     private List<T>? contextSelectionSnapshot;
-    private System.Collections.IList? contextSelectionList;
+    private IList? contextSelectionList;
 
     public void RegisterList(DataGrid list)
     {
@@ -152,7 +153,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
 
         UpdateSelectionStateCore(list.Name, list.ItemsSource as IEnumerable<T>, list.SelectedItems);
     }
-    public void UpdateSelectionStateCore(string? listName, IEnumerable<T>? items, System.Collections.IList? selectedItems)
+    public void UpdateSelectionStateCore(string? listName, IEnumerable<T>? items, IList? selectedItems)
     {
 
 

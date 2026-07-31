@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -76,7 +77,7 @@ namespace ModHearth.UI
         private bool _suppressClipboardTextBoxAutoResolve;
         private readonly HashSet<ulong> _idsBeingResolved = new();
         private CancellationTokenSource? _statusCts;
-        private System.Collections.Specialized.NotifyCollectionChangedEventHandler? _queueCollectionChangedHandler;
+        private NotifyCollectionChangedEventHandler? _queueCollectionChangedHandler;
         private ModRefControl? _contextMenuHost;
         private bool _isSetupDialogShowing;
 

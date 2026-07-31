@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using Avalonia.Controls;
 using ModHearth.Utilities;
+using System.Globalization;
 
 namespace ModHearth.UI;
 
@@ -29,7 +30,7 @@ public partial class SortRulesWindow : Window, IStyleAwareWindow, IDisposable
             {
                 string content = File.ReadAllText(path);
                 var match = Regex.Match(content, $@"{attributeName}\s*=\s*""(?<val>[^""]+)""", RegexOptions.IgnoreCase);
-                if (match.Success && double.TryParse(match.Groups["val"].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val))
+                if (match.Success && double.TryParse(match.Groups["val"].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                 {
                     return val;
                 }

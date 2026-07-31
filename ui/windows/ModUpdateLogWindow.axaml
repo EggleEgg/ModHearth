@@ -4,7 +4,7 @@
         x:Class="ModHearth.UI.ModUpdateLogWindow"
         Title="Mod Update Log"
         Width="980"
-        Height="320"
+        Height="560"
         MinWidth="820"
         MinHeight="200">
   <ui:ModUpdateLogControl x:Name="LogControl" />

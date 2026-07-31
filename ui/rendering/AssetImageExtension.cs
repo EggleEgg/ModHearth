@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO;
 using System.Xml.Linq;
 using Avalonia;
@@ -91,7 +92,7 @@ internal static class ImageSourceLoader
             return GetMissingTextureImage();
 
         string key = (tint.HasValue || opacity.HasValue)
-            ? $"{normalized}|{tint?.ToString()}|{(opacity.HasValue ? opacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")}"
+            ? $"{normalized}|{tint?.ToString()}|{(opacity.HasValue ? opacity.Value.ToString(CultureInfo.InvariantCulture) : "")}"
             : normalized;
 
         // GetOrAdd is fast because creating Lazy is cheap.
@@ -123,6 +124,35 @@ internal static class ImageSourceLoader
         })).Value;
     }
 
+    /// <summary>
+    /// Checks if an SVG color value represents black.
+    /// </summary>
+    private static bool IsPureBlack(string? colorValue)
+    {
+        if (string.IsNullOrWhiteSpace(colorValue))
+            return false;
+
+        string val = colorValue.Trim().ToLowerInvariant();
+
+        if (val is "#000" or "#000000" or "#000000ff" or "black")
+            return true;
+
+        if (val.StartsWith("rgb", StringComparison.Ordinal))
+        {
+            string cleaned = val.Replace("rgba(", "").Replace("rgb(", "").Replace(")", "").Trim();
+            string[] parts = cleaned.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 3 && parts[0] == "0" && parts[1] == "0" && parts[2] == "0")
+            {
+                // If alpha channel is specified, ensure it's fully opaque
+                if (parts.Length == 4)
+                    return parts[3] is "1" or "1.0" or "100%" or "255";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static IImage? LoadTintedSvg(string assetUri, Color? tint = null, double? opacity = null)
     {
         try
@@ -135,7 +165,6 @@ internal static class ImageSourceLoader
             {
                 var hexColor = $"#{tint.Value.R:X2}{tint.Value.G:X2}{tint.Value.B:X2}";
 
-                // Replace all fill and stroke attributes that are not 'none'
                 foreach (var element in xdoc.Descendants())
                 {
                     var name = element.Name.LocalName.ToLowerInvariant();
@@ -146,26 +175,36 @@ internal static class ImageSourceLoader
                     var strokeAttr = element.Attribute("stroke");
                     var styleAttr = element.Attribute("style");
 
-                    // If it has NO attributes related to color, it defaults to black fill in SVG.
-                    // We force a fill attribute here to apply our tint.
+                    // If it has NO attributes related to color, SVG specification defaults to black fill.
                     if (fillAttr == null && strokeAttr == null && styleAttr == null)
                     {
                         element.SetAttributeValue("fill", hexColor);
                         continue;
                     }
 
-                    if (fillAttr != null && fillAttr.Value != "none")
+                    // Only tint if the fill attribute is explicitly black
+                    if (fillAttr != null && IsPureBlack(fillAttr.Value))
                         fillAttr.Value = hexColor;
 
-                    if (strokeAttr != null && strokeAttr.Value != "none")
+                    // Only tint if the stroke attribute is explicitly black
+                    if (strokeAttr != null && IsPureBlack(strokeAttr.Value))
                         strokeAttr.Value = hexColor;
 
+                    // Parse inline style="..." declarations for black fill/stroke rules
                     if (styleAttr != null)
                     {
-                        var val = styleAttr.Value;
-                        // Replace fill: and stroke: values if they are present and not 'none'
-                        val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=fill:)(?!none)[^;]+", hexColor);
-                        val = System.Text.RegularExpressions.Regex.Replace(val, "(?<=stroke:)(?!none)[^;]+", hexColor);
+                        string val = styleAttr.Value;
+                        val = System.Text.RegularExpressions.Regex.Replace(
+                            val,
+                            @"(?<prefix>fill|stroke)\s*:\s*(?<color>[^;]+)",
+                            match =>
+                            {
+                                string prefix = match.Groups["prefix"].Value;
+                                string rawColor = match.Groups["color"].Value;
+                                return IsPureBlack(rawColor) ? $"{prefix}:{hexColor}" : match.Value;
+                            },
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
                         styleAttr.Value = val;
                     }
                 }
@@ -176,7 +215,7 @@ internal static class ImageSourceLoader
                 var svgRoot = xdoc.Root;
                 if (svgRoot != null)
                 {
-                    svgRoot.SetAttributeValue("opacity", opacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    svgRoot.SetAttributeValue("opacity", opacity.Value.ToString(CultureInfo.InvariantCulture));
                 }
             }
 
@@ -421,7 +460,7 @@ internal static class ImageSourceLoader
 public sealed class TintedAssetConverter : IValueConverter
 {
     public static TintedAssetConverter Instance { get; } = new TintedAssetConverter();
-    public object? Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (parameter is not string assetName)
             return null;
@@ -435,7 +474,7 @@ public sealed class TintedAssetConverter : IValueConverter
         return ImageSourceLoader.LoadFromAssetUri(assetName, tint);
     }
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotSupportedException();
     }

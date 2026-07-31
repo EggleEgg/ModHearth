@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
@@ -27,7 +28,7 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow
             {
                 string content = File.ReadAllText(path);
                 var match = Regex.Match(content, $@"{attributeName}\s*=\s*""(?<val>[^""]+)""", RegexOptions.IgnoreCase);
-                if (match.Success && double.TryParse(match.Groups["val"].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double val))
+                if (match.Success && double.TryParse(match.Groups["val"].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                 {
                     return val;
                 }

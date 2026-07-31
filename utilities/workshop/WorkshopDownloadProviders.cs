@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -76,7 +77,7 @@ namespace ModHearth.Utilities.Workshop
                     return;
 
                 var match = ProgressRegex.Match(line);
-                if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double pct))
+                if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
                 {
                     progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
                 }
@@ -195,7 +196,7 @@ namespace ModHearth.Utilities.Workshop
                     return;
 
                 var match = ProgressRegex.Match(line);
-                if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double pct))
+                if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
                 {
                     var prog = new DownloadProgress((long)(pct * 1000), 100000, pct);
                     if (currentlyDownloadingId != 0 && itemLookup.TryGetValue(currentlyDownloadingId, out var activeItem))

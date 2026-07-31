@@ -1,6 +1,7 @@
 using Avalonia;
 using ModHearth.Utilities;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace ModHearth;
 
@@ -88,7 +89,7 @@ internal static class Program
 
     private static void RegisterSteamApiResolver()
     {
-        System.Runtime.InteropServices.NativeLibrary.SetDllImportResolver(
+        NativeLibrary.SetDllImportResolver(
             typeof(Steamworks.SteamAPI).Assembly,
             (libraryName, assembly, searchPath) =>
             {
@@ -118,7 +119,7 @@ internal static class Program
                 foreach (string candidate in candidates)
                 {
                     if (File.Exists(candidate) &&
-                        System.Runtime.InteropServices.NativeLibrary.TryLoad(candidate, out IntPtr handle))
+                        NativeLibrary.TryLoad(candidate, out IntPtr handle))
                     {
                         return handle;
                     }

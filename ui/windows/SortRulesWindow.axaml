@@ -3,7 +3,7 @@
         xmlns:ui="clr-namespace:ModHearth.UI"
         x:Class="ModHearth.UI.SortRulesWindow"
         Title="Sort Rules"
-        Width="760"
+        Width="980"
         Height="760"
         MinWidth="640"
         MinHeight="350"

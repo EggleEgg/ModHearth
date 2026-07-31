@@ -168,6 +168,7 @@ public static class WindowThemeManager
         if (app != null)
         {
             app.Resources["BorderPanelBrush"] = brushes.BorderPanel;
+            app.Resources["BorderPanelDarkBrush"] = BrushCache.EditBrushDelta(style.backgroundColor, -30);
             // The background color
             app.Resources["FormBackgroundBrush"] = brushes.Form;
             app.Resources["MainTextBrush"] = brushes.Text;
@@ -179,8 +180,8 @@ public static class WindowThemeManager
             app.Resources["ModRefHighlightBrush"] = brushes.ModRefHighlight;
             app.Resources["ModRefHighlightDarkBrush"] = brushes.ModRefHighlightDark;
             app.Resources["ModRefPanelClearBrush"] = brushes.PanelClear;
-            app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.buttonSelectionColor.ToAvaloniaColor());
-            app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.GetBrush(Color.FromArgb(120, (byte)style.buttonSelectionColor.R, (byte)style.buttonSelectionColor.G, (byte)style.buttonSelectionColor.B));
+            app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.buttonSelectionColor);
+            app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.EditBrushAlpha(style.buttonSelectionColor, 120);
             app.Resources["PanelBrush"] = panelBrush;
             app.Resources["SearchBorderBrush"] = searchBorderBrush;
             app.Resources["SearchButtonBrush"] = searchButtonBrush;
