@@ -44,8 +44,9 @@ namespace ModHearth.Utilities.Workshop
                 var response = await HttpClient.PostAsync(PublishedFileDetailsUrl, content);
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
-                
-                InfoLogger.LogRunDf($"SteamWebApiClient: Received JSON: {json}");
+
+                if (DevMode.IsEnabled)
+                    InfoLogger.LogRunDf($"SteamWebApiClient: Received JSON: {json}");
 
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement.GetProperty("response");
@@ -74,7 +75,7 @@ namespace ModHearth.Utilities.Workshop
                         FileSize = GetLongProperty(detail, "file_size"),
                         UpdatedAt = DateTimeOffset.FromUnixTimeSeconds(GetLongProperty(detail, "time_updated")).DateTime,
                         Description = detail.TryGetProperty("description", out var d) ? d.GetString() ?? string.Empty : string.Empty,
-                        IsCollection = false 
+                        IsCollection = false
                     };
                     InfoLogger.LogRunDf($"SteamWebApiClient: Parsed metadata for '{meta.Title}' ({meta.PublishedFileId})");
                     results.Add(meta);
@@ -130,7 +131,7 @@ namespace ModHearth.Utilities.Workshop
                     .Select(c => GetUlongProperty(c, "publishedfileid"))
                     .Where(id => id != 0)
                     .ToList();
-                
+
                 InfoLogger.LogRunDf($"SteamWebApiClient: Found {childrenIds.Count} children for collection {collectionId}");
                 return childrenIds;
             }

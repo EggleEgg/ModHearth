@@ -480,7 +480,18 @@ namespace ModHearth.UI
                 var ownerWindow = TopLevel.GetTopLevel(this) as Window;
                 if (ownerWindow != null)
                 {
-                    await SteamCmdSetupDialog.ShowAsync(ownerWindow);
+                    bool success = await SteamCmdSetupDialog.ShowAsync(ownerWindow);
+                    if (success)
+                    {
+                        var current = SelectedProvider;
+                        SelectedProvider = null;
+                        SelectedProvider = current;
+                        NotifyOfPropertyChange("SelectedProvider.StatusBrush");
+                        if (ProviderComboBox != null)
+                        {
+                            ProviderComboBox.SelectedItem = SelectedProvider;
+                        }
+                    }
                 }
             }
             finally

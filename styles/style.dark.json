@@ -1,8 +1,56 @@
 {
   "backgroundColor": {
+    "R": 36,
+    "G": 42,
+    "B": 46,
+    "A": 255
+  },
+  "panelColor": {
     "R": 67,
     "G": 75,
     "B": 79,
+    "A": 255
+  },
+  "panelColorClear": {
+    "R": 67,
+    "G": 75,
+    "B": 79,
+    "A": 235
+  },
+  "panelColorDark": {
+    "R": 0,
+    "G": 0,
+    "B": 0,
+    "A": 255
+  },
+  "strongPanelColor": {
+    "R": 67,
+    "G": 75,
+    "B": 79,
+    "A": 255
+  },
+  "textColor": {
+    "R": 247,
+    "G": 213,
+    "B": 139,
+    "A": 255
+  },
+  "buttonColor": {
+    "R": 255,
+    "G": 255,
+    "B": 255,
+    "A": 255
+  },
+  "buttonTextColor": {
+    "R": 0,
+    "G": 0,
+    "B": 0,
+    "A": 255
+  },
+  "buttonOutlineColor": {
+    "R": 0,
+    "G": 0,
+    "B": 0,
     "A": 255
   },
   "modRefHighlightColor": {
@@ -29,24 +77,6 @@
     "B": 0,
     "A": 70
   },
-  "modRefPanelColor": {
-    "R": 67,
-    "G": 75,
-    "B": 79,
-    "A": 255
-  },
-  "modRefPanelColorClear": {
-    "R": 67,
-    "G": 75,
-    "B": 79,
-    "A": 235
-  },
-  "modRefTextColor": {
-    "R": 247,
-    "G": 213,
-    "B": 139,
-    "A": 255
-  },
   "modRefTextBadColor": {
     "R": 255,
     "G": 0,
@@ -63,36 +93,6 @@
     "R": 169,
     "G": 169,
     "B": 169,
-    "A": 255
-  },
-  "strongPanelColor": {
-    "R": 0,
-    "G": 0,
-    "B": 0,
-    "A": 255
-  },
-  "formColor": {
-    "R": 36,
-    "G": 42,
-    "B": 46,
-    "A": 255
-  },
-  "textColor": {
-    "R": 247,
-    "G": 213,
-    "B": 139,
-    "A": 255
-  },
-  "buttonColor": {
-    "R": 255,
-    "G": 255,
-    "B": 255,
-    "A": 255
-  },
-  "buttonTextColor": {
-    "R": 0,
-    "G": 0,
-    "B": 0,
     "A": 255
   },
   "searchBorderColor": {
@@ -119,13 +119,7 @@
     "B": 105,
     "A": 255
   },
-  "buttonOutlineColor": {
-    "R": 0,
-    "G": 0,
-    "B": 0,
-    "A": 255
-  },
-  "buttonSelectionColor": {
+  "selectionColor": {
     "R": 255,
     "G": 255,
     "B": 255,

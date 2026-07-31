@@ -281,9 +281,6 @@ namespace ModHearth.UI
                 win.Close();
             }
 
-            (_sharedControl as IDisposable)?.Dispose();
-            _sharedControl = null;
-
             HidePreview();
             WindowThemeManager.ApplyToOpenWindows();
             Closed?.Invoke(this, EventArgs.Empty);
@@ -886,6 +883,9 @@ namespace ModHearth.UI
                 _dragTracker.Dispose();
                 _dragTracker = null;
             }
+
+            (_sharedControl as IDisposable)?.Dispose();
+            _sharedControl = null;
 
             Close();
         }

@@ -68,27 +68,26 @@ namespace ModHearth.UI
 
         // Colors.
         public SimpleColor backgroundColor { get; set; } = null!;
-        public SimpleColor modRefHighlightColor { get; set; } = null!;
-        public SimpleColor modRefHighlightDarkColor { get; set; } = null!;
-        public SimpleColor modRefJumpHighlightColor { get; set; } = null!;
-        public SimpleColor modRefCacheBarColor { get; set; } = null!;
-        public SimpleColor modRefPanelColor { get; set; } = null!;
-        public SimpleColor modRefPanelColorClear { get; set; } = null!;
-        public SimpleColor modRefTextColor { get; set; } = null!;
-        public SimpleColor modRefTextBadColor { get; set; } = null!;
-        public SimpleColor modRefTextWarningColor { get; set; } = null!;
-        public SimpleColor modRefTextFilteredColor { get; set; } = null!;
-        public SimpleColor formColor { get; set; } = null!;
+        public SimpleColor panelColor { get; set; } = null!;
+        public SimpleColor panelColorClear { get; set; } = null!;
+        public SimpleColor panelColorDark { get; set; } = null!;
+        public SimpleColor strongPanelColor { get; set; } = null!;
         public SimpleColor textColor { get; set; } = null!;
         public SimpleColor buttonColor { get; set; } = null!;
         public SimpleColor buttonTextColor { get; set; } = null!;
         public SimpleColor buttonOutlineColor { get; set; } = null!;
+        public SimpleColor modRefHighlightColor { get; set; } = null!;
+        public SimpleColor modRefHighlightDarkColor { get; set; } = null!;
+        public SimpleColor modRefJumpHighlightColor { get; set; } = null!;
+        public SimpleColor modRefCacheBarColor { get; set; } = null!;
+        public SimpleColor modRefTextBadColor { get; set; } = null!;
+        public SimpleColor modRefTextWarningColor { get; set; } = null!;
+        public SimpleColor modRefTextFilteredColor { get; set; } = null!;
         public SimpleColor searchBorderColor { get; set; } = null!;
         public SimpleColor searchButtonColor { get; set; } = null!;
         public SimpleColor searchButtonHoverColor { get; set; } = null!;
         public SimpleColor searchButtonPressedColor { get; set; } = null!;
-        public SimpleColor buttonSelectionColor { get; set; } = null!;
-        public SimpleColor strongPanelColor { get; set; } = null!;
+        public SimpleColor selectionColor { get; set; } = null!;
 
         // Default style.
         public Style()

@@ -55,7 +55,7 @@ public partial class MainWindow
 
             if (Style.instance != null)
             {
-                panelBrushClear = BrushCache.GetBrush(Style.instance.modRefPanelColorClear.ToAvaloniaColor());
+                panelBrushClear = BrushCache.GetBrush(Style.instance.panelColorClear.ToAvaloniaColor());
                 buttonOutlineBrush = BrushCache.GetBrush(Style.instance.buttonOutlineColor.ToAvaloniaColor());
                 textBrush = BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
             }

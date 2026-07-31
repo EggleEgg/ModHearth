@@ -371,7 +371,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             Child = panel
         };
         if (Style.instance != null)
-            border.Background = BrushCache.GetBrush(Style.instance.backgroundColor.ToAvaloniaColor());
+            border.Background = BrushCache.GetBrush(Style.instance.panelColor.ToAvaloniaColor());
 
         Grid header = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 8 };
         Border accent = new()

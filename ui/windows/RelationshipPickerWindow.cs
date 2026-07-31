@@ -111,7 +111,7 @@ internal sealed class RelationshipPickerWindow : Window
                     Opacity = 0.7
                 };
                 if (Style.instance != null)
-                    addedLabel.Background = BrushCache.GetBrush(Style.instance.strongPanelColor.ToAvaloniaColor());
+                    addedLabel.Background = BrushCache.GetBrush(Style.instance.panelColorDark.ToAvaloniaColor());
                 Grid.SetColumn(addedLabel, 1);
                 row.Children.Add(addedLabel);
             }

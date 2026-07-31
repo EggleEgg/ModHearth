@@ -45,7 +45,7 @@
       </ListBox>
     </Grid>
 
-    <Border Grid.Column="1" Background="{DynamicResource BorderPanelDarkBrush}" Width="0.5"
+    <Border Grid.Column="1" Tag="Splitter" Width="0.5"
             HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0" />
     <GridSplitter Grid.Column="1" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
                   HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
@@ -60,7 +60,7 @@
             </StackPanel>
           </ScrollViewer>
 
-          <Border BorderThickness="1" Background="{DynamicResource BorderPanelBrush}" CornerRadius="6" Padding="10" Margin="0,4,0,0">
+          <Border BorderThickness="1" Background="{DynamicResource PanelBrush}" CornerRadius="6" Padding="10" Margin="0,4,0,0">
             <StackPanel Spacing="4">
               <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
                 <TextBlock Text="Relationships" FontWeight="Bold" VerticalAlignment="Center" />

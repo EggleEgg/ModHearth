@@ -496,7 +496,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
     public void RefreshBackground()
     {
         Style style = Style.instance ?? throw new InvalidOperationException("Style not loaded.");
-        Color baseColor = style.backgroundColor.ToAvaloniaColor();
+        Color baseColor = style.panelColor.ToAvaloniaColor();
         Color targetColor;
 
         if (IsDragging)
@@ -545,7 +545,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         else if (IsDuplicateWarning)
             color = style.modRefTextWarningColor.ToAvaloniaColor();
         else
-            color = style.modRefTextColor.ToAvaloniaColor();
+            color = style.textColor.ToAvaloniaColor();
 
         if (!(TextBrush is ISolidColorBrush scb && scb.Color == color))
             TextBrush = BrushCache.GetBrush(color);

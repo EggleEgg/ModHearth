@@ -1,80 +1,32 @@
 {
   "backgroundColor": {
-    "R": 230,
-    "G": 230,
-    "B": 230,
-    "A": 255
-  },
-  "modRefHighlightColor": {
-    "R": 176,
-    "G": 196,
-    "B": 222,
-    "A": 255
-  },
-  "modRefHighlightDarkColor": {
-    "R": 146,
-    "G": 166,
-    "B": 192,
-    "A": 255
-  },
-  "modRefJumpHighlightColor": {
-    "R": 255,
-    "G": 0,
-    "B": 0,
-    "A": 70
-  },
-  "modRefCacheBarColor": {
-    "R": 0,
-    "G": 255,
-    "B": 0,
-    "A": 70
-  },
-  "modRefPanelColor": {
-    "R": 230,
-    "G": 230,
-    "B": 230,
-    "A": 255
-  },
-  "modRefPanelColorClear": {
-    "R": 230,
-    "G": 230,
-    "B": 230,
-    "A": 255
-  },
-  "modRefTextColor": {
-    "R": 0,
-    "G": 0,
-    "B": 0,
-    "A": 255
-  },
-  "modRefTextBadColor": {
-    "R": 255,
-    "G": 0,
-    "B": 0,
-    "A": 255
-  },
-  "modRefTextWarningColor": {
-    "R": 170,
-    "G": 120,
-    "B": 0,
-    "A": 255
-  },
-  "modRefTextFilteredColor": {
-    "R": 169,
-    "G": 169,
-    "B": 169,
-    "A": 255
-  },
-  "strongPanelColor": {
-    "R": 150,
-    "G": 150,
-    "B": 150,
-    "A": 255
-  },
-  "formColor": {
     "R": 255,
     "G": 255,
     "B": 255,
+    "A": 255
+  },
+  "panelColor": {
+    "R": 230,
+    "G": 230,
+    "B": 230,
+    "A": 255
+  },
+  "panelColorClear": {
+    "R": 230,
+    "G": 230,
+    "B": 230,
+    "A": 255
+  },
+  "panelColorDark": {
+    "R": 200,
+    "G": 200,
+    "B": 200,
+    "A": 255
+  },
+  "strongPanelColor": {
+    "R": 200,
+    "G": 200,
+    "B": 200,
     "A": 255
   },
   "textColor": {
@@ -101,6 +53,48 @@
     "B": 0,
     "A": 255
   },
+  "modRefHighlightColor": {
+    "R": 176,
+    "G": 196,
+    "B": 222,
+    "A": 255
+  },
+  "modRefHighlightDarkColor": {
+    "R": 146,
+    "G": 166,
+    "B": 192,
+    "A": 255
+  },
+  "modRefJumpHighlightColor": {
+    "R": 255,
+    "G": 0,
+    "B": 0,
+    "A": 70
+  },
+  "modRefCacheBarColor": {
+    "R": 0,
+    "G": 255,
+    "B": 0,
+    "A": 70
+  },
+  "modRefTextBadColor": {
+    "R": 255,
+    "G": 0,
+    "B": 0,
+    "A": 255
+  },
+  "modRefTextWarningColor": {
+    "R": 170,
+    "G": 120,
+    "B": 0,
+    "A": 255
+  },
+  "modRefTextFilteredColor": {
+    "R": 169,
+    "G": 169,
+    "B": 169,
+    "A": 255
+  },
   "searchBorderColor": {
     "R": 0,
     "G": 0,
@@ -125,7 +119,7 @@
     "B": 230,
     "A": 255
   },
-  "buttonSelectionColor": {
+  "selectionColor": {
     "R": 0,
     "G": 0,
     "B": 0,

@@ -68,7 +68,7 @@
           <!-- Half of the side value to make a circle -->
           <Setter Property="CornerRadius" Value="19"/>
           <Setter Property="Background" Value="Transparent"/>
-          <Setter Property="Foreground" Value="{DynamicResource BorderPanelDarkBrush}"/>
+          <Setter Property="Foreground" Value="{DynamicResource PanelDarkBrush}"/>
           <Setter Property="ToolTip.Tip" Value="Close docked window" />
           <Setter Property="Content">
             <Template>
@@ -94,11 +94,11 @@
         <Style Selector="ContentControl[Tag=DockHost]">
           <Setter Property="HorizontalAlignment" Value="Stretch"/>
           <Setter Property="VerticalAlignment" Value="Stretch"/>
-          <Setter Property="Background" Value="{DynamicResource FormBackgroundBrush}"/>
+          <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
           <Setter Property="IsVisible" Value="False"/>
         </Style>
         <Style Selector="Border[Tag=DockHost]">
-          <Setter Property="Background" Value="{DynamicResource BorderPanelDarkBrush}"/>
+          <Setter Property="Background" Value="{DynamicResource PanelDarkBrush}"/>
         </Style>
 
       </Grid.Styles>
@@ -126,7 +126,7 @@
                               Margin="2,2,2,2" InitializeFactory="False" InitializeLayout="False" />
             <Grid Grid.Row="3" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
                   VerticalAlignment="Center" Margin="0,5,2,0" MinHeight="18" RowSpacing="7">
-              <Border Background="{DynamicResource BorderPanelBrush}" Grid.Row="0" Grid.ColumnSpan="2" Height="2"
+              <Border Tag="Splitter" Grid.Row="0" Grid.ColumnSpan="2" Height="2"
                       HorizontalAlignment="Stretch" Margin="2,2,0,0" />
               <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6"
                           VerticalAlignment="Center">
@@ -159,7 +159,7 @@
         </Grid>
       </Border>
 
-      <Border Grid.Column="3" Background="{DynamicResource BorderPanelDarkBrush}" Width="0.5"
+      <Border Grid.Column="3" Tag="Splitter" Width="0.5"
               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,30,2,2" />
       <GridSplitter Grid.Column="3" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
                     HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
@@ -270,7 +270,7 @@
             <Button x:Name="exportButton" Grid.Column="2" Tag="Themed" Content="Export" FontSize="13" />
           </Grid>
 
-          <Border Grid.Row="5" Grid.ColumnSpan="3" Background="{DynamicResource BorderPanelBrush}" Height="2" HorizontalAlignment="Stretch" Margin="0,2,0,4" />
+          <Border Grid.Row="5" Grid.ColumnSpan="3" Background="{DynamicResource PanelBrush}" Height="2" HorizontalAlignment="Stretch" Margin="0,2,0,4" />
 
           <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Height="28">
             <Button x:Name="sortButton" Tag="Themed" HorizontalContentAlignment="Stretch" ToolTip.Tip="Sorts mods based on raw tag properties. Right click to autosort">

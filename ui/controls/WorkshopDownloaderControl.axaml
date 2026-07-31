@@ -86,7 +86,7 @@
           <Button x:Name="BtnCancelAll" Content="Cancel All" Padding="8,4" Height="26" VerticalContentAlignment="Center" FontSize="11" />
         </StackPanel>
       </Grid>
-      <Border Grid.Row="1" BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="1" CornerRadius="4">
+      <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBrush}" BorderThickness="1" CornerRadius="4">
         <ListBox x:Name="DownloadQueueList" SelectionMode="Single">
           <ListBox.Styles>
             <Style Selector="ListBoxItem">
@@ -96,12 +96,12 @@
           </ListBox.Styles>
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="workshop:WorkshopDownloadItem">
-              <Border BorderBrush="{DynamicResource BorderPanelBrush}" BorderThickness="0,0,0,1" Padding="10,6">
+              <Border BorderBrush="{DynamicResource PanelBrush}" BorderThickness="0,0,0,1" Padding="10,6">
                 <Grid ColumnDefinitions="*, Auto">
                   <!-- Left: Details -->
                   <StackPanel Grid.Column="0" Spacing="4">
                     <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="6">
-                      <Border Grid.Column="0" Background="{DynamicResource FormBackgroundBrush}" CornerRadius="3" Padding="4,1" IsVisible="{Binding IsBatched}" VerticalAlignment="Center">
+                      <Border Grid.Column="0" Background="{DynamicResource BackgroundBrush}" CornerRadius="3" Padding="4,1" IsVisible="{Binding IsBatched}" VerticalAlignment="Center">
                         <TextBlock Text="Batched" FontSize="10" FontWeight="SemiBold" FontStyle="Italic" Tag="IgnoreTheme"
                                    ToolTip.Tip="Batching eliminates SteamCmd process overhead and reuses tcp connections. Network download speed limits may still apply."/>
                       </Border>
@@ -109,8 +109,8 @@
                     </Grid>
                     <Grid Height="10" >
                       <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="10"  Margin="0,2"
-                                   BorderBrush="{DynamicResource StrongPanelBackgroundBrush}" BorderThickness="0.5" CornerRadius="4"
-                                   Background="{DynamicResource StrongPanelBackgroundBrush}"
+                                   BorderBrush="{DynamicResource PanelBrushDark}" BorderThickness="0.5" CornerRadius="4"
+                                   Background="{DynamicResource PanelDarkBrush}"
                                    ShowProgressText="True" Foreground="{DynamicResource ModRefHighlightDarkBrush}">
                         <ProgressBar.Template>
                           <ControlTemplate TargetType="ProgressBar">

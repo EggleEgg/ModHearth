@@ -240,7 +240,7 @@ public partial class MainWindow : IModRefContextMenuProvider
             Height = 30,
             CornerRadius = new CornerRadius(3),
             Background = (colorInfo.ModColor == ModColor.None) ? Brushes.Transparent : BrushCache.GetBrush(colorInfo.Color),
-            BorderBrush = colorInfo.IsSelected ? BrushCache.GetBrush(Style.instance!.buttonSelectionColor.ToAvaloniaColor()) : Brushes.Gray,
+            BorderBrush = colorInfo.IsSelected ? BrushCache.GetBrush(Style.instance!.selectionColor.ToAvaloniaColor()) : Brushes.Gray,
             BorderThickness = new Thickness(colorInfo.IsSelected ? 4 : 1)
         };
 

@@ -35,6 +35,9 @@
       <Setter Property="BorderBrush" Value="{DynamicResource SystemControlElevationBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
+    <Style Selector="Border[Tag=Splitter]">
+      <Setter Property="Background" Value="{DynamicResource StrongPanelBrush}" />
+    </Style>
 
     <!-- Used for small submenus. By default, the padding is 12px -->
     <Style Selector="FlyoutPresenter.compact-flyout">

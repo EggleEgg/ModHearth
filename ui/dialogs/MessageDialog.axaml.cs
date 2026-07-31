@@ -33,7 +33,7 @@ public partial class MessageDialog : Window
     }
 
     public static async Task<MessageDialogResult> ShowAsync(
-        Window owner,
+        Window? owner,
         string message,
         string title,
         MessageDialogButtons buttons,
@@ -50,7 +50,31 @@ public partial class MessageDialog : Window
         dialog.MessageText.Text = message;
         dialog.ConfigureButtons(buttons, okText, yesText, noText, cancelText);
 
-        return await dialog.ShowDialog<MessageDialogResult>(owner);
+        Window? validOwner = owner;
+        if (validOwner == null || !validOwner.IsLoaded)
+        {
+            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                if (desktop.MainWindow != null && desktop.MainWindow.IsLoaded)
+                {
+                    validOwner = desktop.MainWindow;
+                }
+            }
+        }
+
+        try
+        {
+            if (validOwner != null && validOwner.IsLoaded)
+            {
+                return await dialog.ShowDialog<MessageDialogResult>(validOwner);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Owner is closed or invalid
+        }
+
+        return MessageDialogResult.Cancel;
     }
 
     private void ConfigureButtons(

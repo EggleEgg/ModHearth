@@ -46,12 +46,18 @@ namespace ModHearth.UI
                 bool success = await _steamCmdService.InstallAsync(installDir, progress, _cts.Token);
                 if (success)
                 {
-                    await DialogService.ShowMessageAsync(this, "SteamCMD was successfully installed and verified.", "Success");
+                    if (IsLoaded)
+                    {
+                        await DialogService.ShowMessageAsync(this, "SteamCMD was successfully installed and verified.", "Success");
+                    }
                     Close(true);
                 }
                 else
                 {
-                    await DialogService.ShowMessageAsync(this, "SteamCMD installation could not be verified.", "Error");
+                    if (IsLoaded)
+                    {
+                        await DialogService.ShowMessageAsync(this, "SteamCMD installation could not be verified.", "Error");
+                    }
                     ResetUI();
                 }
             }
@@ -62,7 +68,10 @@ namespace ModHearth.UI
             }
             catch (Exception ex)
             {
-                await DialogService.ShowMessageAsync(this, $"Installation failed: {ex.Message}", "Error");
+                if (IsLoaded)
+                {
+                    await DialogService.ShowMessageAsync(this, $"Installation failed: {ex.Message}", "Error");
+                }
                 ResetUI();
             }
         }

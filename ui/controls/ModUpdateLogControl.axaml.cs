@@ -230,7 +230,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     public void ApplyCustomStyle(Style style)
     {
-        BackgroundColorBrush = BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor());
+        BackgroundColorBrush = BrushCache.GetBrush(style.panelColor.ToAvaloniaColor());
 
         if (logList != null)
         {

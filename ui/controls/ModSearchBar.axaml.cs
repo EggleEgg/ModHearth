@@ -287,7 +287,7 @@ public partial class ModSearchBar : UserControl
         if (style == null)
             return;
 
-        IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
+        IBrush panelBrush = BrushCache.GetBrush(style.panelColor.ToAvaloniaColor());
         IBrush searchBorderBrush = BrushCache.GetBrush(style.searchBorderColor.ToAvaloniaColor());
         IBrush searchButtonBrush = BrushCache.GetBrush(style.searchButtonColor.ToAvaloniaColor());
         IBrush searchButtonHoverBrush = BrushCache.GetBrush(style.searchButtonHoverColor.ToAvaloniaColor());
@@ -659,7 +659,7 @@ public partial class ModSearchBar : UserControl
             Height = 30,
             CornerRadius = new CornerRadius(3),
             Background = (colorInfo.ModColor == ModColor.None) ? Brushes.Transparent : BrushCache.GetBrush(colorInfo.Color),
-            BorderBrush = colorInfo.IsSelected && Style.instance != null ? BrushCache.GetBrush(Style.instance.buttonSelectionColor.ToAvaloniaColor()) : Brushes.Gray,
+            BorderBrush = colorInfo.IsSelected && Style.instance != null ? BrushCache.GetBrush(Style.instance.selectionColor.ToAvaloniaColor()) : Brushes.Gray,
             BorderThickness = new Thickness(colorInfo.IsSelected ? 4 : 1)
         };
 

@@ -13,7 +13,7 @@ public partial class ModDataEntryView : UserControl
     }
 
     private static IBrush HoverBrush => Style.instance != null
-        ? BrushCache.GetBrush(Style.instance.modRefPanelColor.ToAvaloniaColor())
+        ? BrushCache.GetBrush(Style.instance.panelColor.ToAvaloniaColor())
         : BrushCache.GetBrush(Color.Parse("#22888888"));
 
     private void RowPointerEntered(object? sender, PointerEventArgs e)

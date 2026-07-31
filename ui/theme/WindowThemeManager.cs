@@ -24,7 +24,7 @@ public static class WindowThemeManager
 
     // Cache brushes to reduce memory usage
     private readonly record struct StyleBrushes(
-        IBrush Form,
+        IBrush Background,
         IBrush Text,
         IBrush Panel,
         IBrush PanelClear,
@@ -132,25 +132,25 @@ public static class WindowThemeManager
 
         Style.instance = style;
 
-        IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
+        IBrush panelBrush = BrushCache.GetBrush(style.panelColor.ToAvaloniaColor());
         IBrush searchBorderBrush = BrushCache.GetBrush(style.searchBorderColor.ToAvaloniaColor());
         IBrush searchButtonBrush = BrushCache.GetBrush(style.searchButtonColor.ToAvaloniaColor());
         IBrush searchButtonHoverBrush = BrushCache.GetBrush(style.searchButtonHoverColor.ToAvaloniaColor());
         IBrush searchButtonPressedBrush = BrushCache.GetBrush(style.searchButtonPressedColor.ToAvaloniaColor());
         IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
 
-        bool isDark = IsDark(style.formColor);
+        bool isDark = IsDark(style.backgroundColor);
         StyleBrushes brushes = new(
-            Form: BrushCache.GetBrush(style.formColor.ToAvaloniaColor()),
+            Background: BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor()),
             Text: BrushCache.GetBrush(style.textColor.ToAvaloniaColor()),
             Panel: panelBrush,
-            PanelClear: BrushCache.GetBrush(style.modRefPanelColorClear.ToAvaloniaColor()),
+            PanelClear: BrushCache.GetBrush(style.panelColorClear.ToAvaloniaColor()),
             StrongPanel: BrushCache.GetBrush(style.strongPanelColor.ToAvaloniaColor()),
             Button: BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor()),
             ButtonText: buttonTextBrush,
             ButtonOutline: BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor()),
-            BorderPanel: BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor()),
-            DataGrid: BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor()),
+            BorderPanel: BrushCache.GetBrush(style.panelColor.ToAvaloniaColor()),
+            DataGrid: BrushCache.GetBrush(style.panelColor.ToAvaloniaColor()),
             ModRefHighlight: BrushCache.GetBrush(style.modRefHighlightColor.ToAvaloniaColor()),
             ModRefHighlightDark: BrushCache.GetBrush(style.modRefHighlightDarkColor.ToAvaloniaColor()),
             InputText: isDark ? Brushes.White : Brushes.Black
@@ -158,7 +158,7 @@ public static class WindowThemeManager
 
         if (visual is Window window)
         {
-            window.Background = brushes.Form;
+            window.Background = brushes.Background;
             ThemeVariant? ownerVariant = window.Owner?.RequestedThemeVariant;
             window.RequestedThemeVariant = ownerVariant ?? (isDark ? ThemeVariant.Dark : ThemeVariant.Light);
         }
@@ -168,20 +168,20 @@ public static class WindowThemeManager
         if (app != null)
         {
             app.Resources["BorderPanelBrush"] = brushes.BorderPanel;
-            app.Resources["BorderPanelDarkBrush"] = BrushCache.EditBrushDelta(style.backgroundColor, -30);
-            // The background color
-            app.Resources["FormBackgroundBrush"] = brushes.Form;
+            app.Resources["BackgroundBrush"] = brushes.Background;
             app.Resources["MainTextBrush"] = brushes.Text;
-            app.Resources["PanelBackgroundBrush"] = brushes.Panel;
-            app.Resources["StrongPanelBackgroundBrush"] = brushes.StrongPanel;
+            app.Resources["PanelBrush"] = brushes.Panel;
+            app.Resources["PanelDarkBrush"] = BrushCache.GetBrush(style.panelColorDark);
+            // Use this for generic gridsplitters and linebreakers
+            app.Resources["StrongPanelBrush"] = brushes.StrongPanel;
             app.Resources["ButtonBackgroundBrush"] = brushes.Button;
             app.Resources["ButtonForegroundBrush"] = brushes.ButtonText;
             app.Resources["ButtonBorderBrush"] = brushes.ButtonOutline;
             app.Resources["ModRefHighlightBrush"] = brushes.ModRefHighlight;
             app.Resources["ModRefHighlightDarkBrush"] = brushes.ModRefHighlightDark;
             app.Resources["ModRefPanelClearBrush"] = brushes.PanelClear;
-            app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.buttonSelectionColor);
-            app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.EditBrushAlpha(style.buttonSelectionColor, 120);
+            app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.selectionColor);
+            app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.EditBrushAlpha(style.selectionColor, 120);
             app.Resources["PanelBrush"] = panelBrush;
             app.Resources["SearchBorderBrush"] = searchBorderBrush;
             app.Resources["SearchButtonBrush"] = searchButtonBrush;
