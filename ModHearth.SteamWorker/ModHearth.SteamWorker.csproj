@@ -46,4 +46,8 @@
         </None>
     </ItemGroup>
 
+    <Target Name="ChmodExecutable" AfterTargets="Publish" Condition="'$(OS)' != 'Windows_NT'">
+        <Exec Command="chmod +x &quot;$(PublishDir)$(AssemblyName)&quot;" />
+    </Target>
+
 </Project>

@@ -17,6 +17,10 @@ if [ -z "$(ls -A "$publish_dir")" ]; then
   exit 1
 fi
 
+# Ensure executable permissions on binaries
+chmod +x "$publish_dir/ModHearth" 2>/dev/null || true
+chmod +x "$publish_dir/ModHearth.SteamWorker" 2>/dev/null || true
+
 ls -la "$publish_dir"
 
 mkdir -p dist
