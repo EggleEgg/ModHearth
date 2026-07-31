@@ -49,7 +49,7 @@ internal static class ModListIndicatorUpdater
             if (rule.RequiredIds.Count > 0)
                 badges.Add(CreateBadgeInfo("linkIcon.svg", rule.RequiredIds.Count, RelationshipBrush(ModRelationshipKind.Required)));
             if (rule.IncompatibleIds.Count > 0)
-                badges.Add(CreateBadgeInfo("cancelCircledIcon.svg", rule.IncompatibleIds.Count, RelationshipBrush(ModRelationshipKind.Incompatible)));
+                badges.Add(CreateBadgeInfo("cancelCircleIcon.svg", rule.IncompatibleIds.Count, RelationshipBrush(ModRelationshipKind.Incompatible)));
 
             vm.RuleBadges = badges;
             vm.RuleBadgesTooltip = BuildRelationshipTooltip(rule, byId);

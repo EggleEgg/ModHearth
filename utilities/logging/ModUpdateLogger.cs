@@ -133,6 +133,109 @@ public static class ModUpdateLogger
         }
     }
 
+    public static void LogUnsubscribe(IEnumerable<ModReference> mods, HashSet<string> activeIds)
+    {
+        lock (fileGate)
+        {
+            try
+            {
+                List<ModUpdateLogEntry> entries = new();
+                Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
+                bool snapshotChanged = false;
+
+                foreach (ModReference modref in mods)
+                {
+                    if (modref == null)
+                        continue;
+
+                    string id = modref.ID?.Trim() ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(id))
+                        continue;
+
+                    bool active = activeIds.Contains(id);
+                    entries.Add(BuildEntryFromModReference(modref, active, ModUpdateChangeType.Deleted, DateTime.UtcNow));
+
+                    if (previous.Remove(id))
+                    {
+                        snapshotChanged = true;
+                    }
+                }
+
+                if (entries.Count > 0)
+                {
+                    AppendEntries(entries);
+                }
+
+                if (snapshotChanged)
+                {
+                    SaveSnapshot(previous);
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogging.LogException("Failed to log unsubscribe action", ex);
+            }
+        }
+    }
+
+    public static void LogRedownload(IEnumerable<ModReference> mods, HashSet<string> activeIds)
+    {
+        lock (fileGate)
+        {
+            try
+            {
+                List<ModUpdateLogEntry> entries = new();
+                Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
+                bool snapshotChanged = false;
+
+                foreach (ModReference modref in mods)
+                {
+                    if (modref == null)
+                        continue;
+
+                    string id = modref.ID?.Trim() ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(id))
+                        continue;
+
+                    bool active = activeIds.Contains(id);
+                    entries.Add(BuildEntryFromModReference(modref, active, ModUpdateChangeType.Updated, DateTime.UtcNow));
+
+                    // Update the snapshot entry for this mod
+                    string path = ResolveCanonicalPath(modref.path ?? string.Empty);
+                    ModUpdateSnapshotEntry entry = new ModUpdateSnapshotEntry
+                    {
+                        ModId = id,
+                        ModName = string.IsNullOrWhiteSpace(modref.name) ? id : modref.name,
+                        SourceType = GetSourceType(modref),
+                        Path = path,
+                        SteamId = ResolveSteamId(modref),
+                        QuickStamp = BuildLocalQuickStamp(path),
+                        DeepStamp = string.Empty,
+                        IsIgnored = modref.IsIgnored
+                    };
+                    EnsureLocalDeepStamp(entry);
+
+                    previous[id] = entry;
+                    snapshotChanged = true;
+                }
+
+                if (entries.Count > 0)
+                {
+                    AppendEntries(entries);
+                }
+
+                if (snapshotChanged)
+                {
+                    SaveSnapshot(previous);
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogging.LogException("Failed to log redownload action", ex);
+            }
+        }
+    }
+
     public static void RecordChanges(
         IEnumerable<ModReference> mods,
         IEnumerable<DFHMod> activeMods,

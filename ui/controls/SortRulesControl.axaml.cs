@@ -203,13 +203,14 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         isRefreshing = true;
         try
         {
+            //TODO Check if performance can be improved
+            foreach (ModRefViewModel vm in allMods)
+            {
+                vm.RefreshStyle();
+            }
             RefreshEditor();
-            WindowThemeManager.ApplyToVisual(this, style);
         }
-        finally
-        {
-            isRefreshing = false;
-        }
+        finally { isRefreshing = false; }
     }
 
     private void RefreshEditor()
@@ -904,7 +905,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             ModRelationshipKind.Before => ImageSourceLoader.CreateAvaloniaImage("arrowUpIcon.svg"),
             ModRelationshipKind.After => ImageSourceLoader.CreateAvaloniaImage("arrowDownIcon.svg"),
             ModRelationshipKind.Required => ImageSourceLoader.CreateAvaloniaImage("linkIcon.svg"),
-            ModRelationshipKind.Incompatible => ImageSourceLoader.CreateAvaloniaImage("cancelCircledIcon.svg"),
+            ModRelationshipKind.Incompatible => ImageSourceLoader.CreateAvaloniaImage("cancelCircleIcon.svg"),
             _ => null
         };
     }

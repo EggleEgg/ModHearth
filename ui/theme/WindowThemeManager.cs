@@ -132,15 +132,22 @@ public static class WindowThemeManager
 
         Style.instance = style;
 
+        IBrush panelBrush = BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor());
+        IBrush searchBorderBrush = BrushCache.GetBrush(style.searchBorderColor.ToAvaloniaColor());
+        IBrush searchButtonBrush = BrushCache.GetBrush(style.searchButtonColor.ToAvaloniaColor());
+        IBrush searchButtonHoverBrush = BrushCache.GetBrush(style.searchButtonHoverColor.ToAvaloniaColor());
+        IBrush searchButtonPressedBrush = BrushCache.GetBrush(style.searchButtonPressedColor.ToAvaloniaColor());
+        IBrush buttonTextBrush = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
+
         bool isDark = IsDark(style.formColor);
         StyleBrushes brushes = new(
             Form: BrushCache.GetBrush(style.formColor.ToAvaloniaColor()),
             Text: BrushCache.GetBrush(style.textColor.ToAvaloniaColor()),
-            Panel: BrushCache.GetBrush(style.modRefPanelColor.ToAvaloniaColor()),
+            Panel: panelBrush,
             PanelClear: BrushCache.GetBrush(style.modRefPanelColorClear.ToAvaloniaColor()),
             StrongPanel: BrushCache.GetBrush(style.strongPanelColor.ToAvaloniaColor()),
             Button: BrushCache.GetBrush(style.buttonColor.ToAvaloniaColor()),
-            ButtonText: BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor()),
+            ButtonText: buttonTextBrush,
             ButtonOutline: BrushCache.GetBrush(style.buttonOutlineColor.ToAvaloniaColor()),
             BorderPanel: BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor()),
             DataGrid: BrushCache.GetBrush(style.backgroundColor.ToAvaloniaColor()),
@@ -174,6 +181,12 @@ public static class WindowThemeManager
             app.Resources["ModRefPanelClearBrush"] = brushes.PanelClear;
             app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.buttonSelectionColor.ToAvaloniaColor());
             app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.GetBrush(Color.FromArgb(120, (byte)style.buttonSelectionColor.R, (byte)style.buttonSelectionColor.G, (byte)style.buttonSelectionColor.B));
+            app.Resources["PanelBrush"] = panelBrush;
+            app.Resources["SearchBorderBrush"] = searchBorderBrush;
+            app.Resources["SearchButtonBrush"] = searchButtonBrush;
+            app.Resources["SearchButtonHoverBrush"] = searchButtonHoverBrush;
+            app.Resources["SearchButtonPressedBrush"] = searchButtonPressedBrush;
+            app.Resources["ButtonTextBrush"] = buttonTextBrush;
         }
 
         // Single top-down $O(N)$ pass through the visual tree
@@ -198,6 +211,12 @@ public static class WindowThemeManager
 
         if (visual is Control control && control.Tag is string ignoreTag && string.Equals(ignoreTag, "IgnoreTheme", StringComparison.OrdinalIgnoreCase))
             return;
+
+        //TODO Check if performance can be improved
+        if (visual is IStyleAwareWindow styleAware)
+        {
+            styleAware.ApplyCustomStyle(style);
+        }
 
         // 1. ModSearchBar styling context
         if (visual is ModSearchBar searchBar)

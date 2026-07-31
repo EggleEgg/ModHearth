@@ -2,7 +2,7 @@
 # General
 
 - Code must be thread safe and compatible with both linux and windows os
-- Debugging logs/lines must be locked behind `DevMode.IsEnabled` or their devmode alternatives in utilities\logging\, specially verbose ones. Errors tipically should not be devmode specific.
+- Verbose debugging logs/lines must be locked behind `DevMode.IsEnabled` or their devmode alternatives in utilities\logging. Errors tipically should not be devmode specific.
 - `VisualBrush` usage should be avoided and only used as a last resort, instead use tools like `TintedAssetConverter`.
 - Prefer using clean, scalable implementations, rather than quick solutions; even if that means refactoring code.
 

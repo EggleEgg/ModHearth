@@ -42,7 +42,6 @@ namespace ModHearth.UI
         private readonly Window _parentWindow;
         private readonly IReadOnlyDictionary<DockSide, DockingTarget> _sideTargets;
         private readonly DockSide _defaultSide;
-        private readonly Func<DockSide, bool>? _isSideAvailable;
         private readonly Action<DockSide>? _onSideAcquired;
 
         private readonly Func<TControl> _controlCreator;
@@ -101,7 +100,6 @@ namespace ModHearth.UI
             double maxSize,
             double splitterSize = 7,
             bool initialDocked = false,
-            Func<DockSide, bool>? isSideAvailable = null,
             Action<DockSide>? onSideAcquired = null)
         {
             _parentWindow = parentWindow ?? throw new ArgumentNullException(nameof(parentWindow));
@@ -117,7 +115,6 @@ namespace ModHearth.UI
             _minSize = minSize;
             _maxSize = maxSize;
             _splitterSize = splitterSize;
-            _isSideAvailable = isSideAvailable;
             _onSideAcquired = onSideAcquired;
             _isDocked = initialDocked && CanDockOnSide(defaultSide);
 
@@ -181,9 +178,6 @@ namespace ModHearth.UI
         private bool CanDockOnSide(DockSide side)
         {
             if (!_sideTargets.ContainsKey(side))
-                return false;
-
-            if (_isSideAvailable != null && !_isSideAvailable(side))
                 return false;
 
             try
@@ -579,7 +573,11 @@ namespace ModHearth.UI
         {
             if (_isDisposed) return;
 
-            DockSide side = _hoverSide ?? _defaultSide;
+            // _hoverSide is only non-null while a floating window is actively being dragged over a valid target
+            if (_hoverSide == null)
+                return;
+
+            DockSide side = _hoverSide.Value;
             if (!CanDockOnSide(side))
                 return;
 
@@ -723,7 +721,16 @@ namespace ModHearth.UI
             if (_sharedControl != null)
                 _sharedControl.Opacity = 0;
 
-            var target = ActiveTarget;
+            DockingTarget target = ActiveTarget;
+            if (_sharedControl?.Parent is ContentControl oldContentControl)
+            {
+                oldContentControl.Content = null;
+            }
+            else if (_sharedControl?.Parent is Decorator oldDecorator)
+            {
+                oldDecorator.Child = null;
+            }
+
             target.DockHostControl.Content = _sharedControl;
             target.DockHostControl.IsVisible = true;
 

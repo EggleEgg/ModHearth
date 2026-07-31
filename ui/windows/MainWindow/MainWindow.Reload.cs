@@ -120,6 +120,8 @@ public partial class MainWindow
         await SetAndMarkChangesAsync(false);
         RestoreSelectionSnapshot(selectionSnapshot);
 
+        _updateLogDockManager?.SharedControl?.LoadEntries();
+
         ReloadLogging.Log("ReloadModpacksFromDisk end");
 
         if (!string.IsNullOrWhiteSpace(manager.LastMissingModsMessage))

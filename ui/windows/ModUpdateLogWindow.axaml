@@ -6,8 +6,6 @@
         Width="980"
         Height="320"
         MinWidth="820"
-        MinHeight="240"
-        MaxWidth="1200"
-        MaxHeight="600">
+        MinHeight="200">
   <ui:ModUpdateLogControl x:Name="LogControl" />
 </Window>

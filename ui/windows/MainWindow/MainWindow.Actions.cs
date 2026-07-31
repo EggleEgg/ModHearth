@@ -91,25 +91,7 @@ public partial class MainWindow
         };
     }
 
-    private bool IsDockSideAvailable(DockSide side, object? requestingManager)
-    {
-        return !IsDockSideOccupiedByOther(_workshopDockManager, side, requestingManager)
-            && !IsDockSideOccupiedByOther(_updateLogDockManager, side, requestingManager)
-            && !IsDockSideOccupiedByOther(_sortRulesDockManager, side, requestingManager);
-    }
 
-    private static bool IsDockSideOccupiedByOther<TControl, TWindow>(
-        DockingManager<TControl, TWindow>? manager,
-        DockSide side,
-        object? requestingManager)
-        where TControl : UserControl
-        where TWindow : Window
-    {
-        return manager != null
-            && !ReferenceEquals(manager, requestingManager)
-            && manager.IsDocked
-            && manager.ActiveSide == side;
-    }
 
     private void AcquireDockSide(DockSide side, object acquiringManager)
     {
@@ -156,7 +138,6 @@ public partial class MainWindow
             WorkshopDownloaderWindow.DefaultMaxWidth,
             splitterSize: 7,
             initialDocked: workshopInitialDocked,
-            isSideAvailable: side => IsDockSideAvailable(side, _workshopDockManager),
             onSideAcquired: side => AcquireDockSide(side, _workshopDockManager!)
         );
         _workshopDockManager.DockStateChanged += (_, _) =>
@@ -186,7 +167,6 @@ public partial class MainWindow
             ModUpdateLogWindow.DefaultMaxHeight,
             splitterSize: 7,
             initialDocked: ConfigManager.GetIsModUpdateLogDocked(),
-            isSideAvailable: side => IsDockSideAvailable(side, _updateLogDockManager),
             onSideAcquired: side => AcquireDockSide(side, _updateLogDockManager!)
         );
 
@@ -243,7 +223,6 @@ public partial class MainWindow
             SortRulesWindow.DefaultMaxWidth,
             splitterSize: 7,
             initialDocked: sortRulesInitialDocked,
-            isSideAvailable: side => IsDockSideAvailable(side, _sortRulesDockManager),
             onSideAcquired: side => AcquireDockSide(side, _sortRulesDockManager!)
         );
 

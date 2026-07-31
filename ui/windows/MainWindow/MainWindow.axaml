@@ -63,16 +63,31 @@
       <Grid.Styles>
         <Style Selector="Button[Tag=DockSplitterCloseButton]">
           <Setter Property="Padding" Value="0"/>
-          <Setter Property="Width" Value="24"/>
-          <Setter Property="Height" Value="24"/>
+          <Setter Property="Width" Value="38"/>
+          <Setter Property="Height" Value="38"/>
+          <!-- Half of the side value to make a circle -->
+          <Setter Property="CornerRadius" Value="19"/>
           <Setter Property="Background" Value="Transparent"/>
+          <Setter Property="Foreground" Value="{DynamicResource BorderPanelBrush}"/>
           <Setter Property="ToolTip.Tip" Value="Close docked window" />
           <Setter Property="Content">
             <Template>
-              <Image Source="{Binding Source={DynamicResource BorderPanelBrush}, Converter={x:Static ui:TintedAssetConverter.Instance}, ConverterParameter=cancelIcon.svg}" Stretch="Uniform" />
+              <Image Source="{Binding $parent[Button].Foreground, Converter={x:Static ui:TintedAssetConverter.Instance}, ConverterParameter=horizontalClearFullIcon.svg}"
+                     Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Template>
           </Setter>
         </Style>
+
+        <Style Selector="Button#leftDockSplitterCloseButton Image">
+          <Setter Property="RenderTransform" Value="Rotate(0deg)" />
+        </Style>
+        <Style Selector="Button#rightDockSplitterCloseButton Image">
+          <Setter Property="RenderTransform" Value="Rotate(180deg)" />
+        </Style>
+        <Style Selector="Button#bottomDockSplitterCloseButton Image">
+          <Setter Property="RenderTransform" Value="Rotate(270deg)" />
+        </Style>
+
         <Style Selector="ContentControl[Tag=DockHost]">
           <Setter Property="HorizontalAlignment" Value="Stretch"/>
           <Setter Property="VerticalAlignment" Value="Stretch"/>
@@ -83,7 +98,10 @@
 
       </Grid.Styles>
 
-      <ContentControl x:Name="leftDockHost" Tag="DockHost" Grid.Column="0" BorderThickness="0,0,1,0" />
+      <ContentControl x:Name="leftDockHost" Tag="DockHost" Grid.Column="0" />
+      <Border Grid.Column="0" Width="2" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+              Margin="0,12,0,0" Background="{DynamicResource BorderPanelBrush}"
+              IsVisible="{Binding IsVisible, ElementName=leftDockHost}" />
 
       <Border x:Name="leftDockSplitter" Grid.Column="1" Width="10" Background="Transparent" Cursor="SizeWestEast"
               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 36, 0, 0" IsVisible="False" />
@@ -313,24 +331,30 @@
       <Border x:Name="rightDockSplitter" Grid.Column="6" Width="10" Background="Transparent" Cursor="SizeWestEast"
               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 36, 0, 0" IsVisible="False" />
 
-      <ContentControl x:Name="rightDockHost" Tag="DockHost" Grid.Column="7" BorderThickness="1,0,0,0" />
+      <ContentControl x:Name="rightDockHost" Tag="DockHost" Grid.Column="7" />
+      <Border Grid.Column="7" Width="2" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+              Margin="0,12,0,0" Background="{DynamicResource BorderPanelBrush}"
+              IsVisible="{Binding IsVisible, ElementName=rightDockHost}" />
 
       <Border x:Name="bottomDockSplitter" Grid.Row="1" Grid.ColumnSpan="8" Height="7" Background="Transparent" Cursor="SizeNorthSouth"
               HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0, 0, 36, 0" IsVisible="False" />
 
-      <ContentControl x:Name="bottomDockHost" Tag="DockHost" Grid.Row="2" Grid.ColumnSpan="8" BorderThickness="0,1,0,0" />
+      <ContentControl x:Name="bottomDockHost" Tag="DockHost" Grid.Row="2" Grid.ColumnSpan="8" />
+      <Border Grid.Row="2" Grid.ColumnSpan="8" Height="2" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+              Margin="0,0,12,0" Background="{DynamicResource BorderPanelBrush}"
+              IsVisible="{Binding IsVisible, ElementName=bottomDockHost}" />
 
       <!-- TODO Refactor to stop using weird "magic number" margins to center the buttons -->
       <Button x:Name="leftDockSplitterCloseButton" Grid.Column="1" Tag="DockSplitterCloseButton"
-              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0, -12, 7.5, 0"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0, -12, 20, 0"
               IsVisible="{Binding IsVisible, ElementName=leftDockSplitter}" />
 
       <Button x:Name="rightDockSplitterCloseButton" Grid.Column="6" Tag="DockSplitterCloseButton"
-              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="7.5, -12, 0, 0"
+              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20, -12, 0, 0"
               IsVisible="{Binding IsVisible, ElementName=rightDockSplitter}" />
 
       <Button x:Name="bottomDockSplitterCloseButton" Grid.Row="1" Grid.ColumnSpan="8" Tag="DockSplitterCloseButton"
-              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0, 7.5, -12, 0"
+              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0, 20, -12, 0"
               IsVisible="{Binding IsVisible, ElementName=bottomDockSplitter}" />
     </Grid>
 

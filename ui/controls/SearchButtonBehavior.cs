@@ -12,6 +12,33 @@ namespace ModHearth.UI;
 /// </summary>
 public sealed class SearchButtonBehavior
 {
+    private static readonly Dictionary<Button, SearchButtonBehavior> behaviors = new();
+
+    public static SearchButtonBehavior GetOrCreate(Button button)
+    {
+        if (!behaviors.TryGetValue(button, out var behavior))
+        {
+            behavior = new SearchButtonBehavior(button);
+            behaviors[button] = behavior;
+        }
+        return behavior;
+    }
+
+    public static void ApplyStyle(Button button, Style style)
+    {
+        if (button == null || style == null)
+            return;
+
+        var behavior = GetOrCreate(button);
+        behavior.ApplyBrushes(
+            BrushCache.GetBrush(style.searchButtonColor.ToAvaloniaColor()),
+            BrushCache.GetBrush(style.searchButtonHoverColor.ToAvaloniaColor()),
+            BrushCache.GetBrush(style.searchButtonPressedColor.ToAvaloniaColor())
+        );
+        button.Foreground = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
+        button.BorderBrush = Brushes.Transparent;
+    }
+
     private readonly Button button;
     private IBrush normalBrush = Brushes.Transparent;
     private IBrush hoverBrush = Brushes.Transparent;

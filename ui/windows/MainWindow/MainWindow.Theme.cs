@@ -7,9 +7,7 @@ namespace ModHearth.UI;
 
 public partial class MainWindow
 {
-    public void ApplyCustomStyle(Style style) => ApplyStyle(style);
-
-    private void ApplyStyle(Style style)
+    public void ApplyCustomStyle(Style style)
     {
         if (style == null)
             return;
@@ -23,6 +21,14 @@ public partial class MainWindow
         int theme = ConfigManager.GetTheme();
         if (themeComboBox != null && themeComboBox.SelectedIndex != theme)
             themeComboBox.SelectedIndex = theme;
+    }
+
+    private void ApplyStyle(Style style)
+    {
+        if (style == null)
+            return;
+
+        ApplyCustomStyle(style);
 
         // Use the centralized theme manager to apply styles recursively to the entire visual tree, 
         // including window background, theme variant, application resources, labels, listboxes, notification container, etc.

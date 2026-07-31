@@ -57,9 +57,13 @@ public partial class SortRulesWindow : Window, IStyleAwareWindow, IDisposable
         InitializeComponent();
         WindowThemeManager.Register(this);
         Content = control ?? new SortRulesControl(existingRules, modRefs, rulesFilePath, onRulesChanged);
+
+        // old docking/undocking cycles need to be cleared to avoid memory leaks
         if (Content is SortRulesControl rc)
         {
-            rc.CloseRequested += (_, _) => Close();
+            EventHandler closeRequestedHandler = (_, _) => Close();
+            rc.CloseRequested += closeRequestedHandler;
+            Closed += (_, _) => rc.CloseRequested -= closeRequestedHandler;
         }
         Closed += (_, _) =>
         {

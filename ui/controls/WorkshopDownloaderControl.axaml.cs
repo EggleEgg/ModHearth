@@ -15,7 +15,7 @@ using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
 {
-    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable, IModRefContextMenuProvider
+    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable, IModRefContextMenuProvider, IStyleAwareWindow
     {
         public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -201,6 +201,7 @@ namespace ModHearth.UI
 
             WorkshopUrlTextBox.TextChanged += async (_, _) =>
             {
+                UpdateClearButtonState();
                 if (_suppressClipboardTextBoxAutoResolve || !IsAutoResolveAndQueueEnabled) return;
                 string text = WorkshopUrlTextBox.Text ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(text) || text == _lastResolvedInput) return;
@@ -214,6 +215,7 @@ namespace ModHearth.UI
             };
 
             BtnClearText.Click += (_, _) => WorkshopUrlTextBox.Text = string.Empty;
+            UpdateClearButtonState();
             BtnClearCompleted.Click += (_, _) => _queueManager.ClearCompleted();
             BtnRetryAll.Click += (_, _) => _queueManager.RetryAll();
             BtnRetryAll.AddHandler(InputElement.PointerPressedEvent, BtnRetryAllPointerPressed, RoutingStrategies.Tunnel, true);
@@ -492,6 +494,26 @@ namespace ModHearth.UI
             if (provider is SteamCmdDownloadProvider && !provider.IsAvailable)
             {
                 await ShowSteamCmdSetupAsync();
+            }
+        }
+
+        public void ApplyCustomStyle(Style style)
+        {
+            if (style == null)
+                return;
+
+            SearchButtonBehavior.ApplyStyle(BtnClearText, style);
+            if (BtnClearText.Content is Image img)
+            {
+                img.Source = ImageSourceLoader.LoadFromAssetUri("broomMenuIcon", style.buttonTextColor.ToAvaloniaColor());
+            }
+        }
+
+        private void UpdateClearButtonState()
+        {
+            if (BtnClearText != null)
+            {
+                BtnClearText.IsEnabled = !string.IsNullOrEmpty(WorkshopUrlTextBox?.Text);
             }
         }
     }
