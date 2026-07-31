@@ -8,24 +8,36 @@ namespace ModHearth.UI
 {
     public partial class WorkshopDownloaderWindow : Window, IStyleAwareWindow
     {
-        public static double DefaultWidth => LoadDimension("Width");
-        public static double DefaultMinWidth => LoadDimension("MinWidth");
-        public static double DefaultMaxWidth => LoadDimension("MaxWidth");
+        public static double DefaultWidth => LoadDimension("Width", 550);
+        public static double DefaultMinWidth => LoadDimension("MinWidth", 400);
+        public static double DefaultMaxWidth => LoadDimension("MaxWidth", 600);
+        public static double DefaultHeight => LoadDimension("Height", 750);
+        public static double DefaultMinHeight => LoadDimension("MinHeight", 400);
 
-        private static double LoadDimension(string attributeName)
+        private static double LoadDimension(string attributeName, double fallback)
         {
-            string path = Path.Combine("ui", "windows", "WorkshopDownloaderWindow.axaml");
-            if (!File.Exists(path))
+            try
             {
-                path = Path.Combine(AppContext.BaseDirectory, "ui", "windows", "WorkshopDownloaderWindow.axaml");
+                string path = Path.Combine("ui", "windows", "WorkshopDownloaderWindow.axaml");
+                if (!File.Exists(path))
+                {
+                    path = Path.Combine(AppContext.BaseDirectory, "ui", "windows", "WorkshopDownloaderWindow.axaml");
+                }
+                if (File.Exists(path))
+                {
+                    string content = File.ReadAllText(path);
+                    var match = Regex.Match(content, $@"{attributeName}\s*=\s*""(?<val>[^""]+)""", RegexOptions.IgnoreCase);
+                    if (match.Success && double.TryParse(match.Groups["val"].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+                    {
+                        return val;
+                    }
+                }
             }
-            string content = File.ReadAllText(path);
-            var match = Regex.Match(content, $@"{attributeName}\s*=\s*""(?<val>[^""]+)""", RegexOptions.IgnoreCase);
-            if (match.Success && double.TryParse(match.Groups["val"].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
+            catch
             {
-                return val;
+                // Fallback
             }
-            throw new InvalidOperationException($"Could not parse {attributeName} from WorkshopDownloaderWindow.axaml");
+            return fallback;
         }
 
         public WorkshopDownloaderWindow() : this(null!) { }
