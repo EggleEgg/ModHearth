@@ -96,8 +96,6 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     public void LoadEntries()
     {
-        entries.Clear();
-
         List<ModUpdateLogEntry> logEntries = ModUpdateLogger.LoadEntries()
             .OrderByDescending(entry => entry.TimestampUtc)
             .ToList();
@@ -109,13 +107,20 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         IBrush defaultBrush = GetDefaultTextBrush();
         IBrush selectedBrush = GetSelectedBackgroundBrush();
 
+        var newViewModels = new List<ModUpdateLogItemViewModel>(logEntries.Count);
         foreach (ModUpdateLogEntry entry in logEntries)
         {
             ModReference modref = BuildModReference(entry);
             bool isActive = activeIds.Contains(entry.ModId);
             IBrush brush = GetRowBrush(entry, defaultBrush, isActive);
 
-            entries.Add(new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive));
+            newViewModels.Add(new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive));
+        }
+
+        entries.Clear();
+        foreach (var vm in newViewModels)
+        {
+            entries.Add(vm);
         }
 
         selectionController.UpdateSelectionState(logList);
@@ -124,8 +129,11 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     private void ApplyDefaultSort()
     {
-        if (logList.Columns.Count > 0)
-            logList.Columns[0].Sort(ListSortDirection.Descending);
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (logList.Columns.Count > 0)
+                logList.Columns[0].Sort(ListSortDirection.Descending);
+        });
     }
 
     private static IBrush GetDefaultTextBrush()
@@ -221,10 +229,10 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
     private void LogListLoadingRow(object? sender, DataGridRowEventArgs e)
     {
         e.Row.Bind(
-            DataGridRow.BackgroundProperty,
+            BackgroundProperty,
             new Binding(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay });
 
-        if (e.Row.DataContext is ModUpdateLogItemViewModel vm)
+        if (e.Row.DataContext is ModUpdateLogItemViewModel vm && DevMode.IsEnabled)
             Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
     }
 

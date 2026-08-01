@@ -76,9 +76,19 @@ public partial class ModRefControl : UserControl
         set => SetValue(AllowSeparatorsProperty, value);
     }
 
+    public static readonly StyledProperty<bool> AllowContextMenuProperty =
+        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowContextMenu), true);
+
+    public bool AllowContextMenu
+    {
+        get => GetValue(AllowContextMenuProperty);
+        set => SetValue(AllowContextMenuProperty, value);
+    }
+
     public ModRefControl()
     {
         InitializeComponent();
+        UpdateContextMenuState();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -100,6 +110,18 @@ public partial class ModRefControl : UserControl
         else if (change.Property == ShowDetailedRuleBadgesProperty)
         {
             UpdateBadgeVisibilities();
+        }
+        else if (change.Property == AllowContextMenuProperty)
+        {
+            UpdateContextMenuState();
+        }
+    }
+
+    private void UpdateContextMenuState()
+    {
+        if (!AllowContextMenu)
+        {
+            ContextMenu = null;
         }
     }
 

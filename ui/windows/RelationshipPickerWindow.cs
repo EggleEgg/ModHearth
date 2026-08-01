@@ -96,7 +96,8 @@ internal sealed class RelationshipPickerWindow : Window
                 ShowDetailedRuleBadges = true,
                 AllowContextActions = false,
                 AllowColorEditing = false,
-                AllowRelationshipEditing = false
+                AllowRelationshipEditing = false,
+                AllowContextMenu = false
             };
 
             if (isAdded)

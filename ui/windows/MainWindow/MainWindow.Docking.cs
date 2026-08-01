@@ -56,7 +56,7 @@ public partial class MainWindow
             ConfigManager.GetIsModUpdateLogDocked(),
             docked => ConfigManager.SetIsModUpdateLogDocked(docked),
             updateLogModeIndicator,
-            "Mod Update Log");
+            "Update Log");
     }
 
     private void SortRulesButtonPointerPressed(object? sender, PointerPressedEventArgs e)

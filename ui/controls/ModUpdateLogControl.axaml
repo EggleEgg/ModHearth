@@ -10,7 +10,9 @@
       <DataGrid x:Name="logList"
                 ItemsSource="{Binding Entries}"
                 CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
-                IsReadOnly="True" GridLinesVisibility="None">
+                IsReadOnly="True" GridLinesVisibility="Horizontal"
+                RowHeight="28"
+                SelectionMode="Extended">
         <DataGrid.Resources>
           <ControlTheme x:Key="ModUpdateLogRowForegroundCellTheme"
                         TargetType="DataGridCell"

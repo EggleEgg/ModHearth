@@ -48,6 +48,11 @@ public static class ModUpdateLogger
     private static readonly string WorkshopSnapshotPath = Path.Combine(MetadataDir, "steam_workshop_snapshot.json");
     private static string ResolveCanonicalPath(string path) => ConfigManager.ResolveCanonicalPath(path);
 
+    private const int MaxLogLines = 5000;
+    // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
+    // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
+    private static readonly object fileGate = new();
+
     static ModUpdateLogger()
     {
         EnsureMetadataDirectoryAndMigrateOldFiles();
@@ -94,11 +99,6 @@ public static class ModUpdateLogger
             }
         }
     }
-
-    private const int MaxLogLines = 5000;
-    // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
-    // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
-    private static readonly object fileGate = new();
 
     public static IReadOnlyList<ModUpdateLogEntry> LoadEntries()
     {
