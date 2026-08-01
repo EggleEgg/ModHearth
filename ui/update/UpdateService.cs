@@ -31,7 +31,7 @@ internal static class UpdateService
     // List of legacy, non-self-contained files and folders to clean up. Paths should be relative to the installation root directory.
     // Examples:
     //   - ("libs", true, CleanupPlatforms.All) -> Cleaned on Windows, Linux, and macOS
-    //   - ("libs", true, CleanupPlatforms.Linux | CleanupPlatforms.macOS) -> "" Linux AND MacOs. Logical or operations are not possible
+    //   - ("libs", true, CleanupPlatforms.Linux | CleanupPlatforms.macOS) -> "" Linux AND MacOs. Logical OR operations are not possible
     private static readonly (string Path, bool IsDirectory, CleanupPlatforms Platform)[] LegacyPathsToClean =
     {
         ("libs", true, CleanupPlatforms.All),
@@ -41,9 +41,12 @@ internal static class UpdateService
         ("libsteam_api.dylib", false, CleanupPlatforms.Windows | CleanupPlatforms.Linux),
         ("libsteam_api.so", false, CleanupPlatforms.Windows | CleanupPlatforms.macOS),
         ("steam_api64.dll", false, CleanupPlatforms.Linux | CleanupPlatforms.macOS ),
-        //TODO maybe handle skiasharp debug symbols too? Is it even safe to do so?
+        ("libSkiaSharp.pdb", false, CleanupPlatforms.All),
+        ("libHarfBuzzSharp.pdb", false, CleanupPlatforms.All),
         ("ModHearth.SteamWorker.pdb", false, CleanupPlatforms.All),
         ("ModHearth.pdb", false, CleanupPlatforms.All),
+        ("ModHearth.runtimeconfig.json", false, CleanupPlatforms.All),
+        ("ModHearth.deps.json", false, CleanupPlatforms.All)
     };
 
     public static async Task<bool> TryRunUpdateAsync(Window owner, string currentBuild)

@@ -33,7 +33,6 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
         IReadOnlySet<string> alreadyAdded,
         IReadOnlyDictionary<string, ModRelationshipRule> relationshipRules)
     {
-        WindowThemeManager.Register(this);
         this.ownerId = ownerId.Trim();
         this.alreadyAdded = new HashSet<string>(alreadyAdded, StringComparer.OrdinalIgnoreCase);
 
@@ -151,6 +150,7 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
         ApplyFilter();
         listBox.SelectedItem = visibleItems.FirstOrDefault(vm => !this.alreadyAdded.Contains(vm.ModReference.ID.Trim()));
         Opened += (_, _) => searchBar.FocusSearchBox();
+        WindowThemeManager.Register(this);
     }
 
     private void ApplyFilter()
@@ -207,7 +207,7 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
 
     public void ApplyCustomStyle(Style style)
     {
-        if (style == null)
+        if (style == null || allMods == null)
             return;
         foreach (ModRefViewModel vm in allMods)
         {
