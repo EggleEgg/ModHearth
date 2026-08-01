@@ -120,7 +120,7 @@ public partial class MainWindow
         await SetAndMarkChangesAsync(false);
         RestoreSelectionSnapshot(selectionSnapshot);
 
-        _updateLogDockManager?.SharedControl?.LoadEntries();
+        await (_updateLogDockManager?.SharedControl?.LoadEntriesAsync() ?? Task.CompletedTask);
 
         ReloadLogging.Log("ReloadModpacksFromDisk end");
 

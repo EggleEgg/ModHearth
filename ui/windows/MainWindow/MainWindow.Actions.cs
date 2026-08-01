@@ -49,7 +49,7 @@ public partial class MainWindow
         }
 
         _updateLogDockManager?.Open();
-        _updateLogDockManager?.SharedControl?.LoadEntries();
+        _ = _updateLogDockManager?.SharedControl?.LoadEntriesAsync();
     }
 
     private IReadOnlyDictionary<DockSide, DockingTarget> CreateDockSideTargets()

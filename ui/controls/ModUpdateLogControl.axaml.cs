@@ -23,6 +23,8 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
     private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
     private ModRefControl? contextMenuHost;
     private IBrush backgroundColorBrush = Brushes.Transparent;
+    private readonly SemaphoreSlim loadGate = new SemaphoreSlim(1, 1);
+    private bool loadRerunRequested;
     private int loadedRawCount;
 
     public ModUpdateLogControl() : this(null) { }
@@ -36,7 +38,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         if (manager != null)
         {
             this.manager = manager;
-            _ = LoadEntriesInitialAsync();
+            _ = LoadEntriesAsync();
         }
     }
 
@@ -119,69 +121,113 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     public void LoadEntries()
     {
-        var entries = ModUpdateLogger.LoadEntries();
-        Console.WriteLine($"[ModUpdateLog] Total number of entries: {entries.Count}");
-        ApplyRawEntries(entries);
+        _ = LoadEntriesAsync();
     }
 
-    // Used only for the very first population (opening the panel for the first time this session), so the initial file read + JSON parse doesn't block the UI thread. 
-    // Every reload after that goes through the synchronous LoadEntries(); cheap by then, since ApplyRawEntries only processes what's actually new.
-    private async Task LoadEntriesInitialAsync()
+    public async Task LoadEntriesAsync()
     {
+        if (!await loadGate.WaitAsync(0))
+        {
+            loadRerunRequested = true;
+            return;
+        }
+
         try
         {
-            IReadOnlyList<ModUpdateLogEntry> rawEntries = await Task.Run(() => ModUpdateLogger.LoadEntries());
-            Console.WriteLine($"[ModUpdateLog] Total number of entries: {rawEntries.Count}");
-            ApplyRawEntries(rawEntries);
+            do
+            {
+                loadRerunRequested = false;
+
+                HashSet<string> activeIds = manager == null
+                    ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    : new HashSet<string>(manager.enabledMods.Select(mod => mod.id), StringComparer.OrdinalIgnoreCase);
+                int knownCount = loadedRawCount;
+                bool wasEmpty = allEntries.Count == 0;
+
+                (List<ModUpdateLogItemViewModel> viewModels, int rawCount, bool needsFullRebuild) result =
+                    await Task.Run(() => BuildFromDisk(activeIds, knownCount, wasEmpty));
+
+                ApplyViewModels(result.viewModels, result.rawCount, result.needsFullRebuild);
+            }
+            while (loadRerunRequested);
         }
-        catch (Exception ex)
+        finally
         {
-            Console.WriteLine($"[ModUpdateLog] Initial load failed: {ex.Message}");
+            loadGate.Release();
         }
     }
 
-    // Builds view models only for entries not already represented in `entries`, instead of tearing down and rebuilding on every call. 
-    // New log entries are always appended on disk (see ModUpdateLogger.AppendEntries), so anything past loadedRawCount is new.
-    private void ApplyRawEntries(IReadOnlyList<ModUpdateLogEntry> rawEntries)
+    private static (List<ModUpdateLogItemViewModel> ViewModels, int RawCount, bool NeedsFullRebuild) BuildFromDisk(
+        HashSet<string> activeIds, int knownCount, bool wasEmpty)
     {
-        bool needsFullRebuild = allEntries.Count == 0 || rawEntries.Count < loadedRawCount;
-        IEnumerable<ModUpdateLogEntry> toMaterialize = needsFullRebuild
-            ? rawEntries
-            : rawEntries.Skip(loadedRawCount);
+        IReadOnlyList<ModUpdateLogEntry> rawEntries = ModUpdateLogger.LoadEntries();
+        Console.WriteLine($"[ModUpdateLog] Total number of entries: {rawEntries.Count}");
+        bool needsFullRebuild = wasEmpty || rawEntries.Count < knownCount;
 
-        HashSet<string> activeIds = manager == null
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(manager.enabledMods.Select(mod => mod.id), StringComparer.OrdinalIgnoreCase);
+        List<ModUpdateLogEntry> toMaterialize = (needsFullRebuild ? rawEntries : rawEntries.Skip(knownCount)).ToList();
 
         IBrush defaultBrush = GetDefaultTextBrush();
         IBrush selectedBrush = GetSelectedBackgroundBrush();
 
-        List<ModUpdateLogItemViewModel> newViewModels = new();
-        foreach (ModUpdateLogEntry entry in toMaterialize)
+        List<ModUpdateLogItemViewModel> viewModels = BuildViewModels(toMaterialize, activeIds, defaultBrush, selectedBrush);
+        if (needsFullRebuild)
+            viewModels = viewModels.OrderByDescending(vm => vm.Entry.TimestampUtc).ToList();
+
+        return (viewModels, rawEntries.Count, needsFullRebuild);
+    }
+
+    private const int ParallelThreshold = 64;
+
+    private static List<ModUpdateLogItemViewModel> BuildViewModels(
+        List<ModUpdateLogEntry> rawEntries, HashSet<string> activeIds, IBrush defaultBrush, IBrush selectedBrush)
+    {
+        ModUpdateLogItemViewModel[] results = new ModUpdateLogItemViewModel[rawEntries.Count];
+
+        void Build(int i)
         {
+            ModUpdateLogEntry entry = rawEntries[i];
             ModReference modref = BuildModReference(entry);
             bool isActive = activeIds.Contains(entry.ModId);
             IBrush brush = GetRowBrush(entry, defaultBrush, isActive);
-            newViewModels.Add(new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive));
+            results[i] = new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive);
         }
 
+        if (rawEntries.Count > ParallelThreshold)
+        {
+            Parallel.For(0, rawEntries.Count, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, Build);
+        }
+        else
+        {
+            for (int i = 0; i < rawEntries.Count; i++)
+                Build(i);
+        }
+
+        return results.ToList();
+    }
+
+    private void ApplyViewModels(List<ModUpdateLogItemViewModel> viewModels, int rawCount, bool needsFullRebuild)
+    {
         if (needsFullRebuild)
         {
             allEntries.Clear();
-            foreach (ModUpdateLogItemViewModel vm in newViewModels.OrderByDescending(vm => vm.Entry.TimestampUtc))
+            foreach (ModUpdateLogItemViewModel vm in viewModels)
                 allEntries.Add(vm);
 
             ApplyFilter();
+            selectionController.UpdateSelectionState(logList);
             ApplyDefaultSort();
         }
         else
         {
-            foreach (ModUpdateLogItemViewModel vm in newViewModels)
+            foreach (ModUpdateLogItemViewModel vm in viewModels)
                 allEntries.Add(vm);
             ApplyFilter();
         }
 
-        loadedRawCount = rawEntries.Count;
+        loadedRawCount = rawCount;
     }
 
     private void ApplyFilter()
