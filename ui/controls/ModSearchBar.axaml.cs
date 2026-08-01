@@ -33,7 +33,7 @@ public partial class ModSearchBar : UserControl
         AvaloniaProperty.Register<ModSearchBar, string?>(nameof(PlaceholderText), "Search");
 
     public static readonly StyledProperty<bool> HideFilteredProperty =
-        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(HideFiltered));
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(HideFiltered), true);
     public static readonly StyledProperty<SearchFilterMode> SearchModeProperty =
         AvaloniaProperty.Register<ModSearchBar, SearchFilterMode>(nameof(SearchMode), SearchFilterMode.Name);
 
@@ -42,6 +42,10 @@ public partial class ModSearchBar : UserControl
 
     public static readonly StyledProperty<bool> IsSortingEnabledProperty =
         AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsSortingEnabled), true);
+
+    // Disables the color filter too
+    public static readonly StyledProperty<bool> IsColorSearchEnabledProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsColorSearchEnabled), true);
 
     public event EventHandler? SearchTextChanged;
     public event EventHandler? HideFilteredToggled;
@@ -107,7 +111,7 @@ public partial class ModSearchBar : UserControl
             }
             else
             {
-                if (SearchMode == SearchFilterMode.Color)
+                if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
                 {
                     ColorPicker.ClearSelection();
                 }
@@ -149,6 +153,14 @@ public partial class ModSearchBar : UserControl
                 }
                 UpdateSearchModeIcon();
                 UpdateSearchModeButtonTooltip();
+                searchModeFlyout = null;
+            }
+            else if (args.Property == IsColorSearchEnabledProperty)
+            {
+                if (!IsColorSearchEnabled && SearchMode == SearchFilterMode.Color)
+                {
+                    SearchMode = SearchFilterMode.Name;
+                }
                 searchModeFlyout = null;
             }
         };
@@ -199,12 +211,12 @@ public partial class ModSearchBar : UserControl
 
     public string Text
     {
-        get => SearchMode == SearchFilterMode.Color
+        get => SearchMode == SearchFilterMode.Color && IsColorSearchEnabled
             ? string.Join(",", ColorPicker.SelectedColors.Select(c => c.ModColor.ToString()))
             : SearchBox.Text ?? string.Empty;
         set
         {
-            if (SearchMode != SearchFilterMode.Color)
+            if (SearchMode != SearchFilterMode.Color || !IsColorSearchEnabled)
                 SearchBox.Text = value;
             else
             {
@@ -234,7 +246,7 @@ public partial class ModSearchBar : UserControl
 
     public void FocusSearchBox()
     {
-        if (SearchMode == SearchFilterMode.Color)
+        if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
             return;
 
         SearchBox.Focus();
@@ -258,6 +270,12 @@ public partial class ModSearchBar : UserControl
         set => SetValue(IsSortingEnabledProperty, value);
     }
 
+    public bool IsColorSearchEnabled
+    {
+        get => GetValue(IsColorSearchEnabledProperty);
+        set => SetValue(IsColorSearchEnabledProperty, value);
+    }
+
     public SearchFilterMode SearchMode
     {
         get => GetValue(SearchModeProperty);
@@ -266,7 +284,7 @@ public partial class ModSearchBar : UserControl
 
     public bool ClearSearchSelection()
     {
-        if (SearchMode == SearchFilterMode.Color)
+        if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
         {
             bool hadSelection = ColorPicker.SelectedColors.Any();
             ColorPicker.ClearSelection();
@@ -360,7 +378,8 @@ public partial class ModSearchBar : UserControl
 
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name, "Search by name"));
         panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex, "Search by regex"));
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color, "Search by color"));
+        if (IsColorSearchEnabled)
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color, "Search by color"));
 
         if (IsSortingEnabled)
             panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime, "Sort by modified time"));

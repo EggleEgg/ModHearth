@@ -6,10 +6,14 @@ namespace ModHearth.UI;
 
 public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelectableItem
 {
-    private readonly IBrush defaultBackgroundBrush;
-    private readonly IBrush selectedBackgroundBrush;
+    private readonly IBrush defaultBackgroundBrush = Brushes.Transparent;
+    private IBrush selectedBackgroundBrush;
     private bool isSelected;
     private IBrush backgroundBrush;
+    private IBrush rowBrush;
+    private bool isFilteredOut;
+    private bool isVisible = true;
+    private TextDecorationCollection? textDecorations;
 
     public ModUpdateLogItemViewModel(
         ModUpdateLogEntry entry,
@@ -20,7 +24,7 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
     {
         Entry = entry ?? throw new ArgumentNullException(nameof(entry));
         ModReference = modref ?? throw new ArgumentNullException(nameof(modref));
-        RowBrush = rowBrush ?? throw new ArgumentNullException(nameof(rowBrush));
+        this.rowBrush = rowBrush ?? throw new ArgumentNullException(nameof(rowBrush));
         this.selectedBackgroundBrush = selectedBackgroundBrush ?? Brushes.Transparent;
         defaultBackgroundBrush = Brushes.Transparent;
         backgroundBrush = defaultBackgroundBrush;
@@ -36,7 +40,17 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
 
     public ModUpdateLogEntry Entry { get; }
     public ModReference ModReference { get; }
-    public IBrush RowBrush { get; }
+    public IBrush RowBrush
+    {
+        get => rowBrush;
+        private set
+        {
+            if (Equals(rowBrush, value))
+                return;
+            rowBrush = value;
+            OnPropertyChanged();
+        }
+    }
     public IBrush BackgroundBrush
     {
         get => backgroundBrush;
@@ -74,6 +88,111 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
             isSelected = value;
             BackgroundBrush = isSelected ? selectedBackgroundBrush : defaultBackgroundBrush;
             OnPropertyChanged();
+        }
+    }
+
+    public bool IsFilteredOut
+    {
+        get => isFilteredOut;
+        set
+        {
+            if (isFilteredOut == value)
+                return;
+            isFilteredOut = value;
+            if (Style.instance != null)
+                RefreshStyle(Style.instance);
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsVisible
+    {
+        get => isVisible;
+        set
+        {
+            if (isVisible == value)
+                return;
+            isVisible = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public TextDecorationCollection? TextDecorations
+    {
+        get => textDecorations;
+        private set
+        {
+            if (Equals(textDecorations, value))
+                return;
+            textDecorations = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool MatchesFilter(string filter, SearchFilterMode mode)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+            return true;
+
+        if (mode == SearchFilterMode.Regex)
+        {
+            try
+            {
+                string fullTarget = $"{ModName} {Entry.ModId} {Entry.SteamId} {Entry.Path} {SourceType} {StateText} {DateText}";
+                return System.Text.RegularExpressions.Regex.IsMatch(fullTarget, filter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        if (mode == SearchFilterMode.Color)
+        {
+            return true;
+        }
+
+        string? candidate = mode switch
+        {
+            SearchFilterMode.Name => ModName,
+            SearchFilterMode.Id => Entry.ModId,
+            SearchFilterMode.SteamFileId => Entry.SteamId,
+            _ => ModName
+        };
+
+        return (!string.IsNullOrWhiteSpace(candidate) && candidate.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrWhiteSpace(Path) && Path.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrWhiteSpace(StateText) && StateText.Contains(filter, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void RefreshStyle(Style style)
+    {
+        selectedBackgroundBrush = style != null
+            ? BrushCache.GetBrush(style.modRefHighlightColor.ToAvaloniaColor())
+            : Brushes.Transparent;
+
+        IBrush defaultBrush = style != null
+            ? BrushCache.GetBrush(style.textColor.ToAvaloniaColor())
+            : Brushes.White;
+
+        if (IsFilteredOut && style != null)
+        {
+            RowBrush = BrushCache.GetBrush(style.modRefTextFilteredColor.ToAvaloniaColor());
+        }
+        else
+        {
+            RowBrush = ModUpdateLogControl.GetRowBrush(Entry, defaultBrush, IsActive);
+        }
+
+        var targetDecoration = IsFilteredOut ? Avalonia.Media.TextDecorations.Strikethrough : null;
+        if (TextDecorations != targetDecoration)
+        {
+            TextDecorations = targetDecoration;
+        }
+
+        if (IsSelected)
+        {
+            BackgroundBrush = selectedBackgroundBrush;
         }
     }
 

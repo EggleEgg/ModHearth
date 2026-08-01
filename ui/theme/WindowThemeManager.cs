@@ -182,6 +182,7 @@ public static class WindowThemeManager
             app.Resources["ModRefPanelClearBrush"] = brushes.PanelClear;
             app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.selectionColor);
             app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.EditBrushAlpha(style.selectionColor, 120);
+            app.Resources["SelectionPreviewBackgroundBrush"] = BrushCache.EditBrushAlpha(style.selectionColor, 30);
             app.Resources["PanelBrush"] = panelBrush;
             app.Resources["SearchBorderBrush"] = searchBorderBrush;
             app.Resources["SearchButtonBrush"] = searchButtonBrush;
@@ -195,6 +196,8 @@ public static class WindowThemeManager
 
         if (visual is IStyleAwareWindow styleAware)
             styleAware.ApplyCustomStyle(style);
+
+        ModRefViewModel.RefreshAllStyles();
     }
 
     private static void ApplyToVisualRecursive(

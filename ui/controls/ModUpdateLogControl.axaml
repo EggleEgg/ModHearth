@@ -4,35 +4,81 @@
              x:Class="ModHearth.UI.ModUpdateLogControl"
              x:DataType="ui:ModUpdateLogControl">
 
-  <Grid Margin="12" RowDefinitions="Auto,*">
-    <ui:ModRefControl x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" />
-    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+  <Grid Margin="12" RowDefinitions="Auto,Auto,*">
+    <Grid Grid.Row="0" Margin="0,0,0,8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="2*" MinWidth="200" MaxWidth="550" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <ui:ModSearchBar x:Name="modSearchBar" Grid.Column="0" IsSortingEnabled="False" IsColorSearchEnabled="False" />
+      <Border Grid.Column="1" />
+      <Button x:Name="clearLogsButton" Grid.Column="2" Content="Clear Logs" Padding="10,4" VerticalAlignment="Center" HorizontalAlignment="Left" />
+    </Grid>
+    <ui:ModRefControl Grid.Row="1" x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" />
+    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
       <DataGrid x:Name="logList"
                 ItemsSource="{Binding Entries}"
                 CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
                 IsReadOnly="True" GridLinesVisibility="Horizontal"
                 RowHeight="28"
                 SelectionMode="Extended">
-        <DataGrid.Resources>
-          <ControlTheme x:Key="ModUpdateLogRowForegroundCellTheme"
-                        TargetType="DataGridCell"
-                        BasedOn="{StaticResource {x:Type DataGridCell}}"
-                        x:DataType="ui:ModUpdateLogItemViewModel">
-            <Setter Property="Foreground" Value="{Binding RowBrush}" />
-          </ControlTheme>
-        </DataGrid.Resources>
         <DataGrid.Styles>
           <Style Selector="DataGridRow:selected /template/ Rectangle">
             <Setter Property="Fill" Value="Transparent" />
           </Style>
+          <Style Selector="DataGridCell TextBlock">
+            <Setter Property="Effect">
+              <DropShadowEffect OffsetX="0" OffsetY="0" BlurRadius="5" Color="Black" Opacity="0.8" />
+            </Setter>
+          </Style>
         </DataGrid.Styles>
+
+        <!-- Template model needed for TextDecorations to work -->
         <DataGrid.Columns>
-          <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="160" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-          <DataGridTextColumn Header="Mod" Binding="{Binding ModName}" Width="220" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-          <DataGridTextColumn Header="Type" Binding="{Binding SourceType}" Width="80" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-          <DataGridTextColumn Header="State" Binding="{Binding StateText}" SortMemberPath="StateSortRank" Width="80" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-          <DataGridTextColumn Header="Active" Binding="{Binding ActiveText}" Width="80" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
-          <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="Auto" CellTheme="{StaticResource ModUpdateLogRowForegroundCellTheme}" />
+          <DataGridTemplateColumn Header="Date" Width="160" SortMemberPath="DateText">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
+                <TextBlock Text="{Binding DateText}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Mod" Width="220" SortMemberPath="ModName">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
+                <TextBlock Text="{Binding ModName}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Type" Width="80" SortMemberPath="SourceType">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
+                <TextBlock Text="{Binding SourceType}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="State" Width="80" SortMemberPath="StateSortRank">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
+                <TextBlock Text="{Binding StateText}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Active" Width="80" SortMemberPath="ActiveText">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
+                <TextBlock Text="{Binding ActiveText}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Path" Width="Auto" SortMemberPath="Path">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
+                <TextBlock Text="{Binding Path}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
         </DataGrid.Columns>
       </DataGrid>
     </ScrollViewer>

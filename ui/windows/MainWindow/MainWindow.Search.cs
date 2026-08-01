@@ -62,6 +62,17 @@ public partial class MainWindow
         LogVisualFilterState("ApplySearchFilter");
     }
 
+    private void OnSearchBarStateChanged()
+    {
+        SaveSearchBarStates();
+    }
+
+    private void SaveSearchBarStates()
+    {
+        ConfigManager.SetLeftSearchBarState(leftSearchBar.GetStringState());
+        ConfigManager.SetRightSearchBarState(rightSearchBar.GetStringState());
+    }
+
     private void UpdateSearchBarAvailableColors()
     {
         if (leftSearchBar == null || rightSearchBar == null) return;

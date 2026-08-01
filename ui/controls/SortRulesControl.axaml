@@ -25,10 +25,7 @@
 
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" RowSpacing="8">
       <TextBlock Text="Mods" FontWeight="Bold" />
-      <ui:ModSearchBar x:Name="modSearchBar"
-                       Grid.Row="1"
-                       IsSortingEnabled="True"
-                       HideFiltered="True" />
+      <ui:ModSearchBar x:Name="modSearchBar" Grid.Row="1"/>
 
       <ListBox x:Name="modTreeList"
                Grid.Row="2"

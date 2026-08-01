@@ -91,4 +91,19 @@ public partial class MainWindow
         string icon = newDocked ? "windowIcon.svg" : "windowDoubleIcon.svg";
         ShowNotification(status, icon);
     }
+
+    private void SaveMainWindowGridSplitterRatio()
+    {
+        if (mainGrid != null && mainGrid.ColumnDefinitions.Count >= 5)
+        {
+            double w2 = mainGrid.ColumnDefinitions[2].ActualWidth;
+            double w4 = mainGrid.ColumnDefinitions[4].ActualWidth;
+            if (w2 + w4 > 0)
+            {
+                double ratio = w2 / (w2 + w4);
+                ratio = Math.Clamp(ratio, 0.05, 0.95);
+                ConfigManager.SetMainWindowGridSplitterRatio(ratio);
+            }
+        }
+    }
 }

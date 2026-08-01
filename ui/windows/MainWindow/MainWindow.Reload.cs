@@ -155,7 +155,7 @@ public partial class MainWindow
 
         autoReloadEnabledCheckBox = new CheckBox
         {
-            Content = "Enable Auto-Reload",
+            Content = "Enable Autoreload",
             IsChecked = false
         };
         autoReloadEnabledCheckBox.IsCheckedChanged += AutoReloadEnabledChanged;

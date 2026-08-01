@@ -78,7 +78,7 @@
           </Setter>
         </Style>
         <Style Selector="Button[Tag=DockSplitterCloseButton]:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-          <Setter Property="Background" Value="{DynamicResource WorkshopDockPreviewBackgroundBrush}" />
+          <Setter Property="Background" Value="{DynamicResource SelectionPreviewBackgroundBrush}" />
         </Style>
 
         <Style Selector="Button#leftDockSplitterCloseButton Image">
@@ -185,7 +185,7 @@
             <TextBlock x:Name="leftHeaderLabel" Grid.Row="0"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-            <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1" PlaceholderText="Search" />
+            <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1" />
 
             <ListBox x:Name="leftModlist" Grid.Row="2" SelectionMode="Multiple" AutoScrollToSelectedItem="False"
                      Margin="0,6,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
@@ -196,7 +196,7 @@
             <TextBlock x:Name="rightHeaderLabel" Grid.Row="0"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-            <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1" PlaceholderText="Search"/>
+            <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1" />
 
             <ListBox x:Name="rightModlist" Grid.Row="2" SelectionMode="Multiple" AutoScrollToSelectedItem="False"
                      Margin="0,6,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
@@ -294,7 +294,7 @@
 
           <StackPanel Grid.Row="7" Spacing="12" Margin="0,0,0,6" VerticalAlignment="Bottom">
             <Button x:Name="workshopDownloaderButton" Tag="Themed" Width="42" Height="42"
-                    ToolTip.Tip="Open the Steam Workshop Downloader. Right click for options" HorizontalAlignment="Right">
+                    ToolTip.Tip="Open the Steam Workshop Downloader. Right click to toggle docking mode" HorizontalAlignment="Right">
               <Grid>
                 <Image Source="{ui:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
                 <Image x:Name="workshopModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
@@ -348,15 +348,15 @@
 
       <!-- TODO Refactor to stop using weird "magic number" margins to center the buttons. Image rotation should be accounted for too -->
       <Button x:Name="leftDockSplitterCloseButton" Grid.Column="1" Tag="DockSplitterCloseButton"
-              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0, -12, 1, 0"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0, -12, 2, 0"
               IsVisible="{Binding IsVisible, ElementName=leftDockSplitter}" />
 
       <Button x:Name="rightDockSplitterCloseButton" Grid.Column="6" Tag="DockSplitterCloseButton"
-              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20, -12, 0, 0"
+              HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2, -12, 0, 0"
               IsVisible="{Binding IsVisible, ElementName=rightDockSplitter}" />
 
       <Button x:Name="bottomDockSplitterCloseButton" Grid.Row="1" Grid.ColumnSpan="8" Tag="DockSplitterCloseButton"
-              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0, 20, -12, 0"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0, 2, -12, 0"
               IsVisible="{Binding IsVisible, ElementName=bottomDockSplitter}" />
     </Grid>
 

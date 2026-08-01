@@ -14,6 +14,9 @@ namespace ModHearth.UI;
 public sealed record RuleBadgeInfo(IImage? Icon, int Count);
 public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 {
+    private static readonly List<WeakReference<ModRefViewModel>> allInstances = new();
+    private static readonly object instancesLock = new();
+
     private readonly ModReference modref;
     private bool isProblem;
     private bool isDuplicateWarning;
@@ -50,6 +53,38 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         DisplayName = string.IsNullOrWhiteSpace(modref.displayedVersion)
             ? baseName
             : $"{baseName} {modref.displayedVersion}";
+
+        lock (instancesLock)
+        {
+            CleanupInstancesLocked();
+            allInstances.Add(new WeakReference<ModRefViewModel>(this));
+        }
+    }
+
+    private static void CleanupInstancesLocked()
+    {
+        allInstances.RemoveAll(weak => !weak.TryGetTarget(out _));
+    }
+
+    public static void RefreshAllStyles()
+    {
+        List<ModRefViewModel> targets = new();
+        lock (instancesLock)
+        {
+            CleanupInstancesLocked();
+            foreach (var weak in allInstances)
+            {
+                if (weak.TryGetTarget(out var vm))
+                {
+                    targets.Add(vm);
+                }
+            }
+        }
+
+        foreach (var vm in targets)
+        {
+            vm.RefreshStyle();
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -547,13 +582,26 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         else
             color = style.textColor.ToAvaloniaColor();
 
-        if (!(TextBrush is ISolidColorBrush scb && scb.Color == color))
-            TextBrush = BrushCache.GetBrush(color);
+        IBrush newBrush = BrushCache.GetBrush(color);
+        if (textBrush != newBrush)
+        {
+            textBrush = newBrush;
+            OnPropertyChanged(nameof(TextBrush));
+        }
+        else
+        {
+            OnPropertyChanged(nameof(TextBrush));
+        }
 
         var targetDecoration = IsFilteredOut ? Avalonia.Media.TextDecorations.Strikethrough : null;
-        if (TextDecorations != targetDecoration)
+        if (textDecorations != targetDecoration)
         {
-            TextDecorations = targetDecoration;
+            textDecorations = targetDecoration;
+            OnPropertyChanged(nameof(TextDecorations));
+        }
+        else
+        {
+            OnPropertyChanged(nameof(TextDecorations));
         }
     }
 

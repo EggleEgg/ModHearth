@@ -14,14 +14,16 @@ using System.Runtime.CompilerServices;
 
 namespace ModHearth.UI;
 
-public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, IModRefContextMenuProvider
+public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, IModRefContextMenuProvider, IStyleAwareWindow
 {
     private readonly ModHearthManager? manager;
+    private readonly List<ModUpdateLogItemViewModel> allEntries = new();
     private readonly ObservableCollection<ModUpdateLogItemViewModel> entries = new();
     public ObservableCollection<ModUpdateLogItemViewModel> Entries => entries;
     private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
     private ModRefControl? contextMenuHost;
     private IBrush backgroundColorBrush = Brushes.Transparent;
+    private int loadedRawCount;
 
     public ModUpdateLogControl() : this(null) { }
 
@@ -34,7 +36,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         if (manager != null)
         {
             this.manager = manager;
-            LoadEntries();
+            _ = LoadEntriesInitialAsync();
         }
     }
 
@@ -47,6 +49,27 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         contextMenuHost = this.FindControl<ModRefControl>("ContextMenuHost");
         if (contextMenuHost != null)
             logList.ContextMenu = contextMenuHost.ContextMenu;
+
+        modSearchBar.SearchTextChanged += (_, _) => ApplyFilter();
+        modSearchBar.SearchModeChanged += (_, _) => ApplyFilter();
+        modSearchBar.HideFilteredToggled += (_, _) => ApplyFilter();
+
+        clearLogsButton.Click += async (_, _) =>
+        {
+            var ownerWindow = TopLevel.GetTopLevel(this) as Window;
+            if (ownerWindow != null)
+            {
+                bool confirm = await DialogService.ShowConfirmAsync(ownerWindow, "Are you sure you want to clear all update logs?", "Clear Logs");
+                if (!confirm)
+                    return;
+            }
+
+            ModUpdateLogger.ClearEntries();
+            allEntries.Clear();
+            entries.Clear();
+            loadedRawCount = 0;
+            selectionController.UpdateSelectionState(logList);
+        };
     }
 
     private void LogListSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -96,9 +119,35 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     public void LoadEntries()
     {
-        List<ModUpdateLogEntry> logEntries = ModUpdateLogger.LoadEntries()
-            .OrderByDescending(entry => entry.TimestampUtc)
-            .ToList();
+        var entries = ModUpdateLogger.LoadEntries();
+        Console.WriteLine($"[ModUpdateLog] Total number of entries: {entries.Count}");
+        ApplyRawEntries(entries);
+    }
+
+    // Used only for the very first population (opening the panel for the first time this session), so the initial file read + JSON parse doesn't block the UI thread. 
+    // Every reload after that goes through the synchronous LoadEntries(); cheap by then, since ApplyRawEntries only processes what's actually new.
+    private async Task LoadEntriesInitialAsync()
+    {
+        try
+        {
+            IReadOnlyList<ModUpdateLogEntry> rawEntries = await Task.Run(() => ModUpdateLogger.LoadEntries());
+            Console.WriteLine($"[ModUpdateLog] Total number of entries: {rawEntries.Count}");
+            ApplyRawEntries(rawEntries);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ModUpdateLog] Initial load failed: {ex.Message}");
+        }
+    }
+
+    // Builds view models only for entries not already represented in `entries`, instead of tearing down and rebuilding on every call. 
+    // New log entries are always appended on disk (see ModUpdateLogger.AppendEntries), so anything past loadedRawCount is new.
+    private void ApplyRawEntries(IReadOnlyList<ModUpdateLogEntry> rawEntries)
+    {
+        bool needsFullRebuild = allEntries.Count == 0 || rawEntries.Count < loadedRawCount;
+        IEnumerable<ModUpdateLogEntry> toMaterialize = needsFullRebuild
+            ? rawEntries
+            : rawEntries.Skip(loadedRawCount);
 
         HashSet<string> activeIds = manager == null
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -107,24 +156,56 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         IBrush defaultBrush = GetDefaultTextBrush();
         IBrush selectedBrush = GetSelectedBackgroundBrush();
 
-        var newViewModels = new List<ModUpdateLogItemViewModel>(logEntries.Count);
-        foreach (ModUpdateLogEntry entry in logEntries)
+        List<ModUpdateLogItemViewModel> newViewModels = new();
+        foreach (ModUpdateLogEntry entry in toMaterialize)
         {
             ModReference modref = BuildModReference(entry);
             bool isActive = activeIds.Contains(entry.ModId);
             IBrush brush = GetRowBrush(entry, defaultBrush, isActive);
-
             newViewModels.Add(new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive));
         }
 
+        if (needsFullRebuild)
+        {
+            allEntries.Clear();
+            foreach (ModUpdateLogItemViewModel vm in newViewModels.OrderByDescending(vm => vm.Entry.TimestampUtc))
+                allEntries.Add(vm);
+
+            ApplyFilter();
+            ApplyDefaultSort();
+        }
+        else
+        {
+            foreach (ModUpdateLogItemViewModel vm in newViewModels)
+                allEntries.Add(vm);
+            ApplyFilter();
+        }
+
+        loadedRawCount = rawEntries.Count;
+    }
+
+    private void ApplyFilter()
+    {
+        string filter = modSearchBar?.Text?.Trim() ?? string.Empty;
+        SearchFilterMode searchMode = modSearchBar?.SearchMode ?? SearchFilterMode.Name;
+        bool hideFiltered = modSearchBar?.HideFiltered ?? false;
+        bool hasFilter = !string.IsNullOrWhiteSpace(filter);
+
+        List<ModUpdateLogItemViewModel> filtered = allEntries.Where(vm =>
+        {
+            bool match = !hasFilter || vm.MatchesFilter(filter, searchMode);
+            vm.IsFilteredOut = hasFilter && !match;
+            vm.IsVisible = !hideFiltered || match;
+            return vm.IsVisible;
+        }).ToList();
+
         entries.Clear();
-        foreach (var vm in newViewModels)
+        foreach (var vm in filtered)
         {
             entries.Add(vm);
         }
 
         selectionController.UpdateSelectionState(logList);
-        ApplyDefaultSort();
     }
 
     private void ApplyDefaultSort()
@@ -143,7 +224,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         return Brushes.White;
     }
 
-    private static IBrush GetRowBrush(ModUpdateLogEntry entry, IBrush defaultBrush, bool isActive)
+    public static IBrush GetRowBrush(ModUpdateLogEntry entry, IBrush defaultBrush, bool isActive)
     {
         switch (entry.ChangeType)
         {
@@ -243,6 +324,11 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         if (logList != null)
         {
             logList.Background = BackgroundColorBrush;
+        }
+
+        foreach (var vm in allEntries)
+        {
+            vm.RefreshStyle(style);
         }
     }
 

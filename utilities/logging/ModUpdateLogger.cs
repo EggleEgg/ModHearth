@@ -133,6 +133,24 @@ public static class ModUpdateLogger
         }
     }
 
+    public static void ClearEntries()
+    {
+        lock (fileGate)
+        {
+            try
+            {
+                if (File.Exists(LogPath))
+                {
+                    File.WriteAllText(LogPath, "[]");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogging.LogException("Failed to clear update log entries", ex);
+            }
+        }
+    }
+
     public static void LogUnsubscribe(IEnumerable<ModReference> mods, HashSet<string> activeIds)
     {
         lock (fileGate)

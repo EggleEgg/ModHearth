@@ -15,7 +15,7 @@ using ModHearth.Models;
 
 namespace ModHearth.UI;
 
-internal sealed class RelationshipPickerWindow : Window
+internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
 {
     private readonly string ownerId;
     private readonly HashSet<string> alreadyAdded;
@@ -203,6 +203,16 @@ internal sealed class RelationshipPickerWindow : Window
             return;
 
         Close(vm.ModReference.ID.Trim());
+    }
+
+    public void ApplyCustomStyle(Style style)
+    {
+        if (style == null)
+            return;
+        foreach (ModRefViewModel vm in allMods)
+        {
+            vm.RefreshStyle();
+        }
     }
 
     private static string LabelFor(ModRelationshipKind kind)
