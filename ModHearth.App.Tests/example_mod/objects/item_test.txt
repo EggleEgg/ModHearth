@@ -1,0 +1,11 @@
+item_test
+
+[OBJECT:ITEM]
+
+[ITEM_TOOL:ITEM_TEST_TOOL]
+[NAME:test tool:test tools]
+[VALUE:10]
+[TILE:155]
+[SIZE:500]
+[MATERIAL_SIZE:1]
+[DESCRIPTION:A generic tool item used for testing mod features.]

@@ -1,0 +1,17 @@
+[ID:example_mod_test]
+[NUMERIC_VERSION:3]
+[DISPLAYED_VERSION:1.1.2]
+[EARLIEST_COMPATIBLE_NUMERIC_VERSION:1]
+[EARLIEST_COMPATIBLE_DISPLAYED_VERSION:1.0.0]
+[AUTHOR:Urist]
+[NAME:Example mod]
+[DESCRIPTION:Lorem ipsum]
+
+[REQUIRES_ID:vanilla_creatures]
+
+[STEAM_TITLE:Expanded Mining Equipment v1.1.2]
+[STEAM_DESCRIPTION:Lorem ipsum steam]
+[STEAM_TAG:items]
+[STEAM_TAG:buildings]
+[STEAM_CHANGELOG:Fixed/Improvement/Etc]
+[STEAM_FILE_ID:2891047120]

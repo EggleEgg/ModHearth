@@ -108,4 +108,13 @@
     <Exec Command="chmod +x &quot;$(PublishDir)$(AssemblyName)&quot;" />
   </Target>
 
+  <Target Name="RemoveExtraArtifacts" AfterTargets="Build;Publish">
+    <ItemGroup>
+      <ExtraArtifacts Include="$(OutputPath)*SkiaSharp*.pdb;$(OutputPath)*HarfBuzzSharp*.pdb" />
+      <ExtraArtifacts Include="$(PublishDir)*SkiaSharp*.pdb;$(PublishDir)*HarfBuzzSharp*.pdb" />
+      <ExtraArtifacts Include="$(PublishDir)ModHearth.SteamWorker.runtimeconfig.json;$(PublishDir)ModHearth.SteamWorker.deps.json" />
+    </ItemGroup>
+    <Delete Files="@(ExtraArtifacts)" />
+  </Target>
+
 </Project>

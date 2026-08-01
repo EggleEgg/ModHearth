@@ -705,7 +705,8 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             colorUnderlayBrush = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasColorUnderlay));
-            InfoLogger.Log($"changed color {HasColorUnderlay}");
+            if (DevMode.IsEnabled)
+                InfoLogger.Log($"changed color {HasColorUnderlay}");
         }
     }
     public bool HasColorUnderlay => ColorUnderlayBrush != null;

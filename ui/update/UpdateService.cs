@@ -38,14 +38,18 @@ internal static class UpdateService
         ("native", true, CleanupPlatforms.All),
         ("runtimes", true, CleanupPlatforms.All),
         ("dlls", true, CleanupPlatforms.All),
+
         ("libsteam_api.dylib", false, CleanupPlatforms.Windows | CleanupPlatforms.Linux),
         ("libsteam_api.so", false, CleanupPlatforms.Windows | CleanupPlatforms.macOS),
         ("steam_api64.dll", false, CleanupPlatforms.Linux | CleanupPlatforms.macOS ),
+
         ("libSkiaSharp.pdb", false, CleanupPlatforms.All),
         ("libHarfBuzzSharp.pdb", false, CleanupPlatforms.All),
         ("ModHearth.SteamWorker.pdb", false, CleanupPlatforms.All),
         ("ModHearth.pdb", false, CleanupPlatforms.All),
+
         ("ModHearth.runtimeconfig.json", false, CleanupPlatforms.All),
+        ("ModHearth.SteamWorker.runtimeconfig.json", false, CleanupPlatforms.All),
         ("ModHearth.deps.json", false, CleanupPlatforms.All)
     };
 

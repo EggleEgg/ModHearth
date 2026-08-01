@@ -610,6 +610,9 @@ namespace ModHearth
 
                 LogAdvancedSteam($"Steam root candidates ({candidateRoots.Count}): {FormatPathListForLog(candidateRoots)}");
 
+                HashSet<string> processedRoots = new HashSet<string>(
+                    OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+
                 foreach (string root in candidateRoots)
                 {
                     if (string.IsNullOrWhiteSpace(root))
@@ -620,6 +623,9 @@ namespace ModHearth
                         continue;
 
                     if (!Directory.Exists(normalizedRoot))
+                        continue;
+
+                    if (!processedRoots.Add(normalizedRoot))
                         continue;
 
                     if (Directory.Exists(Path.Combine(normalizedRoot, steamApps)))

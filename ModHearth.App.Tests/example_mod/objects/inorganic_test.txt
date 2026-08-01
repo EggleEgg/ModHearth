@@ -1,0 +1,13 @@
+inorganic_test
+
+[OBJECT:INORGANIC]
+
+[INORGANIC:TEST_STONE]
+[NAME:test stone]
+[SOLID_DENSITY:2600]
+[TILE:'*']
+[COLOR:7:0:1]
+[ENVIRONMENT:ALL_STONE:CLUSTER:100]
+[ITEM_SYMBOL:'*']
+[IS_STONE]
+[DESCRIPTION:A generic stone material used for testing recipes.]
