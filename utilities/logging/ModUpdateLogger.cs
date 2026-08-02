@@ -36,7 +36,9 @@ internal sealed class ModUpdateSnapshotEntry
     public string DeepStamp { get; set; } = string.Empty;
     public bool IsIgnored { get; set; }
 }
-
+/// <summary>
+/// Ensures that mod update logs and folder snapshots are recorded and mantained
+/// </summary>
 public static class ModUpdateLogger
 {
     private static readonly string OldLogDirForMigration = Path.Combine(AppContext.BaseDirectory, "logs");
@@ -49,6 +51,7 @@ public static class ModUpdateLogger
     private static string ResolveCanonicalPath(string path) => ConfigManager.ResolveCanonicalPath(path);
 
     private const int MaxLogLines = 5000;
+
     // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
     // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
     private static readonly object fileGate = new();

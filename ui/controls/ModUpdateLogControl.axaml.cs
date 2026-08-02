@@ -212,12 +212,15 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
     {
         if (needsFullRebuild)
         {
+            allEntries.Clear();
+            allEntries.AddRange(viewModels);
             entries.ReplaceAll(viewModels);
             selectionController.UpdateSelectionState(logList);
             ApplyDefaultSort();
         }
         else
         {
+            allEntries.AddRange(viewModels);
             foreach (ModUpdateLogItemViewModel vm in viewModels)
                 entries.Add(vm);
         }

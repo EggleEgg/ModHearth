@@ -2,6 +2,9 @@ using ModHearth.Utilities;
 
 namespace ModHearth.UI;
 
+/// <summary>
+/// Provides content for MainWindow default description, extracted from the README.md file.
+/// </summary>
 internal static class MainWindowHelpContent
 {
     private static string? cachedReadmeText;

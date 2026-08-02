@@ -2,7 +2,9 @@ namespace ModHearth.Utilities;
 
 public static class StringFormatter
 {
-    // For UI display, truncates string and adds "..." if it exceeds a maximum length.
+    /// <summary>
+    /// For UI display, truncates string and adds "..." if it exceeds a maximum length.
+    /// </summary>
     public static string TruncateForDisplay(string? value, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -15,7 +17,9 @@ public static class StringFormatter
         return text[..(maxLength - 3)] + "...";
     }
 
-    // For logging, truncates string to a fixed character length and escapes newlines.
+    /// <summary>
+    /// For logging, truncates string to a fixed character length and escapes newlines.
+    /// </summary>
     public static string TrimForLog(string? value, int maxLength = 80)
     {
         string text = value ?? string.Empty;
@@ -23,7 +27,9 @@ public static class StringFormatter
         return text.Length <= maxLength ? text : text[..maxLength] + "...";
     }
 
-    // For formatting lists with a "more" indicator.
+    /// <summary>
+    /// For formatting lists with a "more" indicator.
+    /// </summary>
     public static string FormatListWithMoreIndicator(IEnumerable<string>? items, int maxItems)
     {
         if (items == null)

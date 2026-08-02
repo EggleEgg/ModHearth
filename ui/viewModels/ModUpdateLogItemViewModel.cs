@@ -192,7 +192,8 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
 
         if (IsSelected)
         {
-            BackgroundBrush = selectedBackgroundBrush;
+            backgroundBrush = selectedBackgroundBrush;
+            OnPropertyChanged(nameof(BackgroundBrush));
         }
     }
 
