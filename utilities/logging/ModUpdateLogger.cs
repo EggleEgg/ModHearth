@@ -89,7 +89,15 @@ public static class ModUpdateLogger
             {
                 try
                 {
-                    File.Move(oldPath, newPath);
+                    try
+                    {
+                        File.Move(oldPath, newPath);
+                    }
+                    catch (IOException)
+                    {
+                        File.Copy(oldPath, newPath, true);
+                        File.Delete(oldPath);
+                    }
                     InfoLogger.Log($"Migrated {fileName} from logs/ to metadata/.");
                 }
                 catch (Exception ex)
@@ -570,7 +578,12 @@ public static class ModUpdateLogger
                 try
                 {
                     FileInfo fileInfo = new FileInfo(filePath);
-                    string relativePath = Path.GetRelativePath(normalizedPath, filePath)
+                    string relativePath = Path.GetRelativePath(normalizedPath, filePath);
+                    if (Path.IsPathRooted(relativePath) && !relativePath.StartsWith("..", StringComparison.Ordinal))
+                    {
+                        relativePath = Path.GetFileName(filePath);
+                    }
+                    relativePath = relativePath
                         .Replace('\\', '/')
                         .Trim();
                     metadata.Add($"{relativePath}|{fileInfo.Length}|{fileInfo.LastWriteTimeUtc.Ticks}");

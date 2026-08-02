@@ -18,7 +18,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 {
     private readonly ModHearthManager? manager;
     private readonly List<ModUpdateLogItemViewModel> allEntries = new();
-    private readonly ObservableCollection<ModUpdateLogItemViewModel> entries = new();
+    private readonly BulkObservableCollection<ModUpdateLogItemViewModel> entries = new();
     public ObservableCollection<ModUpdateLogItemViewModel> Entries => entries;
     private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
     private ModRefControl? contextMenuHost;
@@ -212,19 +212,14 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
     {
         if (needsFullRebuild)
         {
-            allEntries.Clear();
-            foreach (ModUpdateLogItemViewModel vm in viewModels)
-                allEntries.Add(vm);
-
-            ApplyFilter();
+            entries.ReplaceAll(viewModels);
             selectionController.UpdateSelectionState(logList);
             ApplyDefaultSort();
         }
         else
         {
             foreach (ModUpdateLogItemViewModel vm in viewModels)
-                allEntries.Add(vm);
-            ApplyFilter();
+                entries.Add(vm);
         }
 
         loadedRawCount = rawCount;

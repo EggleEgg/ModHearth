@@ -1461,5 +1461,37 @@ namespace ModHearth
             Config.IsSortRulesDocked = docked;
             SaveConfigFile("Sort rules docked");
         }
+
+        public static double GetDockSplitterProportion(string key, double defaultProportion)
+        {
+            if (Config.DockSplitterProportions != null && Config.DockSplitterProportions.TryGetValue(key, out double val))
+            {
+                return val;
+            }
+            return defaultProportion;
+        }
+
+        public static void SetDockSplitterProportion(string key, double proportion)
+        {
+            Config.DockSplitterProportions ??= new();
+            Config.DockSplitterProportions[key] = proportion;
+            SaveConfigFile($"Dock splitter proportion for {key}");
+        }
+
+        public static int GetDockSide(string key, int defaultSide)
+        {
+            if (Config.DockSides != null && Config.DockSides.TryGetValue(key, out int val))
+            {
+                return val;
+            }
+            return defaultSide;
+        }
+
+        public static void SetDockSide(string key, int side)
+        {
+            Config.DockSides ??= new();
+            Config.DockSides[key] = side;
+            SaveConfigFile($"Dock side for {key}");
+        }
     }
 }

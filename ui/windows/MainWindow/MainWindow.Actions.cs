@@ -136,7 +136,11 @@ public partial class MainWindow
             WorkshopDownloaderWindow.DefaultMaxWidth,
             splitterSize: 7,
             initialDocked: workshopInitialDocked,
-            onSideAcquired: side => AcquireDockSide(side, _workshopDockManager!)
+            onSideAcquired: side => AcquireDockSide(side, _workshopDockManager!),
+            proportionLoader: side => ConfigManager.GetDockSplitterProportion($"WorkshopDownloaderControl_{side}", 0.0),
+            proportionSaver: (side, proportion) => ConfigManager.SetDockSplitterProportion($"WorkshopDownloaderControl_{side}", proportion),
+            sideLoader: () => (DockSide)ConfigManager.GetDockSide("WorkshopDownloaderControl_Side", (int)DockSide.Right),
+            sideSaver: side => ConfigManager.SetDockSide("WorkshopDownloaderControl_Side", (int)side)
         );
         _workshopDockManager.DockStateChanged += (_, _) =>
         {
@@ -165,7 +169,11 @@ public partial class MainWindow
             ModUpdateLogWindow.DefaultMaxHeight,
             splitterSize: 7,
             initialDocked: ConfigManager.GetIsModUpdateLogDocked(),
-            onSideAcquired: side => AcquireDockSide(side, _updateLogDockManager!)
+            onSideAcquired: side => AcquireDockSide(side, _updateLogDockManager!),
+            proportionLoader: side => ConfigManager.GetDockSplitterProportion($"ModUpdateLogControl_{side}", 0.0),
+            proportionSaver: (side, proportion) => ConfigManager.SetDockSplitterProportion($"ModUpdateLogControl_{side}", proportion),
+            sideLoader: () => (DockSide)ConfigManager.GetDockSide("ModUpdateLogControl_Side", (int)DockSide.Bottom),
+            sideSaver: side => ConfigManager.SetDockSide("ModUpdateLogControl_Side", (int)side)
         );
 
         _updateLogDockManager.DockStateChanged += (_, _) =>
@@ -221,7 +229,11 @@ public partial class MainWindow
             SortRulesWindow.DefaultMaxWidth,
             splitterSize: 7,
             initialDocked: sortRulesInitialDocked,
-            onSideAcquired: side => AcquireDockSide(side, _sortRulesDockManager!)
+            onSideAcquired: side => AcquireDockSide(side, _sortRulesDockManager!),
+            proportionLoader: side => ConfigManager.GetDockSplitterProportion($"SortRulesControl_{side}", 0.0),
+            proportionSaver: (side, proportion) => ConfigManager.SetDockSplitterProportion($"SortRulesControl_{side}", proportion),
+            sideLoader: () => (DockSide)ConfigManager.GetDockSide("SortRulesControl_Side", (int)DockSide.Left),
+            sideSaver: side => ConfigManager.SetDockSide("SortRulesControl_Side", (int)side)
         );
 
         _sortRulesDockManager.DockStateChanged += (_, _) =>

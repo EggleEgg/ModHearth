@@ -43,6 +43,10 @@ namespace ModHearth.UI
         private readonly IReadOnlyDictionary<DockSide, DockingTarget> _sideTargets;
         private readonly DockSide _defaultSide;
         private readonly Action<DockSide>? _onSideAcquired;
+        private readonly Func<DockSide, double>? _proportionLoader;
+        private readonly Action<DockSide, double>? _proportionSaver;
+        private readonly Func<DockSide>? _sideLoader;
+        private readonly Action<DockSide>? _sideSaver;
 
         private readonly Func<TControl> _controlCreator;
         private readonly Func<TControl, TWindow> _windowCreator;
@@ -100,7 +104,11 @@ namespace ModHearth.UI
             double maxSize,
             double splitterSize = 7,
             bool initialDocked = false,
-            Action<DockSide>? onSideAcquired = null)
+            Action<DockSide>? onSideAcquired = null,
+            Func<DockSide, double>? proportionLoader = null,
+            Action<DockSide, double>? proportionSaver = null,
+            Func<DockSide>? sideLoader = null,
+            Action<DockSide>? sideSaver = null)
         {
             _parentWindow = parentWindow ?? throw new ArgumentNullException(nameof(parentWindow));
             _sideTargets = sideTargets ?? throw new ArgumentNullException(nameof(sideTargets));
@@ -108,7 +116,12 @@ namespace ModHearth.UI
                 throw new ArgumentException($"Default side '{defaultSide}' is not present in sideTargets.", nameof(defaultSide));
 
             _defaultSide = defaultSide;
-            _activeSide = defaultSide;
+            _sideLoader = sideLoader;
+            _sideSaver = sideSaver;
+            _activeSide = _sideLoader?.Invoke() ?? defaultSide;
+            if (!_sideTargets.ContainsKey(_activeSide))
+                _activeSide = defaultSide;
+
             _controlCreator = controlCreator ?? throw new ArgumentNullException(nameof(controlCreator));
             _windowCreator = windowCreator ?? throw new ArgumentNullException(nameof(windowCreator));
             _defaultSize = defaultSize;
@@ -116,7 +129,9 @@ namespace ModHearth.UI
             _maxSize = maxSize;
             _splitterSize = splitterSize;
             _onSideAcquired = onSideAcquired;
-            _isDocked = initialDocked && CanDockOnSide(defaultSide);
+            _proportionLoader = proportionLoader;
+            _proportionSaver = proportionSaver;
+            _isDocked = initialDocked && CanDockOnSide(_activeSide);
 
             RegisterSplitterEvents();
         }
@@ -205,6 +220,11 @@ namespace ModHearth.UI
         {
             childSize = _defaultSize;
             double currentPrimary = IsHorizontal(side) ? _parentWindow.Width : _parentWindow.Height;
+            double savedProportion = _proportionLoader?.Invoke(side) ?? 0.0;
+            if (savedProportion > 0 && savedProportion < 1 && currentPrimary > 0)
+            {
+                childSize = Math.Clamp(savedProportion * currentPrimary, _minSize, _maxSize);
+            }
             double parentMinPrimary = GetParentMinPrimary(side);
 
             if (!TryGetScreenLayout(out PixelRect workingArea, out PixelPoint parentScreenPos, out double scale))
@@ -240,7 +260,9 @@ namespace ModHearth.UI
             if (_isDisposed) return;
             EnsureControlCreated();
 
-            _activeSide = _defaultSide;
+            _activeSide = _sideLoader?.Invoke() ?? _defaultSide;
+            if (!_sideTargets.ContainsKey(_activeSide))
+                _activeSide = _defaultSide;
 
             if (_isDocked && CanDockOnSide(_activeSide))
             {
@@ -625,6 +647,7 @@ namespace ModHearth.UI
 
             _activeSide = side;
             _isDocked = true;
+            _sideSaver?.Invoke(side);
             ShowDockedContent();
             DockStateChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -848,6 +871,15 @@ namespace ModHearth.UI
                     if (!_isDraggingSplitter || _isDisposed) return;
                     _isDraggingSplitter = false;
                     e.Pointer.Capture(null);
+
+                    double parentPrimary = IsHorizontal(_activeSide) ? _parentWindow.Width : _parentWindow.Height;
+                    if (parentPrimary > 0)
+                    {
+                        double proportion = _expandedSize / parentPrimary;
+                        proportion = Math.Clamp(proportion, 0.01, 0.99);
+                        _proportionSaver?.Invoke(_activeSide, proportion);
+                    }
+
                     e.Handled = true;
                 };
 

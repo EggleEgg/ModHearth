@@ -231,7 +231,15 @@ namespace ModHearth
                     if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
                         Directory.CreateDirectory(directory);
 
-                    File.Move(oldPath, newPath);
+                    try
+                    {
+                        File.Move(oldPath, newPath);
+                    }
+                    catch (IOException)
+                    {
+                        File.Copy(oldPath, newPath, true);
+                        File.Delete(oldPath);
+                    }
                     Console.WriteLine($"Moved modpacks.local.json to {newPath}");
                 }
                 catch (Exception ex)
@@ -1609,6 +1617,7 @@ namespace ModHearth
             {
                 StartInfo = processStartInfo
             };
+
             process.Start();
 
             // Get output string.
@@ -1624,47 +1633,202 @@ namespace ModHearth
             return output;
         }
 
-        // Check if DF is running.
+        private static int? launchedDfPid;
+        private static bool isDfSessionActive;
+        private static DateTime lastDfLaunchTime = DateTime.MinValue;
+
+        // Check if DF is running. Real time updates from df process checks are incredibly unreliable and inconsistent on linux
         public static bool DwarfFortressRunning()
         {
-            string[] candidateNames = { "Dwarf Fortress", "df", "dwarfort", "dwarfort.exe", "df.exe", "dwarf_fortress" };
-            foreach (string name in candidateNames)
+            if (OperatingSystem.IsLinux())
             {
-                Process[]? procs = null;
+                if (IsDfhackRpcRunning())
+                {
+                    isDfSessionActive = true;
+                    return true;
+                }
+
+                if (isDfSessionActive)
+                {
+                    if ((DateTime.UtcNow - lastDfLaunchTime).TotalMinutes < 5)
+                    {
+                        return true;
+                    }
+
+                    try
+                    {
+                        string errorLogPath = ConfigManager.GetErrorLogPath();
+                        if (!string.IsNullOrEmpty(errorLogPath) && File.Exists(errorLogPath))
+                        {
+                            DateTime lastWrite = File.GetLastWriteTimeUtc(errorLogPath);
+                            if ((DateTime.UtcNow - lastWrite).TotalMinutes < 10)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore
+                    }
+
+                    isDfSessionActive = false;
+                }
+
+                return false;
+            }
+
+            // 0. Check application-tracked launched process PID if available
+            if (launchedDfPid.HasValue)
+            {
                 try
                 {
-                    procs = Process.GetProcessesByName(name);
-                    if (procs.Length > 0)
-                        return true;
+                    using (Process p = Process.GetProcessById(launchedDfPid.Value))
+                    {
+                        if (!p.HasExited)
+                            return true;
+                    }
                 }
                 catch
                 {
-                    // Ignore query failures for this candidate name.
-                }
-                finally
-                {
-                    if (procs != null)
-                    {
-                        foreach (var p in procs)
-                        {
-                            p?.Dispose();
-                        }
-                    }
+                    launchedDfPid = null;
                 }
             }
 
-            // Fallback: iterate all processes for robust matching across OS (especially Linux/macOS where comm names might differ or truncate)
+            string? dfFolderPath = Config?.DFFolderPath;
+            string resolvedConfigExe = string.Empty;
+            if (!string.IsNullOrWhiteSpace(dfFolderPath))
+            {
+                DwarfFortressExecutableLocator.TryResolvePath(dfFolderPath, out resolvedConfigExe);
+            }
+
+            bool IsDwarfFortressExecutable(string exePath)
+            {
+                if (string.IsNullOrWhiteSpace(exePath))
+                    return false;
+
+                try
+                {
+                    string fullExe = Path.GetFullPath(exePath);
+                    if (!string.IsNullOrWhiteSpace(resolvedConfigExe))
+                    {
+                        string fullResolved = Path.GetFullPath(resolvedConfigExe);
+                        if (string.Equals(fullExe, fullResolved, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                            return true;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(dfFolderPath))
+                    {
+                        string fullFolder = Path.GetFullPath(dfFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                        string exeDir = Path.GetDirectoryName(fullExe) ?? string.Empty;
+                        exeDir = exeDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                        StringComparison comp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                        if (string.Equals(exeDir, fullFolder, comp) || fullExe.StartsWith(fullFolder + Path.DirectorySeparatorChar, comp))
+                            return true;
+                    }
+                }
+                catch
+                {
+                }
+                return false;
+            }
+
+            // Expanded candidate list for fallback name matching
+            string[] candidateNames =
+            {
+                "Dwarf Fortress",
+                "Dwarf Fortress.exe",
+                "Dwarf Fortress.",
+                "DwarfFortress",
+                "DwarfFortress.exe",
+                "dwarfort",
+                "dwarfort.exe",
+                "dwarfort.x86_64",
+                "dwarfort.bin",
+                "dwarf_fortress",
+                "dwarfortress",
+                "df.exe",
+                "df"
+            };
+
+            // 1. Scan process list using reliable executable paths (/proc/[pid]/exe on Linux, MainModule on Windows) and cmdline inspection
             try
             {
                 foreach (Process p in Process.GetProcesses())
                 {
                     try
                     {
+                        int pid = p.Id;
+
+                        // Linux /proc/[pid]/exe inspection (Most reliable)
+                        if (OperatingSystem.IsLinux())
+                        {
+                            try
+                            {
+                                var linkTarget = File.ResolveLinkTarget($"/proc/{pid}/exe", true);
+                                if (linkTarget != null && IsDwarfFortressExecutable(linkTarget.FullName))
+                                {
+                                    launchedDfPid = pid;
+                                    return true;
+                                }
+                            }
+                            catch
+                            {
+                                // Ignored
+                            }
+
+                            // Linux /proc/[pid]/cmdline inspection (NUL separated arguments)
+                            string cmdlinePath = $"/proc/{pid}/cmdline";
+                            if (File.Exists(cmdlinePath))
+                            {
+                                try
+                                {
+                                    byte[] bytes = File.ReadAllBytes(cmdlinePath);
+                                    string cmdlineText = System.Text.Encoding.UTF8.GetString(bytes);
+                                    string[] args = cmdlineText.Split('\0', StringSplitOptions.RemoveEmptyEntries);
+                                    foreach (string arg in args)
+                                    {
+                                        if (arg.Contains("dwarfort", StringComparison.OrdinalIgnoreCase) ||
+                                            arg.Contains("Dwarf Fortress", StringComparison.OrdinalIgnoreCase) ||
+                                            arg.Contains("975370", StringComparison.OrdinalIgnoreCase) ||
+                                            (!string.IsNullOrEmpty(resolvedConfigExe) && arg.Equals(resolvedConfigExe, StringComparison.OrdinalIgnoreCase)))
+                                        {
+                                            launchedDfPid = pid;
+                                            return true;
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                    // Ignored
+                                }
+                            }
+                        }
+                        else if (OperatingSystem.IsWindows())
+                        {
+                            try
+                            {
+                                string mainMod = p.MainModule?.FileName ?? string.Empty;
+                                if (!string.IsNullOrEmpty(mainMod) && IsDwarfFortressExecutable(mainMod))
+                                {
+                                    launchedDfPid = pid;
+                                    return true;
+                                }
+                            }
+                            catch
+                            {
+                                // Ignored
+                            }
+                        }
+
+                        // 2. Fallback: ProcessName matching (least reliable)
                         string pName = p.ProcessName;
                         if (candidateNames.Any(c => string.Equals(pName, c, StringComparison.OrdinalIgnoreCase) ||
-                                                    pName.StartsWith(c, StringComparison.OrdinalIgnoreCase)))
+                                                    pName.StartsWith(c, StringComparison.OrdinalIgnoreCase) ||
+                                                    c.StartsWith(pName, StringComparison.OrdinalIgnoreCase)))
                         {
-                            p.Dispose();
+                            launchedDfPid = pid;
                             return true;
                         }
                     }
@@ -1704,8 +1868,15 @@ namespace ModHearth
 
             try
             {
-                // Check if Dwarf Fortress is a Steam installation
-                bool isSteamInstallation = !string.IsNullOrWhiteSpace(ConfigManager.TryFindSteamDwarfFortressFolder());
+                // Check if Dwarf Fortress is a Steam installation by comparing paths
+                string? steamFolder = ConfigManager.TryFindSteamDwarfFortressFolder();
+                bool isSteamInstallation =
+                    steamFolder != null &&
+                    Path.GetFullPath(steamFolder)
+                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        .Equals(
+                            Path.GetFullPath(dfFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
                 if (isSteamInstallation)
                 {
@@ -1735,30 +1906,34 @@ namespace ModHearth
                         InfoLogger.LogRunDf($"Failed to launch via steam:// protocol handler: {ex.Message}");
                     }
 
-                    if (!launched && OperatingSystem.IsLinux())
+                    if (!launched && (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()))
                     {
-                        // Fallback on Linux to direct steam command
-                        try
+                        // Fallback on Linux/macOS to direct steam command line binaries ("steam", "steam-runtime")
+                        foreach (string steamExecutable in new[] { "steam", "steam-runtime" })
                         {
-                            InfoLogger.LogRunDf("Trying fallback Steam CLI launch (steam -applaunch 975370)...");
-                            ProcessStartInfo fallbackStartInfo = new ProcessStartInfo
+                            try
                             {
-                                FileName = "steam",
-                                Arguments = "-applaunch 975370",
-                                UseShellExecute = true
-                            };
-                            using (Process? fallbackProcess = Process.Start(fallbackStartInfo))
-                            {
-                                if (fallbackProcess != null)
+                                InfoLogger.LogRunDf($"Trying fallback Steam CLI launch ({steamExecutable} -applaunch 975370)...");
+                                ProcessStartInfo fallbackStartInfo = new ProcessStartInfo
                                 {
-                                    InfoLogger.LogRunDf($"Steam CLI invoked (PID = {fallbackProcess.Id})");
-                                    launched = true;
+                                    FileName = steamExecutable,
+                                    Arguments = "-applaunch 975370",
+                                    UseShellExecute = true
+                                };
+                                using (Process? fallbackProcess = Process.Start(fallbackStartInfo))
+                                {
+                                    if (fallbackProcess != null)
+                                    {
+                                        InfoLogger.LogRunDf($"Steam CLI invoked via {steamExecutable} (PID = {fallbackProcess.Id})");
+                                        launched = true;
+                                        break;
+                                    }
                                 }
                             }
-                        }
-                        catch (Exception ex2)
-                        {
-                            InfoLogger.LogRunDf($"Fallback Steam CLI launch failed: {ex2.Message}");
+                            catch (Exception ex2)
+                            {
+                                InfoLogger.LogRunDf($"Fallback Steam CLI launch ({steamExecutable}) failed: {ex2.Message}");
+                            }
                         }
                     }
 
@@ -1767,8 +1942,17 @@ namespace ModHearth
                         return (false, "Failed to trigger Steam launcher or protocol handler.");
                     }
 
-                    // Poll for the actual Dwarf Fortress process to appear in the OS process list (increased to 60s for Steam startup overhead)
-                    const int pollIntervalMs = 1000;
+                    isDfSessionActive = true;
+                    lastDfLaunchTime = DateTime.UtcNow;
+
+                    if (OperatingSystem.IsLinux())
+                    {
+                        InfoLogger.LogRunDf("Steam launch triggered successfully on Linux. Skipping process polling.");
+                        return (true, "Dwarf Fortress launched successfully through Steam.");
+                    }
+
+                    // Poll for the actual Dwarf Fortress process to appear in the OS process list
+                    const int pollIntervalMs = 500;
                     const int maxWaitTimeoutMs = 60000;
                     int totalElapsedMs = 0;
 
@@ -1815,6 +1999,9 @@ namespace ModHearth
                     if (started == null)
                         return (false, "Failed to launch Dwarf Fortress directly: process could not be created.");
 
+                    launchedDfPid = started.Id;
+                    isDfSessionActive = true;
+                    lastDfLaunchTime = DateTime.UtcNow;
                     InfoLogger.LogRunDf($"Started direct process PID = {started.Id}");
 
                     // Verify the executable didn't crash on startup (e.g., missing dynamic libraries/DLLs)
@@ -2035,6 +2222,14 @@ namespace ModHearth
                 // Ignore reload failures to avoid disrupting saving.
                 return false;
             }
+        }
+
+        // Fix for Linux 'locale::facet::_S_create_c_locale' errors
+        public static void SetDfHackRunEnvironmentVariables(ProcessStartInfo process)
+        {
+            if (!OperatingSystem.IsLinux()) return;
+            process.EnvironmentVariables["LC_ALL"] = "C.UTF-8";
+            process.EnvironmentVariables["LANG"] = "C.UTF-8";
         }
 
         private void ScheduleDeferredModManagerReload(int initialChecks)

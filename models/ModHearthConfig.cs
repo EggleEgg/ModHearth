@@ -128,5 +128,11 @@ namespace ModHearth
 
         // Whether sort rules opens in docked mode by default.
         public bool IsSortRulesDocked { get; set; } = false;
+
+        // Proportions of each docked splitter control mapped by key.
+        public Dictionary<string, double> DockSplitterProportions { get; set; } = new();
+
+        // Dock side (DockSide enum int) mapped by key.
+        public Dictionary<string, int> DockSides { get; set; } = new();
     }
 }

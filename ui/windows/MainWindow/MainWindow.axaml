@@ -138,7 +138,7 @@
                 <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
               </StackPanel>
               <ScrollViewer x:Name="dfhackStatusScrollViewer" Grid.Row="1" Grid.Column="1"
-                            HorizontalScrollBarVisibility="Auto" Margin="4,0,0,0"
+                            HorizontalScrollBarVisibility="Auto" Margin="6,0,0,0"
                             VerticalScrollBarVisibility="Disabled"
                             AllowAutoHide="False"
                             HorizontalAlignment="Right" VerticalAlignment="Center"

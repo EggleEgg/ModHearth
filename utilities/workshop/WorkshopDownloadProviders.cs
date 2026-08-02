@@ -282,19 +282,36 @@ namespace ModHearth.Utilities.Workshop
 
             try
             {
+                Directory.CreateDirectory(downloadPath);
                 foreach (string filePath in Directory.GetFiles(nestedContentDir))
                 {
                     string destFile = Path.Combine(downloadPath, Path.GetFileName(filePath));
                     if (File.Exists(destFile))
                         File.Delete(destFile);
-                    File.Move(filePath, destFile);
+                    try
+                    {
+                        File.Move(filePath, destFile);
+                    }
+                    catch (IOException)
+                    {
+                        File.Copy(filePath, destFile, true);
+                        try { File.Delete(filePath); } catch { }
+                    }
                 }
                 foreach (string subDir in Directory.GetDirectories(nestedContentDir))
                 {
                     string destSubDir = Path.Combine(downloadPath, Path.GetFileName(subDir));
                     if (Directory.Exists(destSubDir))
                         Directory.Delete(destSubDir, true);
-                    Directory.Move(subDir, destSubDir);
+                    try
+                    {
+                        Directory.Move(subDir, destSubDir);
+                    }
+                    catch (IOException)
+                    {
+                        MoveOrCopyDirectory(subDir, destSubDir);
+                        try { Directory.Delete(subDir, true); } catch { }
+                    }
                 }
 
                 string scaffoldRoot = Path.Combine(downloadPath, "steamapps");
