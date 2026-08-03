@@ -501,8 +501,13 @@ namespace ModHearth.UI
                 ? target.PreviewBorder.Width
                 : target.PreviewBorder.Height);
 
-            if (snapThreshold <= 0 || snapThreshold > 500)
-                snapThreshold = 250;
+            switch (snapThreshold)
+            {
+                case <= 0:
+                case > 500:
+                    snapThreshold = 250;
+                    break;
+            }
 
             return snapThreshold;
         }
@@ -759,13 +764,15 @@ namespace ModHearth.UI
                 _sharedControl.Opacity = 0;
 
             DockingTarget target = ActiveTarget;
-            if (_sharedControl?.Parent is ContentControl oldContentControl)
+            switch (_sharedControl?.Parent)
             {
-                oldContentControl.Content = null;
-            }
-            else if (_sharedControl?.Parent is Decorator oldDecorator)
-            {
-                oldDecorator.Child = null;
+                case ContentControl oldContentControl:
+                    oldContentControl.Content = null;
+                    break;
+                case Decorator oldDecorator:
+                    oldDecorator.Child = null;
+                    break;
+
             }
 
             target.DockHostControl.Content = _sharedControl;
@@ -826,41 +833,52 @@ namespace ModHearth.UI
                     if (!_isDraggingSplitter || _isDisposed || _activeSide != target.Side) return;
                     var currentPoint = e.GetPosition(_parentWindow);
 
-                    if (_activeSide == DockSide.Right)
+                    switch (_activeSide)
                     {
-                        double deltaX = currentPoint.X - _splitterStartPoint.X;
-                        double newSize = Math.Clamp(_initialContentSize - deltaX, _minSize, _maxSize);
-                        if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
-                            target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
-                        _parentWindow.Width = _initialParentSize + (newSize - _initialContentSize);
-                        _expandedSize = newSize;
-                    }
-                    else if (_activeSide == DockSide.Left)
-                    {
-                        double deltaX = currentPoint.X - _splitterStartPoint.X;
-                        double newSize = Math.Clamp(_initialContentSize - deltaX, _minSize, _maxSize);
-                        if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
-                            target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
-                        _parentWindow.Width = _initialParentSize + (newSize - _initialContentSize);
-                        _expandedSize = newSize;
-                    }
-                    else if (_activeSide == DockSide.Bottom)
-                    {
-                        double deltaY = currentPoint.Y - _splitterStartPoint.Y;
-                        double newSize = Math.Clamp(_initialContentSize - deltaY, _minSize, _maxSize);
-                        if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
-                            target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(newSize, GridUnitType.Pixel);
-                        _parentWindow.Height = _initialParentSize + (newSize - _initialContentSize);
-                        _expandedSize = newSize;
-                    }
-                    else if (_activeSide == DockSide.Top)
-                    {
-                        double deltaY = currentPoint.Y - _splitterStartPoint.Y;
-                        double newSize = Math.Clamp(_initialContentSize + deltaY, _minSize, _maxSize);
-                        if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
-                            target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(newSize, GridUnitType.Pixel);
-                        _parentWindow.Height = _initialParentSize + (newSize - _initialContentSize);
-                        _expandedSize = newSize;
+                        case DockSide.Right:
+                            {
+                                double deltaX = currentPoint.X - _splitterStartPoint.X;
+                                double newSize = Math.Clamp(_initialContentSize - deltaX, _minSize, _maxSize);
+                                if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
+                                    target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
+                                _parentWindow.Width = _initialParentSize + (newSize - _initialContentSize);
+                                _expandedSize = newSize;
+                                break;
+                            }
+
+                        case DockSide.Left:
+                            {
+                                double deltaX = currentPoint.X - _splitterStartPoint.X;
+                                double newSize = Math.Clamp(_initialContentSize - deltaX, _minSize, _maxSize);
+                                if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
+                                    target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
+                                _parentWindow.Width = _initialParentSize + (newSize - _initialContentSize);
+                                _expandedSize = newSize;
+                                break;
+                            }
+
+                        case DockSide.Bottom:
+                            {
+                                double deltaY = currentPoint.Y - _splitterStartPoint.Y;
+                                double newSize = Math.Clamp(_initialContentSize - deltaY, _minSize, _maxSize);
+                                if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
+                                    target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(newSize, GridUnitType.Pixel);
+                                _parentWindow.Height = _initialParentSize + (newSize - _initialContentSize);
+                                _expandedSize = newSize;
+                                break;
+                            }
+
+                        case DockSide.Top:
+                            {
+                                double deltaY = currentPoint.Y - _splitterStartPoint.Y;
+                                double newSize = Math.Clamp(_initialContentSize + deltaY, _minSize, _maxSize);
+                                if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
+                                    target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(newSize, GridUnitType.Pixel);
+                                _parentWindow.Height = _initialParentSize + (newSize - _initialContentSize);
+                                _expandedSize = newSize;
+                                break;
+                            }
+
                     }
 
                     e.Handled = true;

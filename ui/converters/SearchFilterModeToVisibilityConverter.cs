@@ -23,25 +23,33 @@ namespace ModHearth.UI
                 paramStr = paramStr.Substring(1);
             }
 
-            if (value is SearchFilterMode currentMode)
+            switch (value)
             {
-                bool matches;
-                if (parameter is SearchFilterMode targetMode)
-                {
-                    matches = currentMode == targetMode;
-                }
-                else if (paramStr != null && Enum.TryParse<SearchFilterMode>(paramStr, out var parsedMode))
-                {
-                    matches = currentMode == parsedMode;
-                }
-                else
-                {
-                    matches = true;
-                }
+                case SearchFilterMode currentMode:
+                    {
+                        bool matches;
+                        switch (parameter)
+                        {
+                            case SearchFilterMode targetMode:
+                                matches = currentMode == targetMode;
+                                break;
+                            default:
+                                if (paramStr != null && Enum.TryParse<SearchFilterMode>(paramStr, out var parsedMode))
+                                    matches = currentMode == parsedMode;
+                                else
+                                {
+                                    matches = true;
+                                }
 
-                return invert ? !matches : matches;
-            }
-            return true; // Default to true if conversion fails or no parameter provided
+                                break;
+                        }
+
+                        return invert ? !matches : matches;
+                    }
+
+                default:
+                    return true; // Default to true if conversion fails or no parameter provided
+            } // Default to true if conversion fails or no parameter provided
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

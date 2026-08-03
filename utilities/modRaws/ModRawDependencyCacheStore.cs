@@ -5,6 +5,7 @@ namespace ModHearth.Utilities
     internal static class ModRawDependencyCacheStore
     {
         public static readonly string CachePath = Path.Combine(AppContext.BaseDirectory, "metadata", "mod_raw_dependency_cache.json");
+        public static readonly string trimmedCachePath = Path.Combine("metadata", "mod_raw_dependency_cache.json");
         private static readonly object gate = new();
 
         // Bump whenever ToDependencyInfo()'s serialized format changes in a way that makes older
@@ -51,7 +52,7 @@ namespace ModHearth.Utilities
                 {
                     string? directory = Path.GetDirectoryName(CachePath);
                     if (!string.IsNullOrWhiteSpace(directory))
-                        Directory.CreateDirectory(directory);
+                        _ = Directory.CreateDirectory(directory);
 
                     CacheFile file = new CacheFile { SchemaVersion = CurrentSchemaVersion, Entries = entries.ToList() };
                     string json = JsonSerializer.Serialize(file, new JsonSerializerOptions { WriteIndented = true });

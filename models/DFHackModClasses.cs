@@ -40,9 +40,13 @@
         // Just use ==.
         public override bool Equals(Object? other)
         {
-            if (other is DFHMod dfother)
-                return this == dfother;
-            return false;
+            switch (other)
+            {
+                case DFHMod dfother:
+                    return this == dfother;
+                default:
+                    return false;
+            }
         }
 
         public DFHMod(string id, int version)

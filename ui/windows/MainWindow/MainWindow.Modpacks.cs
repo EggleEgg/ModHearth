@@ -8,7 +8,7 @@ public partial class MainWindow
 {
     private async Task SaveCurrentModpackAsync()
     {
-        ModHearthManager.ModpackSaveResult result = await Task.Run(() => manager.SaveCurrentModpack());
+        ModHearthManager.ModpackSaveResult result = await Task.Run(manager.SaveCurrentModpack);
         await SetAndMarkChangesAsync(false);
         ShowModpackSaveNotice(result);
     }
@@ -166,7 +166,7 @@ public partial class MainWindow
         }
         finally
         {
-            autoActionGate.Release();
+            _ = autoActionGate.Release();
         }
     }
 
@@ -174,7 +174,7 @@ public partial class MainWindow
     {
         if (ConfigManager.IsAutoSortEnabled() && !skipSort)
         {
-            bool sorted = await Task.Run(() => manager.ModSortEnabledMods());
+            bool sorted = await Task.Run(manager.ModSortEnabledMods);
             if (sorted)
                 ShowNotification("Modlist Autosorted", "sortBorderUpdateIcon.svg", 1000);
             RefreshModlistPanels();
@@ -183,7 +183,7 @@ public partial class MainWindow
         bool autoSaved = false;
         if (ConfigManager.IsAutoSaveEnabled())
         {
-            ModHearthManager.ModpackSaveResult result = await Task.Run(() => manager.SaveCurrentModpack());
+            ModHearthManager.ModpackSaveResult result = await Task.Run(manager.SaveCurrentModpack);
             ShowModpackSaveNotice(result);
             autoSaved = true;
         }
@@ -292,7 +292,7 @@ public partial class MainWindow
     {
         string? filePath = await DialogService.PickFileAsync(this,
             "Select a Modpack JSON File",
-            new[] { new FilePickerFileType("JSON") { Patterns = new[] { "*.json" } } });
+            [new FilePickerFileType("JSON") { Patterns = ["*.json"] }]);
 
         if (string.IsNullOrWhiteSpace(filePath))
             return;
@@ -343,7 +343,7 @@ public partial class MainWindow
         string? filePath = await DialogService.PickSaveFileAsync(this,
             "Save Modpack JSON File",
             "modpack.json",
-            new[] { new FilePickerFileType("JSON") { Patterns = new[] { "*.json" } } });
+            [new FilePickerFileType("JSON") { Patterns = ["*.json"] }]);
 
         if (string.IsNullOrWhiteSpace(filePath))
             return;

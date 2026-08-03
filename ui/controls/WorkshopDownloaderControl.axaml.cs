@@ -144,9 +144,7 @@ namespace ModHearth.UI
             BtnDownloadFromClipboard.PropertyChanged += (_, e) =>
             {
                 if (e.Property == ToggleButton.IsCheckedProperty && BtnDownloadFromClipboard.IsChecked == true)
-                {
                     _lastRawClipboard = string.Empty;
-                }
             };
 
             _clipboardTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -263,7 +261,7 @@ namespace ModHearth.UI
             _statusCts = new CancellationTokenSource();
             var token = _statusCts.Token;
 
-            Task.Delay(5000, token).ContinueWith(t =>
+            _ = Task.Delay(5000, token).ContinueWith(t =>
             {
                 if (!t.IsCanceled)
                 {
@@ -286,18 +284,24 @@ namespace ModHearth.UI
             int inFlightCount = 0;
             foreach (var id in ids)
             {
-                if (_queueManager.ClassifyMod(id) == ModStatusClassification.AlreadyInstalled)
+                switch (_queueManager.ClassifyMod(id))
                 {
-                    ignoredCount++;
-                }
-                else if (!_idsBeingResolved.Add(id))
-                {
-                    // Already being resolved by an overlapping trigger (e.g. the clipboard monitor and a manual "Resolve and Queue" click landing on the same id at once)
-                    inFlightCount++;
-                }
-                else
-                {
-                    nonExistingIds.Add(id);
+                    case ModStatusClassification.AlreadyInstalled:
+                        ignoredCount++;
+                        break;
+                    default:
+                        if (!_idsBeingResolved.Add(id))
+                        {
+                            // Already being resolved by an overlapping trigger (e.g. the clipboard monitor and a manual "Resolve and Queue" click landing on the same id at once)
+                            inFlightCount++;
+                        }
+                        else
+                        {
+                            nonExistingIds.Add(id);
+                        }
+
+                        break;
+
                 }
             }
 
@@ -337,7 +341,7 @@ namespace ModHearth.UI
             finally
             {
                 foreach (var id in nonExistingIds)
-                    _idsBeingResolved.Remove(id);
+                    _ = _idsBeingResolved.Remove(id);
             }
         }
 
@@ -364,11 +368,14 @@ namespace ModHearth.UI
 
         private void Item_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(WorkshopDownloadItem.State) ||
-                e.PropertyName == nameof(WorkshopDownloadItem.CanRetry) ||
-                e.PropertyName == nameof(WorkshopDownloadItem.CanCancel))
+            switch (e.PropertyName)
             {
-                Dispatcher.UIThread.Post(UpdateQueueActionStates);
+                case nameof(WorkshopDownloadItem.State):
+                case nameof(WorkshopDownloadItem.CanRetry):
+                case nameof(WorkshopDownloadItem.CanCancel):
+                    Dispatcher.UIThread.Post(UpdateQueueActionStates);
+                    break;
+
             }
         }
 
@@ -419,7 +426,7 @@ namespace ModHearth.UI
                     })
                     .ToList();
             }
-            return new[] { contextVm.ModReference };
+            return [contextVm.ModReference];
         }
 
         public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
@@ -441,32 +448,48 @@ namespace ModHearth.UI
                     await ModContextMenuSupport.CopyModIdAsync(ownerWindow, vm.ModReference);
                     break;
                 case ModContextMenuSupport.RedownloadTag:
-                    await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, new[] { vm.ModReference });
+                    await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
                     break;
                 case ModContextMenuSupport.UnsubscribeTag:
-                    await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, new[] { vm.ModReference });
+                    await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
                     break;
             }
         }
 
+        private bool _disposed;
+
         public void Dispose()
         {
-            _clipboardTimer?.Stop();
-            _statusCts?.Cancel();
-            _statusCts?.Dispose();
-            _queueManager?.CancelAll();
-            _queueManager?.Dispose();
-            if (_queueManager?.Queue != null)
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
             {
-                if (_queueCollectionChangedHandler != null)
+                _clipboardTimer?.Stop();
+                _statusCts?.Cancel();
+                _statusCts?.Dispose();
+                _queueManager?.CancelAll();
+                _queueManager?.Dispose();
+                if (_queueManager?.Queue != null)
                 {
-                    _queueManager.Queue.CollectionChanged -= _queueCollectionChangedHandler;
-                }
-                foreach (var item in _queueManager.Queue)
-                {
-                    item.PropertyChanged -= Item_PropertyChanged;
+                    if (_queueCollectionChangedHandler != null)
+                    {
+                        _queueManager.Queue.CollectionChanged -= _queueCollectionChangedHandler;
+                    }
+                    foreach (var item in _queueManager.Queue)
+                    {
+                        item.PropertyChanged -= Item_PropertyChanged;
+                    }
                 }
             }
+
+            _disposed = true;
         }
 
         private async Task ShowSteamCmdSetupAsync()

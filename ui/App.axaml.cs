@@ -41,7 +41,7 @@ public partial class App : Application
 
         if (DevMode.IsEnabled)
             //Use F12 key to open devtools
-            this.AttachDeveloperTools();
+            _ = this.AttachDeveloperTools();
     }
 
     private static bool IsSmokeTestWindowEnabled()

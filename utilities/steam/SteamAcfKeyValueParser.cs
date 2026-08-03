@@ -19,33 +19,37 @@ internal static class SteamAcfKeyValueParser
 
         foreach (string token in Tokenize(content))
         {
-            if (token == "{")
+            switch (token)
             {
-                Dictionary<string, object> child = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                if (!string.IsNullOrWhiteSpace(currentKey))
-                {
-                    current[currentKey] = child;
+                case "{":
+                    {
+                        Dictionary<string, object> child = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                        if (!string.IsNullOrWhiteSpace(currentKey))
+                        {
+                            current[currentKey] = child;
+                            currentKey = null;
+                        }
+
+                        stack.Push(current);
+                        current = child;
+                        continue;
+                    }
+
+                case "}":
+                    if (stack.Count > 0)
+                        current = stack.Pop();
+                    continue;
+            }
+
+            switch (currentKey)
+            {
+                case null:
+                    currentKey = token;
+                    break;
+                default:
+                    current[currentKey] = token;
                     currentKey = null;
-                }
-
-                stack.Push(current);
-                current = child;
-                continue;
-            }
-
-            if (token == "}")
-            {
-                if (stack.Count > 0)
-                    current = stack.Pop();
-                continue;
-            }
-
-            if (currentKey == null)
-                currentKey = token;
-            else
-            {
-                current[currentKey] = token;
-                currentKey = null;
+                    break;
             }
         }
 
@@ -59,57 +63,74 @@ internal static class SteamAcfKeyValueParser
 
         StringBuilder builder = new StringBuilder();
         bool inString = false;
+        int i = 0;
+        int length = content.Length;
 
-        for (int i = 0; i < content.Length; i++)
+        while (i < length)
         {
             char c = content[i];
 
             if (!inString)
             {
-                if (c == '/' && i + 1 < content.Length && content[i + 1] == '/')
+                if (c == '/' && i + 1 < length && content[i + 1] == '/')
                 {
-                    while (i < content.Length && content[i] != '\n')
-                        i++;
+                    int j = i + 1;
+                    while (j < length && content[j] != '\n')
+                        j++;
+
+                    i = j;
                     continue;
                 }
 
                 if (char.IsWhiteSpace(c))
-                    continue;
-
-                if (c == '{' || c == '}')
                 {
-                    yield return c.ToString();
-                    continue;
-                }
-
-                if (c == '"')
-                {
-                    inString = true;
-                    builder.Clear();
-                }
-
-                continue;
-            }
-
-            if (c == '"')
-            {
-                inString = false;
-                yield return builder.ToString();
-                continue;
-            }
-
-            if (c == '\\' && i + 1 < content.Length)
-            {
-                char next = content[i + 1];
-                if (next == '"' || next == '\\')
-                {
-                    builder.Append(next);
                     i++;
                     continue;
                 }
+
+                switch (c)
+                {
+                    case '{':
+                    case '}':
+                        yield return c.ToString();
+                        i++;
+                        continue;
+                    case '"':
+                        inString = true;
+                        _ = builder.Clear();
+                        i++;
+                        continue;
+                }
+
+                i++;
+                continue;
             }
 
-            builder.Append(c);
+            switch (c)
+            {
+                case '"':
+                    inString = false;
+                    yield return builder.ToString();
+                    i++;
+                    continue;
+                case '\\' when i + 1 < length:
+                    {
+                        char next = content[i + 1];
+                        switch (next)
+                        {
+                            case '"':
+                            case '\\':
+                                _ = builder.Append(next);
+                                i += 2;
+                                continue;
+                        }
+
+                        break;
+                    }
+            }
+
+            _ = builder.Append(c);
+            i++;
         }
     }
 }

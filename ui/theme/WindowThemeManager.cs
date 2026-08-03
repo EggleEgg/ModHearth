@@ -22,23 +22,6 @@ public static class WindowThemeManager
     [ThreadStatic]
     private static bool isApplying;
 
-    // Cache brushes to reduce memory usage
-    private readonly record struct StyleBrushes(
-        IBrush Background,
-        IBrush Text,
-        IBrush Panel,
-        IBrush PanelClear,
-        IBrush StrongPanel,
-        IBrush Button,
-        IBrush ButtonText,
-        IBrush ButtonOutline,
-        IBrush BorderPanel,
-        IBrush DataGrid,
-        IBrush ModRefHighlight,
-        IBrush ModRefHighlightDark,
-        IBrush InputText
-    );
-
     public static void Register(Window window)
     {
         if (window == null)
@@ -105,7 +88,7 @@ public static class WindowThemeManager
 
     private static void Cleanup()
     {
-        registered.RemoveAll(weak => !weak.TryGetTarget(out _));
+        _ = registered.RemoveAll(weak => !weak.TryGetTarget(out _));
     }
 
     public static void ApplyToWindow(Window window, Style style)
@@ -124,6 +107,23 @@ public static class WindowThemeManager
             isApplying = false;
         }
     }
+
+    // Cache brushes to reduce memory usage
+    private readonly record struct StyleBrushes(
+        IBrush Background,
+        IBrush Text,
+        IBrush Panel,
+        IBrush PanelClear,
+        IBrush StrongPanel,
+        IBrush Button,
+        IBrush ButtonText,
+        IBrush ButtonOutline,
+        IBrush BorderPanel,
+        IBrush DataGrid,
+        IBrush ModRefHighlight,
+        IBrush ModRefHighlightDark,
+        IBrush InputText
+    );
 
     public static void ApplyToVisual(Visual visual, Style style)
     {
@@ -181,9 +181,9 @@ public static class WindowThemeManager
             app.Resources["ModRefHighlightDarkBrush"] = brushes.ModRefHighlightDark;
             app.Resources["ModRefPanelClearBrush"] = brushes.PanelClear;
             app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.selectionColor);
-            app.Resources["WorkshopDockPreviewBackgroundBrush"] = BrushCache.EditBrushAlpha(style.selectionColor, 120);
-            app.Resources["SelectionPreviewBackgroundBrush"] = BrushCache.EditBrushAlpha(style.selectionColor, 30);
-            app.Resources["PanelBrush"] = panelBrush;
+            app.Resources["DockPreviewBrush"] = BrushCache.EditBrushAlpha(style.selectionColor, 120);
+            app.Resources["SelectionPreviewBrush"] = BrushCache.EditBrushAlpha(style.selectionColor, 30);
+            app.Resources["LowAlphaModRefHighlightBrush"] = BrushCache.EditBrushAlpha(brushes.ModRefHighlight, 150);
             app.Resources["SearchBorderBrush"] = searchBorderBrush;
             app.Resources["SearchButtonBrush"] = searchButtonBrush;
             app.Resources["SearchButtonHoverBrush"] = searchButtonHoverBrush;
@@ -210,28 +210,30 @@ public static class WindowThemeManager
         bool inDockPanel = false,
         bool inDataGrid = false)
     {
-        if (visual == null)
-            return;
-
-        if (visual is Control control && control.Tag is string ignoreTag && string.Equals(ignoreTag, "IgnoreTheme", StringComparison.OrdinalIgnoreCase))
-            return;
-
-        //TODO Check if performance can be improved
-        if (visual is IStyleAwareWindow styleAware)
+        switch (visual)
         {
-            styleAware.ApplyCustomStyle(style);
+            case null:
+                return;
+            case Control control when control.Tag is string ignoreTag && string.Equals(ignoreTag, "IgnoreTheme", StringComparison.OrdinalIgnoreCase):
+                return;
+            case IStyleAwareWindow styleAware:
+                styleAware.ApplyCustomStyle(style);
+                break;
         }
 
         // 1. ModSearchBar styling context
-        if (visual is ModSearchBar searchBar)
+        switch (visual)
         {
-            searchBar.ApplyStyle(style);
-            inSearchBar = true;
-        }
-        else if (inSearchBar)
-        {
-            // ModSearchBar (and nested ModColorPicker) manage their own internal styling
-            return;
+            case ModSearchBar searchBar:
+                searchBar.ApplyStyle(style);
+                inSearchBar = true;
+                break;
+            default:
+                if (inSearchBar)
+                    // ModSearchBar (and nested ModColorPicker) manage their own internal styling
+                    return;
+
+                break;
         }
 
         // 2. Notification container custom styling
@@ -243,86 +245,92 @@ public static class WindowThemeManager
 
         // 3. Dock chrome / host context calculation
         string typeName = visual.GetType().Name;
-        if (visual is Control ctrl && (ctrl.Name == "PART_ContentPresenter" || typeName == "DeferredContentPresenter"))
+        switch (visual)
         {
-            inDockHeader = false; // Reset when entering dock body content host
-        }
-        else if (typeName is "ToolChromeControl" or "ToolDockControl" or "DockControl" || (visual is Control grip && grip.Name == "PART_Grip"))
-        {
-            inDockHeader = true; // Set when inside dock title/header
+            case Control ctrl when ctrl.Name == "PART_ContentPresenter" || typeName == "DeferredContentPresenter":
+                inDockHeader = false; // Reset when entering dock body content host
+                break;
+            default:
+                if (typeName is "ToolChromeControl" or "ToolDockControl" or "DockControl" || visual is Control grip && grip.Name == "PART_Grip")
+                    inDockHeader = true; // Set when inside dock title/header
+
+                break;
         }
 
         // 4. Element-specific styling
-        if (visual is TextBlock textBlock)
+        switch (visual)
         {
-            if (!inButtonOrCombo && !inDockHeader)
-            {
-                if (inDataGrid)
+            case TextBlock textBlock:
                 {
-                    ModUpdateLogItemViewModel? vm = textBlock.DataContext as ModUpdateLogItemViewModel;
-                    Visual? current = textBlock;
-                    while (current != null && vm == null)
+                    if (!inButtonOrCombo && !inDockHeader)
                     {
-                        vm = current.DataContext as ModUpdateLogItemViewModel;
-                        current = current.GetVisualParent();
+                        if (inDataGrid)
+                        {
+                            ModUpdateLogItemViewModel? vm = textBlock.DataContext as ModUpdateLogItemViewModel;
+                            Visual? current = textBlock;
+                            while (current != null && vm == null)
+                            {
+                                vm = current.DataContext as ModUpdateLogItemViewModel;
+                                current = current.GetVisualParent();
+                            }
+
+                            bool hasSpecialColor = vm != null && (
+                                vm.Entry.ChangeType == ModUpdateChangeType.Deleted ||
+                                vm.Entry.ChangeType == ModUpdateChangeType.Updated ||
+                                vm.Entry.ChangeType == ModUpdateChangeType.Added ||
+                                vm.IsActive
+                            );
+
+                            if (!hasSpecialColor)
+                                textBlock.Foreground = brushes.Text;
+                        }
+                        else
+                        {
+                            textBlock.Foreground = brushes.Text;
+                        }
                     }
 
-                    bool hasSpecialColor = vm != null && (
-                        vm.Entry.ChangeType == ModUpdateChangeType.Deleted ||
-                        vm.Entry.ChangeType == ModUpdateChangeType.Updated ||
-                        vm.Entry.ChangeType == ModUpdateChangeType.Added ||
-                        vm.IsActive
-                    );
+                    break;
+                }
 
-                    if (!hasSpecialColor)
-                    {
-                        textBlock.Foreground = brushes.Text;
-                    }
-                }
-                else
+            case TextBox textBox:
+                textBox.Background = brushes.Panel;
+                textBox.Foreground = brushes.InputText;
+                break;
+            case ComboBox comboBox:
+                comboBox.Background = brushes.Panel;
+                inButtonOrCombo = true;
+                break;
+            case ListBox listBox:
+                listBox.Background = brushes.Panel;
+                break;
+            case Button button:
                 {
-                    textBlock.Foreground = brushes.Text;
+                    // Used for important buttons
+                    if (button.GetValue(IsThemedProperty) || button.Tag is string tag && string.Equals(tag, "Themed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        button.Background = brushes.Button;
+                        button.Foreground = brushes.ButtonText;
+                        button.BorderBrush = brushes.ButtonOutline;
+                        button.BorderThickness = new Thickness(1);
+                    }
+                    inButtonOrCombo = true;
+                    break;
                 }
-            }
-        }
-        else if (visual is TextBox textBox)
-        {
-            textBox.Background = brushes.Panel;
-            textBox.Foreground = brushes.InputText;
-        }
-        else if (visual is ComboBox comboBox)
-        {
-            comboBox.Background = brushes.Panel;
-            inButtonOrCombo = true;
-        }
-        else if (visual is ListBox listBox)
-        {
-            listBox.Background = brushes.Panel;
-        }
-        else if (visual is Button button)
-        {
-            // Used for important buttons
-            if (button.GetValue(IsThemedProperty) || (button.Tag is string tag && string.Equals(tag, "Themed", StringComparison.OrdinalIgnoreCase)))
-            {
-                button.Background = brushes.Button;
-                button.Foreground = brushes.ButtonText;
-                button.BorderBrush = brushes.ButtonOutline;
-                button.BorderThickness = new Thickness(1);
-            }
-            inButtonOrCombo = true;
-        }
-        else if (visual is DataGrid dataGrid)
-        {
-            dataGrid.Background = brushes.DataGrid;
-            inDataGrid = true;
-        }
-        else if (typeName is "DataGridCell" || typeName.Contains("DataGrid"))
-        {
-            inDataGrid = true;
-        }
-        else if (visual is DockPanel)
-        {
-            inDockPanel = true;
+
+            case DataGrid dataGrid:
+                dataGrid.Background = brushes.DataGrid;
+                inDataGrid = true;
+                break;
+            default:
+                if (typeName is "DataGridCell" || typeName.Contains("DataGrid"))
+                    inDataGrid = true;
+                else if (visual is DockPanel)
+                {
+                    inDockPanel = true;
+                }
+
+                break;
         }
 
         // 5. Recurse down to children without heap allocations or ancestor searches

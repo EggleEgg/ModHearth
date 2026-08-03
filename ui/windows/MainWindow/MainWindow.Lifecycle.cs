@@ -32,16 +32,17 @@ public partial class MainWindow
                         this,
                         manager.SelectedModlist.name,
                         "change modpacks");
-                    if (choice == UnsavedChangesChoice.Cancel)
+                    switch (choice)
                     {
-                        modifyingComboBox = true;
-                        modpackComboBox.SelectedIndex = lastIndex;
-                        modifyingComboBox = false;
-                        return;
+                        case UnsavedChangesChoice.Cancel:
+                            modifyingComboBox = true;
+                            modpackComboBox.SelectedIndex = lastIndex;
+                            modifyingComboBox = false;
+                            return;
+                        case UnsavedChangesChoice.Save:
+                            await SaveCurrentModpackAsync();
+                            break;
                     }
-
-                    if (choice == UnsavedChangesChoice.Save)
-                        await SaveCurrentModpackAsync();
 
                     SetAndRefreshModpack(modpackComboBox.SelectedIndex);
                     lastIndex = modpackComboBox.SelectedIndex;
@@ -72,13 +73,17 @@ public partial class MainWindow
                 this,
                 manager.SelectedModlist.name,
                 "exit");
-            if (choice == UnsavedChangesChoice.Cancel)
-                return;
-
-            if (choice == UnsavedChangesChoice.Save)
-                await SaveCurrentModpackAsync();
-            else
-                await SetAndMarkChangesAsync(false);
+            switch (choice)
+            {
+                case UnsavedChangesChoice.Cancel:
+                    return;
+                case UnsavedChangesChoice.Save:
+                    await SaveCurrentModpackAsync();
+                    break;
+                default:
+                    await SetAndMarkChangesAsync(false);
+                    break;
+            }
 
             bypassUnsavedClosePrompt = true;
             Close();

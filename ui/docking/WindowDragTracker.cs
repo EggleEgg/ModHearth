@@ -86,7 +86,7 @@ namespace ModHearth.UI
             if (_hwnd != IntPtr.Zero)
             {
                 _wndProc = new WndProcDelegate(SubclassWndProc);
-                SetWindowSubclass(_hwnd, _wndProc, SubclassId, IntPtr.Zero);
+                _ = SetWindowSubclass(_hwnd, _wndProc, SubclassId, IntPtr.Zero);
             }
         }
 
@@ -116,7 +116,7 @@ namespace ModHearth.UI
         {
             if (_hwnd != IntPtr.Zero && _wndProc != null)
             {
-                RemoveWindowSubclass(_hwnd, _wndProc, SubclassId);
+                _ = RemoveWindowSubclass(_hwnd, _wndProc, SubclassId);
                 _wndProc = null;
                 _hwnd = IntPtr.Zero;
             }
@@ -132,11 +132,8 @@ namespace ModHearth.UI
     public sealed class MacWindowDragTracker : IWindowDragTracker
     {
         private readonly Window _window;
-        private IntPtr _nsWindow;
         private IntPtr _observerInstance;
         private bool _isDragging;
-        private Delegate? _willMoveDelegate;
-        private Delegate? _didMoveDelegate;
 
         public bool IsDragging => _isDragging;
 
@@ -190,7 +187,7 @@ namespace ModHearth.UI
 
         private void Initialize()
         {
-            _nsWindow = _window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+            IntPtr _nsWindow = _window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
             if (_nsWindow == IntPtr.Zero) return;
 
             try
@@ -201,11 +198,11 @@ namespace ModHearth.UI
 
                 if (observerClass != IntPtr.Zero)
                 {
-                    _willMoveDelegate = new NotificationCallbackDelegate(OnWillMoveNotification);
-                    _didMoveDelegate = new NotificationCallbackDelegate(OnDidMoveNotification);
+                    Delegate? _willMoveDelegate = new NotificationCallbackDelegate(OnWillMoveNotification);
+                    Delegate? _didMoveDelegate = new NotificationCallbackDelegate(OnDidMoveNotification);
 
-                    class_addMethod(observerClass, sel_registerName("windowWillMove:"), _willMoveDelegate, "v@:@");
-                    class_addMethod(observerClass, sel_registerName("windowDidMove:"), _didMoveDelegate, "v@:@");
+                    _ = class_addMethod(observerClass, sel_registerName("windowWillMove:"), _willMoveDelegate, "v@:@");
+                    _ = class_addMethod(observerClass, sel_registerName("windowDidMove:"), _didMoveDelegate, "v@:@");
 
                     objc_registerClassPair(observerClass);
 
@@ -227,12 +224,12 @@ namespace ModHearth.UI
 
                         IntPtr willMoveUtf8 = Marshal.StringToHGlobalAnsi("NSWindowWillMoveNotification");
                         IntPtr willMoveName = objc_msgSend(nsStringClass, stringWithUtf8Sel, willMoveUtf8);
-                        objc_msgSend(defaultCenter, addObserverSel, _observerInstance, sel_registerName("windowWillMove:"), willMoveName, _nsWindow);
+                        _ = objc_msgSend(defaultCenter, addObserverSel, _observerInstance, sel_registerName("windowWillMove:"), willMoveName, _nsWindow);
                         Marshal.FreeHGlobal(willMoveUtf8);
 
                         IntPtr didMoveUtf8 = Marshal.StringToHGlobalAnsi("NSWindowDidMoveNotification");
                         IntPtr didMoveName = objc_msgSend(nsStringClass, stringWithUtf8Sel, didMoveUtf8);
-                        objc_msgSend(defaultCenter, addObserverSel, _observerInstance, sel_registerName("windowDidMove:"), didMoveName, _nsWindow);
+                        _ = objc_msgSend(defaultCenter, addObserverSel, _observerInstance, sel_registerName("windowDidMove:"), didMoveName, _nsWindow);
                         Marshal.FreeHGlobal(didMoveUtf8);
                     }
                 }
@@ -273,7 +270,7 @@ namespace ModHearth.UI
                     IntPtr defaultCenter = objc_msgSend(notificationCenterClass, defaultCenterSel);
 
                     IntPtr removeObserverSel = sel_registerName("removeObserver:");
-                    objc_msgSend(defaultCenter, removeObserverSel, _observerInstance);
+                    _ = objc_msgSend(defaultCenter, removeObserverSel, _observerInstance);
                 }
                 catch
                 {
@@ -314,11 +311,11 @@ namespace ModHearth.UI
             if (!_movementCheckScheduled)
             {
                 _movementCheckScheduled = true;
-                CheckForMovementStop();
+                _ = CheckForMovementStop();
             }
         }
 
-        private async void CheckForMovementStop()
+        private async System.Threading.Tasks.Task CheckForMovementStop()
         {
             while (true)
             {

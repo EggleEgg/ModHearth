@@ -63,7 +63,7 @@ public static class ModUpdateLogger
         // Ensure the general logs directory exists.
         if (!Directory.Exists(LogDir))
         {
-            Directory.CreateDirectory(LogDir);
+            _ = Directory.CreateDirectory(LogDir);
         }
     }
 
@@ -72,7 +72,7 @@ public static class ModUpdateLogger
         // Ensure metadata directory exists
         if (!Directory.Exists(MetadataDir))
         {
-            Directory.CreateDirectory(MetadataDir);
+            _ = Directory.CreateDirectory(MetadataDir);
         }
 
         // List of files to migrate
@@ -292,7 +292,7 @@ public static class ModUpdateLogger
                 // Parallelize TryDetectLocalUpdate and EnsureLocalDeepStamp passes per mod.
                 // Computed into an index-aligned array to preserve stable entry ordering.
                 List<ModUpdateLogEntry>?[] perEntryResults = new List<ModUpdateLogEntry>?[currentList.Count];
-                Parallel.For(0, currentList.Count, new ParallelOptions
+                _ = Parallel.For(0, currentList.Count, new ParallelOptions
                 {
                     MaxDegreeOfParallelism = Environment.ProcessorCount
                 }, i =>
@@ -353,7 +353,7 @@ public static class ModUpdateLogger
         List<ModReference> modList = mods as List<ModReference> ?? mods.ToList();
 
         ModUpdateSnapshotEntry?[] results = new ModUpdateSnapshotEntry?[modList.Count];
-        Parallel.For(0, modList.Count, new ParallelOptions
+        _ = Parallel.For(0, modList.Count, new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount
         }, i =>
@@ -529,7 +529,7 @@ public static class ModUpdateLogger
             return;
 
         // Every mod's deep stamp is independent of every other mod's, so this is safe to parallelize, no shared state between iterations.
-        Parallel.ForEach(
+        _ = Parallel.ForEach(
             entries,
             new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
             EnsureLocalDeepStamp);
@@ -604,10 +604,10 @@ public static class ModUpdateLogger
             foreach (string line in metadata)
             {
                 byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
-                sha256.TransformBlock(bytes, 0, bytes.Length, null, 0);
+                _ = sha256.TransformBlock(bytes, 0, bytes.Length, null, 0);
             }
 
-            sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            _ = sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
             return Convert.ToHexString(sha256.Hash ?? Array.Empty<byte>());
         }
         catch
@@ -861,25 +861,20 @@ public static class ModUpdateLogger
     private static bool TryParseTimeUpdated(object timeObj, out long timeUpdated)
     {
         timeUpdated = 0;
-        if (timeObj is long longValue)
+        switch (timeObj)
         {
-            timeUpdated = longValue;
-            return true;
+            case long longValue:
+                timeUpdated = longValue;
+                return true;
+            case int intValue:
+                timeUpdated = intValue;
+                return true;
+            case string text when long.TryParse(text, out long parsed):
+                timeUpdated = parsed;
+                return true;
+            default:
+                return false;
         }
-
-        if (timeObj is int intValue)
-        {
-            timeUpdated = intValue;
-            return true;
-        }
-
-        if (timeObj is string text && long.TryParse(text, out long parsed))
-        {
-            timeUpdated = parsed;
-            return true;
-        }
-
-        return false;
     }
 
     private static Dictionary<string, long> LoadWorkshopSnapshot()

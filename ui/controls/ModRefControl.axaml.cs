@@ -127,10 +127,13 @@ public partial class ModRefControl : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ModRefViewModel.RuleBadges) ||
-            e.PropertyName == nameof(ModRefViewModel.RelationshipCount))
+        switch (e.PropertyName)
         {
-            UpdateBadgeVisibilities();
+            case nameof(ModRefViewModel.RuleBadges):
+            case nameof(ModRefViewModel.RelationshipCount):
+                UpdateBadgeVisibilities();
+                break;
+
         }
     }
 

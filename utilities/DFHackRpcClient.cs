@@ -13,6 +13,13 @@ namespace ModHearth.Utilities
         public static string? ExecuteDFHackCommandViaRpc(string command, List<string> args, string? dfFolderPath, out string error)
         {
             error = string.Empty;
+
+            if (!DFMonitor.Shared.IsProcessRunning())
+            {
+                error = "Dwarf Fortress is not running";
+                return null;
+            }
+
             int port = ResolveDFHackPort(dfFolderPath);
 
             // This will be spammed if modhearth modlist changes exist but DF is not yet in the world creation screen
@@ -27,7 +34,8 @@ namespace ModHearth.Utilities
                 if (!connectTask.Wait(1000))
                 {
                     error = "Connection timeout";
-                    Console.WriteLine($"DFHackRpcClient: {error}");
+                    if (!DFMonitor.Shared.IsBooting())
+                        Console.WriteLine($"DFHackRpcClient: {error}");
                     return null;
                 }
 
@@ -81,7 +89,7 @@ namespace ModHearth.Utilities
                     if (id == -3) // RPC_REPLY_TEXT (Payload is CoreTextNotification)
                     {
                         string text = DecodeTextNotification(payload);
-                        outputSb.Append(text);
+                        _ = outputSb.Append(text);
                         LogRpcClient($"Received text fragment: {text.TrimEnd()}");
                     }
                     else if (id == -1) // RPC_REPLY_RESULT (success / completion)
@@ -108,7 +116,10 @@ namespace ModHearth.Utilities
             catch (Exception ex)
             {
                 error = ex.Message;
-                Console.WriteLine($"DFHackRpcClient: Exception - {ex.Message}");
+                if (!DFMonitor.Shared.IsBooting())
+                {
+                    Console.WriteLine($"DFHackRpcClient: Exception - {ex.Message}");
+                }
                 return null;
             }
         }
@@ -155,34 +166,44 @@ namespace ModHearth.Utilities
                 int wireType = tag & 0x07;
                 int fieldNumber = tag >> 3;
 
-                if (fieldNumber == 1 && wireType == 2) // fragments (repeated message TextFragment)
+                switch (fieldNumber) // fragments (repeated message TextFragment)
                 {
-                    int fragLen = ReadVarint(payload, ref index);
-                    int fragEnd = index + fragLen;
-
-                    // Inside TextFragment
-                    while (index < fragEnd)
-                    {
-                        int fTag = ReadVarint(payload, ref index);
-                        int fWireType = fTag & 0x07;
-                        int fFieldNumber = fTag >> 3;
-
-                        if (fFieldNumber == 1 && fWireType == 2) // text (string)
+                    case 1 when wireType == 2:
                         {
-                            int textLen = ReadVarint(payload, ref index);
-                            string text = Encoding.UTF8.GetString(payload, index, textLen);
-                            sb.Append(text);
-                            index += textLen;
+                            int fragLen = ReadVarint(payload, ref index);
+                            int fragEnd = index + fragLen;
+
+                            // Inside TextFragment
+                            while (index < fragEnd)
+                            {
+                                int fTag = ReadVarint(payload, ref index);
+                                int fWireType = fTag & 0x07;
+                                int fFieldNumber = fTag >> 3;
+
+                                switch (fFieldNumber) // text (string)
+                                {
+                                    case 1 when fWireType == 2:
+                                        {
+                                            int textLen = ReadVarint(payload, ref index);
+                                            string text = Encoding.UTF8.GetString(payload, index, textLen);
+                                            _ = sb.Append(text);
+                                            index += textLen;
+                                            break;
+                                        }
+
+                                    default:
+                                        SkipField(payload, ref index, fWireType);
+                                        break;
+                                }
+                            }
+
+                            break;
                         }
-                        else
-                        {
-                            SkipField(payload, ref index, fWireType);
-                        }
-                    }
-                }
-                else
-                {
-                    SkipField(payload, ref index, wireType);
+
+                    default:
+                        SkipField(payload, ref index, wireType);
+                        break;
+
                 }
             }
             return sb.ToString();
@@ -205,26 +226,27 @@ namespace ModHearth.Utilities
 
         private static void SkipField(byte[] data, ref int index, int wireType)
         {
-            if (wireType == 0) // Varint
+            switch (wireType) // Varint
             {
-                ReadVarint(data, ref index);
-            }
-            else if (wireType == 1) // 64-bit
-            {
-                index += 8;
-            }
-            else if (wireType == 2) // Length-delimited
-            {
-                int len = ReadVarint(data, ref index);
-                index += len;
-            }
-            else if (wireType == 5) // 32-bit
-            {
-                index += 4;
-            }
-            else
-            {
-                throw new NotSupportedException($"Unsupported wire type: {wireType}");
+                case 0:
+                    _ = ReadVarint(data, ref index);
+                    break;
+                case 1:
+                    index += 8;
+                    break;
+                case 2:
+                    {
+                        int len = ReadVarint(data, ref index);
+                        index += len;
+                        break;
+                    }
+
+                case 5:
+                    index += 4;
+                    break;
+                default:
+                    throw new NotSupportedException($"Unsupported wire type: {wireType}");
+
             }
         }
 
@@ -244,6 +266,9 @@ namespace ModHearth.Utilities
 
         public static bool IsDFHackRunning(string? dfFolderPath)
         {
+            if (!DFMonitor.Shared.IsProcessRunning())
+                return false;
+
             int port = ResolveDFHackPort(dfFolderPath);
             try
             {

@@ -22,7 +22,7 @@ public static class MarkdownFormatter
 
             if (trimmed.Length == 0)
             {
-                builder.AppendLine();
+                _ = builder.AppendLine();
                 continue;
             }
 
@@ -30,30 +30,30 @@ public static class MarkdownFormatter
             if (headingMatch.Success)
             {
                 string heading = DecodeInlineMarkdown(headingMatch.Groups["title"].Value).Trim();
-                builder.AppendLine();
-                builder.AppendLine(heading);
+                _ = builder.AppendLine();
+                _ = builder.AppendLine(heading);
                 //size of underline
-                builder.AppendLine(new string('-', 50));
+                _ = builder.AppendLine(new string('-', 50));
                 continue;
             }
 
             if (trimmed.StartsWith("- ", StringComparison.Ordinal) || trimmed.StartsWith("* ", StringComparison.Ordinal))
             {
-                builder.Append("- ");
-                builder.AppendLine(DecodeInlineMarkdown(trimmed.Substring(2)).Trim());
+                _ = builder.Append("- ");
+                _ = builder.AppendLine(DecodeInlineMarkdown(trimmed.Substring(2)).Trim());
                 continue;
             }
 
             Match numberedMatch = Regex.Match(trimmed, @"^(?<num>\d+)\.\s+(?<text>.+)$");
             if (numberedMatch.Success)
             {
-                builder.Append(numberedMatch.Groups["num"].Value);
-                builder.Append(". ");
-                builder.AppendLine(DecodeInlineMarkdown(numberedMatch.Groups["text"].Value).Trim());
+                _ = builder.Append(numberedMatch.Groups["num"].Value);
+                _ = builder.Append(". ");
+                _ = builder.AppendLine(DecodeInlineMarkdown(numberedMatch.Groups["text"].Value).Trim());
                 continue;
             }
 
-            builder.AppendLine(DecodeInlineMarkdown(trimmed));
+            _ = builder.AppendLine(DecodeInlineMarkdown(trimmed));
         }
 
         return builder.ToString().Trim();
@@ -115,7 +115,7 @@ public static class MarkdownFormatter
             if (!inSection)
                 continue;
 
-            builder.AppendLine(line);
+            _ = builder.AppendLine(line);
         }
 
         return builder.ToString().Trim();

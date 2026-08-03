@@ -84,7 +84,7 @@ public static class SearchFilterHelper
         list.SelectedItems.Clear();
         foreach (ModRefViewModel vm in retained)
         {
-            list.SelectedItems.Add(vm);
+            _ = list.SelectedItems.Add(vm);
         }
 
         modListController.UpdateSelectionState(list);

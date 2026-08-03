@@ -29,7 +29,7 @@ namespace ModHearth.Utilities.Workshop
             if (string.IsNullOrWhiteSpace(input))
                 yield break;
 
-            var lines = input.Split(new[] { '\r', '\n', ' ', '\t', ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var lines = input.Split(['\r', '\n', ' ', '\t', ',', '|', ';'], StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var line in lines)
             {
@@ -48,13 +48,8 @@ namespace ModHearth.Utilities.Workshop
 
                 // Try URL matching
                 var match = WorkshopIdRegex.Match(trimmed);
-                if (match.Success)
-                {
-                    if (ulong.TryParse(match.Groups[1].Value, out ulong idout))
-                    {
-                        yield return (idout, trimmed);
-                    }
-                }
+                if (match.Success && ulong.TryParse(match.Groups[1].Value, out ulong idout))
+                    yield return (idout, trimmed);
             }
         }
 

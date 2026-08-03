@@ -12,7 +12,7 @@ public class ManagerConcurrencyTests
     public async Task ConcurrentManagerOperations_DoNotThrow()
     {
         ModHearthManager manager = new ModHearthManager();
-        manager.Initialize(); // one real baseline call, not inside the hammer loop
+        _ = manager.Initialize(); // one real baseline call, not inside the hammer loop
 
         const int cheapIterations = 2000;
         const int expensiveIterations = 500;

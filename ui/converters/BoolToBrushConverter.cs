@@ -14,11 +14,13 @@ public class BoolToBrushConverter : MarkupExtension, IValueConverter
     public override object ProvideValue(IServiceProvider serviceProvider) => this;
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is bool b)
+        switch (value)
         {
-            return b ? TrueBrush : FalseBrush;
+            case bool b:
+                return b ? TrueBrush : FalseBrush;
+            default:
+                return FalseBrush;
         }
-        return FalseBrush;
     }
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {

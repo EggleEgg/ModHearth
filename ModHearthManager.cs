@@ -8,6 +8,7 @@ using ModHearth.UI;
 using ModHearth.Utilities;
 using System.Collections.Concurrent;
 using ModHearth.Utilities.Logging;
+using System.Linq;
 
 namespace ModHearth
 {
@@ -229,7 +230,7 @@ namespace ModHearth
                 {
                     string? directory = Path.GetDirectoryName(newPath);
                     if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
-                        Directory.CreateDirectory(directory);
+                        _ = Directory.CreateDirectory(directory);
 
                     try
                     {
@@ -261,7 +262,7 @@ namespace ModHearth
             {
                 try
                 {
-                    Task.Run(() => AuditWorkshopManifests());
+                    _ = Task.Run(AuditWorkshopManifests, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
@@ -284,7 +285,7 @@ namespace ModHearth
             }
             finally
             {
-                Interlocked.Exchange(ref reloadInProgress, 0);
+                _ = Interlocked.Exchange(ref reloadInProgress, 0);
             }
         }
 
@@ -315,7 +316,7 @@ namespace ModHearth
                 return;
 
             if (rule == null || rule.IsEmpty)
-                next.Remove(key);
+                _ = next.Remove(key);
             else
                 next[key] = rule.Clone();
 
@@ -605,7 +606,7 @@ namespace ModHearth
             return communitySortRules;
         }
 
-        public async Task<bool> FetchCommunitySortRulesAsync(string repositoryUrl)
+        public async Task<bool> FetchCommunitySortRulesAsync(string repositoryUrl, CancellationToken cancellationToken = default)
         {
             string? rawUrl = GitHubUrlParser.ToRawFileUrl(repositoryUrl);
             if (string.IsNullOrWhiteSpace(rawUrl))
@@ -616,14 +617,14 @@ namespace ModHearth
 
             try
             {
-                using HttpResponseMessage response = await GitHubFileClient.Instance.GetAsync(rawUrl);
+                using HttpResponseMessage response = await GitHubFileClient.Instance.GetAsync(rawUrl, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
                     communitySortRules = new List<ModSortRule>();
                     return false;
                 }
 
-                string jsonContent = await response.Content.ReadAsStringAsync();
+                string jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
                 List<ModSortRule>? loadedRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent);
                 communitySortRules = NormalizeSortRules(loadedRules);
                 return true;
@@ -652,7 +653,7 @@ namespace ModHearth
 
             try
             {
-                Task.Run(async () => await FetchCommunitySortRulesAsync(url)).Wait();
+                Task.Run(async () => await FetchCommunitySortRulesAsync(url), deferredModManagerReloadCts?.Token ?? CancellationToken.None).Wait();
             }
             catch
             {
@@ -806,12 +807,12 @@ namespace ModHearth
             string modrefKey = modref.DFHackCompatibleString();
 
             HashSet<DFHMod> newModPool = new HashSet<DFHMod>(modPool);
-            newModPool.Remove(dfm);
+            _ = newModPool.Remove(dfm);
             List<DFHMod> newEnabledMods = enabledMods.Where(m => m != dfm).ToList();
             HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
-            newDisabledMods.Remove(dfm);
+            _ = newDisabledMods.Remove(dfm);
             Dictionary<string, ModReference> newModrefMap = new Dictionary<string, ModReference>(modrefMap, StringComparer.OrdinalIgnoreCase);
-            newModrefMap.Remove(modrefKey);
+            _ = newModrefMap.Remove(modrefKey);
 
             lock (stateGate)
             {
@@ -823,7 +824,7 @@ namespace ModHearth
 
             RefreshInstalledCacheModIds();
             FindModlistProblems();
-            TryRequestModManagerReload(out _, out _);
+            _ = TryRequestModManagerReload(out _, out _);
 
             message = $"Deleted {modPath}";
             return true;
@@ -931,7 +932,7 @@ namespace ModHearth
             // A plain membership set has no "which duplicate wins" concern (unlike BuildModIdPathMap's
             // dir-per-id map), so a ConcurrentDictionary-backed set is enough
             ConcurrentDictionary<string, byte> ids = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
-            Parallel.ForEach(candidateDirs, new ParallelOptions
+            _ = Parallel.ForEach(candidateDirs, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, dir =>
@@ -948,7 +949,7 @@ namespace ModHearth
                     {
                         string id = idMatch.Groups[1].Value.Trim();
                         if (!string.IsNullOrEmpty(id))
-                            ids.TryAdd(id, 0);
+                            _ = ids.TryAdd(id, 0);
                     }
                 }
                 catch
@@ -1002,7 +1003,7 @@ namespace ModHearth
 
             // Parallel compute. Path resolution, ModReference construction and LastModifiedTime stamp are all independent per entry work
             ModReference?[] results = new ModReference?[modDataList.Count];
-            Parallel.For(0, modDataList.Count, new ParallelOptions
+            _ = Parallel.For(0, modDataList.Count, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, i =>
@@ -1014,7 +1015,7 @@ namespace ModHearth
                 ModReference modRef = new ModReference(modDataEntry);
                 modRef.LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"]);
 
-                ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
+                _ = ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
                 if (modRef.IsIgnored)
                 {
                     results[i] = null; // Mark as null to be filtered out later
@@ -1049,7 +1050,7 @@ namespace ModHearth
 
                 Console.WriteLine($"   Mod found + registered: {modRef.name}.");
                 newModrefMap.Add(key, modRef);
-                newModPool.Add(modRef.ToDFHMod());
+                _ = newModPool.Add(modRef.ToDFHMod());
             }
 
             PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs);
@@ -1073,7 +1074,7 @@ namespace ModHearth
             }
 
             ModReference?[] results = new ModReference?[candidates.Count];
-            Parallel.For(0, candidates.Count, new ParallelOptions
+            _ = Parallel.For(0, candidates.Count, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, i =>
@@ -1131,7 +1132,7 @@ namespace ModHearth
 
                 Console.WriteLine($"   Mod found + registered: {modRef.name}.");
                 newModrefMap.Add(key, modRef);
-                newModPool.Add(modRef.ToDFHMod());
+                _ = newModPool.Add(modRef.ToDFHMod());
                 addedCount++;
             }
 
@@ -1159,7 +1160,7 @@ namespace ModHearth
                 LastModifiedTime = GetLatestModifiedTimestampCached(dir)
             };
 
-            ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
+            _ = ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
             if (modRef.IsIgnored)
                 return null;
 
@@ -1362,7 +1363,7 @@ namespace ModHearth
                                     break;
                                 }
                                 depth++;
-                                valueBuilder.Append(c);
+                                _ = valueBuilder.Append(c);
                                 j++;
                             }
                             else if (c == ']')
@@ -1373,12 +1374,12 @@ namespace ModHearth
                                     j++;
                                     break;
                                 }
-                                valueBuilder.Append(c);
+                                _ = valueBuilder.Append(c);
                                 j++;
                             }
                             else
                             {
-                                valueBuilder.Append(c);
+                                _ = valueBuilder.Append(c);
                                 j++;
                             }
                         }
@@ -1440,7 +1441,7 @@ namespace ModHearth
 
             // Parallel-compute phase: reading + regex-matching each info.txt is independent per directory.
             (string? Id, string Dir)?[] results = new (string?, string)?[candidateDirs.Count];
-            Parallel.For(0, candidateDirs.Count, new ParallelOptions
+            _ = Parallel.For(0, candidateDirs.Count, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, i =>
@@ -1567,7 +1568,7 @@ namespace ModHearth
                 Dictionary<string, string>? headers = JsonSerializer.Deserialize<Dictionary<string, string>>(pairArr[1]);
                 if (headers == null)
                     continue;
-                modData.Add(headers);
+                _ = modData.Add(headers);
                 // Mod found/registered logging happens after registration.
 
                 // To see which headers there are to choose from.
@@ -1594,6 +1595,11 @@ namespace ModHearth
                 return rpcOutput;
             }
 
+            if (rpcError == "Dwarf Fortress is not running")
+            {
+                throw new InvalidOperationException("Dwarf Fortress is not running.");
+            }
+
             Console.WriteLine($"DFHack RPC failed ({rpcError}). Falling back to dfhack-run process.");
 
             string dfhackRunPath = GetDfhackRunPath();
@@ -1618,7 +1624,7 @@ namespace ModHearth
                 StartInfo = processStartInfo
             };
 
-            process.Start();
+            _ = process.Start();
 
             // Get output string.
             string output = process.StandardOutput.ReadToEnd();
@@ -1633,238 +1639,50 @@ namespace ModHearth
             return output;
         }
 
-        private static int? launchedDfPid;
         private static bool isDfSessionActive;
         private static DateTime lastDfLaunchTime = DateTime.MinValue;
 
-        // Check if DF is running. Real time updates from df process checks are incredibly unreliable and inconsistent on linux
+        // Check if DF is running
         public static bool DwarfFortressRunning()
         {
-            if (OperatingSystem.IsLinux())
+            if (DFMonitor.Shared.IsProcessRunning())
             {
-                if (IsDfhackRpcRunning())
-                {
-                    isDfSessionActive = true;
-                    return true;
-                }
-
-                if (isDfSessionActive)
-                {
-                    if ((DateTime.UtcNow - lastDfLaunchTime).TotalMinutes < 5)
-                    {
-                        return true;
-                    }
-
-                    try
-                    {
-                        string errorLogPath = ConfigManager.GetErrorLogPath();
-                        if (!string.IsNullOrEmpty(errorLogPath) && File.Exists(errorLogPath))
-                        {
-                            DateTime lastWrite = File.GetLastWriteTimeUtc(errorLogPath);
-                            if ((DateTime.UtcNow - lastWrite).TotalMinutes < 10)
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore
-                    }
-
-                    isDfSessionActive = false;
-                }
-
-                return false;
+                isDfSessionActive = true;
+                return true;
             }
 
-            // 0. Check application-tracked launched process PID if available
-            if (launchedDfPid.HasValue)
+            if (IsDfhackRpcRunning())
             {
-                try
-                {
-                    using (Process p = Process.GetProcessById(launchedDfPid.Value))
-                    {
-                        if (!p.HasExited)
-                            return true;
-                    }
-                }
-                catch
-                {
-                    launchedDfPid = null;
-                }
+                isDfSessionActive = true;
+                return true;
             }
 
-            string? dfFolderPath = Config?.DFFolderPath;
-            string resolvedConfigExe = string.Empty;
-            if (!string.IsNullOrWhiteSpace(dfFolderPath))
+            // Account for initialization slowness if DF was recently launched
+            if (DFMonitor.Shared.IsBooting() || (isDfSessionActive && (DateTime.UtcNow - lastDfLaunchTime).TotalSeconds < 60))
             {
-                DwarfFortressExecutableLocator.TryResolvePath(dfFolderPath, out resolvedConfigExe);
+                return true;
             }
 
-            bool IsDwarfFortressExecutable(string exePath)
-            {
-                if (string.IsNullOrWhiteSpace(exePath))
-                    return false;
-
-                try
-                {
-                    string fullExe = Path.GetFullPath(exePath);
-                    if (!string.IsNullOrWhiteSpace(resolvedConfigExe))
-                    {
-                        string fullResolved = Path.GetFullPath(resolvedConfigExe);
-                        if (string.Equals(fullExe, fullResolved, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-                            return true;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(dfFolderPath))
-                    {
-                        string fullFolder = Path.GetFullPath(dfFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                        string exeDir = Path.GetDirectoryName(fullExe) ?? string.Empty;
-                        exeDir = exeDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-                        StringComparison comp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-                        if (string.Equals(exeDir, fullFolder, comp) || fullExe.StartsWith(fullFolder + Path.DirectorySeparatorChar, comp))
-                            return true;
-                    }
-                }
-                catch
-                {
-                }
-                return false;
-            }
-
-            // Expanded candidate list for fallback name matching
-            string[] candidateNames =
-            {
-                "Dwarf Fortress",
-                "Dwarf Fortress.exe",
-                "Dwarf Fortress.",
-                "DwarfFortress",
-                "DwarfFortress.exe",
-                "dwarfort",
-                "dwarfort.exe",
-                "dwarfort.x86_64",
-                "dwarfort.bin",
-                "dwarf_fortress",
-                "dwarfortress",
-                "df.exe",
-                "df"
-            };
-
-            // 1. Scan process list using reliable executable paths (/proc/[pid]/exe on Linux, MainModule on Windows) and cmdline inspection
-            try
-            {
-                foreach (Process p in Process.GetProcesses())
-                {
-                    try
-                    {
-                        int pid = p.Id;
-
-                        // Linux /proc/[pid]/exe inspection (Most reliable)
-                        if (OperatingSystem.IsLinux())
-                        {
-                            try
-                            {
-                                var linkTarget = File.ResolveLinkTarget($"/proc/{pid}/exe", true);
-                                if (linkTarget != null && IsDwarfFortressExecutable(linkTarget.FullName))
-                                {
-                                    launchedDfPid = pid;
-                                    return true;
-                                }
-                            }
-                            catch
-                            {
-                                // Ignored
-                            }
-
-                            // Linux /proc/[pid]/cmdline inspection (NUL separated arguments)
-                            string cmdlinePath = $"/proc/{pid}/cmdline";
-                            if (File.Exists(cmdlinePath))
-                            {
-                                try
-                                {
-                                    byte[] bytes = File.ReadAllBytes(cmdlinePath);
-                                    string cmdlineText = System.Text.Encoding.UTF8.GetString(bytes);
-                                    string[] args = cmdlineText.Split('\0', StringSplitOptions.RemoveEmptyEntries);
-                                    foreach (string arg in args)
-                                    {
-                                        if (arg.Contains("dwarfort", StringComparison.OrdinalIgnoreCase) ||
-                                            arg.Contains("Dwarf Fortress", StringComparison.OrdinalIgnoreCase) ||
-                                            arg.Contains("975370", StringComparison.OrdinalIgnoreCase) ||
-                                            (!string.IsNullOrEmpty(resolvedConfigExe) && arg.Equals(resolvedConfigExe, StringComparison.OrdinalIgnoreCase)))
-                                        {
-                                            launchedDfPid = pid;
-                                            return true;
-                                        }
-                                    }
-                                }
-                                catch
-                                {
-                                    // Ignored
-                                }
-                            }
-                        }
-                        else if (OperatingSystem.IsWindows())
-                        {
-                            try
-                            {
-                                string mainMod = p.MainModule?.FileName ?? string.Empty;
-                                if (!string.IsNullOrEmpty(mainMod) && IsDwarfFortressExecutable(mainMod))
-                                {
-                                    launchedDfPid = pid;
-                                    return true;
-                                }
-                            }
-                            catch
-                            {
-                                // Ignored
-                            }
-                        }
-
-                        // 2. Fallback: ProcessName matching (least reliable)
-                        string pName = p.ProcessName;
-                        if (candidateNames.Any(c => string.Equals(pName, c, StringComparison.OrdinalIgnoreCase) ||
-                                                    pName.StartsWith(c, StringComparison.OrdinalIgnoreCase) ||
-                                                    c.StartsWith(pName, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            launchedDfPid = pid;
-                            return true;
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore access denied or exited processes
-                    }
-                    finally
-                    {
-                        p.Dispose();
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore global process enumeration failures
-            }
-
+            // Both process monitor and RPC checks failed, and process is not booting. DF is not running.
+            isDfSessionActive = false;
             return false;
         }
 
         // Run Dwarf Fortress executable or trigger Steam launch.
-        public async Task<(bool Success, string Message)> RunDwarfFortressAsync()
+        public static async Task<(bool Success, bool IsSteam, string Message)> RunDwarfFortressAsync()
         {
             if (DwarfFortressRunning())
-                return (false, "Dwarf Fortress is already running.");
+                return (false, false, "Dwarf Fortress is already running.");
 
             if (Config == null || string.IsNullOrWhiteSpace(Config.DFFolderPath))
-                return (false, "Dwarf Fortress folder path is not configured.");
+                return (false, false, "Dwarf Fortress folder path is not configured.");
 
             string dfFolderPath = Config.DFFolderPath;
             if (!Directory.Exists(dfFolderPath))
-                return (false, $"Dwarf Fortress folder not found: {dfFolderPath}");
+                return (false, false, $"Dwarf Fortress folder not found: {dfFolderPath}");
 
             if (!DwarfFortressExecutableLocator.TryResolvePath(dfFolderPath, out string executablePath))
-                return (false, "Dwarf Fortress executable not found in the configured folder.");
+                return (false, false, "Dwarf Fortress executable not found in the configured folder.");
 
             try
             {
@@ -1939,7 +1757,7 @@ namespace ModHearth
 
                     if (!launched)
                     {
-                        return (false, "Failed to trigger Steam launcher or protocol handler.");
+                        return (false, false, "Failed to trigger Steam launcher or protocol handler.");
                     }
 
                     isDfSessionActive = true;
@@ -1948,7 +1766,7 @@ namespace ModHearth
                     if (OperatingSystem.IsLinux())
                     {
                         InfoLogger.LogRunDf("Steam launch triggered successfully on Linux. Skipping process polling.");
-                        return (true, "Dwarf Fortress launched successfully through Steam.");
+                        return (true, true, "Dwarf Fortress launched successfully through Steam.");
                     }
 
                     // Poll for the actual Dwarf Fortress process to appear in the OS process list
@@ -1964,11 +1782,11 @@ namespace ModHearth
                         if (DwarfFortressRunning())
                         {
                             InfoLogger.LogRunDf($"Dwarf Fortress process detected active after {totalElapsedMs}ms.");
-                            return (true, "Dwarf Fortress launched successfully through Steam.");
+                            return (true, true, "Dwarf Fortress launched successfully through Steam.");
                         }
                     }
 
-                    return (false, $"Steam launch was triggered, but Dwarf Fortress failed to launch within {maxWaitTimeoutMs / 1000} seconds.");
+                    return (false, false, $"Steam launch was triggered, but Dwarf Fortress failed to launch within {maxWaitTimeoutMs / 1000} seconds.");
                 }
                 else
                 {
@@ -1997,9 +1815,9 @@ namespace ModHearth
 
                     Process? started = Process.Start(startInfo);
                     if (started == null)
-                        return (false, "Failed to launch Dwarf Fortress directly: process could not be created.");
+                        return (false, false, "Failed to launch Dwarf Fortress directly: process could not be created.");
 
-                    launchedDfPid = started.Id;
+                    DFMonitor.Shared.RegisterLaunchedPid(started.Id);
                     isDfSessionActive = true;
                     lastDfLaunchTime = DateTime.UtcNow;
                     InfoLogger.LogRunDf($"Started direct process PID = {started.Id}");
@@ -2011,16 +1829,16 @@ namespace ModHearth
                     {
                         int exitCode = started.ExitCode;
                         started.Dispose();
-                        return (false, $"Dwarf Fortress exited immediately (Exit code {exitCode}). Check terminal output or error logs for missing dynamic libraries.");
+                        return (false, false, $"Dwarf Fortress exited immediately (Exit code {exitCode}). Check terminal output or error logs for missing dynamic libraries.");
                     }
 
                     started.Dispose();
-                    return (true, "Dwarf Fortress launched successfully.");
+                    return (true, false, "Dwarf Fortress launched successfully.");
                 }
             }
             catch (Exception ex)
             {
-                return (false, $"Failed to launch Dwarf Fortress: {ex.Message}");
+                return (false, false, $"Failed to launch Dwarf Fortress: {ex.Message}");
             }
         }
 
@@ -2098,7 +1916,7 @@ namespace ModHearth
 
             string? directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
-                Directory.CreateDirectory(directory);
+                _ = Directory.CreateDirectory(directory);
 
             string modlistJson = JsonSerializer.Serialize(modpacksToWrite, GetModpackJsonOptions());
 
@@ -2157,6 +1975,31 @@ namespace ModHearth
             return false;
         }
 
+        private static bool IsModManagerReloadOutputSuccessful(string? output)
+        {
+            if (string.IsNullOrWhiteSpace(output))
+                return false;
+
+            try
+            {
+                // Try parsing JSON response from ReloadModManager.lua first
+                using JsonDocument doc = JsonDocument.Parse(output.Trim());
+                if (doc.RootElement.TryGetProperty("success", out JsonElement successElem) && successElem.ValueKind == JsonValueKind.True)
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // Ignore JSON parse errors for fallback string checking
+            }
+
+            return output.Contains("[ReloadManager] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
+                   output.Contains("[ReloadManager] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase) ||
+                   output.Contains("[ModHearth] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
+                   output.Contains("[ModHearth] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase);
+        }
+
         private bool ReloadDFHackModManagerScreen()
         {
             if (!DwarfFortressRunning())
@@ -2173,12 +2016,12 @@ namespace ModHearth
                 if (!string.IsNullOrWhiteSpace(rpcOutput))
                     Console.WriteLine(rpcOutput.TrimEnd());
 
-                bool applied = !string.IsNullOrWhiteSpace(rpcOutput) &&
-                    (rpcOutput.Contains("[ModHearth] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
-                     rpcOutput.Contains("[ModHearth] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase) ||
-                     rpcOutput.Contains("[ReloadManager] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
-                     rpcOutput.Contains("[ReloadManager] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase));
-                return applied;
+                return IsModManagerReloadOutputSuccessful(rpcOutput);
+            }
+
+            if (rpcError == "Dwarf Fortress is not running")
+            {
+                return false;
             }
 
             Console.WriteLine($"DFHack RPC failed ({rpcError}). Falling back to dfhack-run process.");
@@ -2201,7 +2044,7 @@ namespace ModHearth
             try
             {
                 using Process process = new Process { StartInfo = processStartInfo };
-                process.Start();
+                _ = process.Start();
                 string output = process.StandardOutput.ReadToEnd();
                 string error = process.StandardError.ReadToEnd();
                 process.WaitForExit();
@@ -2210,12 +2053,7 @@ namespace ModHearth
                 if (!string.IsNullOrWhiteSpace(error))
                     Console.WriteLine(error.TrimEnd());
 
-                bool applied = !string.IsNullOrWhiteSpace(output) &&
-                    (output.Contains("[ModHearth] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
-                     output.Contains("[ModHearth] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase) ||
-                     output.Contains("[ReloadManager] Reloading mod manager screen.", StringComparison.OrdinalIgnoreCase) ||
-                     output.Contains("[ReloadManager] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase));
-                return applied;
+                return IsModManagerReloadOutputSuccessful(output);
             }
             catch
             {
@@ -2246,7 +2084,7 @@ namespace ModHearth
             }
 
             Console.WriteLine("[ModHearth] Mod manager reload deferred; waiting for moddable screen.");
-            _ = Task.Run(() => DeferredModManagerReloadWorkerAsync(cts, initialChecks));
+            _ = Task.Run(() => DeferredModManagerReloadWorkerAsync(cts, initialChecks), CancellationToken.None);
         }
 
         private void CancelDeferredModManagerReload()
@@ -2334,7 +2172,7 @@ namespace ModHearth
             List<DFHMod> newEnabledMods = new List<DFHMod>(mods);
             HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(modPool);
             foreach (DFHMod mod in newEnabledMods)
-                newDisabledMods.Remove(mod);
+                _ = newDisabledMods.Remove(mod);
 
             lock (stateGate)
             {
@@ -2352,7 +2190,7 @@ namespace ModHearth
 
             List<DFHMod> uniqueMods = new List<DFHMod>();
             HashSet<DFHMod> seen = new HashSet<DFHMod>();
-            foreach (DFHMod mod in mods.Where(thisMod => seen.Add(thisMod)))
+            foreach (DFHMod mod in mods.Where(seen.Add))
             {
                 uniqueMods.Add(mod);
             }
@@ -2369,12 +2207,12 @@ namespace ModHearth
             else if (!sourceLeft && !destinationLeft)
             {
                 HashSet<DFHMod> selectedSet = new HashSet<DFHMod>(uniqueMods);
-                List<DFHMod> selectedInOrder = enabledMods.Where(m => selectedSet.Contains(m)).ToList();
+                List<DFHMod> selectedInOrder = enabledMods.Where(selectedSet.Contains).ToList();
                 if (selectedInOrder.Count == 0)
                     return;
 
                 int clampedIndex = Math.Max(0, Math.Min(newIndex, enabledMods.Count));
-                int selectedBefore = enabledMods.Take(clampedIndex).Count(m => selectedSet.Contains(m));
+                int selectedBefore = enabledMods.Take(clampedIndex).Count(selectedSet.Contains);
                 int targetIndex = clampedIndex - selectedBefore;
 
                 List<DFHMod> remaining = enabledMods.Where(m => !selectedSet.Contains(m)).ToList();
@@ -2400,7 +2238,7 @@ namespace ModHearth
 
                 HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
                 foreach (DFHMod mod in uniqueMods)
-                    newDisabledMods.Add(mod);
+                    _ = newDisabledMods.Add(mod);
 
                 lock (stateGate)
                 {
@@ -2413,7 +2251,7 @@ namespace ModHearth
             {
                 HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
                 foreach (DFHMod mod in uniqueMods)
-                    newDisabledMods.Remove(mod);
+                    _ = newDisabledMods.Remove(mod);
 
                 List<DFHMod> newEnabledMods = new List<DFHMod>(enabledMods);
                 int insertIndex = Math.Max(0, Math.Min(newIndex, newEnabledMods.Count));
@@ -2466,7 +2304,7 @@ namespace ModHearth
             HashSet<string> unscannedModIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (DFHMod dfm in enabledMods)
-                unscannedModIDs.Add(dfm.id);
+                _ = unscannedModIDs.Add(dfm.id);
 
             HashSet<string> allEnabledIDs = new HashSet<string>(unscannedModIDs, StringComparer.OrdinalIgnoreCase);
             string modNeedIsStr = " mod needing is: ";
@@ -2576,8 +2414,8 @@ namespace ModHearth
                     }
                 }
 
-                scannedModIDs.Add(currentDFM.id);
-                unscannedModIDs.Remove(currentDFM.id);
+                _ = scannedModIDs.Add(currentDFM.id);
+                _ = unscannedModIDs.Remove(currentDFM.id);
             }
 
             lock (stateGate)
@@ -2590,18 +2428,19 @@ namespace ModHearth
 
             HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             HashSet<string> liveConflictedIds = new(StringComparer.OrdinalIgnoreCase);
-            foreach (HashSet<string> group in duplicateWarningGroups)
+            foreach (var group in duplicateWarningGroups.Where(group => group.Count(activeModIds.Contains) > 1))
             {
-                if (group.Count(activeModIds.Contains) > 1)
-                    liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
+                liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
             }
 
+
             Dictionary<string, List<string>> combinedMap = new(StringComparer.OrdinalIgnoreCase);
-            foreach (var kvp in duplicateWarningMap)
+            foreach (var kvp in duplicateWarningMap.Where(kvp => liveConflictedIds.Contains(kvp.Key)))
             {
-                if (liveConflictedIds.Contains(kvp.Key))
-                    combinedMap[kvp.Key] = new List<string>(kvp.Value);
+                combinedMap[kvp.Key] = new List<string>(kvp.Value);
             }
+
+
             foreach (var kvp in cacheDuplicateMap)
             {
                 if (combinedMap.TryGetValue(kvp.Key, out var list))
@@ -2620,11 +2459,11 @@ namespace ModHearth
 
             HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             HashSet<string> liveConflictedIds = new(StringComparer.OrdinalIgnoreCase);
-            foreach (HashSet<string> group in duplicateWarningGroups)
+            foreach (var group in duplicateWarningGroups.Where(group => group.Count(activeModIds.Contains) > 1))
             {
-                if (group.Count(activeModIds.Contains) > 1)
-                    liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
+                liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
             }
+
 
             return duplicateWarningMap.ContainsKey(modId) && liveConflictedIds.Contains(modId);
         }
@@ -2730,7 +2569,7 @@ namespace ModHearth
                     if (!aliasMap.TryGetValue(token, out string? modId) || string.IsNullOrWhiteSpace(modId))
                         continue;
 
-                    groupIds.Add(modId);
+                    _ = groupIds.Add(modId);
 
                     if (!map.TryGetValue(modId, out HashSet<string>? objects))
                     {
@@ -2738,7 +2577,7 @@ namespace ModHearth
                         map[modId] = objects;
                     }
 
-                    objects.Add(objectName);
+                    _ = objects.Add(objectName);
                 }
 
                 if (groupIds.Count >= 2)
@@ -2859,10 +2698,6 @@ namespace ModHearth
                 }
             }
 
-            // Everything below works on this local list. loadedModpacks and its DFHModpack entries are freshly deserialized/created and not visible to
-            // any other reader yet, so trimming them here is safe. The old bug was publishing straight to the `modpacks` field before this trim loop ran,
-            // so a reader could observe a modpack list mid-trim (missing some now-removed mods, still containing others). Now `modpacks` is assigned
-            // exactly once, fully formed.
             List<DFHModpack> newModpacks = new List<DFHModpack>(loadedModpacks);
 
             Console.WriteLine();
@@ -2893,19 +2728,21 @@ namespace ModHearth
                     {
                         // Check if a mod with the same ID is in modPool
                         DFHMod? matchingIdMod = modPool.FirstOrDefault(m => string.Equals(m.id, mod.id, StringComparison.OrdinalIgnoreCase));
-                        if (matchingIdMod is not null)
+                        switch (matchingIdMod)
                         {
-                            Console.WriteLine($"[ModHearth] Modpack '{modlist.name}' contains mod '{mod.id}' with version {mod.version}, but version {matchingIdMod.version} is installed. Updating modpack to version {matchingIdMod.version}.");
-                            mod.version = matchingIdMod.version;
-                            shouldPersistActiveFile = true;
-                        }
-                        else
-                        {
-                            modMissing = true;
-                            notFound.Add(mod);
-                            thisListMissingMods.Add(mod);
+                            case not null:
+                                Console.WriteLine($"[ModHearth] Modpack '{modlist.name}' contains mod '{mod.id}' with version {mod.version}, but version {matchingIdMod.version} is installed. Updating modpack to version {matchingIdMod.version}.");
+                                mod.version = matchingIdMod.version;
+                                shouldPersistActiveFile = true;
+                                break;
+                            default:
+                                modMissing = true;
+                                _ = notFound.Add(mod);
+                                _ = thisListMissingMods.Add(mod);
 
-                            messageBuilder.Append('\n').Append(mod);
+                                _ = messageBuilder.Append('\n').Append(mod);
+                                break;
+
                         }
                     }
                 }
@@ -2934,19 +2771,25 @@ namespace ModHearth
 
             if (newModpacks.Count > 0)
             {
-                if (preferredIndex >= 0)
+                switch (preferredIndex)
                 {
-                    indexToSelect = preferredIndex;
-                }
-                else if (defaultIndex >= 0)
-                {
-                    indexToSelect = defaultIndex;
-                }
-                else
-                {
-                    newModpacks[0].@default = true;
-                    shouldPersistActiveFile = true;
-                    indexToSelect = 0;
+                    case >= 0:
+                        indexToSelect = preferredIndex;
+                        break;
+                    default:
+                        if (defaultIndex >= 0)
+                        {
+                            indexToSelect = defaultIndex;
+                        }
+                        else
+                        {
+                            newModpacks[0].@default = true;
+                            shouldPersistActiveFile = true;
+                            indexToSelect = 0;
+                        }
+
+                        break;
+
                 }
             }
 
@@ -2970,7 +2813,7 @@ namespace ModHearth
             {
                 try
                 {
-                    SaveAllModpacks(requestLiveReload: false);
+                    _ = SaveAllModpacks(requestLiveReload: false);
                 }
                 catch (Exception ex)
                 {
@@ -2987,7 +2830,7 @@ namespace ModHearth
             string? vanillaPath = GetVanillaModsPath();
             bool hasVanillaPath = !string.IsNullOrWhiteSpace(vanillaPath) && Directory.Exists(vanillaPath);
             if (hasVanillaPath)
-                vanillaPath = Path.GetFullPath(vanillaPath!);
+                vanillaPath = Path.GetFullPath(vanillaPath);
 
             List<ModReference> vanillaRefs = new List<ModReference>();
             foreach (ModReference modref in modrefMap.Values)
@@ -2996,7 +2839,7 @@ namespace ModHearth
                     continue;
 
                 string modPath = Path.GetFullPath(modref.path);
-                if (!IsPathUnderRoot(modPath, vanillaPath!))
+                if (!IsPathUnderRoot(modPath, vanillaPath))
                     continue;
 
                 vanillaRefs.Add(modref);

@@ -12,7 +12,8 @@
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="viewmodels:ReleaseEntry">
           <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,*" Margin="0,4">
-            <Border Grid.Row="0" Grid.ColumnSpan="2" Height="2" HorizontalAlignment="Stretch" Tag="Splitter" Margin="0,0,0,8" IsVisible="{Binding IsNotFirstItem}"/>
+            <Border Grid.Row="0" Grid.ColumnSpan="2" Height="2" HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                    Background="{DynamicResource StrongPanelBrush}" IsVisible="{Binding IsNotFirstItem}"/>
             <StackPanel Grid.Row="1">
               <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
               <TextBlock Text="{Binding Subtitle}" FontSize="11" Opacity="0.7" TextWrapping="Wrap" />

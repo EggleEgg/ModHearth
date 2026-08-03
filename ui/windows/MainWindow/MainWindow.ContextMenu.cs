@@ -40,12 +40,12 @@ public partial class MainWindow : IModRefContextMenuProvider
 
         if (list != null && list.SelectedItems != null)
         {
-            modListController.TryRestoreContextSelection(list, contextVm);
+            _ = modListController.TryRestoreContextSelection(list, contextVm);
             ModContextMenuSupport.EnsureContextItemSelected(list.SelectedItems, contextVm);
             return list.SelectedItems.Cast<ModRefViewModel>().Select(v => v.ModReference).ToList();
         }
 
-        return new[] { contextVm.ModReference };
+        return [contextVm.ModReference];
     }
 
     public void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
@@ -179,7 +179,7 @@ public partial class MainWindow : IModRefContextMenuProvider
                 ModColor = c,
                 Name = ModColorMap.ColorNames[c],
                 Color = ModColorMap.GetColor(c),
-                IsSelected = (contextVm.ModReference.AssignedColor == c)
+                IsSelected = contextVm.ModReference.AssignedColor == c
             }).ToList();
 
         // Compute the optimal column count using the square root
@@ -291,14 +291,17 @@ public partial class MainWindow : IModRefContextMenuProvider
             return false;
 
         ListBox? list = GetListForMod(vm);
-        if (list == null)
-            return false;
-
-        return ModContextMenuSupport.TryGetContextModReferences<ModRefViewModel>(
-            sender,
-            list.SelectedItems,
-            contextVm => contextVm.ModReference,
-            out modReferences);
+        switch (list)
+        {
+            case null:
+                return false;
+            default:
+                return ModContextMenuSupport.TryGetContextModReferences<ModRefViewModel>(
+                    sender,
+                    list.SelectedItems,
+                    contextVm => contextVm.ModReference,
+                    out modReferences);
+        }
     }
 
     private IList? GetContextMenuSelectedItems(object? sender)

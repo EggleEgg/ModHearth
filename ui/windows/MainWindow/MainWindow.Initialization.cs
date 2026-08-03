@@ -33,6 +33,8 @@ public partial class MainWindow
 
     private async Task InitializeAsync()
     {
+        UpdateService.CheckPendingUpdateStatus(this);
+
         if (!DevMode.IsEnabled)
         {
             bool configReady = await EnsureConfigAsync();
@@ -85,7 +87,7 @@ public partial class MainWindow
         {
             try
             {
-                await Task.Run(() => manager.Initialize());
+                _ = await Task.Run(() => manager.Initialize());
             }
             catch (Exception ex)
             {
@@ -216,16 +218,16 @@ public partial class MainWindow
     {
         if (OperatingSystem.IsWindows())
         {
-            return new[]
-            {
+            return
+            [
                 new FilePickerFileType("Dwarf Fortress")
                 {
-                    Patterns = new[] { "*.exe" }
+                    Patterns = ["*.exe"]
                 }
-            };
+            ];
         }
 
-        return new[] { FilePickerFileTypes.All };
+        return [FilePickerFileTypes.All];
     }
 
     private void SetupModlistBox()

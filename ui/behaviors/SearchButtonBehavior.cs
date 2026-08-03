@@ -50,7 +50,7 @@ public sealed class SearchButtonBehavior
     {
         this.button = button ?? throw new ArgumentNullException(nameof(button));
 
-        button.GetObservable(InputElement.IsPointerOverProperty)
+        _ = button.GetObservable(InputElement.IsPointerOverProperty)
               .Subscribe(new AnonymousObserver<bool>(isOver =>
               {
                   isPointerOver = isOver;
@@ -90,6 +90,11 @@ public sealed class SearchButtonBehavior
 
     private void UpdateBackground()
     {
-        button.Background = isPressed ? pressedBrush : (isPointerOver ? hoverBrush : normalBrush);
+        if (isPressed)
+            button.Background = pressedBrush;
+        else
+        {
+            button.Background = isPointerOver ? hoverBrush : normalBrush;
+        }
     }
 }

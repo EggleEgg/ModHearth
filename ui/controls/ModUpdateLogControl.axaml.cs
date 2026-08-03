@@ -153,7 +153,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         }
         finally
         {
-            loadGate.Release();
+            _ = loadGate.Release();
         }
     }
 
@@ -192,17 +192,21 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
             results[i] = new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive);
         }
 
-        if (rawEntries.Count > ParallelThreshold)
+        switch (rawEntries.Count)
         {
-            Parallel.For(0, rawEntries.Count, new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            }, Build);
-        }
-        else
-        {
-            for (int i = 0; i < rawEntries.Count; i++)
-                Build(i);
+            case > ParallelThreshold:
+                _ = Parallel.For(0, rawEntries.Count, new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                }, Build);
+                break;
+            default:
+                {
+                    for (int i = 0; i < rawEntries.Count; i++)
+                        Build(i);
+                    break;
+                }
+
         }
 
         return results.ToList();
@@ -254,7 +258,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     private void ApplyDefaultSort()
     {
-        Dispatcher.UIThread.InvokeAsync(() =>
+        _ = Dispatcher.UIThread.InvokeAsync(() =>
         {
             if (logList.Columns.Count > 0)
                 logList.Columns[0].Sort(ListSortDirection.Descending);
@@ -331,13 +335,13 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         switch (item.Tag?.ToString())
         {
             case ModContextMenuSupport.DeleteTag:
-                await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(ownerWindow, manager, new[] { vm.ModReference });
+                _ = await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
                 break;
             case ModContextMenuSupport.UnsubscribeTag:
-                await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, new[] { vm.ModReference });
+                await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
                 break;
             case ModContextMenuSupport.RedownloadTag:
-                await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, new[] { vm.ModReference });
+                await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
                 break;
             case ModContextMenuSupport.OpenFolderTag:
                 await ModContextMenuSupport.OpenFolderAsync(ownerWindow, vm.ModReference);
@@ -353,7 +357,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     private void LogListLoadingRow(object? sender, DataGridRowEventArgs e)
     {
-        e.Row.Bind(
+        _ = e.Row.Bind(
             BackgroundProperty,
             new Binding(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay });
 

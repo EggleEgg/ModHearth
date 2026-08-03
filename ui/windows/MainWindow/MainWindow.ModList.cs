@@ -54,7 +54,7 @@ public partial class MainWindow
         {
             list.SelectedItems?.Clear();
             foreach (ModRefViewModel vm in toSelect)
-                list.SelectedItems?.Add(vm);
+                _ = (list.SelectedItems?.Add(vm));
         }
         finally
         {
@@ -133,7 +133,7 @@ public partial class MainWindow
 
         bool sourceLeft = context.SourceList == leftModlist;
         if (context.SourceList == null)
-            sourceLeft = context.Items.Any(vm => inactiveMods.Contains(vm));
+            sourceLeft = context.Items.Any(inactiveMods.Contains);
         bool destinationLeft = context.DestinationList == leftModlist;
 
         if (sourceLeft && destinationLeft)
@@ -214,16 +214,16 @@ public partial class MainWindow
                 var container = target.ContainerFromItem(item) as Control;
                 if (container != null)
                 {
-                    container.Focus();
+                    _ = container.Focus();
                 }
                 else
                 {
-                    target.Focus();
+                    _ = target.Focus();
                 }
             }
             else
             {
-                target.Focus();
+                _ = target.Focus();
             }
         }, Avalonia.Threading.DispatcherPriority.Background);
     }

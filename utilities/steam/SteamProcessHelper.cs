@@ -10,12 +10,12 @@ namespace ModHearth.Utilities;
 internal static class SteamProcessHelper
 {
     private static readonly string[] CandidateProcessNames =
-    {
+    [
         "steam",
         "Steam",
         "steamwebhelper",
         "SteamWebHelper"
-    };
+    ];
 
     public static bool TryDetectSteamProcess(out List<string> runningProcesses)
     {

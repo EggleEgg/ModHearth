@@ -1,0 +1,4 @@
+[*.cs]
+
+csharp_prefer_braces = false:suggestion
+csharp_prefer_braces = when_multiline:suggestion

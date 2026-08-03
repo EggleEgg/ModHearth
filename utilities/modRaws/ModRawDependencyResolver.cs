@@ -73,9 +73,13 @@ public partial class ModHearthManager
 
         lock (rawDependencyGate)
         {
-            if (rawDependencyInfoByModId == null)
-                return null;
-            return rawDependencyInfoByModId.TryGetValue(modref.ID, out ModRawDependencyInfo? info) ? info : null;
+            switch (rawDependencyInfoByModId)
+            {
+                case null:
+                    return null;
+                default:
+                    return rawDependencyInfoByModId.TryGetValue(modref.ID, out ModRawDependencyInfo? info) ? info : null;
+            }
         }
     }
 

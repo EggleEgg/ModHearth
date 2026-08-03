@@ -40,7 +40,7 @@ public partial class MainWindow
         ToggleDockingMode(
             _workshopDockManager,
             ConfigManager.GetIsWorkshopDownloaderDocked(),
-            docked => ConfigManager.SetIsWorkshopDownloaderDocked(docked),
+            ConfigManager.SetIsWorkshopDownloaderDocked,
             workshopModeIndicator,
             "Downloader");
     }
@@ -54,7 +54,7 @@ public partial class MainWindow
         ToggleDockingMode(
             _updateLogDockManager,
             ConfigManager.GetIsModUpdateLogDocked(),
-            docked => ConfigManager.SetIsModUpdateLogDocked(docked),
+            ConfigManager.SetIsModUpdateLogDocked,
             updateLogModeIndicator,
             "Update Log");
     }
@@ -68,7 +68,7 @@ public partial class MainWindow
         ToggleDockingMode(
             _sortRulesDockManager,
             ConfigManager.GetIsSortRulesDocked(),
-            docked => ConfigManager.SetIsSortRulesDocked(docked),
+            ConfigManager.SetIsSortRulesDocked,
             sortRulesModeIndicator,
             "Sort Rules");
     }

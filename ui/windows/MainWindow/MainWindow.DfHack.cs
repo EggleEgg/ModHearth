@@ -57,13 +57,33 @@ public partial class MainWindow
     }
 
 
+    private bool dfSteamLaunched = false;
+    private bool dfLaunched = false;
+
     private void ApplyDfHackStatusToLabel(bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
     {
+        string dfStatus;
+        if (!dfRunning)
+        {
+            if (dfSteamLaunched)
+                dfStatus = "Dwarf Fortress Steam launched";
+            else if (dfLaunched)
+                dfStatus = "Dwarf Fortress launched";
+            else
+                dfStatus = "Dwarf Fortress not running";
+        }
+        else
+        {
+            dfStatus = "Dwarf Fortress running";
+            // Can only close from now
+            dfSteamLaunched = false;
+            dfLaunched = false;
+        }
+
         var current = (dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
         bool changed = current != lastDfHackStatus;
         lastDfHackStatus = current;
 
-        string dfStatus = dfRunning ? "Dwarf Fortress running" : "Dwarf Fortress not running";
         string dfhackConfigStatus = isDfHackInstalled ? "DFHack configured" : "DFHack path not set";
         string dfhackExecutableStatus = hasDfhackExecutable ? "DFHack executable found" : "DFHack executable NOT found!";
         string dfhackRpcStatus = isDfHackRpcRunning ? "DFHack RPC server running" : "DFHack RPC server not reachable";
@@ -94,7 +114,7 @@ public partial class MainWindow
     {
         transientStatusNotice = message;
         transientStatusNoticeUntilUtc = DateTime.UtcNow.AddSeconds(6);
-        TryShowTransientStatusNotice();
+        _ = TryShowTransientStatusNotice();
     }
 
     private bool TryShowTransientStatusNotice()

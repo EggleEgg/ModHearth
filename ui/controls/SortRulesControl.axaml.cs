@@ -23,6 +23,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
     private readonly Dictionary<string, ModRefViewModel> modIdMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ModRelationshipRule> rules = new(StringComparer.OrdinalIgnoreCase);
     private readonly Stack<Dictionary<string, ModRelationshipRule>> undoStack = new();
+    //TODO Finish up implementing github community sort rules fetching
     private readonly string rulesFilePath;
     private readonly Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged;
     private ModRefViewModel? selectedMod;
@@ -61,11 +62,6 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
         KeyDown += SortRulesControlKeyDown;
 
-        ApplyModFilter();
-        selectedMod = visibleMods.FirstOrDefault();
-        if (selectedMod != null)
-            modTreeList.SelectedItem = selectedMod;
-        selectionController.UpdateSelectionState(modTreeList);
         RefreshEditor();
 
         fixConflictsButton.Click += async (_, _) => await FixConflictsAsync();
@@ -95,29 +91,46 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         }
     }
 
+    private bool _disposed;
+
     public void Dispose()
     {
-        SaveSplitterRatio();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+            return;
+
+        if (disposing)
+        {
+            SaveSplitterRatio();
+            searchController?.Dispose();
+        }
+
+        _disposed = true;
     }
 
     private void SortRulesControlKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        switch (e.Key)
         {
-            Undo();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.Escape)
-        {
-            if (selectedMod != null)
-            {
-                modTreeList.SelectedItem = null;
-            }
-            else
-            {
-                CloseRequested?.Invoke(this, EventArgs.Empty);
-            }
-            e.Handled = true;
+            case Key.Z when e.KeyModifiers.HasFlag(KeyModifiers.Control):
+                Undo();
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                if (selectedMod != null)
+                    modTreeList.SelectedItem = null;
+                else
+                {
+                    CloseRequested?.Invoke(this, EventArgs.Empty);
+                }
+                e.Handled = true;
+                break;
+
         }
     }
 
@@ -138,12 +151,6 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             modIdMap[vm.ModReference.ID.Trim()] = vm;
         }
     }
-
-    private void ApplyModFilter()
-    {
-        searchController.ApplyFilterImmediately();
-    }
-
     private void ModTreeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (selectionController.HandleSelectionChanged(modTreeList))
@@ -340,23 +347,26 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private static void ApplyBrushRecursive(Control control, IBrush brush)
     {
-        if (control is TextBlock tb)
+        switch (control)
         {
-            if (tb.Tag as string != "DisplayLabel")
-            {
-                tb.Foreground = brush;
-            }
-        }
-        else if (control is Panel panel)
-        {
-            foreach (Control child in panel.Children)
-            {
-                ApplyBrushRecursive(child, brush);
-            }
-        }
-        else if (control is Border border && border.Child is Control childControl)
-        {
-            ApplyBrushRecursive(childControl, brush);
+            case TextBlock tb:
+                if (tb.Tag as string != "DisplayLabel")
+                    tb.Foreground = brush;
+                break;
+            case Panel panel:
+                {
+                    foreach (Control child in panel.Children)
+                    {
+                        ApplyBrushRecursive(child, brush);
+                    }
+
+                    break;
+                }
+
+            case Border border when border.Child is Control childControl:
+                ApplyBrushRecursive(childControl, brush);
+                break;
+
         }
     }
 
@@ -432,20 +442,24 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         panel.Children.Add(header);
         panel.Children.Add(new TextBlock { Text = description, FontSize = 12, Opacity = 0.72 });
 
-        if (ids.Count == 0)
+        switch (ids.Count)
         {
-            panel.Children.Add(new TextBlock
-            {
-                Text = $"No {title.ToLowerInvariant()} mods.",
-                FontStyle = FontStyle.Italic,
-                Opacity = 0.65,
-                Margin = new Thickness(0, 5, 0, 2)
-            });
-        }
-        else
-        {
-            foreach (string id in SortIdsForDisplay(ids))
-                panel.Children.Add(CreateRelationshipRow(kind, id));
+            case 0:
+                panel.Children.Add(new TextBlock
+                {
+                    Text = $"No {title.ToLowerInvariant()} mods.",
+                    FontStyle = FontStyle.Italic,
+                    Opacity = 0.65,
+                    Margin = new Thickness(0, 5, 0, 2)
+                });
+                break;
+            default:
+                {
+                    foreach (string id in SortIdsForDisplay(ids))
+                        panel.Children.Add(CreateRelationshipRow(kind, id));
+                    break;
+                }
+
         }
 
         addButton.Click += async (_, _) => await AddRelationshipAsync(kind);
@@ -511,7 +525,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             IsSteamLocalModSource = vm.IsSteamLocalModSource
         };
         displayVm.RefreshStyle();
-        ModListIndicatorUpdater.UpdateRelationshipBadges(new[] { displayVm }, rules);
+        ModListIndicatorUpdater.UpdateRelationshipBadges([displayVm], rules);
 
         Grid grid = new() { RowDefinitions = new RowDefinitions("Auto,Auto") };
         ModRefControl modControl = new()
@@ -595,7 +609,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
         PushUndo();
         List<string> list = GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind);
-        list.RemoveAll(existing => string.Equals(existing, id, StringComparison.OrdinalIgnoreCase));
+        _ = list.RemoveAll(existing => string.Equals(existing, id, StringComparison.OrdinalIgnoreCase));
         CommitRulesChanged();
     }
 
@@ -640,9 +654,13 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private static string BuildCountedButtonLabel(string verb, string singularNoun, int count, string zeroLabel)
     {
-        if (count <= 0)
-            return zeroLabel;
-        return $"{verb} {count} {singularNoun}{(count == 1 ? string.Empty : "s")}";
+        switch (count)
+        {
+            case <= 0:
+                return zeroLabel;
+            default:
+                return $"{verb} {count} {singularNoun}{(count == 1 ? string.Empty : "s")}";
+        }
     }
 
     private int CountAllRelationships()
@@ -663,7 +681,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             rule.RequiredIds = NormalizeList(rule.RequiredIds);
             rule.IncompatibleIds = NormalizeList(rule.IncompatibleIds);
             if (rule.IsEmpty)
-                rules.Remove(key);
+                _ = rules.Remove(key);
         }
     }
 
@@ -758,23 +776,21 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
         foreach (KeyValuePair<string, HashSet<string>> kvp in graph)
         {
-            foreach (string target in kvp.Value)
+            foreach (var target in kvp.Value.Where(target => WouldCreateCycle(graph, kvp.Key, target)))
             {
-                if (WouldCreateCycle(graph, kvp.Key, target))
-                {
-                    Control circularCtrl = BuildIssueControl("Circular dependency detected: ", DisplayLabel(kvp.Key), " conflicts with ", DisplayLabel(target), ".");
-                    AddIssue(kvp.Key, circularCtrl, true);
-                    AddIssue(target, circularCtrl, true);
-                }
+                Control circularCtrl = BuildIssueControl("Circular dependency detected: ", DisplayLabel(kvp.Key), " conflicts with ", DisplayLabel(target), ".");
+                AddIssue(kvp.Key, circularCtrl, true);
+                AddIssue(target, circularCtrl, true);
             }
+
         }
 
         if (!string.IsNullOrEmpty(filterModId))
         {
             if (issuesPerMod.TryGetValue(filterModId, out List<Control>? modIssues))
             {
-                bool hasModError = modIssues.Any(m => errors.Contains(m));
-                bool hasModWarning = modIssues.Any(m => warnings.Contains(m));
+                bool hasModError = modIssues.Any(errors.Contains);
+                bool hasModWarning = modIssues.Any(warnings.Contains);
                 return new ValidationResult(hasModError, hasModWarning, string.Empty, modIssues.Distinct().ToList());
             }
             return new ValidationResult(false, false, "No conflicts detected for this mod.");
@@ -814,7 +830,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
                     destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     graph[from] = destinations;
                 }
-                destinations.Add(to);
+                _ = destinations.Add(to);
             }
         }
     }
@@ -824,9 +840,13 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         List<Control> allIssues = errors.Concat(warnings).Distinct().ToList();
         if (errors.Count > 0)
             return new ValidationResult(true, warnings.Count > 0, string.Empty, allIssues);
-        if (warnings.Count > 0)
-            return new ValidationResult(false, true, string.Empty, allIssues);
-        return new ValidationResult(false, false, "No conflicts detected.");
+        switch (warnings.Count)
+        {
+            case > 0:
+                return new ValidationResult(false, true, string.Empty, allIssues);
+            default:
+                return new ValidationResult(false, false, "No conflicts detected.");
+        }
     }
 
     private static bool WouldCreateCycle(Dictionary<string, HashSet<string>> graph, string fromId, string toId)
@@ -874,17 +894,19 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         WrapPanel panel = new() { Orientation = Orientation.Horizontal };
         foreach (object part in parts)
         {
-            if (part is string s)
+            switch (part)
             {
-                panel.Children.Add(new TextBlock
-                {
-                    Text = s,
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-            }
-            else if (part is Control c)
-            {
-                panel.Children.Add(c);
+                case string s:
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = s,
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                    break;
+                case Control c:
+                    panel.Children.Add(c);
+                    break;
+
             }
         }
         return panel;
@@ -989,13 +1011,13 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
         foreach ((string id, ModRelationshipRule rule) in targetRules)
         {
-            rule.BeforeIds.RemoveAll(target => IsSelfOrMissing(id, target));
-            rule.AfterIds.RemoveAll(target => IsSelfOrMissing(id, target));
-            rule.RequiredIds.RemoveAll(target => IsSelfOrMissing(id, target));
-            rule.IncompatibleIds.RemoveAll(target => IsSelfOrMissing(id, target));
+            _ = rule.BeforeIds.RemoveAll(target => IsSelfOrMissing(id, target));
+            _ = rule.AfterIds.RemoveAll(target => IsSelfOrMissing(id, target));
+            _ = rule.RequiredIds.RemoveAll(target => IsSelfOrMissing(id, target));
+            _ = rule.IncompatibleIds.RemoveAll(target => IsSelfOrMissing(id, target));
 
-            rule.IncompatibleIds.RemoveAll(target => rule.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)));
-            rule.AfterIds.RemoveAll(target => rule.BeforeIds.Any(b => string.Equals(b, target, StringComparison.OrdinalIgnoreCase)));
+            _ = rule.IncompatibleIds.RemoveAll(target => rule.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)));
+            _ = rule.AfterIds.RemoveAll(target => rule.BeforeIds.Any(b => string.Equals(b, target, StringComparison.OrdinalIgnoreCase)));
         }
 
         Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
@@ -1015,36 +1037,37 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         foreach ((string id, ModRelationshipRule rule) in targetRules)
         {
             List<string> validBefore = new();
-            foreach (string target in rule.BeforeIds)
+            foreach (var target in from string target in rule.BeforeIds
+                                   where !WouldCreateCycle(graph, id, target)
+                                   select target)
             {
-                if (!WouldCreateCycle(graph, id, target))
-                {
-                    validBefore.Add(target);
-                    AddGraphEdge(graph, id, target);
-                }
+                validBefore.Add(target);
+                AddGraphEdge(graph, id, target);
             }
+
+
             rule.BeforeIds = validBefore;
 
             List<string> validAfter = new();
-            foreach (string target in rule.AfterIds)
+            foreach (var target in from string target in rule.AfterIds
+                                   where !WouldCreateCycle(graph, target, id)
+                                   select target)
             {
-                if (!WouldCreateCycle(graph, target, id))
-                {
-                    validAfter.Add(target);
-                    AddGraphEdge(graph, target, id);
-                }
+                validAfter.Add(target);
+                AddGraphEdge(graph, target, id);
             }
+
+
             rule.AfterIds = validAfter;
 
             List<string> validRequired = new();
-            foreach (string target in rule.RequiredIds)
+            foreach (var target in rule.RequiredIds.Where(target => !WouldCreateCycle(graph, target, id)))
             {
-                if (!WouldCreateCycle(graph, target, id))
-                {
-                    validRequired.Add(target);
-                    AddGraphEdge(graph, target, id);
-                }
+                validRequired.Add(target);
+                AddGraphEdge(graph, target, id);
             }
+
+
             rule.RequiredIds = validRequired;
         }
 
@@ -1058,7 +1081,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             edges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             graph[from] = edges;
         }
-        edges.Add(to);
+        _ = edges.Add(to);
     }
 
     private bool IsSelfOrMissing(string ownerId, string targetId)

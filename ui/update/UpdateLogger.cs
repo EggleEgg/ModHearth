@@ -5,7 +5,7 @@ internal static class UpdateLogger
     private static readonly Logger logger = new Logger(string.Empty, line =>
     {
         string logDir = Path.Combine(AppContext.BaseDirectory, "logs");
-        Directory.CreateDirectory(logDir);
+        _ = Directory.CreateDirectory(logDir);
         File.AppendAllText(Path.Combine(logDir, "updatelog.txt"), line + Environment.NewLine);
     });
 

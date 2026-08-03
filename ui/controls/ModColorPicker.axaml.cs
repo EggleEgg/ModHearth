@@ -103,7 +103,7 @@ public partial class ModColorPicker : UserControl
             }
             else
             {
-                SelectedColors.Remove(modColorInfo);
+                _ = SelectedColors.Remove(modColorInfo);
             }
         }
     }

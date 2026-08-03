@@ -35,8 +35,25 @@
       <Setter Property="BorderBrush" Value="{DynamicResource SystemControlElevationBorderBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
-    <Style Selector="Border[Tag=Splitter]">
-      <Setter Property="Background" Value="{DynamicResource StrongPanelBrush}" />
+    <Style Selector="GridSplitter.VerticalSplitter">
+      <Setter Property="Width" Value="10" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}"
+                  ClipToBounds="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="2" Background="{DynamicResource StrongPanelBrush}" Margin="0,6"
+                    HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="GridSplitter.VerticalSplitter:pressed">
+      <Setter Property="Background" Value="{DynamicResource LowAlphaModRefHighlightBrush}" />
     </Style>
 
     <!-- Used for small submenus. By default, the padding is 12px -->

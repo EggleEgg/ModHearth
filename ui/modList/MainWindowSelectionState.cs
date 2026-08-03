@@ -65,10 +65,10 @@ internal static class MainWindowSelectionState
         {
             ModRefViewModel? vm = null;
             if (!string.IsNullOrWhiteSpace(token.DfModKey))
-                byKey.TryGetValue(token.DfModKey, out vm);
+                _ = byKey.TryGetValue(token.DfModKey, out vm);
 
             if (vm == null && !string.IsNullOrWhiteSpace(token.ModId))
-                byId.TryGetValue(token.ModId, out vm);
+                _ = byId.TryGetValue(token.ModId, out vm);
 
             if (vm == null || !seen.Add(vm))
                 continue;

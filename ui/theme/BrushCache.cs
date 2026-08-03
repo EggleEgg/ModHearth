@@ -27,12 +27,22 @@ public static class BrushCache
         return GetBrush(Color.FromArgb(color.A, r, g, b));
     }
 
-    /// <summary>
-    /// Gets a cached brush with RGB values adjusted by the specified delta, clamped to valid byte range [0, 255] to avoid overflow/underflow.
-    /// </summary>
+    /// <inheritdoc cref="EditBrushDelta(Color, int)"/>
     public static IBrush EditBrushDelta(SimpleColor color, int delta)
     {
         return EditBrushDelta(color.ToAvaloniaColor(), delta);
+    }
+
+    /// <inheritdoc cref="EditBrushDelta(Color, int)"/>
+    public static IBrush EditBrushDelta(IBrush brush, int delta)
+    {
+        switch (brush)
+        {
+            case ISolidColorBrush solid:
+                return EditBrushDelta(solid.Color, delta);
+            default:
+                return brush;
+        }
     }
 
     /// <summary>
@@ -43,12 +53,22 @@ public static class BrushCache
         return GetBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
     }
 
-    /// <summary>
-    /// Gets a cached brush for the given color with a specified alpha channel.
-    /// </summary>
+    /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
     public static IBrush EditBrushAlpha(SimpleColor color, byte alpha)
     {
         return EditBrushAlpha(color.ToAvaloniaColor(), alpha);
+    }
+
+    /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
+    public static IBrush EditBrushAlpha(IBrush brush, byte alpha)
+    {
+        switch (brush)
+        {
+            case ISolidColorBrush solid:
+                return EditBrushAlpha(solid.Color, alpha);
+            default:
+                return brush;
+        }
     }
 
     // Call this whenever the theme is changed

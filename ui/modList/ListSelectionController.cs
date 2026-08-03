@@ -9,6 +9,9 @@ using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI;
 
+/// <summary>
+/// A generic controller that manages selection state for a list, allowing for context menu interactions and mass selection
+/// </summary>
 public sealed class ListSelectionController<T> where T : class, ISelectableItem
 {
     private bool suppressSelectionHandling;
@@ -123,7 +126,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         suppressSelectionHandling = true;
         list.SelectedItems.Clear();
         foreach (T item in selection)
-            list.SelectedItems.Add(item);
+            _ = list.SelectedItems.Add(item);
         UpdateSelectionState(list);
         suppressSelectionHandling = false;
     }
@@ -136,7 +139,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         suppressSelectionHandling = true;
         grid.SelectedItems.Clear();
         foreach (T item in selection)
-            grid.SelectedItems.Add(item);
+            _ = grid.SelectedItems.Add(item);
         UpdateSelectionState(grid);
         suppressSelectionHandling = false;
     }
@@ -183,36 +186,40 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         suppressSelectionList = null;
         suppressSelectionSnapshot = null;
 
-        if (sender is ListBox list)
+        switch (sender)
         {
-            PointerPoint point = e.GetCurrentPoint(list);
-            CaptureContextSelectionSnapshot(list, point);
+            case ListBox list:
+                {
+                    PointerPoint point = e.GetCurrentPoint(list);
+                    CaptureContextSelectionSnapshot(list, point);
 
-            if (IsPointerOverScrollBar(list, point.Position))
-            {
-                CaptureScrollbarSelectionSnapshot(list, point);
-                return;
-            }
+                    if (IsPointerOverScrollBar(list, point.Position))
+                    {
+                        CaptureScrollbarSelectionSnapshot(list, point);
+                        return;
+                    }
 
-            if (point.Properties.IsRightButtonPressed && TryOpenContextMenu(list, e, point))
-                return;
+                    if (point.Properties.IsRightButtonPressed && TryOpenContextMenu(list, e, point))
+                        return;
 
-            return;
-        }
+                    return;
+                }
 
-        if (sender is DataGrid grid)
-        {
-            PointerPoint point = e.GetCurrentPoint(grid);
-            CaptureContextSelectionSnapshot(grid, point);
+            case DataGrid grid:
+                {
+                    PointerPoint point = e.GetCurrentPoint(grid);
+                    CaptureContextSelectionSnapshot(grid, point);
 
-            if (IsPointerOverScrollBar(grid, point.Position))
-            {
-                CaptureScrollbarSelectionSnapshot(grid, point);
-                return;
-            }
+                    if (IsPointerOverScrollBar(grid, point.Position))
+                    {
+                        CaptureScrollbarSelectionSnapshot(grid, point);
+                        return;
+                    }
 
-            if (point.Properties.IsRightButtonPressed && TryOpenContextMenu(grid, e, point))
-                return;
+                    if (point.Properties.IsRightButtonPressed && TryOpenContextMenu(grid, e, point))
+                        return;
+                    break;
+                }
         }
     }
 
@@ -301,10 +308,13 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (element is not Control control)
             return false;
 
-        if (control is ScrollBar)
-            return true;
-
-        return control.FindAncestorOfType<ScrollBar>() != null;
+        switch (control)
+        {
+            case ScrollBar:
+                return true;
+            default:
+                return control.FindAncestorOfType<ScrollBar>() != null;
+        }
     }
 
     private static bool TryFindContextMenu(IInputElement root, Point point, out ContextMenu? menu, out Control? target)
@@ -344,7 +354,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
             (list.SelectedItems.Count == 0 || !list.SelectedItems.Contains(hit)))
         {
             list.SelectedItems.Clear();
-            list.SelectedItems.Add(hit);
+            _ = list.SelectedItems.Add(hit);
         }
 
         UpdateSelectionState(list);
@@ -365,7 +375,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
             (grid.SelectedItems.Count == 0 || !grid.SelectedItems.Contains(hit)))
         {
             grid.SelectedItems.Clear();
-            grid.SelectedItems.Add(hit);
+            _ = grid.SelectedItems.Add(hit);
         }
 
         UpdateSelectionState(grid);

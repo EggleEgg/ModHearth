@@ -42,7 +42,7 @@ namespace ModHearth.Utilities.Workshop
             {
                 InfoLogger.LogRunDf($"SteamWebApiClient: Fetching details for {idList.Count} IDs...");
                 var response = await HttpClient.PostAsync(PublishedFileDetailsUrl, content);
-                response.EnsureSuccessStatusCode();
+                _ = response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
 
                 if (DevMode.IsEnabled)
@@ -89,19 +89,20 @@ namespace ModHearth.Utilities.Workshop
             }
         }
 
-        public async Task<List<ulong>> GetCollectionDetailsAsync(ulong collectionId)
+        public static async Task<List<ulong>> GetCollectionDetailsAsync(ulong collectionId)
         {
             InfoLogger.LogRunDf($"SteamWebApiClient: Fetching collection details for {collectionId}...");
-            var content = new FormUrlEncodedContent(new[]
-            {
-                new KeyValuePair<string, string>("collectioncount", "1"),
-                new KeyValuePair<string, string>("publishedfileids[0]", collectionId.ToString())
-            });
+            var content = new FormUrlEncodedContent(
+                new[]
+                {
+                    new KeyValuePair<string, string>("collectioncount", "1"),
+                    new KeyValuePair<string, string>("publishedfileids[0]", collectionId.ToString())
+                });
 
             try
             {
                 var response = await HttpClient.PostAsync(CollectionDetailsUrl, content);
-                response.EnsureSuccessStatusCode();
+                _ = response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync();
 
                 InfoLogger.LogRunDf($"SteamWebApiClient: Collection JSON: {json}");
@@ -146,13 +147,20 @@ namespace ModHearth.Utilities.Workshop
         {
             if (element.TryGetProperty(propertyName, out var prop))
             {
-                if (prop.ValueKind == JsonValueKind.Number)
+                switch (prop.ValueKind)
                 {
-                    if (prop.TryGetUInt64(out var val)) return val;
-                }
-                else if (prop.ValueKind == JsonValueKind.String)
-                {
-                    if (ulong.TryParse(prop.GetString(), out var val)) return val;
+                    case JsonValueKind.Number:
+                        {
+                            if (prop.TryGetUInt64(out var val)) return val;
+                            break;
+                        }
+
+                    case JsonValueKind.String:
+                        {
+                            if (ulong.TryParse(prop.GetString(), out var val)) return val;
+                            break;
+                        }
+
                 }
             }
             return defaultValue;
@@ -162,13 +170,20 @@ namespace ModHearth.Utilities.Workshop
         {
             if (element.TryGetProperty(propertyName, out var prop))
             {
-                if (prop.ValueKind == JsonValueKind.Number)
+                switch (prop.ValueKind)
                 {
-                    if (prop.TryGetInt64(out var val)) return val;
-                }
-                else if (prop.ValueKind == JsonValueKind.String)
-                {
-                    if (long.TryParse(prop.GetString(), out var val)) return val;
+                    case JsonValueKind.Number:
+                        {
+                            if (prop.TryGetInt64(out var val)) return val;
+                            break;
+                        }
+
+                    case JsonValueKind.String:
+                        {
+                            if (long.TryParse(prop.GetString(), out var val)) return val;
+                            break;
+                        }
+
                 }
             }
             return defaultValue;
@@ -178,13 +193,20 @@ namespace ModHearth.Utilities.Workshop
         {
             if (element.TryGetProperty(propertyName, out var prop))
             {
-                if (prop.ValueKind == JsonValueKind.Number)
+                switch (prop.ValueKind)
                 {
-                    if (prop.TryGetInt32(out var val)) return val;
-                }
-                else if (prop.ValueKind == JsonValueKind.String)
-                {
-                    if (int.TryParse(prop.GetString(), out var val)) return val;
+                    case JsonValueKind.Number:
+                        {
+                            if (prop.TryGetInt32(out var val)) return val;
+                            break;
+                        }
+
+                    case JsonValueKind.String:
+                        {
+                            if (int.TryParse(prop.GetString(), out var val)) return val;
+                            break;
+                        }
+
                 }
             }
             return defaultValue;

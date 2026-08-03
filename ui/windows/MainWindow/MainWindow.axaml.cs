@@ -145,9 +145,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 
         shortcutKeyHandler = new ShortcutKeyHandler(
             () => undoChangesButton.IsEnabled,
-            () => UndoChangesAsync(),
+            UndoChangesAsync,
             () => redoAvailable,
-            () => RedoListChangesAsync(),
+            RedoListChangesAsync,
             saveAsync: () => SaveCurrentModpackAsync(),
             moveLeftAsync: () => MoveSelectedBetweenListsAsync(false),
             moveRightAsync: () => MoveSelectedBetweenListsAsync(true));
@@ -233,8 +233,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         warningIssuesButton.Click += (_, _) => JumpToNextProblem();
         redoConfigButton.Click += async (_, _) => await RedoConfigAsync();
         updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
-        updateLogButton.Click += (_, _) => OpenModUpdateLog();
-        workshopDownloaderButton.Click += (_, _) => OpenWorkshopDownloader();
+        updateLogButton.Click += async (_, _) => await OpenModUpdateLog();
+        workshopDownloaderButton.Click += async (_, _) => await OpenWorkshopDownloaderAsync();
 
         leftDockSplitterCloseButton.Click += (_, _) => CloseDockedWindowOnSide(DockSide.Left);
         rightDockSplitterCloseButton.Click += (_, _) => CloseDockedWindowOnSide(DockSide.Right);

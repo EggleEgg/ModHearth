@@ -15,7 +15,7 @@ public static class DialogService
 {
     public static async Task ShowMessageAsync(Window owner, string message, string title)
     {
-        await MessageDialog.ShowAsync(owner, message, title, MessageDialogButtons.Ok);
+        _ = await MessageDialog.ShowAsync(owner, message, title, MessageDialogButtons.Ok);
     }
 
     public static async Task<bool> ShowConfirmAsync(Window owner, string message, string title)

@@ -87,7 +87,7 @@ public static class ModSourceClassifier
         if (string.IsNullOrWhiteSpace(path))
             return false;
 
-        return path.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
+        return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
             .Any(segment => string.Equals(segment, "installed_mods", StringComparison.OrdinalIgnoreCase));
     }
 }

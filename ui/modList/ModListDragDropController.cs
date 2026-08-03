@@ -155,13 +155,13 @@ public sealed class ModListDragDropController
         if (hit != null && selected.Count > 0 && !selected.Contains(hit))
         {
             dragSourceList.SelectedItems?.Clear();
-            dragSourceList.SelectedItems?.Add(hit);
+            _ = (dragSourceList.SelectedItems?.Add(hit));
             selected = new List<ModRefViewModel> { hit };
         }
         else if (selected.Count == 0 && hit != null)
         {
             dragSourceList.SelectedItems?.Clear();
-            dragSourceList.SelectedItems?.Add(hit);
+            _ = (dragSourceList.SelectedItems?.Add(hit));
             selected.Add(hit);
         }
 
@@ -173,7 +173,7 @@ public sealed class ModListDragDropController
         SetDragHighlight(selected);
         // Set the flag and spin up the background loop thread
         isDragging = true;
-        StartBackgroundScrollLoop();
+        await StartBackgroundScrollLoop();
         try
         {
             string payload = SerializeDragData(selected);
@@ -181,7 +181,7 @@ public sealed class ModListDragDropController
             data.Add(DataTransferItem.Create(DragDataFormat, payload));
 
             // The native OS blocking loop runs here
-            await DragDrop.DoDragDropAsync(dragTriggerEvent, data, DragDropEffects.Move);
+            _ = await DragDrop.DoDragDropAsync(dragTriggerEvent, data, DragDropEffects.Move);
         }
         finally
         {
@@ -417,19 +417,25 @@ public sealed class ModListDragDropController
         if (element is not Control control)
             return false;
 
-        if (control is ScrollBar)
-            return true;
-
-        return control.FindAncestorOfType<ScrollBar>() != null;
+        switch (control)
+        {
+            case ScrollBar:
+                return true;
+            default:
+                return control.FindAncestorOfType<ScrollBar>() != null;
+        }
     }
 
     private static List<ModRefViewModel> OrderSelectionByList(ListBox list, IEnumerable<ModRefViewModel> selection)
     {
         HashSet<ModRefViewModel> selectedSet = new HashSet<ModRefViewModel>(selection);
-        if (list.ItemsSource is IEnumerable<ModRefViewModel> items)
-            return items.Where(vm => selectedSet.Contains(vm)).ToList();
-
-        return selection.ToList();
+        switch (list.ItemsSource)
+        {
+            case IEnumerable<ModRefViewModel> items:
+                return items.Where(selectedSet.Contains).ToList();
+            default:
+                return selection.ToList();
+        }
     }
 
     private static (int index, bool after, bool gapDrop) GetDropTarget(ListBox list, Point point)
@@ -491,7 +497,7 @@ public sealed class ModListDragDropController
         dragPreserveSelection = false;
     }
 
-    private async void StartBackgroundScrollLoop()
+    private async Task StartBackgroundScrollLoop()
     {
         while (isDragging)
         {

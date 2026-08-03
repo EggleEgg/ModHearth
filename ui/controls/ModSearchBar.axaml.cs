@@ -51,7 +51,6 @@ public partial class ModSearchBar : UserControl
     public event EventHandler? HideFilteredToggled;
     public event EventHandler? SearchModeChanged;
     public event EventHandler? SortOrderChanged;
-    public event EventHandler? ColorPickerClicked;
 
     private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = new();
     private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = new();
@@ -72,10 +71,9 @@ public partial class ModSearchBar : UserControl
         {
             SearchTextChanged?.Invoke(this, EventArgs.Empty);
         };
-        ColorPicker.PickerClicked += (_, e) =>
+        ColorPicker.PickerClicked += (_, _) =>
         {
             ShowColorPickerFlyout();
-            ColorPickerClicked?.Invoke(this, e);
         };
         SearchModeButton.Click += (s, e) =>
         {
@@ -111,13 +109,14 @@ public partial class ModSearchBar : UserControl
             }
             else
             {
-                if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
+                switch (SearchMode)
                 {
-                    ColorPicker.ClearSelection();
-                }
-                else
-                {
-                    SearchBox.Text = string.Empty;
+                    case SearchFilterMode.Color when IsColorSearchEnabled:
+                        ColorPicker.ClearSelection();
+                        break;
+                    default:
+                        SearchBox.Text = string.Empty;
+                        break;
                 }
             }
         };
@@ -249,7 +248,7 @@ public partial class ModSearchBar : UserControl
         if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
             return;
 
-        SearchBox.Focus();
+        _ = SearchBox.Focus();
     }
 
     public bool HideFiltered
@@ -284,19 +283,23 @@ public partial class ModSearchBar : UserControl
 
     public bool ClearSearchSelection()
     {
-        if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
+        switch (SearchMode)
         {
-            bool hadSelection = ColorPicker.SelectedColors.Any();
-            ColorPicker.ClearSelection();
-            return hadSelection;
-        }
-        else
-        {
-            bool hadSelection = !string.IsNullOrEmpty(SearchBox.SelectedText);
-            int caret = SearchBox.CaretIndex;
-            SearchBox.SelectionStart = caret;
-            SearchBox.SelectionEnd = caret;
-            return hadSelection;
+            case SearchFilterMode.Color when IsColorSearchEnabled:
+                {
+                    bool hadSelection = ColorPicker.SelectedColors.Any();
+                    ColorPicker.ClearSelection();
+                    return hadSelection;
+                }
+
+            default:
+                {
+                    bool hadSelection = !string.IsNullOrEmpty(SearchBox.SelectedText);
+                    int caret = SearchBox.CaretIndex;
+                    SearchBox.SelectionStart = caret;
+                    SearchBox.SelectionEnd = caret;
+                    return hadSelection;
+                }
         }
     }
 
@@ -318,11 +321,11 @@ public partial class ModSearchBar : UserControl
         SearchBox.ClearValue(TextBox.ForegroundProperty);
 
         Button[] buttons =
-        {
+        [
             SearchModeButton,
             ToggleButton,
             ClearButton
-        };
+        ];
 
         foreach (Button button in buttons)
         {
@@ -376,16 +379,16 @@ public partial class ModSearchBar : UserControl
             MinWidth = 160
         };
 
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name, "Search by name"));
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex, "Search by regex"));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex));
         if (IsColorSearchEnabled)
-            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color, "Search by color"));
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color));
 
         if (IsSortingEnabled)
-            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime, "Sort by modified time"));
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime));
 
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id, "Search by mod id"));
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId, "Search by steam file id"));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id));
+        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId));
         UpdateSearchModeOptionLabels();
 
         searchModeFlyout = new Flyout
@@ -409,7 +412,7 @@ public partial class ModSearchBar : UserControl
         searchModeIcons[mode] = icon;
         return icon;
     }
-    private Button CreateSearchModeOptionButton(SearchFilterMode mode, string label)
+    private Button CreateSearchModeOptionButton(SearchFilterMode mode)
     {
         Button button = new Button
         {
@@ -426,62 +429,68 @@ public partial class ModSearchBar : UserControl
 
         Thickness textRightSpacing = new Thickness(0, 0, 15, 0);
 
-        if (mode == SearchFilterMode.Regex)
+        switch (mode)
         {
-            ToolTip.SetTip(button, "Search includes mod title and description");
-
-            Grid grid = new Grid();
-            grid.ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto");
-
-            Button helpButton = new Button
-            {
-                Content = "?",
-                Width = 18,
-                Height = 18,
-                Padding = new Thickness(0),
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 12,
-                Cursor = new Cursor(StandardCursorType.Hand)
-            };
-
-            ToolTip.SetTip(helpButton, "Click here to view regex documentation");
-
-            helpButton.Click += (_, e) =>
-            {
-                e.Handled = true;
-
-                using Process? process = Process.Start(new ProcessStartInfo
+            case SearchFilterMode.Regex:
                 {
-                    FileName = "https://regex101.com/",
-                    UseShellExecute = true
-                });
-            };
+                    ToolTip.SetTip(button, "Search includes mod title and description");
 
-            Image optionIcon = CreateSearchModeIcon(mode);
-            StackPanel leftContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            leftContent.Children.Add(optionIcon);
-            leftContent.Children.Add(text);
+                    Grid grid = new Grid();
+                    grid.ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto");
 
-            leftContent.Margin = textRightSpacing;
+                    Button helpButton = new Button
+                    {
+                        Content = "?",
+                        Width = 18,
+                        Height = 18,
+                        Padding = new Thickness(0),
+                        HorizontalContentAlignment = HorizontalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        FontSize = 12,
+                        Cursor = new Cursor(StandardCursorType.Hand)
+                    };
 
-            Grid.SetColumn(leftContent, 0);
-            Grid.SetColumn(helpButton, 2);
+                    ToolTip.SetTip(helpButton, "Click here to view regex documentation");
 
-            grid.Children.Add(leftContent);
-            grid.Children.Add(helpButton);
-            button.Content = grid;
-        }
-        else
-        {
-            Image optionIcon = CreateSearchModeIcon(mode);
-            StackPanel content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            content.Children.Add(optionIcon);
-            content.Children.Add(text);
+                    helpButton.Click += (_, e) =>
+                    {
+                        e.Handled = true;
 
-            content.Margin = textRightSpacing;
-            button.Content = content;
+                        using Process? process = Process.Start(new ProcessStartInfo
+                        {
+                            FileName = "https://regex101.com/",
+                            UseShellExecute = true
+                        });
+                    };
+
+                    Image optionIcon = CreateSearchModeIcon(mode);
+                    StackPanel leftContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                    leftContent.Children.Add(optionIcon);
+                    leftContent.Children.Add(text);
+
+                    leftContent.Margin = textRightSpacing;
+
+                    Grid.SetColumn(leftContent, 0);
+                    Grid.SetColumn(helpButton, 2);
+
+                    grid.Children.Add(leftContent);
+                    grid.Children.Add(helpButton);
+                    button.Content = grid;
+                    break;
+                }
+
+            default:
+                {
+                    Image optionIcon = CreateSearchModeIcon(mode);
+                    StackPanel content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                    content.Children.Add(optionIcon);
+                    content.Children.Add(text);
+
+                    content.Margin = textRightSpacing;
+                    button.Content = content;
+                    break;
+                }
         }
 
         button.Click += (_, _) =>
@@ -648,7 +657,7 @@ public partial class ModSearchBar : UserControl
 
             var colorStr = color.ToString();
             if (selectedColors.Contains(colorStr))
-                selectedColors.Remove(colorStr);
+                _ = selectedColors.Remove(colorStr);
             else
                 selectedColors.Add(colorStr);
 

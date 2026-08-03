@@ -26,14 +26,13 @@ internal static class UpdateService
     private const int RecentBuildCount = 5;
     private const string UpdateRepoOwner = "EggleEgg";
     private const string UpdateRepoName = "ModHearth";
+    private const string Title = "Update failed";
+
     private static readonly HttpClient UpdateHttpClient = CreateUpdateHttpClient();
 
     // List of legacy, non-self-contained files and folders to clean up. Paths should be relative to the installation root directory.
-    // Examples:
-    //   - ("libs", true, CleanupPlatforms.All) -> Cleaned on Windows, Linux, and macOS
-    //   - ("libs", true, CleanupPlatforms.Linux | CleanupPlatforms.macOS) -> "" Linux AND MacOs. Logical OR operations are not possible
     private static readonly (string Path, bool IsDirectory, CleanupPlatforms Platform)[] LegacyPathsToClean =
-    {
+    [
         ("libs", true, CleanupPlatforms.All),
         ("native", true, CleanupPlatforms.All),
         ("runtimes", true, CleanupPlatforms.All),
@@ -51,7 +50,7 @@ internal static class UpdateService
         ("ModHearth.runtimeconfig.json", false, CleanupPlatforms.All),
         ("ModHearth.SteamWorker.runtimeconfig.json", false, CleanupPlatforms.All),
         ("ModHearth.deps.json", false, CleanupPlatforms.All)
-    };
+    ];
 
     public static async Task<bool> TryRunUpdateAsync(Window owner, string currentBuild)
     {
@@ -80,8 +79,35 @@ internal static class UpdateService
         catch (Exception ex)
         {
             UpdateLogger.LogError($"Update failed: {ex.Message}");
-            await DialogService.ShowMessageAsync(owner, ex.Message, "Update failed");
+            await DialogService.ShowMessageAsync(owner, ex.Message, Title);
             return false;
+        }
+    }
+
+    public static void CheckPendingUpdateStatus(Window owner)
+    {
+        try
+        {
+            string statusFile = Path.Combine(AppContext.BaseDirectory, "logs", "update_status.txt");
+            if (!File.Exists(statusFile))
+                return;
+
+            string content = File.ReadAllText(statusFile).Trim();
+            try { File.Delete(statusFile); } catch { }
+
+            if (content.StartsWith("FAILED", StringComparison.OrdinalIgnoreCase))
+            {
+                UpdateLogger.LogError($"Update execution failed: {content}");
+                _ = DialogService.ShowMessageAsync(owner, $"The previous update failed to install properly.\n{content}\nCheck logs/updatelog.txt for details.", "Update Failed");
+            }
+            else if (content.StartsWith("SUCCESS", StringComparison.OrdinalIgnoreCase))
+            {
+                UpdateLogger.Log("Update installed successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateLogger.LogError($"Failed to check pending update status: {ex.Message}");
         }
     }
 
@@ -109,14 +135,14 @@ internal static class UpdateService
         if (!TryGetAssetForCurrentOs(release, out GitHubAsset? asset, out string? error))
         {
             UpdateLogger.LogError($"Update failed: {error ?? "No compatible build found."}");
-            await DialogService.ShowMessageAsync(owner, error ?? "No compatible build found for this OS.", "Update failed");
+            await DialogService.ShowMessageAsync(owner, error ?? "No compatible build found for this OS.", Title);
             return false;
         }
 
         if (asset == null)
         {
             UpdateLogger.LogError("Update failed: release asset is null.");
-            await DialogService.ShowMessageAsync(owner, "No compatible build asset was found.", "Update failed");
+            await DialogService.ShowMessageAsync(owner, "No compatible build asset was found.", Title);
             return false;
         }
 
@@ -131,13 +157,13 @@ internal static class UpdateService
         }
 
         string tempRoot = Path.Combine(Path.GetTempPath(), $"ModHearth_update_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempRoot);
+        _ = Directory.CreateDirectory(tempRoot);
         UpdateLogger.Log($"Update temp directory: {tempRoot}");
 
         string assetPath = await DownloadAssetAsync(asset, tempRoot);
         UpdateLogger.Log($"Downloaded update asset: {assetPath}");
         string extractDir = Path.Combine(tempRoot, "extract");
-        Directory.CreateDirectory(extractDir);
+        _ = Directory.CreateDirectory(extractDir);
 
         if (asset.Name != null && asset.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             ZipFile.ExtractToDirectory(assetPath, extractDir, true);
@@ -148,7 +174,7 @@ internal static class UpdateService
         if (string.IsNullOrWhiteSpace(payloadDir))
         {
             UpdateLogger.LogError($"Update failed: no payload found in {extractDir}");
-            await DialogService.ShowMessageAsync(owner, "Update package does not contain ModHearth binaries.", "Update failed");
+            await DialogService.ShowMessageAsync(owner, "Update package does not contain ModHearth binaries.", Title);
             return false;
         }
 
@@ -157,10 +183,10 @@ internal static class UpdateService
         if (!string.IsNullOrWhiteSpace(configBackup))
             UpdateLogger.Log($"Backed up config: {configBackup}");
 
-        if (!TryStartUpdateScript(payloadDir, baseDir, configBackup, needsElevation, out string? startError))
+        if (!TryStartUpdateScript(payloadDir, baseDir, configBackup, Environment.ProcessId, needsElevation, out string? startError))
         {
             UpdateLogger.LogError($"Update failed: {startError}");
-            await DialogService.ShowMessageAsync(owner, startError ?? "Failed to start the updater.", "Update failed");
+            await DialogService.ShowMessageAsync(owner, startError ?? "Failed to start the updater.", Title);
             return false;
         }
 
@@ -203,6 +229,38 @@ internal static class UpdateService
             string testFile = Path.Combine(directory, $".write_test_{Guid.NewGuid():N}");
             File.WriteAllText(testFile, "test");
             File.Delete(testFile);
+
+            // Also test if existing application files can be modified/overwritten or have write access
+            string[] candidateFiles = ["ModHearth.dll", "ModHearth.exe", UpdateRepoName, "ModHearth.deps.json"];
+            foreach (string name in candidateFiles)
+            {
+                string path = Path.Combine(directory, name);
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        File.SetLastWriteTime(path, File.GetLastWriteTime(path));
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        return false;
+                    }
+                    catch (IOException)
+                    {
+                        try
+                        {
+                            FileAttributes attr = File.GetAttributes(path);
+                            if (attr.HasFlag(FileAttributes.ReadOnly))
+                                return false;
+                        }
+                        catch
+                        {
+                            // ignore attribute check errors
+                        }
+                    }
+                }
+            }
+
             return true;
         }
         catch
@@ -271,7 +329,7 @@ internal static class UpdateService
             return false;
 
         string exe = Path.Combine(directory, "ModHearth.exe");
-        string bin = Path.Combine(directory, "ModHearth");
+        string bin = Path.Combine(directory, UpdateRepoName);
         string dll = Path.Combine(directory, "ModHearth.dll");
 
         return File.Exists(exe) || File.Exists(bin) || File.Exists(dll);
@@ -316,48 +374,49 @@ internal static class UpdateService
         return backupPath;
     }
 
-    private static bool TryStartUpdateScript(string sourceDir, string destinationDir, string? configBackup, bool needsElevation, out string? error)
+    private static bool TryStartUpdateScript(string sourceDir, string destinationDir, string? configBackup, int pid, bool needsElevation, out string? error)
     {
         error = null;
-        int pid = Environment.ProcessId;
+        int pidVal = pid;
         if (OperatingSystem.IsWindows())
-            return StartWindowsUpdateScript(sourceDir, destinationDir, configBackup, pid, needsElevation, out error);
+            return StartWindowsUpdateScript(sourceDir, destinationDir, configBackup, pidVal, needsElevation, out error);
 
-        return StartUnixUpdateScript(sourceDir, destinationDir, configBackup, pid, needsElevation, out error);
+        return StartUnixUpdateScript(sourceDir, destinationDir, configBackup, pidVal, needsElevation, out error);
     }
 
     private static void AppendLegacyCleanupCommands(StringBuilder script, bool isWindows, string destVarName)
     {
         if (isWindows)
         {
-            script.AppendLine($"echo [%date% %time%] Cleaning legacy framework-dependent files>>\"%LOG%\"");
+            _ = script.AppendLine($"echo [%date% %time%] Cleaning legacy framework-dependent files>>\"%LOG%\"");
             foreach (var (path, isDir, platform) in LegacyPathsToClean)
             {
-                // Only clean if this item is targeted for Windows
                 if (!platform.HasFlag(CleanupPlatforms.Windows))
                     continue;
 
-                // Normalize slashes to Windows backslashes
                 string winPath = path.Replace('/', '\\');
+                _ = script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" (");
                 if (isDir)
-                    script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" rmdir /s /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
+                    _ = script.AppendLine($"  rmdir /s /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
                 else
-                    script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" del /f /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
+                    _ = script.AppendLine($"  del /f /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
+                _ = script.AppendLine("  if errorlevel 1 set \"UPDATE_FAILED=1\"");
+                _ = script.AppendLine(")");
             }
         }
         else // Unix / Linux / macOS
         {
-            script.AppendLine($"echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Cleaning legacy framework-dependent files\" >> \"$LOG\"");
+            _ = script.AppendLine($"echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Cleaning legacy framework-dependent files\" >> \"$LOG\"");
             foreach (var (path, _, platform) in LegacyPathsToClean)
             {
-                // Verify if the item targets the active operating system environment
                 if (!((OperatingSystem.IsLinux() && platform.HasFlag(CleanupPlatforms.Linux)) || (OperatingSystem.IsMacOS() && platform.HasFlag(CleanupPlatforms.macOS))))
                     continue;
 
-                // Normalize slashes to Unix forward slashes
                 string unixPath = path.Replace('\\', '/');
-                // 'rm -rf' recursively deletes files and directories alike on Unix
-                script.AppendLine($"rm -rf \"${destVarName}/{unixPath}\" >> \"$LOG\" 2>&1");
+                _ = script.AppendLine($"rm -rf \"${destVarName}/{unixPath}\" >> \"$LOG\" 2>&1");
+                _ = script.AppendLine("if [ $? -ne 0 ]; then");
+                _ = script.AppendLine("  UPDATE_FAILED=1");
+                _ = script.AppendLine("fi");
             }
         }
     }
@@ -373,35 +432,50 @@ internal static class UpdateService
             string exePath = ResolveUpdatedExecutablePath(destinationDirTrimmed);
 
             StringBuilder script = new StringBuilder();
-            script.AppendLine("@echo off");
-            script.AppendLine("setlocal");
-            script.AppendLine($"set \"PID={pid}\"");
-            script.AppendLine($"set \"SRC={sourceDirTrimmed}\"");
-            script.AppendLine($"set \"DEST={destinationDirTrimmed}\"");
-            script.AppendLine($"set \"EXE={exePath}\"");
-            script.AppendLine("set \"LOG=%DEST%\\logs\\updatelog.txt\"");
-            script.AppendLine("if not exist \"%DEST%\\logs\" mkdir \"%DEST%\\logs\"");
-            script.AppendLine("echo [%date% %time%] ModHearth updater started>>\"%LOG%\"");
-            script.AppendLine(":wait");
-            script.AppendLine("tasklist /FI \"PID eq %PID%\" | find \"%PID%\" >nul");
-            script.AppendLine("if not errorlevel 1 (");
-            script.AppendLine("  timeout /t 1 /nobreak >nul");
-            script.AppendLine("  goto wait");
-            script.AppendLine(")");
+            _ = script.AppendLine("@echo off");
+            _ = script.AppendLine("setlocal");
+            _ = script.AppendLine($"set \"PID={pid}\"");
+            _ = script.AppendLine($"set \"SRC={sourceDirTrimmed}\"");
+            _ = script.AppendLine($"set \"DEST={destinationDirTrimmed}\"");
+            _ = script.AppendLine($"set \"EXE={exePath}\"");
+            _ = script.AppendLine("set \"LOG=%DEST%\\logs\\updatelog.txt\"");
+            _ = script.AppendLine("set \"STATUS_FILE=%DEST%\\logs\\update_status.txt\"");
+            _ = script.AppendLine("if not exist \"%DEST%\\logs\" mkdir \"%DEST%\\logs\"");
+            _ = script.AppendLine("echo [%date% %time%] ModHearth updater started>>\"%LOG%\"");
+            _ = script.AppendLine(":wait");
+            _ = script.AppendLine("tasklist /FI \"PID eq %PID%\" | find \"%PID%\" >nul");
+            _ = script.AppendLine("if not errorlevel 1 (");
+            _ = script.AppendLine("  timeout /t 1 /nobreak >nul");
+            _ = script.AppendLine("  goto wait");
+            _ = script.AppendLine(")");
 
+            _ = script.AppendLine("set \"UPDATE_FAILED=\"");
             AppendLegacyCleanupCommands(script, isWindows: true, destVarName: "DEST");
 
-            script.AppendLine("echo [%date% %time%] Copying update files>>\"%LOG%\"");
-            script.AppendLine("robocopy \"%SRC%\" \"%DEST%\" /E /COPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XF config.json >>\"%LOG%\" 2>&1");
+            _ = script.AppendLine("echo [%date% %time%] Copying update files>>\"%LOG%\"");
+            _ = script.AppendLine("robocopy \"%SRC%\" \"%DEST%\" /E /COPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP /XF config.json >>\"%LOG%\" 2>&1");
+            _ = script.AppendLine("if %errorlevel% GEQ 8 set \"UPDATE_FAILED=1\"");
+
             if (!string.IsNullOrWhiteSpace(configBackup))
-                script.AppendLine($"copy /Y \"{configBackup}\" \"%DEST%\\config.json\" >>\"%LOG%\" 2>&1");
-            script.AppendLine("if exist \"%EXE%\" (");
-            script.AppendLine("  echo [%date% %time%] Restarting ModHearth>>\"%LOG%\"");
-            script.AppendLine("  start \"\" \"%EXE%\"");
-            script.AppendLine(") else (");
-            script.AppendLine("  echo [%date% %time%] Restart skipped, executable not found at %EXE%>>\"%LOG%\"");
-            script.AppendLine(")");
-            script.AppendLine("echo [%date% %time%] ModHearth updater finished>>\"%LOG%\"");
+            {
+                _ = script.AppendLine($"copy /Y \"{configBackup}\" \"%DEST%\\config.json\" >>\"%LOG%\" 2>&1");
+                _ = script.AppendLine("if errorlevel 1 set \"UPDATE_FAILED=1\"");
+            }
+
+            _ = script.AppendLine("if defined UPDATE_FAILED (");
+            _ = script.AppendLine("  echo [%date% %time%] Update failed!>>\"%LOG%\"");
+            _ = script.AppendLine("  echo FAILED: Update installation encountered errors > \"%STATUS_FILE%\"");
+            _ = script.AppendLine(") else (");
+            _ = script.AppendLine("  echo [%date% %time%] Update completed successfully.>>\"%LOG%\"");
+            _ = script.AppendLine("  echo SUCCESS > \"%STATUS_FILE%\"");
+            _ = script.AppendLine("  if exist \"%EXE%\" (");
+            _ = script.AppendLine("    echo [%date% %time%] Restarting ModHearth>>\"%LOG%\"");
+            _ = script.AppendLine("    start \"\" \"%EXE%\"");
+            _ = script.AppendLine("  ) else (");
+            _ = script.AppendLine("    echo [%date% %time%] Restart skipped, executable not found at %EXE%>>\"%LOG%\"");
+            _ = script.AppendLine("  )");
+            _ = script.AppendLine(")");
+            _ = script.AppendLine("echo [%date% %time%] ModHearth updater finished>>\"%LOG%\"");
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
 
@@ -446,39 +520,66 @@ internal static class UpdateService
             string exePath = ResolveUpdatedExecutablePath(destinationDir);
 
             StringBuilder script = new StringBuilder();
-            script.AppendLine("#!/bin/sh");
-            script.AppendLine($"PID={pid}");
-            script.AppendLine($"SRC=\"{sourceDir}\"");
-            script.AppendLine($"DEST=\"{destinationDir}\"");
-            script.AppendLine($"EXE=\"{exePath}\"");
+            _ = script.AppendLine("#!/bin/sh");
+            _ = script.AppendLine($"PID={pid}");
+            _ = script.AppendLine($"SRC=\"{sourceDir}\"");
+            _ = script.AppendLine($"DEST=\"{destinationDir}\"");
+            _ = script.AppendLine($"EXE=\"{exePath}\"");
             if (!string.IsNullOrWhiteSpace(configBackup))
-                script.AppendLine($"CONFIG_BACKUP=\"{configBackup}\"");
-            script.AppendLine("LOG=\"$DEST/logs/updatelog.txt\"");
-            script.AppendLine("mkdir -p \"$DEST/logs\"");
-            script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater started\" >> \"$LOG\"");
-            script.AppendLine("while kill -0 \"$PID\" 2>/dev/null; do sleep 0.2; done");
+                _ = script.AppendLine($"CONFIG_BACKUP=\"{configBackup}\"");
+            _ = script.AppendLine("LOG=\"$DEST/logs/updatelog.txt\"");
+            _ = script.AppendLine("STATUS_FILE=\"$DEST/logs/update_status.txt\"");
+            _ = script.AppendLine("mkdir -p \"$DEST/logs\"");
+            _ = script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater started\" >> \"$LOG\"");
+            _ = script.AppendLine("while kill -0 \"$PID\" 2>/dev/null; do sleep 0.2; done");
 
+            _ = script.AppendLine("UPDATE_FAILED=\"\"");
             AppendLegacyCleanupCommands(script, isWindows: false, destVarName: "DEST");
 
-            script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Copying update files\" >> \"$LOG\"");
-            script.AppendLine("cp -a \"$SRC/.\" \"$DEST/\" >> \"$LOG\" 2>&1");
+            _ = script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Copying update files\" >> \"$LOG\"");
+            _ = script.AppendLine("cp -a \"$SRC/.\" \"$DEST/\" >> \"$LOG\" 2>&1");
+            _ = script.AppendLine("if [ $? -ne 0 ]; then");
+            _ = script.AppendLine("  UPDATE_FAILED=1");
+            _ = script.AppendLine("fi");
+
             if (!string.IsNullOrWhiteSpace(configBackup))
-                script.AppendLine("cp \"$CONFIG_BACKUP\" \"$DEST/config.json\" >> \"$LOG\" 2>&1");
+            {
+                _ = script.AppendLine("cp \"$CONFIG_BACKUP\" \"$DEST/config.json\" >> \"$LOG\" 2>&1");
+                _ = script.AppendLine("if [ $? -ne 0 ]; then");
+                _ = script.AppendLine("  UPDATE_FAILED=1");
+                _ = script.AppendLine("fi");
+            }
 
-            // Restore user ownership if script ran with elevated privileges
-            script.AppendLine("if [ -n \"$PKEXEC_UID\" ]; then");
-            script.AppendLine("  chown -R \"$PKEXEC_UID\" \"$DEST\" >> \"$LOG\" 2>&1");
-            script.AppendLine("elif [ -n \"$SUDO_USER\" ]; then");
-            script.AppendLine("  chown -R \"$SUDO_USER\" \"$DEST\" >> \"$LOG\" 2>&1");
-            script.AppendLine("fi");
+            // Restore user ownership if script ran with elevated privileges (supports Linux pkexec, sudo, and macOS osascript root runs)
+            _ = script.AppendLine("TARGET_USER=\"$PKEXEC_UID\"");
+            _ = script.AppendLine("if [ -z \"$TARGET_USER\" ]; then");
+            _ = script.AppendLine("  TARGET_USER=\"$SUDO_USER\"");
+            _ = script.AppendLine("fi");
+            _ = script.AppendLine("if [ -z \"$TARGET_USER\" ] && [ \"$(id -u)\" -eq 0 ]; then");
+            _ = script.AppendLine("  if [ \"$(uname)\" = \"Darwin\" ]; then");
+            _ = script.AppendLine("    TARGET_USER=\"$(stat -f \"%Su\" \"$DEST\" 2>/dev/null || stat -f \"%Su\" \"$(dirname \"$DEST\")\" 2>/dev/null)\"");
+            _ = script.AppendLine("  else");
+            _ = script.AppendLine("    TARGET_USER=\"$(ls -ld \"$DEST\" 2>/dev/null | awk '{print $3}')\"");
+            _ = script.AppendLine("  fi");
+            _ = script.AppendLine("fi");
+            _ = script.AppendLine("if [ -n \"$TARGET_USER\" ]; then");
+            _ = script.AppendLine("  chown -R \"$TARGET_USER\" \"$DEST\" >> \"$LOG\" 2>&1");
+            _ = script.AppendLine("fi");
 
-            script.AppendLine("if [ -f \"$EXE\" ]; then");
-            script.AppendLine("  chmod +x \"$EXE\"");
-            script.AppendLine("  \"$EXE\" &");
-            script.AppendLine("else");
-            script.AppendLine("  echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Restart skipped, executable not found at $EXE\" >> \"$LOG\"");
-            script.AppendLine("fi");
-            script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater finished\" >> \"$LOG\"");
+            _ = script.AppendLine("if [ -n \"$UPDATE_FAILED\" ]; then");
+            _ = script.AppendLine("  echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Update failed!\" >> \"$LOG\"");
+            _ = script.AppendLine("  echo \"FAILED: Update installation encountered errors\" > \"$STATUS_FILE\"");
+            _ = script.AppendLine("else");
+            _ = script.AppendLine("  echo \"SUCCESS\" > \"$STATUS_FILE\"");
+            _ = script.AppendLine("  echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Update completed successfully.\" >> \"$LOG\"");
+            _ = script.AppendLine("  if [ -f \"$EXE\" ]; then");
+            _ = script.AppendLine("    chmod +x \"$EXE\"");
+            _ = script.AppendLine("    \"$EXE\" &");
+            _ = script.AppendLine("  else");
+            _ = script.AppendLine("    echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] Restart skipped, executable not found at $EXE\" >> \"$LOG\"");
+            _ = script.AppendLine("  fi");
+            _ = script.AppendLine("fi");
+            _ = script.AppendLine("echo \"[$(date +%Y-%m-%d\\ %H:%M:%S)] ModHearth updater finished\" >> \"$LOG\"");
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
 
@@ -529,7 +630,7 @@ internal static class UpdateService
         if (OperatingSystem.IsWindows())
             return Path.Combine(destinationDir, "ModHearth.exe");
 
-        return Path.Combine(destinationDir, "ModHearth");
+        return Path.Combine(destinationDir, UpdateRepoName);
     }
 
     private static HttpClient CreateUpdateHttpClient()

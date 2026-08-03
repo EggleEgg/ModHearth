@@ -61,47 +61,45 @@ public sealed class ShortcutKeyHandler
 
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            if (e.Key == Key.Z)
+            switch (e.Key)
             {
-                if (canUndo())
-                    _ = undoAsync();
-                e.Handled = true;
-                return;
-            }
+                case Key.Z:
+                    if (canUndo())
+                        _ = undoAsync();
+                    e.Handled = true;
+                    return;
+                case Key.Y:
+                    if (canRedo())
+                        _ = redoAsync();
+                    e.Handled = true;
+                    return;
+                case Key.S when saveAsync != null && (canSave == null || canSave()):
+                    _ = saveAsync();
+                    e.Handled = true;
+                    return;
 
-            if (e.Key == Key.Y)
-            {
-                if (canRedo())
-                    _ = redoAsync();
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.S && saveAsync != null && (canSave == null || canSave()))
-            {
-                _ = saveAsync();
-                e.Handled = true;
-                return;
             }
         }
 
         if (e.KeyModifiers == KeyModifiers.None)
         {
-            if (e.Key == Key.Left && moveLeftAsync != null)
+            switch (e.Key)
             {
-                if (!IsTextInputFocused(e.Source))
-                {
-                    _ = moveLeftAsync();
-                    e.Handled = true;
-                }
-            }
-            else if (e.Key == Key.Right && moveRightAsync != null)
-            {
-                if (!IsTextInputFocused(e.Source))
-                {
-                    _ = moveRightAsync();
-                    e.Handled = true;
-                }
+                case Key.Left when moveLeftAsync != null:
+                    if (!IsTextInputFocused(e.Source))
+                    {
+                        _ = moveLeftAsync();
+                        e.Handled = true;
+                    }
+                    break;
+                case Key.Right when moveRightAsync != null:
+                    if (!IsTextInputFocused(e.Source))
+                    {
+                        _ = moveRightAsync();
+                        e.Handled = true;
+                    }
+                    break;
+
             }
         }
     }

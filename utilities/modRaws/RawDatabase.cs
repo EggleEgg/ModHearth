@@ -46,7 +46,7 @@ public sealed class RawDatabase
                 result[raw.ObjectType] = ids;
             }
 
-            ids.Add(raw.Id);
+            _ = ids.Add(raw.Id);
         }
 
         return result;
@@ -54,11 +54,14 @@ public sealed class RawDatabase
 
     public bool IsDefined(ObjectKey? key)
     {
-        if (key is null)
-            return false;
-
-        return DefinedObjects.TryGetValue(key.ObjectType, out HashSet<string>? ids)
-            && ids.Contains(key.Id);
+        switch (key)
+        {
+            case null:
+                return false;
+            default:
+                return DefinedObjects.TryGetValue(key.ObjectType, out HashSet<string>? ids)
+                    && ids.Contains(key.Id);
+        }
     }
 
     public bool IsDefined(string objectType, string id)
@@ -115,16 +118,16 @@ public sealed class RawDatabase
         foreach (RawObject raw in Objects)
         {
             if (raw.IsCut && !string.IsNullOrWhiteSpace(raw.Id))
-                cutIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+                _ = cutIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
 
             if (raw.IsSelection && !string.IsNullOrWhiteSpace(raw.Id))
-                selectIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+                _ = selectIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
 
             if (raw.IsCopyTagsFrom && !string.IsNullOrWhiteSpace(raw.Id))
-                copyIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+                _ = copyIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
 
             if (raw.IsDefinition && !string.IsNullOrWhiteSpace(raw.Id))
-                directIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+                _ = directIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
         }
 
         bool hasVanillaEntity = false;

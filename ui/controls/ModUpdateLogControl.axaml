@@ -18,6 +18,7 @@
     </Grid>
     <ui:ModRefControl Grid.Row="1" x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" />
     <!-- IMPORTANT: Do NOT wrap DataGrid in a ScrollViewer ever! It will destroy virtualization performance! -->
+     <!--TODO Refactor/rewrite DataGrid into TreeDataGrid? Is it more performant? -->
     <DataGrid x:Name="logList"
               Grid.Row="2"
               ItemsSource="{Binding Entries}" CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
@@ -75,7 +76,7 @@
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
-        <DataGridTemplateColumn Header="Path" Width="*" SortMemberPath="Path">
+        <DataGridTemplateColumn Header="Path" Width="Auto" SortMemberPath="Path">
           <DataGridTemplateColumn.CellTemplate>
             <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
               <TextBlock Text="{Binding Path}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />

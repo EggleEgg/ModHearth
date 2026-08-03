@@ -46,7 +46,7 @@ public partial class MainWindow
 
         if (source is Control control && control.FindAncestorOfType<ModSearchBar>() != null)
         {
-            Focus();
+            _ = Focus();
             handled = true;
         }
 

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using ModHearth;
 using ModHearth.Utilities.Logging;
 using ModHearth.Utilities.Steam;
+using Steamworks;
 
 namespace ModHearth.Utilities.Workshop
 {
@@ -51,6 +52,10 @@ namespace ModHearth.Utilities.Workshop
         private static readonly Regex ProgressRegex = new Regex(@"progress:\s+([0-9.]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex DownloadingItemRegex = new Regex(@"Downloading item (\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly ISteamCmdService _steamCmdService = new SteamCmdService();
+
+        public const string SteamApps = "steamapps";
+        private const string Workshop = "workshop";
+        private const string Content = "content";
 
         public string Name => "SteamCMD";
         public bool IsAvailable => _steamCmdService.IsAvailable();
@@ -97,7 +102,7 @@ namespace ModHearth.Utilities.Workshop
                 return false;
             }
 
-            string nestedContentDir = Path.Combine(fullDownloadPath, "steamapps", "workshop", "content", appId, workshopId.ToString());
+            string nestedContentDir = Path.Combine(fullDownloadPath, SteamApps, Workshop, Content, appId, workshopId.ToString());
             FlattenNestedContent(nestedContentDir, fullDownloadPath);
 
             if (HasModContent(fullDownloadPath))
@@ -110,12 +115,12 @@ namespace ModHearth.Utilities.Workshop
             // force_install_dir) place content relative to steamcmd's own install directory instead.
             string exe = _steamCmdService.GetExecutablePath();
             string steamCmdDir = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? AppContext.BaseDirectory;
-            string workshopSource = Path.Combine(steamCmdDir, "steamapps", "workshop", "content", appId, workshopId.ToString());
+            string workshopSource = Path.Combine(steamCmdDir, SteamApps, Workshop, Content, appId, workshopId.ToString());
 
             if (!Directory.Exists(workshopSource))
             {
                 string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                string homeFallback = Path.Combine(home, ".steam", "steamcmd", "steamapps", "workshop", "content", appId, workshopId.ToString());
+                string homeFallback = Path.Combine(home, ".steam", "steamcmd", SteamApps, Workshop, Content, appId, workshopId.ToString());
                 if (Directory.Exists(homeFallback))
                     workshopSource = homeFallback;
             }
@@ -154,21 +159,21 @@ namespace ModHearth.Utilities.Workshop
 
             string appId = ConfigManager.DwarfFortressSteamAppId;
             string stagingPath = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "ModHearth_Batch_" + Guid.NewGuid().ToString("N")));
-            Directory.CreateDirectory(stagingPath);
+            _ = Directory.CreateDirectory(stagingPath);
 
             string scriptPath = Path.Combine(stagingPath, "download_batch.txt");
             try
             {
                 using (var writer = new StreamWriter(scriptPath))
                 {
-                    writer.WriteLine($"force_install_dir \"{stagingPath}\"");
-                    writer.WriteLine("login anonymous");
+                    await writer.WriteLineAsync($"force_install_dir \"{stagingPath}\"");
+                    await writer.WriteLineAsync("login anonymous");
                     foreach (var item in itemList)
                     {
                         result[item.WorkshopId] = false;
-                        writer.WriteLine($"workshop_download_item {appId} {item.WorkshopId} validate");
+                        await writer.WriteLineAsync($"workshop_download_item {appId} {item.WorkshopId} validate");
                     }
-                    writer.WriteLine("quit");
+                    await writer.WriteLineAsync("quit");
                 }
             }
             catch (Exception ex)
@@ -210,6 +215,9 @@ namespace ModHearth.Utilities.Workshop
             {
                 int exitCode = await _steamCmdService.ExecuteAsync(args, progressProxy, cancellationToken);
 
+                if (exitCode != 0)
+                    InfoLogger.LogRunDf($"SteamCmd exited with code {exitCode} for {itemList.Count} batched elements; skipping content check.");
+
                 if (cancellationToken.IsCancellationRequested)
                 {
                     return result;
@@ -219,9 +227,9 @@ namespace ModHearth.Utilities.Workshop
                 {
                     ulong workshopId = item.WorkshopId;
                     string fullDownloadPath = Path.GetFullPath(item.DownloadPath);
-                    Directory.CreateDirectory(fullDownloadPath);
+                    _ = Directory.CreateDirectory(fullDownloadPath);
 
-                    string nestedContentDir = Path.Combine(stagingPath, "steamapps", "workshop", "content", appId, workshopId.ToString());
+                    string nestedContentDir = Path.Combine(stagingPath, SteamApps, Workshop, Content, appId, workshopId.ToString());
                     FlattenNestedContent(nestedContentDir, fullDownloadPath);
 
                     if (HasModContent(fullDownloadPath))
@@ -233,12 +241,12 @@ namespace ModHearth.Utilities.Workshop
 
                     string exe = _steamCmdService.GetExecutablePath();
                     string steamCmdDir = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? AppContext.BaseDirectory;
-                    string workshopSource = Path.Combine(steamCmdDir, "steamapps", "workshop", "content", appId, workshopId.ToString());
+                    string workshopSource = Path.Combine(steamCmdDir, SteamApps, Workshop, Content, appId, workshopId.ToString());
 
                     if (!Directory.Exists(workshopSource))
                     {
                         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                        string homeFallback = Path.Combine(home, ".steam", "steamcmd", "steamapps", "workshop", "content", appId, workshopId.ToString());
+                        string homeFallback = Path.Combine(home, ".steam", "steamcmd", SteamApps, Workshop, Content, appId, workshopId.ToString());
                         if (Directory.Exists(homeFallback))
                             workshopSource = homeFallback;
                     }
@@ -258,7 +266,6 @@ namespace ModHearth.Utilities.Workshop
                         {
                             item.Progress.Report(new DownloadProgress(100, 100, 100));
                             result[workshopId] = true;
-                            continue;
                         }
                     }
                 }
@@ -282,7 +289,7 @@ namespace ModHearth.Utilities.Workshop
 
             try
             {
-                Directory.CreateDirectory(downloadPath);
+                _ = Directory.CreateDirectory(downloadPath);
                 foreach (string filePath in Directory.GetFiles(nestedContentDir))
                 {
                     string destFile = Path.Combine(downloadPath, Path.GetFileName(filePath));
@@ -314,10 +321,10 @@ namespace ModHearth.Utilities.Workshop
                     }
                 }
 
-                string scaffoldRoot = Path.Combine(downloadPath, "steamapps");
+                string scaffoldRoot = Path.Combine(downloadPath, SteamApps);
                 if (Directory.Exists(scaffoldRoot))
                 {
-                    try { Directory.Delete(scaffoldRoot, true); } catch { /* best effort cleanup */ }
+                    try { Directory.Delete(scaffoldRoot, true); } catch { }
                 }
             }
             catch (Exception ex)
@@ -333,7 +340,7 @@ namespace ModHearth.Utilities.Workshop
 
         private static void MoveOrCopyDirectory(string sourceDir, string destinationDir)
         {
-            Directory.CreateDirectory(destinationDir);
+            _ = Directory.CreateDirectory(destinationDir);
             try
             {
                 // Fast path: attempt moving files directly
@@ -358,7 +365,7 @@ namespace ModHearth.Utilities.Workshop
 
         private static void CopyDirectory(string sourceDir, string destinationDir)
         {
-            Directory.CreateDirectory(destinationDir);
+            _ = Directory.CreateDirectory(destinationDir);
             foreach (string file in Directory.GetFiles(sourceDir))
             {
                 string destFile = Path.Combine(destinationDir, Path.GetFileName(file));

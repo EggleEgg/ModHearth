@@ -16,6 +16,8 @@ namespace ModHearth.Utilities;
 /// </summary>
 public sealed class SteamWorkshopService
 {
+    private const string Message = "ModHearth.SteamWorker executable not found alongside ModHearth.";
+
     private static readonly TimeSpan WorkerTimeout = TimeSpan.FromSeconds(20);
     // Must stay longer than ModHearth.SteamWorker's DownloadCallbackWaitTimeout (10 minutes), plus
     // headroom for process startup/shutdown.
@@ -48,18 +50,18 @@ public sealed class SteamWorkshopService
         string? workerPath = ResolveWorkerPath();
         if (workerPath == null)
         {
-            SteamConnectionLogger.LogError("ModHearth.SteamWorker executable not found alongside ModHearth.");
+            SteamConnectionLogger.LogError(Message);
             return 0;
         }
 
         int successCount = 0;
-        Parallel.ForEach(ids, new ParallelOptions
+        _ = Parallel.ForEach(ids, new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount
         }, id =>
         {
             if (RunWorker("download", id.ToString()))
-                Interlocked.Increment(ref successCount);
+                _ = Interlocked.Increment(ref successCount);
         });
 
         return successCount;
@@ -74,18 +76,18 @@ public sealed class SteamWorkshopService
         string? workerPath = ResolveWorkerPath();
         if (workerPath == null)
         {
-            SteamConnectionLogger.LogError("ModHearth.SteamWorker executable not found alongside ModHearth.");
+            SteamConnectionLogger.LogError(Message);
             return 0;
         }
 
         int successCount = 0;
-        Parallel.ForEach(ids, new ParallelOptions
+        _ = Parallel.ForEach(ids, new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount
         }, id =>
         {
             if (RunWorker("unsubscribe", id.ToString()))
-                Interlocked.Increment(ref successCount);
+                _ = Interlocked.Increment(ref successCount);
         });
 
         return successCount;
@@ -100,18 +102,18 @@ public sealed class SteamWorkshopService
         string? workerPath = ResolveWorkerPath();
         if (workerPath == null)
         {
-            SteamConnectionLogger.LogError("ModHearth.SteamWorker executable not found alongside ModHearth.");
+            SteamConnectionLogger.LogError(Message);
             return 0;
         }
 
         int successCount = 0;
-        Parallel.ForEach(ids, new ParallelOptions
+        _ = Parallel.ForEach(ids, new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount
         }, id =>
         {
             if (RunWorker("subscribe", id.ToString()))
-                Interlocked.Increment(ref successCount);
+                _ = Interlocked.Increment(ref successCount);
         });
 
         return successCount;
@@ -134,7 +136,7 @@ public sealed class SteamWorkshopService
         string? workerPath = ResolveWorkerPath();
         if (workerPath == null)
         {
-            SteamConnectionLogger.LogError("ModHearth.SteamWorker executable not found alongside ModHearth.");
+            SteamConnectionLogger.LogError(Message);
             return false;
         }
 

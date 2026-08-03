@@ -43,7 +43,7 @@ internal static class RuntimeBootstrap
             {
                 var handle = GetConsoleWindow();
                 if (handle != IntPtr.Zero)
-                    ShowWindow(handle, SW_HIDE);
+                    _ = ShowWindow(handle, SW_HIDE);
             }
             catch
             {

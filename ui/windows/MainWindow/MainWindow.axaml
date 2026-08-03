@@ -34,7 +34,7 @@
       <Setter Property="IsTabStop" Value="False" />
     </Style>
     <Style Selector="Border[Tag=DockPreviewBorder]">
-      <Setter Property="Background" Value="{DynamicResource WorkshopDockPreviewBackgroundBrush}"/>
+      <Setter Property="Background" Value="{DynamicResource DockPreviewBrush}"/>
       <Setter Property="BorderBrush" Value="{DynamicResource ButtonSelectionBrush}"/>
       <Setter Property="BorderThickness" Value="2"/>
       <Setter Property="Margin" Value="0"/>
@@ -78,7 +78,7 @@
           </Setter>
         </Style>
         <Style Selector="Button[Tag=DockSplitterCloseButton]:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-          <Setter Property="Background" Value="{DynamicResource SelectionPreviewBackgroundBrush}" />
+          <Setter Property="Background" Value="{DynamicResource SelectionPreviewBrush}" />
         </Style>
 
         <Style Selector="Button#leftDockSplitterCloseButton Image">
@@ -91,6 +91,7 @@
           <Setter Property="RenderTransform" Value="Rotate(270deg)" />
         </Style>
 
+        <!-- Dock splitters -->
         <Style Selector="ContentControl[Tag=DockHost]">
           <Setter Property="HorizontalAlignment" Value="Stretch"/>
           <Setter Property="VerticalAlignment" Value="Stretch"/>
@@ -99,6 +100,9 @@
         </Style>
         <Style Selector="Border[Tag=DockHost]">
           <Setter Property="Background" Value="{DynamicResource PanelDarkBrush}"/>
+        </Style>
+        <Style Selector="Border[Tag=DockHost]:pressed">
+          <Setter Property="Background" Value="{DynamicResource LowAlphaModRefHighlightBrush}" />
         </Style>
 
       </Grid.Styles>
@@ -126,9 +130,9 @@
                               Margin="2,2,2,2" InitializeFactory="False" InitializeLayout="False" />
             <Grid Grid.Row="3" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
                   VerticalAlignment="Center" Margin="0,5,2,0" MinHeight="18" RowSpacing="7">
-              <Border Tag="Splitter" Grid.Row="0" Grid.ColumnSpan="2" Height="2"
+              <Border Grid.Row="0" Grid.ColumnSpan="2" Height="2" Background="{DynamicResource PanelBrush}"
                       HorizontalAlignment="Stretch" Margin="2,2,0,0" />
-              <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6"
+              <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,6,0"
                           VerticalAlignment="Center">
                 <Button x:Name="updateButton" Width="23" Height="23" Padding="0" Tag="Themed"
                         ToolTip.Tip="Check for updates">
@@ -159,10 +163,7 @@
         </Grid>
       </Border>
 
-      <Border Grid.Column="3" Tag="Splitter" Width="0.5"
-              HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,30,2,2" />
-      <GridSplitter Grid.Column="3" Width="7" Background="Transparent" ResizeBehavior="PreviousAndNext"
-                    HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,2,0" />
+      <GridSplitter Grid.Column="3" Classes="VerticalSplitter" Margin="0,24,3,0" />
 
       <Border Grid.Column="4" Margin="3">
         <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">

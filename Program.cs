@@ -14,7 +14,7 @@ internal static class Program
         ConfigManager.AttemptLoadConfig(false);
         try
         {
-            ConfigManager.LoadStyle(false);
+            _ = ConfigManager.LoadStyle(false);
         }
         catch
         {
@@ -45,18 +45,18 @@ internal static class Program
             {
                 Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW", "1");
                 string[] filteredArgs = StripArgs(args, "--smoke-test-window", "--smoke-test", "--devmode");
-                BuildAvaloniaApp().StartWithClassicDesktopLifetime(filteredArgs);
+                _ = BuildAvaloniaApp().StartWithClassicDesktopLifetime(filteredArgs);
                 return;
             }
 
             if (isSmokeTest)
             {
-                BuildAvaloniaApp().SetupWithoutStarting();
+                _ = BuildAvaloniaApp().SetupWithoutStarting();
                 return;
             }
 
             string[] normalArgs = StripArgs(args, "--devmode", "--dev");
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(normalArgs);
+            _ = BuildAvaloniaApp().StartWithClassicDesktopLifetime(normalArgs);
         }
         catch (Exception ex)
         {
@@ -86,46 +86,4 @@ internal static class Program
     private static string[] StripArgs(string[] args, params string[] toRemove)
         => args.Where(arg => !toRemove.Any(remove => string.Equals(arg, remove, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
-
-    private static void RegisterSteamApiResolver()
-    {
-        NativeLibrary.SetDllImportResolver(
-            typeof(Steamworks.SteamAPI).Assembly,
-            (libraryName, assembly, searchPath) =>
-            {
-                if (!libraryName.Contains("steam_api", StringComparison.OrdinalIgnoreCase))
-                    return IntPtr.Zero;
-
-                string? fileName;
-
-                if (OperatingSystem.IsWindows())
-                    fileName = "steam_api64.dll";
-                else if (OperatingSystem.IsLinux())
-                    fileName = "libsteam_api.so";
-                else if (OperatingSystem.IsMacOS())
-                    fileName = "libsteam_api.dylib";
-                else
-                    fileName = null;
-
-                if (fileName == null)
-                    return IntPtr.Zero;
-
-                string[] candidates =
-                {
-                Path.Combine(AppContext.BaseDirectory, "libs", fileName),
-                Path.Combine(AppContext.BaseDirectory, fileName)
-                };
-
-                foreach (string candidate in candidates)
-                {
-                    if (File.Exists(candidate) &&
-                        NativeLibrary.TryLoad(candidate, out IntPtr handle))
-                    {
-                        return handle;
-                    }
-                }
-
-                return IntPtr.Zero;
-            });
-    }
 }

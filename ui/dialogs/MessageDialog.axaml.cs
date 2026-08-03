@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 
 namespace ModHearth.UI;
 
@@ -48,18 +50,13 @@ public partial class MessageDialog : Window
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
         dialog.MessageText.Text = message;
-        dialog.ConfigureButtons(buttons, okText, yesText, noText, cancelText);
+        ConfigureButtons(dialog, buttons, okText, yesText, noText, cancelText);
 
         Window? validOwner = owner;
-        if (validOwner == null || !validOwner.IsLoaded)
+        if ((validOwner == null || !validOwner.IsLoaded) && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+            && desktop.MainWindow != null && desktop.MainWindow.IsLoaded)
         {
-            if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
-            {
-                if (desktop.MainWindow != null && desktop.MainWindow.IsLoaded)
-                {
-                    validOwner = desktop.MainWindow;
-                }
-            }
+            validOwner = desktop.MainWindow;
         }
 
         try
@@ -77,22 +74,21 @@ public partial class MessageDialog : Window
         return MessageDialogResult.Cancel;
     }
 
-    private void ConfigureButtons(
-        MessageDialogButtons buttons,
+    private static void ConfigureButtons(MessageDialog dialog, MessageDialogButtons buttons,
         string? okText,
         string? yesText,
         string? noText,
         string? cancelText)
     {
-        OkButton.Content = okText ?? "OK";
-        YesButton.Content = yesText ?? "Yes";
-        NoButton.Content = noText ?? "No";
-        CancelButton.Content = cancelText ?? "Cancel";
+        dialog.OkButton.Content = okText ?? "OK";
+        dialog.YesButton.Content = yesText ?? "Yes";
+        dialog.NoButton.Content = noText ?? "No";
+        dialog.CancelButton.Content = cancelText ?? "Cancel";
 
-        OkButton.IsVisible = buttons == MessageDialogButtons.Ok;
-        YesButton.IsVisible = buttons == MessageDialogButtons.YesNo || buttons == MessageDialogButtons.YesNoCancel;
-        NoButton.IsVisible = buttons == MessageDialogButtons.YesNo || buttons == MessageDialogButtons.YesNoCancel;
-        CancelButton.IsVisible = buttons == MessageDialogButtons.YesNoCancel;
+        dialog.OkButton.IsVisible = buttons == MessageDialogButtons.Ok;
+        dialog.YesButton.IsVisible = buttons == MessageDialogButtons.YesNo || buttons == MessageDialogButtons.YesNoCancel;
+        dialog.NoButton.IsVisible = buttons == MessageDialogButtons.YesNo || buttons == MessageDialogButtons.YesNoCancel;
+        dialog.CancelButton.IsVisible = buttons == MessageDialogButtons.YesNoCancel;
     }
 
     private void CloseWithResult(MessageDialogResult value)

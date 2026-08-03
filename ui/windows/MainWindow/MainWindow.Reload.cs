@@ -18,13 +18,17 @@ public partial class MainWindow
                 this,
                 manager.SelectedModlist.name,
                 "reload modpacks");
-            if (choice == UnsavedChangesChoice.Cancel)
-                return;
-
-            if (choice == UnsavedChangesChoice.Save)
-                await SaveCurrentModpackAsync();
-            else
-                await SetAndMarkChangesAsync(true);
+            switch (choice)
+            {
+                case UnsavedChangesChoice.Cancel:
+                    return;
+                case UnsavedChangesChoice.Save:
+                    await SaveCurrentModpackAsync();
+                    break;
+                default:
+                    await SetAndMarkChangesAsync(true);
+                    break;
+            }
         }
 
         await ReloadModpacksFromDisk();
@@ -100,15 +104,17 @@ public partial class MainWindow
         modifyingComboBox = true;
         modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.name).ToList();
 
-        if (manager.selectedModlistIndex >= 0 && manager.selectedModlistIndex < manager.modpacks.Count)
+        switch (manager.selectedModlistIndex)
         {
-            modpackComboBox.SelectedIndex = manager.selectedModlistIndex;
-            lastIndex = manager.selectedModlistIndex;
-        }
-        else
-        {
-            modpackComboBox.SelectedIndex = -1;
-            lastIndex = -1;
+            case >= 0 when manager.selectedModlistIndex < manager.modpacks.Count:
+                modpackComboBox.SelectedIndex = manager.selectedModlistIndex;
+                lastIndex = manager.selectedModlistIndex;
+                break;
+            default:
+                modpackComboBox.SelectedIndex = -1;
+                lastIndex = -1;
+                break;
+
         }
 
         modifyingComboBox = false;
@@ -319,18 +325,26 @@ public partial class MainWindow
     {
         if (!int.TryParse(text, out int parsed))
             return MinimumAutoReloadSeconds;
-        if (parsed < MinimumAutoReloadSeconds)
-            return MinimumAutoReloadSeconds;
-        return parsed;
+        switch (parsed)
+        {
+            case < MinimumAutoReloadSeconds:
+                return MinimumAutoReloadSeconds;
+            default:
+                return parsed;
+        }
     }
 
     private static int NormalizeAutoReloadIntervalSeconds(int value)
     {
-        if (value < 0)
-            return -1;
-        if (value < MinimumAutoReloadSeconds)
-            return MinimumAutoReloadSeconds;
-        return value;
+        switch (value)
+        {
+            case < 0:
+                return -1;
+            case < MinimumAutoReloadSeconds:
+                return MinimumAutoReloadSeconds;
+            default:
+                return value;
+        }
     }
 
     private void ResetModManagerWatcher()

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Linq;
 
 namespace ModHearth.Metadata
 {
@@ -45,10 +46,15 @@ namespace ModHearth.Metadata
 
             lock (FileLock)
             {
-                if (color == ModColor.None)
-                    _modColors.Remove(modId);
-                else
-                    _modColors[modId] = color;
+                switch (color)
+                {
+                    case ModColor.None:
+                        _ = _modColors.Remove(modId);
+                        break;
+                    default:
+                        _modColors[modId] = color;
+                        break;
+                }
                 SaveModColors();
             }
         }
@@ -70,10 +76,11 @@ namespace ModHearth.Metadata
                     Dictionary<string, ModColor> loaded = new Dictionary<string, ModColor>(StringComparer.OrdinalIgnoreCase);
                     if (data != null)
                     {
-                        foreach (ModColorMetadata entry in data)
+                        foreach (var entry in from ModColorMetadata entry in data
+                                              where !string.IsNullOrWhiteSpace(entry.ModId)
+                                              select entry)
                         {
-                            if (!string.IsNullOrWhiteSpace(entry.ModId))
-                                loaded[entry.ModId] = entry.Color;
+                            loaded[entry.ModId] = entry.Color;
                         }
                     }
                     _modColors = loaded;
@@ -90,7 +97,7 @@ namespace ModHearth.Metadata
         private static void SaveModColors()
         {
             if (!Directory.Exists(MetadataDir))
-                Directory.CreateDirectory(MetadataDir);
+                _ = Directory.CreateDirectory(MetadataDir);
 
             List<ModColorMetadata> data = _modColors
                 .Select(entry => new ModColorMetadata { ModId = entry.Key, Color = entry.Value })

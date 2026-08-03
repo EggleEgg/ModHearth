@@ -134,22 +134,24 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
         if (string.IsNullOrWhiteSpace(filter))
             return true;
 
-        if (mode == SearchFilterMode.Regex)
+        switch (mode)
         {
-            try
-            {
-                string fullTarget = $"{ModName} {Entry.ModId} {Entry.SteamId} {Entry.Path} {SourceType} {StateText} {DateText}";
-                return System.Text.RegularExpressions.Regex.IsMatch(fullTarget, filter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-            }
-            catch
-            {
-                return false;
-            }
-        }
+            case SearchFilterMode.Regex:
+                {
+                    try
+                    {
+                        string fullTarget = $"{ModName} {Entry.ModId} {Entry.SteamId} {Entry.Path} {SourceType} {StateText} {DateText}";
+                        return System.Text.RegularExpressions.Regex.IsMatch(fullTarget, filter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
 
-        if (mode == SearchFilterMode.Color)
-        {
-            return true;
+            case SearchFilterMode.Color:
+                return true;
+
         }
 
         string? candidate = mode switch

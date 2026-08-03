@@ -137,7 +137,7 @@ public partial class MainWindow
         {
             Id = "ModInfoSplitter"
         };
-        knownSplitters.Add(splitter);
+        _ = knownSplitters.Add(splitter);
 
         ProportionalDock layoutDock = new ProportionalDock
         {
@@ -154,7 +154,7 @@ public partial class MainWindow
         {
             Id = "ModPreviewSplitter"
         };
-        knownSplitters.Add(previewSplitter);
+        _ = knownSplitters.Add(previewSplitter);
 
 
         ProportionalDock outerLayoutDock = new ProportionalDock
@@ -253,18 +253,24 @@ public partial class MainWindow
 
     private void HookEmptyDockRebalance(ToolDock dock)
     {
-        if (dock.VisibleDockables is INotifyCollectionChanged notifyCollection)
+        switch (dock.VisibleDockables)
         {
-            notifyCollection.CollectionChanged += (_, _) =>
-            {
+            case INotifyCollectionChanged notifyCollection:
+                {
+                    notifyCollection.CollectionChanged += (_, _) =>
+                    {
+                        if (DevMode.IsEnabled)
+                            Console.WriteLine($"[DockRebalance] CollectionChanged fired for '{dock.Id}', Count={dock.VisibleDockables?.Count ?? -1}");
+                        RebalanceEmptyToolDock(dock);
+                    };
+                    break;
+                }
+
+            default:
                 if (DevMode.IsEnabled)
-                    Console.WriteLine($"[DockRebalance] CollectionChanged fired for '{dock.Id}', Count={dock.VisibleDockables?.Count ?? -1}");
-                RebalanceEmptyToolDock(dock);
-            };
-        }
-        else if (DevMode.IsEnabled)
-        {
-            Console.WriteLine($"[DockRebalance] '{dock.Id}'.VisibleDockables is NOT INotifyCollectionChanged (actual type: {dock.VisibleDockables?.GetType().FullName ?? "null"})");
+                    Console.WriteLine($"[DockRebalance] '{dock.Id}'.VisibleDockables is NOT INotifyCollectionChanged (actual type: {dock.VisibleDockables?.GetType().FullName ?? "null"})");
+
+                break;
         }
     }
 
@@ -349,7 +355,7 @@ public partial class MainWindow
                 dock.Proportion = CollapsedToolDockProportion;
                 if (DevMode.IsEnabled) Console.WriteLine($"[DockRebalance] '{dock.Id}' -> Proportion now {dock.Proportion:F3}");
             }
-            emptyToolDocks.Add(dock);
+            _ = emptyToolDocks.Add(dock);
         }
         else
         {
@@ -366,8 +372,8 @@ public partial class MainWindow
                 dock.Proportion = target;
                 if (DevMode.IsEnabled) Console.WriteLine($"[DockRebalance] '{dock.Id}' -> Proportion now {dock.Proportion:F3}");
             }
-            emptyToolDocks.Remove(dock);
-            reclaimedToolDockProportions.Remove(dock);
+            _ = emptyToolDocks.Remove(dock);
+            _ = reclaimedToolDockProportions.Remove(dock);
         }
 
         //NOTE Use avalonia devtools and look into the value of "ContentPresenter" to debug proportion issues
@@ -439,7 +445,7 @@ public partial class MainWindow
     private static IEnumerable<(string label, string value)> GetModDataEntries(ModReference modref)
     {
         (string, string?)[] entries =
-        {
+        [
             ("id", modref.ID),
             ("name", modref.name),
             ("author", modref.author),
@@ -455,7 +461,7 @@ public partial class MainWindow
             ("requireBeforeMe", JoinList(modref.require_before_me)),
             ("requireAfterMe", JoinList(modref.require_after_me)),
             ("conflictsWith", JoinList(modref.conflicts_with)),
-        };
+        ];
 
         foreach ((string label, string? value) in entries)
         {

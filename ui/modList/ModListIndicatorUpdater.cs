@@ -146,7 +146,7 @@ internal static class ModListIndicatorUpdater
     {
         StringBuilder builder = new StringBuilder("Problems:");
         foreach (ModProblem problem in problems)
-            builder.AppendLine().Append(problem.ToString());
+            _ = builder.AppendLine().Append(problem.ToString());
         return builder.ToString();
     }
 
@@ -160,15 +160,15 @@ internal static class ModListIndicatorUpdater
         if (hasErrorLog)
         {
             string errorLogPath = ConfigManager.GetErrorLogPath() ?? "errorlog.txt";
-            builder.Append($"Duplicate raw definitions ({errorLogPath}):");
+            _ = builder.Append($"Duplicate raw definitions ({errorLogPath}):");
         }
         else if (hasCache)
         {
-            string cachePath = ModRawDependencyCacheStore.CachePath ?? "mod_raw_dependency_cache.json";
-            builder.Append($"Potential duplicate raw definitions ({cachePath}):");
+            string cachePath = ModRawDependencyCacheStore.trimmedCachePath ?? "mod_raw_dependency_cache.json";
+            _ = builder.Append($"Potential duplicate raw definitions ({cachePath}):");
         }
 
-        builder.AppendLine().AppendLine();
+        _ = builder.AppendLine().AppendLine();
 
         if (manager != null)
         {
@@ -182,7 +182,7 @@ internal static class ModListIndicatorUpdater
 
             if (offendingModIds.Count > 0)
             {
-                builder.Append("Offending mods:");
+                _ = builder.Append("Offending mods:");
                 foreach (string id in offendingModIds)
                 {
                     string name;
@@ -194,14 +194,14 @@ internal static class ModListIndicatorUpdater
                     {
                         name = id;
                     }
-                    builder.AppendLine().Append("- ").Append(name);
+                    _ = builder.AppendLine().Append("- ").Append(name);
                 }
-                builder.AppendLine();
+                _ = builder.AppendLine();
             }
         }
 
         foreach (string entry in duplicates)
-            builder.AppendLine().Append(entry);
+            _ = builder.AppendLine().Append(entry);
         return builder.ToString();
     }
 
@@ -226,14 +226,14 @@ internal static class ModListIndicatorUpdater
         if (ids.Count == 0)
             return;
 
-        builder.AppendLine().Append(title).Append(':');
+        _ = builder.AppendLine().Append(title).Append(':');
         foreach (string id in ids
             .OrderBy(value => byId.TryGetValue(value, out ModRefViewModel? vm) ? vm.DisplayName : value, StringComparer.OrdinalIgnoreCase))
         {
             string label = byId.TryGetValue(id, out ModRefViewModel? vm)
                 ? $"{vm.DisplayName} ({id})"
                 : $"Missing Mod ({id})";
-            builder.AppendLine().Append("- ").Append(label);
+            _ = builder.AppendLine().Append("- ").Append(label);
         }
     }
 
@@ -243,16 +243,26 @@ internal static class ModListIndicatorUpdater
             return null;
 
         string problemText;
-        if (problemCount > 0)
-            problemText = $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues";
-        else
-            problemText = string.Empty;
+        switch (problemCount)
+        {
+            case > 0:
+                problemText = $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues";
+                break;
+            default:
+                problemText = string.Empty;
+                break;
+        }
 
         string duplicateText;
-        if (duplicateCount > 0)
-            duplicateText = $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws";
-        else
-            duplicateText = string.Empty;
+        switch (duplicateCount)
+        {
+            case > 0:
+                duplicateText = $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws";
+                break;
+            default:
+                duplicateText = string.Empty;
+                break;
+        }
 
         if (string.IsNullOrEmpty(problemText))
             return duplicateText;

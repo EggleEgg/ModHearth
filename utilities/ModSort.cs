@@ -14,9 +14,13 @@ namespace ModHearth
     {
         private static bool IsVanillaBaseMod(ModReference modref)
         {
-            if (modref == null)
-                return false;
-            return ModSourceClassifier.Classify(modref, GetModsPath(), GetVanillaModsPath()).IsVanilla;
+            switch (modref)
+            {
+                case null:
+                    return false;
+                default:
+                    return ModSourceClassifier.Classify(modref, GetModsPath(), GetVanillaModsPath()).IsVanilla;
+            }
         }
 
         private static bool ContainsModId(IEnumerable<string> values, string id)
@@ -126,9 +130,13 @@ namespace ModHearth
         private string? PickBestEffortOrder(ModReference a, ModReference b, Dictionary<string, int> originalIndex)
         {
             int comparison = CompareForBestEffortOrder(a, b, originalIndex);
-            if (comparison == 0)
-                return null;
-            return comparison < 0 ? a.ID : b.ID;
+            switch (comparison)
+            {
+                case 0:
+                    return null;
+                default:
+                    return comparison < 0 ? a.ID : b.ID;
+            }
         }
 
         public bool ModSortEnabledMods()
@@ -170,7 +178,7 @@ namespace ModHearth
             {
                 if (IsVanillaBaseMod(modref))
                 {
-                    enabledIds.Add(modref.ID);
+                    _ = enabledIds.Add(modref.ID);
                 }
             }
 
@@ -185,7 +193,7 @@ namespace ModHearth
                 if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
                     continue;
 
-                enabledIds.Add(requiredRef.ID);
+                _ = enabledIds.Add(requiredRef.ID);
             }
 
             foreach (ModSortRule rule in communitySortRulesSnapshot)
@@ -199,7 +207,7 @@ namespace ModHearth
                 if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
                     continue;
 
-                enabledIds.Add(requiredRef.ID);
+                _ = enabledIds.Add(requiredRef.ID);
             }
 
             Queue<ModReference> queue = new Queue<ModReference>();
@@ -230,7 +238,7 @@ namespace ModHearth
                         continue;
                     if (idMap.TryGetValue(depId, out ModReference? depRef) && depRef != null)
                     {
-                        enabledIds.Add(depRef.ID);
+                        _ = enabledIds.Add(depRef.ID);
                         queue.Enqueue(depRef);
                     }
                 }
@@ -253,7 +261,7 @@ namespace ModHearth
             // Used as: the final "everything failed" fallback, the tie-break for Kahn's algorithm's frontier selection, and the signal
             // best-effort edges are derived from.
             List<ModReference> baseOrder = allEnabled
-                .OrderBy(m => GetModSortGroup(m))
+                .OrderBy(GetModSortGroup)
                 .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
                 .ThenBy(m => m.name ?? m.ID)
                 .ToList();
@@ -284,7 +292,7 @@ namespace ModHearth
                     string targetId = target?.Trim() ?? string.Empty;
                     if (!enabledIds.Contains(targetId))
                         continue;
-                    TryAddEdge(edges, indegree, ownerId, targetId);
+                    _ = TryAddEdge(edges, indegree, ownerId, targetId);
                 }
 
                 foreach (string target in kvp.Value.AfterIds)
@@ -292,7 +300,7 @@ namespace ModHearth
                     string targetId = target?.Trim() ?? string.Empty;
                     if (!enabledIds.Contains(targetId))
                         continue;
-                    TryAddEdge(edges, indegree, targetId, ownerId);
+                    _ = TryAddEdge(edges, indegree, targetId, ownerId);
                 }
 
                 foreach (string target in kvp.Value.RequiredIds)
@@ -300,7 +308,7 @@ namespace ModHearth
                     string targetId = target?.Trim() ?? string.Empty;
                     if (!enabledIds.Contains(targetId))
                         continue;
-                    TryAddEdge(edges, indegree, targetId, ownerId);
+                    _ = TryAddEdge(edges, indegree, targetId, ownerId);
                 }
             }
 
@@ -319,7 +327,7 @@ namespace ModHearth
                 if (!enabledIds.Contains(beforeId) || !enabledIds.Contains(afterId))
                     continue;
 
-                TryAddEdge(edges, indegree, beforeId, afterId);
+                _ = TryAddEdge(edges, indegree, beforeId, afterId);
             }
 
             // --- Tier 1.5: community sort rules ---
@@ -337,7 +345,7 @@ namespace ModHearth
                 if (!enabledIds.Contains(beforeId) || !enabledIds.Contains(afterId))
                     continue;
 
-                TryAddEdge(edges, indegree, beforeId, afterId);
+                _ = TryAddEdge(edges, indegree, beforeId, afterId);
             }
 
             // --- Tier 2: declared dependencies (info.txt require_before_me / require_after_me / require_ids) ---
@@ -348,21 +356,21 @@ namespace ModHearth
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
                         continue;
-                    TryAddEdge(edges, indegree, depId, modref.ID);
+                    _ = TryAddEdge(edges, indegree, depId, modref.ID);
                 }
                 foreach (string dep in modref.require_after_me)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
                         continue;
-                    TryAddEdge(edges, indegree, modref.ID, depId);
+                    _ = TryAddEdge(edges, indegree, modref.ID, depId);
                 }
                 foreach (string dep in modref.require_ids)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
                         continue;
-                    TryAddEdge(edges, indegree, depId, modref.ID);
+                    _ = TryAddEdge(edges, indegree, depId, modref.ID);
                 }
             }
 
@@ -402,7 +410,7 @@ namespace ModHearth
                         if (HasExplicitOrder(modRef, vanillaRef) || HasExplicitOrder(vanillaRef, modRef))
                             continue;
 
-                        TryAddEdge(edges, indegree, vanillaId, modId);
+                        _ = TryAddEdge(edges, indegree, vanillaId, modId);
                     }
                 }
             }
@@ -439,7 +447,7 @@ namespace ModHearth
 
             List<string> enabledIdsList = enabledIds.ToList();
 
-            Parallel.ForEach(enabledIdsList, cutterId =>
+            _ = Parallel.ForEach(enabledIdsList, cutterId =>
             {
                 if (!idMap.TryGetValue(cutterId, out ModReference? cutterRef) || cutterRef == null)
                     return;
@@ -473,19 +481,19 @@ namespace ModHearth
                                 if (winnerId != null)
                                 {
                                     string loserId = string.Equals(winnerId, cutterId, StringComparison.OrdinalIgnoreCase) ? selectorId : cutterId;
-                                    TryAddEdge(edges, indegree, winnerId, loserId, syncRoot);
+                                    _ = TryAddEdge(edges, indegree, winnerId, loserId, syncRoot);
                                 }
                                 continue;
                             }
 
-                            TryAddEdge(edges, indegree, cutterId, selectorId, syncRoot);
+                            _ = TryAddEdge(edges, indegree, cutterId, selectorId, syncRoot);
                         }
                     }
                 }
             });
 
             // COPY_TAGS_FROM
-            Parallel.ForEach(enabledIdsList, copierId =>
+            _ = Parallel.ForEach(enabledIdsList, copierId =>
             {
                 if (!idMap.TryGetValue(copierId, out ModReference? copierRef) || copierRef == null)
                     return;
@@ -506,7 +514,7 @@ namespace ModHearth
                             if (HasExplicitOrder(copierRef, definerRef) || HasExplicitOrder(definerRef, copierRef))
                                 continue;
 
-                            TryAddEdge(edges, indegree, definerId, copierId, syncRoot);
+                            _ = TryAddEdge(edges, indegree, definerId, copierId, syncRoot);
                         }
                     }
                 }
@@ -548,7 +556,7 @@ namespace ModHearth
                         if (HasExplicitOrder(cutterRef, baseRef) || HasExplicitOrder(baseRef, cutterRef))
                             continue;
 
-                        TryAddEdge(edges, indegree, baseId, cutterId);
+                        _ = TryAddEdge(edges, indegree, baseId, cutterId);
                     }
                 }
             }
@@ -575,14 +583,14 @@ namespace ModHearth
                 if (anyCutRelationship)
                     continue;
 
-                if (kvp.Value.Count(id => activeModIds.Contains(id)) > 1)
+                if (kvp.Value.Count(activeModIds.Contains) > 1)
                     conflictingKeys.Add(kvp.Key);
 
                 List<ModReference> definers = kvp.Value
                     .Select(id => idMap.TryGetValue(id, out ModReference? m) ? m : null)
                     .Where(m => m != null)
                     .Cast<ModReference>()
-                    .OrderBy(m => GetModSortGroup(m))
+                    .OrderBy(GetModSortGroup)
                     .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
                     .ThenBy(m => m.name ?? m.ID, StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -591,7 +599,7 @@ namespace ModHearth
                 {
                     if (HasExplicitOrder(definers[i], definers[i + 1]) || HasExplicitOrder(definers[i + 1], definers[i]))
                         continue;
-                    TryAddEdge(edges, indegree, definers[i].ID, definers[i + 1].ID);
+                    _ = TryAddEdge(edges, indegree, definers[i].ID, definers[i + 1].ID);
                 }
             }
 
@@ -610,7 +618,7 @@ namespace ModHearth
             while (available.Count > 0)
             {
                 string next = available.OrderBy(id => baseIndex.TryGetValue(id, out int idx) ? idx : int.MaxValue).First();
-                available.Remove(next);
+                _ = available.Remove(next);
                 sortedIds.Add(next);
                 foreach (string dest in edges[next])
                 {

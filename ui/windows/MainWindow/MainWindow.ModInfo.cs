@@ -130,13 +130,14 @@ public partial class MainWindow
     // SvgImage (unlike Bitmap) doesn't implement IDisposable
     private static void DisposePreviewImage(IImage? image)
     {
-        if (image is SvgImage svgImage)
+        switch (image)
         {
-            svgImage.Source?.Dispose();
-            return;
+            case SvgImage svgImage:
+                svgImage.Source?.Dispose();
+                return;
+            case IDisposable disposable:
+                disposable.Dispose();
+                break;
         }
-
-        if (image is IDisposable disposable)
-            disposable.Dispose();
     }
 }

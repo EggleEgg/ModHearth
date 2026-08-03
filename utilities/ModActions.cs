@@ -40,7 +40,7 @@ namespace ModHearth
             }
             finally
             {
-                Interlocked.Exchange(ref workshopAuditInProgress, 0);
+                _ = Interlocked.Exchange(ref workshopAuditInProgress, 0);
             }
         }
 
@@ -81,7 +81,7 @@ namespace ModHearth
                 string key = modref.DFHackCompatibleString();
                 IEnumerable<ModReference> allVersions = duplicateModRefs.TryGetValue(key, out var list)
                     ? (IEnumerable<ModReference>)list
-                    : new[] { modref };
+                    : [modref];
 
                 foreach (ModReference version in allVersions)
                 {
@@ -98,7 +98,7 @@ namespace ModHearth
 
         public bool UnsubscribeSteamMod(ModReference modref, out string message)
         {
-            List<string> failures = UnsubscribeSteamMods(new[] { modref });
+            List<string> failures = UnsubscribeSteamMods([modref]);
             if (failures.Count == 0)
             {
                 message = "Unsubscribe request sent to Steam.";
@@ -112,7 +112,7 @@ namespace ModHearth
 
         public bool RedownloadSteamMod(ModReference modref, out string message)
         {
-            List<string> failures = RedownloadSteamMods(new[] { modref });
+            List<string> failures = RedownloadSteamMods([modref]);
             if (failures.Count == 0)
             {
                 message = "Redownload request sent to Steam.";
@@ -172,7 +172,7 @@ namespace ModHearth
             ConcurrentBag<string> failureBag = new ConcurrentBag<string>();
             ConcurrentBag<ulong> successBag = new ConcurrentBag<ulong>();
 
-            Parallel.ForEach(steamItemIds, new ParallelOptions
+            _ = Parallel.ForEach(steamItemIds, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, steamItemId =>
@@ -209,7 +209,7 @@ namespace ModHearth
                             {
                                 lock (installedCacheGate)
                                 {
-                                    installedCacheModIds?.Remove(modrefToDelete.ID);
+                                    _ = (installedCacheModIds?.Remove(modrefToDelete.ID));
                                 }
                             }
                         }
@@ -254,7 +254,7 @@ namespace ModHearth
             if (failures.Count == 0)
             {
                 // Reload mod manager if all unsubscriptions and deletions were successful
-                TryRequestModManagerReload(out _, out _);
+                _ = TryRequestModManagerReload(out _, out _);
                 TriggerUIReload();
             }
 
@@ -323,21 +323,21 @@ namespace ModHearth
             if (workshopIds.Count > 0)
             {
                 // Unsubscribe all in parallel
-                SteamWorkshopService.UnsubscribeMany(workshopIds);
+                _ = SteamWorkshopService.UnsubscribeMany(workshopIds);
                 foreach (string steamItemId in steamItemIds)
                 {
                     SteamConnectionLogger.LogInfo($"Unsubscribed workshop item {steamItemId} (resubscribe stage).");
                     lock (installedCacheGate)
                     {
                         // Since we are unsubscribing, it's effectively deleted from the installed mods for now.
-                        installedCacheModIds?.Remove(steamItemId);
+                        _ = (installedCacheModIds?.Remove(steamItemId));
                     }
                 }
 
                 Thread.Sleep(SteamResubscribeUnsubscribeWait);
 
                 // Subscribe all in parallel
-                SteamWorkshopService.SubscribeMany(workshopIds);
+                _ = SteamWorkshopService.SubscribeMany(workshopIds);
                 foreach (string steamItemId in steamItemIds)
                 {
                     SteamConnectionLogger.LogInfo($"Subscribed to workshop item {steamItemId} (resubscribe stage).");
@@ -346,7 +346,7 @@ namespace ModHearth
                 Thread.Sleep(SteamResubscribeSubscribeWait);
 
                 // Download all in parallel
-                SteamWorkshopService.DownloadMany(workshopIds);
+                _ = SteamWorkshopService.DownloadMany(workshopIds);
                 foreach (string steamItemId in steamItemIds)
                 {
                     SteamConnectionLogger.LogInfo($"Requested Steam download/validation for workshop item {steamItemId}.");
@@ -365,7 +365,7 @@ namespace ModHearth
                 }
 
                 // Reload mod manager if all redownloads were successful
-                TryRequestModManagerReload(out _, out _);
+                _ = TryRequestModManagerReload(out _, out _);
                 TriggerUIReload();
             }
 

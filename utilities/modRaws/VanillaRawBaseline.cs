@@ -47,7 +47,7 @@ public sealed class VanillaRawBaseline
             List<string> modDirs = Directory.EnumerateDirectories(vanillaModsPath).ToList();
             ConcurrentBag<ObjectKey> keys = new();
 
-            Parallel.ForEach(modDirs, new ParallelOptions
+            _ = Parallel.ForEach(modDirs, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, modDir =>

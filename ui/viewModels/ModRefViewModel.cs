@@ -63,7 +63,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 
     private static void CleanupInstancesLocked()
     {
-        allInstances.RemoveAll(weak => !weak.TryGetTarget(out _));
+        _ = allInstances.RemoveAll(weak => !weak.TryGetTarget(out _));
     }
 
     public static void RefreshAllStyles()
@@ -513,10 +513,10 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
                 return null;
 
             StringBuilder sb = new StringBuilder("Custom Sort Rules");
-            if (BeforeCount > 0) sb.AppendLine().Append($"• Before: {BeforeCount}");
-            if (AfterCount > 0) sb.AppendLine().Append($"• After: {AfterCount}");
-            if (RequiredCount > 0) sb.AppendLine().Append($"• Required: {RequiredCount}");
-            if (IncompatibleCount > 0) sb.AppendLine().Append($"• Incompatible: {IncompatibleCount}");
+            if (BeforeCount > 0) _ = sb.AppendLine().Append($"• Before: {BeforeCount}");
+            if (AfterCount > 0) _ = sb.AppendLine().Append($"• After: {AfterCount}");
+            if (RequiredCount > 0) _ = sb.AppendLine().Append($"• Required: {RequiredCount}");
+            if (IncompatibleCount > 0) _ = sb.AppendLine().Append($"• Incompatible: {IncompatibleCount}");
             return sb.ToString();
         }
     }
@@ -623,33 +623,40 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
         if (string.IsNullOrWhiteSpace(filter))
             return true;
 
-        if (mode == SearchFilterMode.Regex)
+        switch (mode)
         {
-            try
-            {
-                // Treat entire mod info as target for regex to be most flexible
-                string fullTarget = $"{modref.name} {modref.ID} {modref.steamID} {modref.description}";
-                return Regex.IsMatch(fullTarget, filter, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-            }
-            catch
-            {
-                return false;
-            }
-        }
+            case SearchFilterMode.Regex:
+                {
+                    try
+                    {
+                        // Treat entire mod info as target for regex to be most flexible
+                        string fullTarget = $"{modref.name} {modref.ID} {modref.steamID} {modref.description}";
+                        return Regex.IsMatch(fullTarget, filter, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
 
-        if (mode == SearchFilterMode.Color)
-        {
-            // Filter is a comma-separated string of selected ModColor names
-            // If we're here, filter is not null or whitespace (checked at top)
-            var selectedColorNames = filter.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim())
-                .ToList();
+            case SearchFilterMode.Color:
+                {
+                    // Filter is a comma-separated string of selected ModColor names
+                    // If we're here, filter is not null or whitespace (checked at top)
+                    var selectedColorNames = filter.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim())
+                        .ToList();
 
-            if (selectedColorNames.Count == 0)
-                return true;
+                    switch (selectedColorNames.Count)
+                    {
+                        case 0:
+                            return true;
+                        default:
+                            return selectedColorNames.Any(name =>
+                                string.Equals(name, modref.AssignedColor.ToString(), StringComparison.OrdinalIgnoreCase));
+                    }
+                }
 
-            return selectedColorNames.Any(name =>
-                string.Equals(name, modref.AssignedColor.ToString(), StringComparison.OrdinalIgnoreCase));
         }
 
         string? candidate = mode switch

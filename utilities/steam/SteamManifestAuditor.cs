@@ -17,7 +17,7 @@ namespace ModHearth.Utilities
             {
                 foreach (ulong id in workshopIds)
                 {
-                    recentlyUnsubscribedIds.Add(id);
+                    _ = recentlyUnsubscribedIds.Add(id);
                 }
             }
         }
@@ -55,10 +55,15 @@ namespace ModHearth.Utilities
 
             int wakeUpCalls = SteamWorkshopService.DownloadMany(missingItemIds);
 
-            if (wakeUpCalls > 0)
-                SteamConnectionLogger.Log($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
-            else
-                SteamConnectionLogger.LogError("Manifest audit completed. Failed to send any wake-up calls for missing items.");
+            switch (wakeUpCalls)
+            {
+                case > 0:
+                    SteamConnectionLogger.Log($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
+                    break;
+                default:
+                    SteamConnectionLogger.LogError("Manifest audit completed. Failed to send any wake-up calls for missing items.");
+                    break;
+            }
         }
 
         private static void CollectMissingItems(string acfPath, List<ulong> missingItemIds)

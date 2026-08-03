@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using ModHearth.Utilities.Logging;
+using System.Linq;
 
 namespace ModHearth.UI;
 
@@ -35,7 +36,7 @@ public partial class MainWindow
 
         leftModlist.SelectedItems?.Clear();
         rightModlist.SelectedItems?.Clear();
-        list.SelectedItems.Add(vm);
+        _ = list.SelectedItems.Add(vm);
         modListController.UpdateSelectionState(leftModlist);
         modListController.UpdateSelectionState(rightModlist);
         list.ScrollIntoView(vm);
@@ -51,10 +52,13 @@ public partial class MainWindow
             return new ModSelectionSnapshot(false, rightTokens, currentSelectedModId, previousSelectedModId);
 
         List<ModSelectionToken> leftTokens = MainWindowSelectionState.CaptureSelectionTokens(leftModlist);
-        if (leftTokens.Count > 0)
-            return new ModSelectionSnapshot(true, leftTokens, currentSelectedModId, previousSelectedModId);
-
-        return new ModSelectionSnapshot(null, new List<ModSelectionToken>(), currentSelectedModId, previousSelectedModId);
+        switch (leftTokens.Count)
+        {
+            case > 0:
+                return new ModSelectionSnapshot(true, leftTokens, currentSelectedModId, previousSelectedModId);
+            default:
+                return new ModSelectionSnapshot(null, new List<ModSelectionToken>(), currentSelectedModId, previousSelectedModId);
+        }
     }
 
     private SearchFilterStateSnapshot CaptureSearchFilterStateSnapshot()
@@ -142,11 +146,10 @@ public partial class MainWindow
 
         leftModlist.SelectedItems?.Clear();
         rightModlist.SelectedItems?.Clear();
-        targetList.SelectedItems?.Add(primary);
-        foreach (ModRefViewModel vm in restored)
+        _ = (targetList.SelectedItems?.Add(primary));
+        foreach (var vm in restored.Where(vm => !ReferenceEquals(vm, primary)))
         {
-            if (!ReferenceEquals(vm, primary))
-                targetList.SelectedItems?.Add(vm);
+            _ = (targetList.SelectedItems?.Add(vm));
         }
 
         modListController.UpdateSelectionState(leftModlist);

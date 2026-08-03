@@ -24,13 +24,15 @@ namespace ModHearth
         private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamShadowCopyFolderNameRegex = new(@"^(?<id>\d+)(?:\s*\(\d+\))?$", RegexOptions.Compiled);
         public const string DwarfFortressSteamAppId = "975370";
-
+        private const string Message = "Panel data";
         private static List<string>? _cachedSteamLibraryRoots;
         private static readonly object _steamLibraryRootsLock = new object();
         private static List<string>? _cachedSteamAppsRoots;
         private static readonly object _steamAppsRootsLock = new object();
         private static List<string>? _cachedWorkshopContentPaths;
         private static readonly object _workshopContentPathsLock = new object();
+        private static List<string>? _cachedEffectiveModRoots;
+        private static readonly object _effectiveModRootsLock = new object();
         private static void LogAdvancedSteam(string message) => SteamConnectionLogger.LogInfo(message);
         private static string DFHackExeName =>
             OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
@@ -195,7 +197,7 @@ namespace ModHearth
             Config.ModDataPanelProportion = proportion;
             Config.ModDataPanelOrientation = orientation;
             Config.ModDataPanelFirst = first;
-            SaveConfigFile("Panel data");
+            SaveConfigFile(Message);
         }
 
         public static double GetModDescriptionPanelProportion() => Config.ModDescriptionPanelProportion;
@@ -203,7 +205,7 @@ namespace ModHearth
         public static void SetModDescriptionPanelProportion(double proportion)
         {
             Config.ModDescriptionPanelProportion = proportion;
-            SaveConfigFile("Panel data");
+            SaveConfigFile(Message);
         }
 
         public static double GetModInfoPanelProportion() => Config.ModInfoPanelProportion;
@@ -211,7 +213,7 @@ namespace ModHearth
         public static void SetModInfoPanelProportion(double proportion)
         {
             Config.ModInfoPanelProportion = proportion;
-            SaveConfigFile("Panel data");
+            SaveConfigFile(Message);
         }
 
         public static double GetModPreviewPanelProportion() => Config.ModPreviewPanelProportion;
@@ -225,7 +227,7 @@ namespace ModHearth
             Config.ModPreviewPanelProportion = proportion;
             Config.ModPreviewPanelOrientation = orientation;
             Config.ModPreviewPanelFirst = first;
-            SaveConfigFile("Panel data");
+            SaveConfigFile(Message);
         }
 
         public static void SetModInfoDockLayout(
@@ -246,7 +248,7 @@ namespace ModHearth
             Config.ModPreviewPanelProportion = previewProportion;
             Config.ModPreviewPanelOrientation = previewOrientation;
             Config.ModPreviewPanelFirst = previewFirst;
-            SaveConfigFile("Panel data");
+            SaveConfigFile(Message);
         }
 
         public static bool IsAutoSaveEnabled() => Config.IsAutoSaveEnabled;
@@ -532,10 +534,10 @@ namespace ModHearth
                     continue;
 
                 string[] candidates =
-                {
+                [
             Path.Combine(libraryRoot, steamApps, "common", "DFHack", "hack"),
             Path.Combine(libraryRoot, steamApps, "common", "DFHack"),
-        };
+        ];
 
                 foreach (string candidate in candidates)
                 {
@@ -568,10 +570,13 @@ namespace ModHearth
                 return fromDfHackSub;
 
             // 4. Steam library auto-detection.
-            if (TryFindExeInDirectory(TryFindSteamDFHackFolder()) is { } fromSteam)
-                return fromSteam;
-
-            return string.Empty;
+            switch (TryFindExeInDirectory(TryFindSteamDFHackFolder()))
+            {
+                case { } fromSteam:
+                    return fromSteam;
+                default:
+                    return string.Empty;
+            }
         }
 
         private static string? ResolveDwarfFortressFolderCandidate(string candidate)
@@ -629,7 +634,7 @@ namespace ModHearth
                         continue;
 
                     if (Directory.Exists(Path.Combine(normalizedRoot, steamApps)))
-                        libraries.Add(normalizedRoot);
+                        _ = libraries.Add(normalizedRoot);
 
                     foreach (string library in ReadSteamLibraryFolders(normalizedRoot))
                     {
@@ -641,7 +646,7 @@ namespace ModHearth
                             continue;
 
                         if (Directory.Exists(Path.Combine(normalizedLibrary, steamApps)))
-                            libraries.Add(normalizedLibrary);
+                            _ = libraries.Add(normalizedLibrary);
                     }
                 }
 
@@ -686,19 +691,19 @@ namespace ModHearth
 
             string? registryPath = TryGetWindowsSteamPathFromRegistry();
             if (!string.IsNullOrWhiteSpace(registryPath))
-                candidates.Add(registryPath);
+                _ = candidates.Add(registryPath);
 
             string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
             if (!string.IsNullOrWhiteSpace(programFilesX86))
-                candidates.Add(Path.Combine(programFilesX86, steamString));
+                _ = candidates.Add(Path.Combine(programFilesX86, steamString));
 
             string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
             if (!string.IsNullOrWhiteSpace(programFiles))
-                candidates.Add(Path.Combine(programFiles, steamString));
+                _ = candidates.Add(Path.Combine(programFiles, steamString));
 
             string? steamPathEnv = Environment.GetEnvironmentVariable("STEAM_PATH");
             if (!string.IsNullOrWhiteSpace(steamPathEnv))
-                candidates.Add(steamPathEnv);
+                _ = candidates.Add(steamPathEnv);
 
             return candidates;
         }
@@ -748,7 +753,7 @@ namespace ModHearth
 
                     string normalized = NormalizeSteamPath(parsed);
                     if (!string.IsNullOrWhiteSpace(normalized))
-                        libraries.Add(normalized);
+                        _ = libraries.Add(normalized);
                 }
             }
             catch (Exception ex)
@@ -889,7 +894,7 @@ namespace ModHearth
 
             string remainder = fullPath.Substring(root.Length);
             string[] segments = remainder.Split(
-                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                 StringSplitOptions.RemoveEmptyEntries);
             if (segments.Length == 0)
             {
@@ -973,7 +978,7 @@ namespace ModHearth
 
             List<string> list = paths
                 .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Select(path => NormalizeFileSystemPath(path))
+                .Select(NormalizeFileSystemPath)
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
                 .ToList();
@@ -1107,7 +1112,7 @@ namespace ModHearth
                     if (!Directory.Exists(steamAppsRoot))
                         continue;
 
-                    steamAppsRoots.Add(steamAppsRoot);
+                    _ = steamAppsRoots.Add(steamAppsRoot);
                 }
 
                 LogAdvancedSteam($"SteamApps roots ({steamAppsRoots.Count}): {FormatPathListForLog(steamAppsRoots)}");
@@ -1138,7 +1143,7 @@ namespace ModHearth
 
                     if (Directory.Exists(candidate))
                     {
-                        paths.Add(candidate);
+                        _ = paths.Add(candidate);
                         LogAdvancedSteam($"Workshop content path found: {candidate}");
                     }
                     else
@@ -1169,22 +1174,26 @@ namespace ModHearth
 
                 string primaryCandidate = Path.Combine(steamAppsRoot, $"appworkshop_{DwarfFortressSteamAppId}.acf");
                 if (File.Exists(primaryCandidate))
-                    paths.Add(NormalizeFileSystemPath(primaryCandidate));
+                    _ = paths.Add(NormalizeFileSystemPath(primaryCandidate));
 
                 string workshopCandidate = Path.Combine(steamAppsRoot, "workshop", $"appworkshop_{DwarfFortressSteamAppId}.acf");
                 if (File.Exists(workshopCandidate))
-                    paths.Add(NormalizeFileSystemPath(workshopCandidate));
+                    _ = paths.Add(NormalizeFileSystemPath(workshopCandidate));
             }
 
-            if (paths.Count == 0)
+            switch (paths.Count)
             {
-                SteamConnectionLogger.Log("Steam workshop scan completed: no workshop ACF files found.");
-            }
-            else
-            {
-                SteamConnectionLogger.Log($"Steam workshop scan completed: found {paths.Count} workshop ACF file(s).");
-                foreach (string path in paths.OrderBy(path => path, comparer))
-                    SteamConnectionLogger.Log($"Steam workshop ACF: {path}");
+                case 0:
+                    SteamConnectionLogger.Log("Steam workshop scan completed: no workshop ACF files found.");
+                    break;
+                default:
+                    {
+                        SteamConnectionLogger.Log($"Steam workshop scan completed: found {paths.Count} workshop ACF file(s).");
+                        foreach (string path in paths.OrderBy(path => path, comparer))
+                            SteamConnectionLogger.Log($"Steam workshop ACF: {path}");
+                        break;
+                    }
+
             }
 
             LogAdvancedSteam($"Workshop ACF paths resolved ({paths.Count}): {FormatPathListForLog(paths)}");
@@ -1312,11 +1321,11 @@ namespace ModHearth
 
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             if (!string.IsNullOrWhiteSpace(appData))
-                bases.Add(appData);
+                _ = bases.Add(appData);
 
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (!string.IsNullOrWhiteSpace(localAppData))
-                bases.Add(localAppData);
+                _ = bases.Add(localAppData);
 
             return bases;
         }
@@ -1374,24 +1383,39 @@ namespace ModHearth
 
         public static IEnumerable<string> EnumerateModRoots()
         {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> seen = new HashSet<string>(comparer);
-            List<string> resolvedRoots = new List<string>();
-
-            IEnumerable<string> configuredRoots = EnumerateConfiguredModRoots();
-            foreach (string root in configuredRoots)
-            {
-                string normalizedRoot = NormalizeFileSystemPath(root);
-                if (string.IsNullOrWhiteSpace(normalizedRoot))
-                    continue;
-
-                if (seen.Add(normalizedRoot))
-                    resolvedRoots.Add(normalizedRoot);
-            }
-
-            LogAdvancedSteam($"Effective mod roots ({resolvedRoots.Count}): {FormatPathListForLog(resolvedRoots)}");
-            foreach (string root in resolvedRoots)
+            foreach (string root in GetEffectiveModRoots())
                 yield return root;
+        }
+
+        // Thread safe
+        public static List<string> GetEffectiveModRoots()
+        {
+            lock (_effectiveModRootsLock)
+            {
+                if (_cachedEffectiveModRoots != null)
+                {
+                    return _cachedEffectiveModRoots;
+                }
+
+                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                HashSet<string> seen = new HashSet<string>(comparer);
+                List<string> resolvedRoots = new List<string>();
+
+                IEnumerable<string> configuredRoots = EnumerateConfiguredModRoots();
+                foreach (string root in configuredRoots)
+                {
+                    string normalizedRoot = NormalizeFileSystemPath(root);
+                    if (string.IsNullOrWhiteSpace(normalizedRoot))
+                        continue;
+
+                    if (seen.Add(normalizedRoot))
+                        resolvedRoots.Add(normalizedRoot);
+                }
+
+                LogAdvancedSteam($"Effective mod roots ({resolvedRoots.Count}): {FormatPathListForLog(resolvedRoots)}");
+                _cachedEffectiveModRoots = resolvedRoots;
+                return _cachedEffectiveModRoots;
+            }
         }
 
         // IMPORTANT: order matters here. When the same mod (same id, same numeric_version) exists both as

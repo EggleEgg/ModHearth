@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,14 +83,14 @@ namespace ModHearth.UI
             {
                 new Avalonia.Platform.Storage.FilePickerFileType("SteamCMD Executable")
                 {
-                    Patterns = OperatingSystem.IsWindows() ? new[] { "steamcmd.exe" } : new[] { "steamcmd.sh", "steamcmd" }
+                    Patterns = OperatingSystem.IsWindows() ? new[] { "steamcmd.exe" } : ["steamcmd.sh", "steamcmd"]
                 }
             };
 
             string? path = await DialogService.PickFileAsync(this, "Select SteamCMD Executable", fileTypes);
             if (!string.IsNullOrEmpty(path))
             {
-                if (await _steamCmdService.ValidateAsync(path))
+                if (await _steamCmdService.ValidateAsync(path, CancellationToken.None))
                 {
                     ConfigManager.Config.SteamCmdPath = path;
                     ConfigManager.SaveConfigFile("SteamCmdPath selected");
@@ -103,6 +104,7 @@ namespace ModHearth.UI
             }
         }
 
+        [SuppressMessage("Performance", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses instance UI controls.")]
         private void ResetUI()
         {
             BtnInstall.IsEnabled = true;

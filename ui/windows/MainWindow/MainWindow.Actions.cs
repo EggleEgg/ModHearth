@@ -40,7 +40,7 @@ public partial class MainWindow
         await Task.CompletedTask;
     }
 
-    private void OpenModUpdateLog()
+    private async Task OpenModUpdateLog()
     {
         if (_updateLogDockManager?.IsOpen == true && _updateLogDockManager.IsDocked)
         {
@@ -49,7 +49,10 @@ public partial class MainWindow
         }
 
         _updateLogDockManager?.Open();
-        _ = _updateLogDockManager?.SharedControl?.LoadEntriesAsync();
+        if (_updateLogDockManager?.SharedControl != null)
+        {
+            await _updateLogDockManager.SharedControl.LoadEntriesAsync();
+        }
     }
 
     private IReadOnlyDictionary<DockSide, DockingTarget> CreateDockSideTargets()
@@ -213,7 +216,7 @@ public partial class MainWindow
             },
             control => new SortRulesWindow(
                 manager.GetModRelationshipRules(),
-                manager.modPool.Select(mod => manager.GetRefFromDFHMod(mod)).Where(m => m != null && !string.IsNullOrWhiteSpace(m.ID))!,
+                manager.modPool.Select(mod => manager.GetRefFromDFHMod(mod)).Where(m => m != null && !string.IsNullOrWhiteSpace(m.ID)),
                 ModHearthManager.GetModRelationshipRulesPath(),
                 rules =>
                 {
@@ -250,7 +253,7 @@ public partial class MainWindow
     }
 
 
-    private async void OpenWorkshopDownloader()
+    private async Task OpenWorkshopDownloaderAsync()
     {
         if (_workshopDockManager?.IsOpen == true && _workshopDockManager.IsDocked)
         {
@@ -268,7 +271,7 @@ public partial class MainWindow
     private async Task ModSortAsync()
     {
         await manager.EnsureModRawDependencyCacheAsync();
-        bool changed = await Task.Run(() => manager.ModSortEnabledMods());
+        bool changed = await Task.Run(manager.ModSortEnabledMods);
         if (changed)
             await SetAndMarkChangesAsync(true, skipSort: true);
         RefreshModlistPanels();
@@ -282,10 +285,19 @@ public partial class MainWindow
             return;
         }
 
-        (bool success, string message) = await manager.RunDwarfFortressAsync();
+        (bool success, bool isSteam, string message) = await ModHearthManager.RunDwarfFortressAsync();
 
         if (!success)
+        {
             await DialogService.ShowMessageAsync(this, message, "Launch Failed");
+        }
+        else
+        {
+            if (isSteam)
+                dfSteamLaunched = true;
+            else
+                dfLaunched = true;
+        }
     }
 
     private async Task ClearInstalledModsAsync()
@@ -399,7 +411,7 @@ public partial class MainWindow
         {
             string? exePath = Environment.ProcessPath;
             if (!string.IsNullOrWhiteSpace(exePath))
-                Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
+                _ = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
         }
         catch
         {

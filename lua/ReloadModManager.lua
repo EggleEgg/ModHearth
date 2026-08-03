@@ -126,6 +126,7 @@ while scr do
         dfhack.println("[ReloadManager] Reloading mod manager screen.")
         dfhack.screen.dismiss(scr)
         modman.ModmanageScreen {}:show()
+        print(json.encode({ success = true, action = "reloaded_screen" }))
         return
     end
     scr = scr.parent
@@ -139,9 +140,12 @@ local mod_screen = get_viewscreen and get_viewscreen() or nil
 if mod_screen and modlist_entry and modlist_entry.modlist then
     dfhack.println("[ReloadManager] Applying default modlist to mods screen.")
     local failures = apply_modlist_to_screen(mod_screen, modlist_entry.modlist, get_fields)
+    local success = (#failures == 0)
     if #failures > 0 then
         dfhack.println("[ReloadManager] Failed mods: " .. table.concat(failures, ", "))
-        for _, v in ipairs(failures) do
-        end
     end
+    print(json.encode({ success = success, action = "applied_modlist", failures = failures }))
+    return
 end
+
+print(json.encode({ success = false, action = "none" }))

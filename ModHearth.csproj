@@ -12,10 +12,13 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <DebugType>embedded</DebugType>
+
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
     <!-- Not worth the hassle -->
     <PublishTrimmed>false</PublishTrimmed>
     <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
@@ -112,7 +115,8 @@
     <ItemGroup>
       <ExtraArtifacts Include="$(OutputPath)*SkiaSharp*.pdb;$(OutputPath)*HarfBuzzSharp*.pdb" />
       <ExtraArtifacts Include="$(PublishDir)*SkiaSharp*.pdb;$(PublishDir)*HarfBuzzSharp*.pdb" />
-      <ExtraArtifacts Include="$(PublishDir)ModHearth.SteamWorker.runtimeconfig.json;$(PublishDir)ModHearth.SteamWorker.deps.json" />
+      <ExtraArtifacts
+        Include="$(PublishDir)ModHearth.SteamWorker.runtimeconfig.json;$(PublishDir)ModHearth.SteamWorker.deps.json" />
     </ItemGroup>
     <Delete Files="@(ExtraArtifacts)" />
   </Target>

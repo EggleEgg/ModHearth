@@ -46,7 +46,7 @@ internal static class ModContextMenuSupport
         if (selectedItems.Count == 0 || !selectedItems.Contains(contextItem))
         {
             selectedItems.Clear();
-            selectedItems.Add(contextItem);
+            _ = selectedItems.Add(contextItem);
         }
     }
 
@@ -64,13 +64,13 @@ internal static class ModContextMenuSupport
         {
             // The menu item might inherit DataContext from its parent context menu or placement target.
             // If the MenuItem itself doesn't have the T, we check if the MenuItem's parent ContextMenu has it.
-            if (menuItem.Parent is ContextMenu menu && menu.DataContext is T menuContext)
+            switch (menuItem.Parent)
             {
-                contextItem = menuContext;
-            }
-            else
-            {
-                return false;
+                case ContextMenu menu when menu.DataContext is T menuContext:
+                    contextItem = menuContext;
+                    break;
+                default:
+                    return false;
             }
         }
 
@@ -90,7 +90,7 @@ internal static class ModContextMenuSupport
         List<ModReference> selection = selectedMods?.Where(mod => mod != null).ToList()
             ?? new List<ModReference>();
         manager.SplitActionableMods(selection, out List<ModReference> localMods, out List<ModReference> steamMods);
-        manager.SplitActionableMods(new[] { contextMod }, out _, out List<ModReference> contextSteamMods);
+        manager.SplitActionableMods([contextMod], out _, out _);
 
         bool canOpenFolder = !string.IsNullOrWhiteSpace(contextMod.path) && Directory.Exists(contextMod.path);
         bool hasSteamPage = ModHearthManager.TryGetSteamWorkshopItemId(contextMod, out _);
@@ -111,24 +111,69 @@ internal static class ModContextMenuSupport
 
     public static void ApplyState(ContextMenu menu, ModContextMenuState state)
     {
+        string deleteText;
+        switch (state.LocalCount)
+        {
+            case > 1:
+                deleteText = $"Delete {state.LocalCount} local mods";
+                break;
+            default:
+                if (state.IsSteamLocal)
+                    deleteText = "Delete local mod copy";
+                else
+                    deleteText = "Delete local mod";
+
+                break;
+        }
+
+        string unsubscribeText;
+        switch (state.SteamCount)
+        {
+            case > 1:
+                unsubscribeText = $"Unsubscribe from {state.SteamCount} steam mods";
+                break;
+            default:
+                if (state.IsSteamLocal)
+                    unsubscribeText = "Unsubscribe from steam mod copy";
+                else
+                    unsubscribeText = "Unsubscribe from steam";
+
+                break;
+        }
+
+        string redownloadText;
+        switch (state.SteamCount)
+        {
+            case > 1:
+                redownloadText = $"Redownload {state.SteamCount} mods";
+                break;
+            default:
+                if (state.IsSteamLocal)
+                    redownloadText = "Redownload steam mod copy";
+                else
+                    redownloadText = "Redownload from steam";
+
+                break;
+        }
+
         SetMenuItem(
             menu,
             DeleteTag,
             state.HasLocalActions,
             state.HasLocalActions,
-            state.LocalCount > 1 ? $"Delete {state.LocalCount} local mods" : (state.IsSteamLocal ? "Delete local mod copy" : "Delete local mod"));
+            deleteText);
         SetMenuItem(
             menu,
             UnsubscribeTag,
             state.HasSteamActions,
             state.HasSteamActions,
-            state.SteamCount > 1 ? $"Unsubscribe from {state.SteamCount} steam mods" : (state.IsSteamLocal ? "Unsubscribe from steam mod copy" : "Unsubscribe from steam"));
+            unsubscribeText);
         SetMenuItem(
             menu,
             RedownloadTag,
             state.HasSteamActions,
             state.HasSteamActions,
-            state.SteamCount > 1 ? $"Redownload {state.SteamCount} mods" : (state.IsSteamLocal ? "Redownload steam mod copy" : "Redownload from steam"));
+            redownloadText);
         SetMenuItem(menu, OpenFolderTag, true, state.CanOpenFolder);
         SetMenuItem(menu, OpenSteamTag, state.HasSteamPage, state.HasSteamPage);
     }
@@ -360,9 +405,16 @@ internal static class ModContextMenuSupport
 
     public static async Task CopyModIdAsync(Window owner, ModReference modref)
     {
-        string? id = ConfigManager.GetCopySteamFileId()
-            ? (ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId) ? steamId : string.Empty)
-            : modref.ID;
+        string? id;
+        if (ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId))
+        {
+            id = ConfigManager.GetCopySteamFileId() ? steamId : modref.ID;
+        }
+        else
+        {
+            id = ConfigManager.GetCopySteamFileId() ? string.Empty : modref.ID;
+        }
+
 
         if (string.IsNullOrWhiteSpace(id))
         {
@@ -411,17 +463,22 @@ internal static class ModContextMenuSupport
         bool hasRelationships = vm.HasRelationships;
         foreach (object? sub in relationsRoot.Items)
         {
-            if (sub is MenuItem subMenuItem)
+            switch (sub)
             {
-                string subTag = subMenuItem.Tag?.ToString() ?? string.Empty;
-                if (string.Equals(subTag, "relation-clear-all", StringComparison.Ordinal))
-                {
-                    subMenuItem.IsVisible = hasRelationships;
-                }
-            }
-            else if (sub is Separator sep)
-            {
-                sep.IsVisible = hasRelationships;
+                case MenuItem subMenuItem:
+                    {
+                        string subTag = subMenuItem.Tag?.ToString() ?? string.Empty;
+                        if (string.Equals(subTag, "relation-clear-all", StringComparison.Ordinal))
+                        {
+                            subMenuItem.IsVisible = hasRelationships;
+                        }
+
+                        break;
+                    }
+
+                case Separator sep:
+                    sep.IsVisible = hasRelationships;
+                    break;
             }
         }
     }

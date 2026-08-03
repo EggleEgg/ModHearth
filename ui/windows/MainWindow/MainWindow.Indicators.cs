@@ -86,7 +86,7 @@ public partial class MainWindow
 
         vm.IsJumpHighlighted = true;
         rightModlist.SelectedItems?.Clear();
-        rightModlist.SelectedItems?.Add(vm);
+        _ = (rightModlist.SelectedItems?.Add(vm));
         rightModlist.ScrollIntoView(vm);
         ShowModInfo(vm.ModReference);
     }

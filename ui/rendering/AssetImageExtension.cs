@@ -91,9 +91,14 @@ internal static class ImageSourceLoader
         if (string.IsNullOrWhiteSpace(normalized))
             return GetMissingTextureImage();
 
-        string key = (tint.HasValue || opacity.HasValue)
-            ? $"{normalized}|{tint?.ToString()}|{(opacity.HasValue ? opacity.Value.ToString(CultureInfo.InvariantCulture) : "")}"
-            : normalized;
+        string key;
+        if (tint.HasValue || opacity.HasValue)
+        {
+            string opacityPart = opacity.HasValue ? opacity.Value.ToString(CultureInfo.InvariantCulture) : string.Empty;
+            key = $"{normalized}|{tint?.ToString()}|{opacityPart}";
+        }
+        else
+            key = normalized;
 
         // GetOrAdd is fast because creating Lazy is cheap.
         // The heavy loading inside Lazy only happens when .Value is accessed.
@@ -140,13 +145,17 @@ internal static class ImageSourceLoader
         if (val.StartsWith("rgb", StringComparison.Ordinal))
         {
             string cleaned = val.Replace("rgba(", "").Replace("rgb(", "").Replace(")", "").Trim();
-            string[] parts = cleaned.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = cleaned.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length >= 3 && parts[0] == "0" && parts[1] == "0" && parts[2] == "0")
             {
                 // If alpha channel is specified, ensure it's fully opaque
-                if (parts.Length == 4)
-                    return parts[3] is "1" or "1.0" or "100%" or "255";
-                return true;
+                switch (parts.Length)
+                {
+                    case 4:
+                        return parts[3] is "1" or "1.0" or "100%" or "255";
+                    default:
+                        return true;
+                }
             }
         }
 
@@ -387,7 +396,7 @@ internal static class ImageSourceLoader
             return pathOrUri;
 
         string queryAndFragment = string.Empty;
-        int queryIndex = pathOrUri.IndexOfAny(new[] { '?', '#' });
+        int queryIndex = pathOrUri.IndexOfAny(['?', '#']);
         string basePart = pathOrUri;
         if (queryIndex >= 0)
         {
@@ -396,10 +405,13 @@ internal static class ImageSourceLoader
         }
 
         int dotIndex = basePart.LastIndexOf('.');
-        if (dotIndex < 0)
-            return basePart + newExtension + queryAndFragment;
-
-        return basePart.Substring(0, dotIndex) + newExtension + queryAndFragment;
+        switch (dotIndex)
+        {
+            case < 0:
+                return basePart + newExtension + queryAndFragment;
+            default:
+                return basePart.Substring(0, dotIndex) + newExtension + queryAndFragment;
+        }
     }
 
     private static string EnsureSvgExtensionIfMissing(string value)
@@ -418,11 +430,14 @@ internal static class ImageSourceLoader
         if (string.IsNullOrWhiteSpace(value))
             return value;
 
-        int index = value.IndexOfAny(new[] { '?', '#' });
-        if (index < 0)
-            return value;
-
-        return value.Substring(0, index);
+        int index = value.IndexOfAny(['?', '#']);
+        switch (index)
+        {
+            case < 0:
+                return value;
+            default:
+                return value.Substring(0, index);
+        }
     }
 
     private static IImage? RenderSvgFile(string path)
@@ -443,9 +458,13 @@ internal static class ImageSourceLoader
         try
         {
             SvgSource? source = SvgSource.LoadFromStream(stream, null);
-            if (source == null)
-                return null;
-            return new SvgImage { Source = source };
+            switch (source)
+            {
+                case null:
+                    return null;
+                default:
+                    return new SvgImage { Source = source };
+            }
         }
         catch
         {
@@ -466,10 +485,15 @@ public sealed class TintedAssetConverter : IValueConverter
             return null;
 
         Color? tint = null;
-        if (value is ISolidColorBrush brush)
-            tint = brush.Color;
-        else if (value is Color color)
-            tint = color;
+        switch (value)
+        {
+            case ISolidColorBrush brush:
+                tint = brush.Color;
+                break;
+            case Color color:
+                tint = color;
+                break;
+        }
 
         return ImageSourceLoader.LoadFromAssetUri(assetName, tint);
     }

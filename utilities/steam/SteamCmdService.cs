@@ -12,6 +12,9 @@ namespace ModHearth.Utilities.Steam
 {
     public class SteamCmdService : ISteamCmdService
     {
+        private const string Steamcmd = "steamcmd";
+        private const string SteamcmdExe = "steamcmd.exe";
+        private const string SteamcmdSh = "steamcmd.sh";
         private static readonly HttpClient HttpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
 
         public string GetExecutablePath()
@@ -21,8 +24,8 @@ namespace ModHearth.Utilities.Steam
                 return found;
 
             return OperatingSystem.IsWindows()
-                ? Path.Combine(AppContext.BaseDirectory, "steamcmd", "steamcmd.exe")
-                : Path.Combine(AppContext.BaseDirectory, "steamcmd", "steamcmd.sh");
+                ? Path.Combine(AppContext.BaseDirectory, Steamcmd, SteamcmdExe)
+                : Path.Combine(AppContext.BaseDirectory, Steamcmd, SteamcmdSh);
         }
 
         public bool IsAvailable()
@@ -39,19 +42,16 @@ namespace ModHearth.Utilities.Steam
                 return Path.GetFullPath(configPath);
 
             // 2. Check local folder inside ModHearth root
-            string localDir = Path.Combine(AppContext.BaseDirectory, "steamcmd");
+            string localDir = Path.Combine(AppContext.BaseDirectory, Steamcmd);
             string localExe = OperatingSystem.IsWindows()
-                ? Path.Combine(localDir, "steamcmd.exe")
-                : Path.Combine(localDir, "steamcmd.sh");
+                ? Path.Combine(localDir, SteamcmdExe)
+                : Path.Combine(localDir, SteamcmdSh);
             if (File.Exists(localExe))
                 return Path.GetFullPath(localExe);
 
             // 3. On Linux, check system PATH
-            if (OperatingSystem.IsLinux())
-            {
-                if (TryFindInPath("steamcmd", out string systemPath))
-                    return systemPath;
-            }
+            if (OperatingSystem.IsLinux() && TryFindInPath(Steamcmd, out string systemPath))
+                return systemPath;
 
             return null;
         }
@@ -68,11 +68,11 @@ namespace ModHearth.Utilities.Steam
             string dir = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory;
             if (OperatingSystem.IsWindows())
             {
-                return File.Exists(Path.Combine(dir, "steamcmd.exe"));
+                return File.Exists(Path.Combine(dir, SteamcmdExe));
             }
             else
             {
-                return File.Exists(Path.Combine(dir, "steamcmd.sh")) || File.Exists(Path.Combine(dir, "steamcmd"));
+                return File.Exists(Path.Combine(dir, SteamcmdSh)) || File.Exists(Path.Combine(dir, Steamcmd));
             }
         }
 
@@ -81,7 +81,7 @@ namespace ModHearth.Utilities.Steam
             try
             {
                 progress.Report("Creating installation directory...");
-                Directory.CreateDirectory(installDir);
+                _ = Directory.CreateDirectory(installDir);
 
                 bool isWindows = OperatingSystem.IsWindows();
                 string archiveName = isWindows ? "steamcmd.zip" : "steamcmd_linux.tar.gz";
@@ -104,7 +104,7 @@ namespace ModHearth.Utilities.Steam
                         {
                             progress.Report($"Downloading SteamCMD (attempt {attempt}/{maxRetries})...");
                             using var response = await HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                            response.EnsureSuccessStatusCode();
+                            _ = response.EnsureSuccessStatusCode();
 
                             using var fs = new FileStream(archivePath, FileMode.Create, FileAccess.Write, FileShare.None);
                             await response.Content.CopyToAsync(fs, cancellationToken);
@@ -157,7 +157,7 @@ namespace ModHearth.Utilities.Steam
                         }
                     }
 
-                    string shPath = Path.Combine(installDir, "steamcmd.sh");
+                    string shPath = Path.Combine(installDir, SteamcmdSh);
                     if (File.Exists(shPath))
                     {
                         // Ensure executable
@@ -170,8 +170,8 @@ namespace ModHearth.Utilities.Steam
                 }
 
                 string exe = isWindows
-                    ? Path.Combine(installDir, "steamcmd.exe")
-                    : Path.Combine(installDir, "steamcmd.sh");
+                    ? Path.Combine(installDir, SteamcmdExe)
+                    : Path.Combine(installDir, SteamcmdSh);
 
                 if (!File.Exists(exe))
                 {
@@ -180,7 +180,7 @@ namespace ModHearth.Utilities.Steam
 
                 progress.Report("Running initial self-update and setup...");
                 // Launch once to allow SteamCMD to self-update and install required files
-                await ExecuteCommandInternalAsync(exe, "+quit", progress, cancellationToken);
+                _ = await ExecuteCommandInternalAsync(exe, "+quit", progress, cancellationToken);
 
                 progress.Report("Validating installation...");
                 bool isValid = await ValidateAsync(exe, cancellationToken);
@@ -232,7 +232,7 @@ namespace ModHearth.Utilities.Steam
             using var process = new Process { StartInfo = startInfo };
             try
             {
-                process.Start();
+                _ = process.Start();
             }
             catch (Exception ex)
             {

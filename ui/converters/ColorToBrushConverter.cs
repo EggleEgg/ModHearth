@@ -9,11 +9,13 @@ namespace ModHearth.UI
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (value is Color color)
+            switch (value)
             {
-                return BrushCache.GetBrush(color);
+                case Color color:
+                    return BrushCache.GetBrush(color);
+                default:
+                    return null;
             }
-            return null;
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

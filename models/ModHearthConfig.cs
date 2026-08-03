@@ -48,7 +48,7 @@ namespace ModHearth
         // Auto-reload interval for modlists in seconds. -1 means disabled by checkbox.
         public int AutoReloadIntervalSeconds { get; set; } = -1;
 
-        // Hide console logs on startup.
+        // Hide console logs on startup. This setting does nothing on Linux
         public bool showConsole { get; set; } = true;
 
         // Path to the DFHack folder (e.g., etc/steamapps/common/DFHack).

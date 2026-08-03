@@ -16,7 +16,7 @@ internal static class MainWindowModListBuilder
         // independent per mod. Computed into an indexed array and merged into modViewMap
         // sequentially (Dictionary writes aren't thread-safe even though the per-item work is).
         (string Key, ModRefViewModel Vm)?[] results = new (string, ModRefViewModel)?[modList.Count];
-        Parallel.For(0, modList.Count, new ParallelOptions
+        _ = Parallel.For(0, modList.Count, new ParallelOptions
         {
             MaxDegreeOfParallelism = Environment.ProcessorCount
         }, i =>
@@ -27,8 +27,10 @@ internal static class MainWindowModListBuilder
             results[i] = (key, CreateViewModel(modref, modsFolderPath, vanillaFolderPath));
         });
 
-        foreach ((string Key, ModRefViewModel Vm)? result in results)
+        for (int i = 0; i < results.Length; i++)
         {
+            (string Key, ModRefViewModel Vm)? result = results[i];
+
             if (result != null)
                 modViewMap[result.Value.Key] = result.Value.Vm;
         }

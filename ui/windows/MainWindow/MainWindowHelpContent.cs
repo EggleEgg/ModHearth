@@ -50,11 +50,11 @@ internal static class MainWindowHelpContent
     {
         string baseDir = AppContext.BaseDirectory;
         string[] candidates =
-        {
+        [
             Path.Combine(baseDir, "README.md"),
             Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "README.md")),
             Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "README.md"))
-        };
+        ];
 
         foreach (string candidate in candidates)
         {

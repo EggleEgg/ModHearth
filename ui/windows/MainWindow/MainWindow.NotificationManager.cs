@@ -165,7 +165,7 @@ public partial class MainWindow
         var container = this.FindControl<StackPanel>("notificationContainer");
         if (container != null)
         {
-            container.Children.Remove(border);
+            _ = container.Children.Remove(border);
         }
     }
 

@@ -23,12 +23,12 @@ public class AvaloniaAppFixture
         try
         {
             ConfigManager.AttemptLoadConfig(false);
-            try { ConfigManager.LoadStyle(false); } catch { /* Ignore missing style files in test environments */ }
+            try { _ = ConfigManager.LoadStyle(false); } catch { /* Ignore missing style files in test environments */ }
 
             string testEnvDir = Path.Combine(AppContext.BaseDirectory, "test_env");
-            Directory.CreateDirectory(testEnvDir);
-            Directory.CreateDirectory(Path.Combine(testEnvDir, "data", "installed-mods"));
-            Directory.CreateDirectory(Path.Combine(testEnvDir, "hack"));
+            _ = Directory.CreateDirectory(testEnvDir);
+            _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "data", "installed-mods"));
+            _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "hack"));
             string dfhackRunPath = Path.Combine(testEnvDir, "hack", OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run");
             if (!File.Exists(dfhackRunPath))
                 File.WriteAllText(dfhackRunPath, string.Empty);
@@ -65,7 +65,7 @@ public class AvaloniaUiSmokeTests : IClassFixture<AvaloniaAppFixture>
             if (Avalonia.Application.Current == null)
             {
                 _output.WriteLine("AvaloniaUiSmokeTests: Initializing Avalonia application on the current test thread.");
-                Program.BuildAvaloniaApp().SetupWithoutStarting();
+                _ = Program.BuildAvaloniaApp().SetupWithoutStarting();
             }
         }
         catch (Exception ex)

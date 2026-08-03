@@ -160,18 +160,17 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
 
     private void PickerKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape)
+        switch (e.Key)
         {
-            Close(null);
-            e.Handled = true;
-            return;
-        }
+            case Key.Escape:
+                Close(null);
+                e.Handled = true;
+                return;
+            case Key.Enter:
+                SelectHighlighted();
+                e.Handled = true;
+                return;
 
-        if (e.Key == Key.Enter)
-        {
-            SelectHighlighted();
-            e.Handled = true;
-            return;
         }
 
         if (e.Key != Key.Down && e.Key != Key.Up)
@@ -186,7 +185,7 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
             if (index < 0 || index >= visibleItems.Count)
                 break;
         }
-        while (this.alreadyAdded.Contains(visibleItems[index].ModReference.ID.Trim()));
+        while (alreadyAdded.Contains(visibleItems[index].ModReference.ID.Trim()));
 
         if (index >= 0 && index < visibleItems.Count)
         {
@@ -199,7 +198,7 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
 
     private void SelectHighlighted()
     {
-        if (listBox.SelectedItem is not ModRefViewModel vm || this.alreadyAdded.Contains(vm.ModReference.ID.Trim()))
+        if (listBox.SelectedItem is not ModRefViewModel vm || alreadyAdded.Contains(vm.ModReference.ID.Trim()))
             return;
 
         Close(vm.ModReference.ID.Trim());
