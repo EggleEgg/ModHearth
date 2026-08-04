@@ -3,10 +3,27 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
+using System.Collections.ObjectModel;
+using ModHearth.Models;
+
 namespace ModHearth.UI;
+
+public class NotificationRecord
+{
+    public string Message { get; set; } = string.Empty;
+    public string IconResourceName { get; set; } = "infoCircleWhiteIcon.svg";
+    public IImage? IconSource { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string FormattedTime => Timestamp.ToString("HH : mm : ss");
+}
 
 public partial class MainWindow
 {
+    private readonly ObservableCollection<NotificationRecord> notificationRecords = [];
+
     public void ShowNotification(string message, string iconResourceName, int notificationDelay)
         => ShowNotification(message, iconResourceName, showAfterReload: false, notificationDelay);
     public void ShowNotification(string message,
@@ -14,10 +31,27 @@ public partial class MainWindow
         bool showAfterReload = false,
         int notificationDelay = 3500)
     {
+        if (DevMode.IsEnabled)
+            Console.WriteLine($"Notification: {message}");
 
-        Console.WriteLine($"Notification: {message}");
+        DateTime now = DateTime.Now;
+        var iconSource = ImageSourceLoader.LoadFromAssetUri(iconResourceName);
+        var record = new NotificationRecord
+        {
+            Message = message,
+            IconResourceName = iconResourceName,
+            IconSource = iconSource,
+            Timestamp = now
+        };
+
         Dispatcher.UIThread.Post(() =>
         {
+            notificationRecords.Insert(0, record);
+            if (NotificationItemsControl != null && NotificationItemsControl.ItemsSource == null)
+            {
+                NotificationItemsControl.ItemsSource = notificationRecords;
+            }
+
             var container = this.FindControl<StackPanel>("notificationContainer");
             if (container == null)
                 return;
@@ -80,7 +114,7 @@ public partial class MainWindow
                 Width = 16,
                 Height = 16,
                 VerticalAlignment = VerticalAlignment.Center,
-                Source = ImageSourceLoader.LoadFromAssetUri(iconResourceName)
+                Source = iconSource
             };
 
             var textBlock = new TextBlock
@@ -151,6 +185,27 @@ public partial class MainWindow
                 }
             });
         });
+    }
+
+    private void OnToggleNotificationDrawerClick(object? sender, RoutedEventArgs e)
+    {
+        bool isOpen = NotificationDrawerPanel.Classes.Contains("open");
+        if (isOpen)
+        {
+            NotificationDrawerPanel.Classes.Remove("open");
+            NotificationBackdrop.IsVisible = false;
+        }
+        else
+        {
+            NotificationDrawerPanel.Classes.Add("open");
+            NotificationBackdrop.IsVisible = true;
+        }
+    }
+
+    private void OnNotificationBackdropClick(object? sender, PointerPressedEventArgs e)
+    {
+        NotificationDrawerPanel.Classes.Remove("open");
+        NotificationBackdrop.IsVisible = false;
     }
 
     public void DismissNotification(Border border)

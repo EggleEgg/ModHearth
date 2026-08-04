@@ -135,7 +135,7 @@ public partial class MainWindow
     // and silently clobber the more recent state with a stale sort/save), 
     // we just flag that the in-flight pass should run once more after it finishes, reflecting whatever the latest state is by then. 
     // Made=false calls skip this gate entirely, matching original behavior where they never triggered sort/save in the first place.
-    private async Task SetAndMarkChangesAsync(bool made, bool skipSort = false)
+    private async Task<bool> SetAndMarkChangesAsync(bool made, bool skipSort = false)
     {
         if (made && !isRedoing)
             ClearRedo();
@@ -143,26 +143,30 @@ public partial class MainWindow
         if (!made || (!ConfigManager.IsAutoSortEnabled() && !ConfigManager.IsAutoSaveEnabled()))
         {
             FinishSetAndMarkChanges(made, autoSaved: false);
-            return;
+            return false;
         }
 
         if (!await autoActionGate.WaitAsync(0))
         {
             autoActionRerunRequested = true;
-            return;
+            return false;
         }
 
         try
         {
-            bool autoSaved;
+            bool autoSaved = false;
+            bool sorted = false;
             do
             {
                 autoActionRerunRequested = false;
-                autoSaved = await RunAutoSortAndAutoSaveAsync(skipSort);
+                var (s, a) = await RunAutoSortAndAutoSaveAsync(skipSort);
+                if (s) sorted = true;
+                autoSaved = a;
             }
             while (autoActionRerunRequested);
 
             FinishSetAndMarkChanges(made, autoSaved);
+            return sorted;
         }
         finally
         {
@@ -170,14 +174,17 @@ public partial class MainWindow
         }
     }
 
-    private async Task<bool> RunAutoSortAndAutoSaveAsync(bool skipSort)
+    private async Task<(bool sorted, bool autoSaved)> RunAutoSortAndAutoSaveAsync(bool skipSort)
     {
+        bool sorted = false;
         if (ConfigManager.IsAutoSortEnabled() && !skipSort)
         {
-            bool sorted = await Task.Run(manager.ModSortEnabledMods);
+            sorted = await Task.Run(manager.ModSortEnabledMods);
             if (sorted)
+            {
                 ShowNotification("Modlist Autosorted", "sortBorderUpdateIcon.svg", 1000);
-            RefreshModlistPanels();
+                RefreshModlistPanels(updateCache: false, updateColors: false);
+            }
         }
 
         bool autoSaved = false;
@@ -188,7 +195,7 @@ public partial class MainWindow
             autoSaved = true;
         }
 
-        return autoSaved;
+        return (sorted, autoSaved);
     }
 
     private void FinishSetAndMarkChanges(bool made, bool autoSaved)

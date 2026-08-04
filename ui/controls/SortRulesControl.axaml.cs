@@ -780,8 +780,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
             AddEdges(ownerId, kvp.Value.BeforeIds, ownerId, target => target, "before", targetIsSource: false, conflictSet: afterSet);
             AddEdges(ownerId, kvp.Value.AfterIds, ownerId, target => ownerId, "after", targetIsSource: true, conflictSet: beforeSet);
-            AddEdges(ownerId, kvp.Value.RequiredIds, ownerId, target => ownerId, "required", targetIsSource: true, conflictSet: incompatibleSet);
-
+            AddEdges(ownerId, kvp.Value.RequiredIds, ownerId, target => ownerId, "required", targetIsSource: true, conflictSet: incompatibleSet, addGraphEdge: false);
             foreach (string id in kvp.Value.IncompatibleIds)
             {
                 string target = id.Trim();
@@ -826,7 +825,8 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             Func<string, string> destinationFactory,
             string category,
             bool targetIsSource = false,
-            HashSet<string>? conflictSet = null)
+            HashSet<string>? conflictSet = null,
+            bool addGraphEdge = true)
         {
             foreach (string rawId in ids)
             {
@@ -848,14 +848,17 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
                 if (!modIdMap.ContainsKey(target))
                     AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), $" references missing mod {target}."), false);
 
-                string from = targetIsSource ? target : source;
-                string to = destinationFactory(target);
-                if (!graph.TryGetValue(from, out HashSet<string>? destinations))
+                if (addGraphEdge)
                 {
-                    destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    graph[from] = destinations;
+                    string from = targetIsSource ? target : source;
+                    string to = destinationFactory(target);
+                    if (!graph.TryGetValue(from, out HashSet<string>? destinations))
+                    {
+                        destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        graph[from] = destinations;
+                    }
+                    _ = destinations.Add(to);
                 }
-                _ = destinations.Add(to);
             }
         }
     }
@@ -1039,7 +1042,6 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
                 foreach (string target in kvp.Value.BeforeIds) AddGraphEdge(graph, kvp.Key, target);
                 foreach (string target in kvp.Value.AfterIds) AddGraphEdge(graph, target, kvp.Key);
-                foreach (string target in kvp.Value.RequiredIds) AddGraphEdge(graph, target, kvp.Key);
             }
         }
 
@@ -1068,16 +1070,6 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
 
             rule.AfterIds = validAfter;
-
-            List<string> validRequired = [];
-            foreach (var target in rule.RequiredIds.Where(target => !WouldCreateCycle(graph, target, id)))
-            {
-                validRequired.Add(target);
-                AddGraphEdge(graph, target, id);
-            }
-
-
-            rule.RequiredIds = validRequired;
         }
 
         CommitRulesChanged();

@@ -9,9 +9,16 @@ public partial class MainWindow
         ModListIndicatorUpdater.UpdateCachedIndicators(modViewMap.Values, manager.GetInstalledCacheModIds());
     }
 
+    private int lastRelationshipRulesVersion = -1;
+
     private void UpdateRelationshipBadges()
     {
+        int currentVersion = manager.GetRelationshipRulesVersion();
+        if (currentVersion == lastRelationshipRulesVersion)
+            return;
+
         ModListIndicatorUpdater.UpdateRelationshipBadges(modViewMap.Values, manager.GetModRelationshipRules());
+        lastRelationshipRulesVersion = currentVersion;
     }
 
     private void UpdateProblemIndicators()

@@ -15,18 +15,21 @@ public partial class MainWindow
 {
     private void BuildModViewModels()
     {
+        lastRelationshipRulesVersion = -1;
         MainWindowModListBuilder.SyncViewModels(manager, modViewMap);
     }
 
-    private void RefreshModlistPanels()
+    private void RefreshModlistPanels(bool updateCache = true, bool updateColors = true)
     {
         RebuildPanelCollectionsFromManager();
-        UpdateCachedIndicators();
+        if (updateCache)
+            UpdateCachedIndicators();
         UpdateRelationshipBadges();
         UpdateProblemIndicators();
         UpdateDuplicateWarningIndicators();
         UpdateModlistHeaders();
-        UpdateSearchBarAvailableColors();
+        if (updateColors)
+            UpdateSearchBarAvailableColors();
         ApplySearchFilter();
     }
 
@@ -34,8 +37,8 @@ public partial class MainWindow
     {
         List<ModRefViewModel> newInactive = MainWindowModListBuilder.BuildInactiveList(manager, modViewMap);
         List<ModRefViewModel> newActive = MainWindowModListBuilder.BuildActiveList(manager, modViewMap);
-        SearchFilterHelper.ReplaceCollection(inactiveMods, newInactive);
-        SearchFilterHelper.ReplaceCollection(activeMods, newActive);
+        inactiveMods.ReplaceAll(newInactive);
+        activeMods.ReplaceAll(newActive);
     }
 
     private void SelectModsInList(bool destinationLeft, IEnumerable<DFHMod> mods)
@@ -146,8 +149,9 @@ public partial class MainWindow
             : MapFilteredToMasterIndex(activeMods, BuildEnabledOrderViewModels(), context.InsertIndex);
 
         manager.MoveMods(mods, insertIndex, sourceLeft, destinationLeft);
-        await SetAndMarkChangesAsync(true);
-        RefreshModlistPanels();
+        bool sorted = await SetAndMarkChangesAsync(true);
+        if (!sorted)
+            RefreshModlistPanels(updateCache: false, updateColors: false);
         if (sourceLeft != destinationLeft)
             SelectModsInList(destinationLeft, mods);
     }
@@ -200,8 +204,9 @@ public partial class MainWindow
         List<DFHMod> mods = selected.Select(vm => vm.DfMod).ToList();
         int index = manager.enabledMods.Count;
         manager.MoveMods(mods, index, sourceLeft, !sourceLeft);
-        await SetAndMarkChangesAsync(true);
-        RefreshModlistPanels();
+        bool sorted = await SetAndMarkChangesAsync(true);
+        if (!sorted)
+            RefreshModlistPanels(updateCache: false, updateColors: false);
         SelectModsInList(!sourceLeft, mods);
 
         // Async focus to target ListBox and its selected container

@@ -68,8 +68,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 
 
 
-    private readonly ObservableCollection<ModRefViewModel> inactiveMods = [];
-    private readonly ObservableCollection<ModRefViewModel> activeMods = [];
+    private readonly BulkObservableCollection<ModRefViewModel> inactiveMods = [];
+    private readonly BulkObservableCollection<ModRefViewModel> activeMods = [];
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ModListDragDropController modListController;
     private readonly ShortcutKeyHandler shortcutKeyHandler;

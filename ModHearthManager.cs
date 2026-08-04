@@ -195,6 +195,10 @@ namespace ModHearth
         private List<ModSortRule> communitySortRules = [];
         public string LastMissingModsMessage { get; private set; } = string.Empty;
         private DateTime? duplicateWarningLastWriteUtc;
+        private DateTime? cacheDuplicateLastWriteUtc;
+        private HashSet<string>? cacheDuplicateActiveModIds;
+        private int relationshipRulesVersion;
+        private Dictionary<string, ModRelationshipRule>? cachedClonedRelationshipRules;
 
         private string? lastLoggedErrorLogPath;
         private bool lastLoggedErrorLogExists;
@@ -298,13 +302,32 @@ namespace ModHearth
 
         public IReadOnlyDictionary<string, ModRelationshipRule> GetModRelationshipRules()
         {
-            return CloneRelationshipRules(relationshipRules);
+            lock (stateGate)
+            {
+                if (cachedClonedRelationshipRules != null)
+                    return cachedClonedRelationshipRules;
+                cachedClonedRelationshipRules = CloneRelationshipRules(relationshipRules);
+                return cachedClonedRelationshipRules;
+            }
+        }
+
+        public int GetRelationshipRulesVersion()
+        {
+            lock (stateGate)
+            {
+                return relationshipRulesVersion;
+            }
         }
 
         public void SetModRelationshipRules(IDictionary<string, ModRelationshipRule>? rules)
         {
-            relationshipRules = NormalizeRelationshipRules(rules);
-            sortRules = RelationshipRulesToSortRules(relationshipRules);
+            lock (stateGate)
+            {
+                relationshipRules = NormalizeRelationshipRules(rules);
+                sortRules = RelationshipRulesToSortRules(relationshipRules);
+                cachedClonedRelationshipRules = null;
+                relationshipRulesVersion++;
+            }
             SaveRelationshipRules();
         }
 
@@ -441,8 +464,6 @@ namespace ModHearth
                 foreach (string targetId in kvp.Value.BeforeIds)
                     converted.Add(new ModSortRule { BeforeId = ownerId, AfterId = targetId });
                 foreach (string targetId in kvp.Value.AfterIds)
-                    converted.Add(new ModSortRule { BeforeId = targetId, AfterId = ownerId });
-                foreach (string targetId in kvp.Value.RequiredIds)
                     converted.Add(new ModSortRule { BeforeId = targetId, AfterId = ownerId });
             }
 
@@ -2325,7 +2346,7 @@ namespace ModHearth
                         if (!scannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingBefore));
-                            InfoLogger.Log("Problem found: missing before mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: missing before mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
                     foreach (string afterID in currentMod.require_after_me)
@@ -2336,7 +2357,7 @@ namespace ModHearth
                         if (!unscannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingAfter));
-                            InfoLogger.Log("Problem found: missing after mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: missing after mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
                     foreach (string conflictID in currentMod.conflicts_with)
@@ -2347,7 +2368,7 @@ namespace ModHearth
                         if (allEnabledIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.ConflictPresent));
-                            InfoLogger.Log("Problem found: conflict present mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: conflict present mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
                     foreach (string requiredID in currentMod.require_ids)
@@ -2358,7 +2379,7 @@ namespace ModHearth
                         if (!scannedModIDs.Contains(trimmedId) && !unscannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingRequired));
-                            InfoLogger.Log("Problem found: missing required mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: missing required mod with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
 
                     }
@@ -2374,7 +2395,7 @@ namespace ModHearth
                         if (!unscannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingAfter));
-                            InfoLogger.Log("Problem found: custom before rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: custom before rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
 
@@ -2386,7 +2407,7 @@ namespace ModHearth
                         if (!scannedModIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingBefore));
-                            InfoLogger.Log("Problem found: custom after rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: custom after rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
 
@@ -2398,7 +2419,7 @@ namespace ModHearth
                         if (allEnabledIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.ConflictPresent));
-                            InfoLogger.Log("Problem found: custom incompatible rule present for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: custom incompatible rule present for ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
 
@@ -2410,7 +2431,7 @@ namespace ModHearth
                         if (!allEnabledIDs.Contains(trimmedId))
                         {
                             newModProblems.Add(new ModProblem(currentDFM.id, trimmedId, ModProblem.ProblemType.MissingRequired));
-                            InfoLogger.Log("Problem found: custom required mod missing with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
+                            LogProblems("Problem found: custom required mod missing with ID: " + trimmedId + modNeedIsStr + currentDFM.id);
                         }
                     }
                 }
@@ -2421,6 +2442,12 @@ namespace ModHearth
 
             lock (stateGate)
                 modproblems = newModProblems;
+        }
+
+        public static void LogProblems(string message)
+        {
+            if (DevMode.IsEnabled)
+                InfoLogger.Log(message);
         }
 
         private HashSet<string> GetActiveModIds()
@@ -2606,8 +2633,24 @@ namespace ModHearth
 
         private void RefreshCacheDuplicateMap()
         {
-            var cache = ModRawDependencyCacheStore.Load();
+            string cachePath = ModRawDependencyCacheStore.CachePath;
+            bool exists = File.Exists(cachePath);
+            DateTime lastWriteUtc = exists ? File.GetLastWriteTimeUtc(cachePath) : DateTime.MinValue;
             HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+
+            bool upToDate;
+            lock (stateGate)
+            {
+                upToDate = cacheDuplicateLastWriteUtc.HasValue &&
+                           cacheDuplicateLastWriteUtc.Value == lastWriteUtc &&
+                           cacheDuplicateActiveModIds != null &&
+                           cacheDuplicateActiveModIds.SetEquals(activeModIds);
+            }
+
+            if (upToDate)
+                return;
+
+            var cache = ModRawDependencyCacheStore.Load();
             Dictionary<string, List<string>> newMap = new(StringComparer.OrdinalIgnoreCase);
             List<HashSet<string>> newGroups = [];
             Dictionary<string, List<string>> definitionToMods = new(StringComparer.OrdinalIgnoreCase);
@@ -2652,6 +2695,8 @@ namespace ModHearth
             {
                 cacheDuplicateMap = newMap;
                 cacheDuplicateGroups = newGroups;
+                cacheDuplicateLastWriteUtc = lastWriteUtc;
+                cacheDuplicateActiveModIds = activeModIds;
             }
         }
 

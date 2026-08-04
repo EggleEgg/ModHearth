@@ -333,14 +333,6 @@ namespace ModHearth
                         continue;
                     _ = TryAddEdge(edges, indegree, targetId, ownerId);
                 }
-
-                foreach (string target in kvp.Value.RequiredIds)
-                {
-                    string targetId = target?.Trim() ?? string.Empty;
-                    if (!enabledIds.Contains(targetId))
-                        continue;
-                    _ = TryAddEdge(edges, indegree, targetId, ownerId);
-                }
             }
 
             // --- Tier 1.1: legacy user-defined sort rules ---
