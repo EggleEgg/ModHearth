@@ -70,7 +70,7 @@ namespace ModHearth.Utilities.Workshop
             }
 
             InfoLogger.LogRunDf($"WorkshopUrlResolver: Total unique IDs found: {results.Count}");
-            return new List<ulong>(results);
+            return [.. results];
         }
 
         public static string FilterUrls(string input)

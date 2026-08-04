@@ -57,7 +57,7 @@ public partial class MainWindow
             case > 0:
                 return new ModSelectionSnapshot(true, leftTokens, currentSelectedModId, previousSelectedModId);
             default:
-                return new ModSelectionSnapshot(null, new List<ModSelectionToken>(), currentSelectedModId, previousSelectedModId);
+                return new ModSelectionSnapshot(null, [], currentSelectedModId, previousSelectedModId);
         }
     }
 

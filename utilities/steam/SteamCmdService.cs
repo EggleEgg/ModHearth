@@ -115,7 +115,14 @@ namespace ModHearth.Utilities.Steam
                         {
                             if (File.Exists(archivePath))
                             {
-                                try { File.Delete(archivePath); } catch { }
+                                try
+                                {
+                                    File.Delete(archivePath);
+                                }
+                                catch (Exception delEx)
+                                {
+                                    AppLogging.LogException("Failed to delete temporary SteamCMD archive file", delEx);
+                                }
                             }
 
                             if (attempt == maxRetries)
@@ -147,13 +154,20 @@ namespace ModHearth.Utilities.Steam
                             await gzStream.CopyToAsync(tarFileStream, cancellationToken);
                         }
 
-                        TarFile.ExtractToDirectory(extractedTar, installDir, true);
+                        await TarFile.ExtractToDirectoryAsync(extractedTar, installDir, true, CancellationToken.None);
                     }
                     finally
                     {
                         if (File.Exists(extractedTar))
                         {
-                            try { File.Delete(extractedTar); } catch { }
+                            try
+                            {
+                                File.Delete(extractedTar);
+                            }
+                            catch (Exception delEx)
+                            {
+                                AppLogging.LogException("Failed to delete temporary extracted tar file", delEx);
+                            }
                         }
                     }
 
@@ -242,7 +256,14 @@ namespace ModHearth.Utilities.Steam
 
             using var reg = cancellationToken.Register(() =>
             {
-                try { process.Kill(entireProcessTree: true); } catch { }
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (Exception killEx)
+                {
+                    AppLogging.LogException("Failed to kill SteamCMD process on cancellation registration", killEx);
+                }
             });
 
             var outputTask = Task.Run(async () =>
@@ -277,13 +298,27 @@ namespace ModHearth.Utilities.Steam
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    try { process.Kill(entireProcessTree: true); } catch { }
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                    catch (Exception killEx)
+                    {
+                        AppLogging.LogException("Failed to kill SteamCMD process on cancellation request", killEx);
+                    }
                     break;
                 }
                 await Task.Delay(100, cancellationToken).ConfigureAwait(false);
             }
 
-            try { await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false); } catch { }
+            try
+            {
+                await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
+            }
+            catch (Exception taskEx)
+            {
+                AppLogging.LogException("Error waiting for SteamCMD output/error reader tasks", taskEx);
+            }
 
             return process.HasExited ? process.ExitCode : -1;
         }
@@ -303,7 +338,10 @@ namespace ModHearth.Utilities.Steam
                         return true;
                     }
                 }
-                catch { }
+                catch (Exception pathEx)
+                {
+                    AppLogging.LogException($"Failed to inspect path candidate '{path}' during steamcmd search", pathEx);
+                }
             }
             return false;
         }

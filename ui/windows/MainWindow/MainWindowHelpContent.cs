@@ -29,7 +29,7 @@ internal static class MainWindowHelpContent
             string instructions = MarkdownFormatter.ExtractMarkdownSection(markdown, "Instructions");
             string controls = MarkdownFormatter.ExtractMarkdownSection(markdown, "Keyboard Shortcuts and Controls");
 
-            List<string> parts = new List<string>();
+            List<string> parts = [];
             if (!string.IsNullOrWhiteSpace(instructions))
                 parts.Add($"### Instructions{Environment.NewLine}{instructions}");
             if (!string.IsNullOrWhiteSpace(controls))

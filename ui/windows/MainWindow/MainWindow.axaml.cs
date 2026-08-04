@@ -68,8 +68,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 
 
 
-    private readonly ObservableCollection<ModRefViewModel> inactiveMods = new();
-    private readonly ObservableCollection<ModRefViewModel> activeMods = new();
+    private readonly ObservableCollection<ModRefViewModel> inactiveMods = [];
+    private readonly ObservableCollection<ModRefViewModel> activeMods = [];
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ModListDragDropController modListController;
     private readonly ShortcutKeyHandler shortcutKeyHandler;
@@ -79,7 +79,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>? _workshopDockManager;
     private DockingManager<ModUpdateLogControl, ModUpdateLogWindow>? _updateLogDockManager;
     private DockingManager<SortRulesControl, SortRulesWindow>? _sortRulesDockManager;
-    private ModHearthManager manager;
+    private readonly ModHearthManager manager;
     private bool changesMade;
     private bool isBatchSelecting;
     private bool changesMarked;
@@ -87,17 +87,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private bool isRedoing;
     private bool modifyingComboBox;
     private int lastIndex;
-    private List<DFHMod> redoMods = new();
-    private List<DFHMod> problemMods = new();
+    private List<DFHMod> redoMods = [];
+    private List<DFHMod> problemMods = [];
     private int problemModIndex;
-    private List<DFHMod> duplicateWarningMods = new();
+    private List<DFHMod> duplicateWarningMods = [];
     private int duplicateWarningIndex;
 
     private DispatcherTimer? modManagerReloadTimer;
     private FileSystemWatcher? modManagerWatcher;
     private DispatcherTimer? dfHackStatusTimer;
     private DispatcherTimer? autoReloadTimer;
-    private DispatcherTimer? searchDebounceTimer;
+    private readonly DispatcherTimer? searchDebounceTimer;
     private Flyout? reloadOptionsFlyout;
     private CheckBox? autoReloadEnabledCheckBox;
     private TextBox? autoReloadSecondsTextBox;
@@ -259,8 +259,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
             dfHackStatusTimer?.Stop();
             autoReloadTimer?.Stop();
             searchDebounceTimer?.Stop();
-            if (currentPreview is IDisposable disposable)
-                disposable.Dispose();
+            DisposePreviewImage(currentPreview);
         };
 
         InitializeDfHackStatusTimer();

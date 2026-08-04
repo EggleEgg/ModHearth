@@ -22,7 +22,7 @@ internal static class ModRawObjectScanner
     /// <param name="sourceMod">The identifier of the mod being scanned.</param>
     public static RawDatabase Scan(string modPath, string sourceMod)
     {
-        List<RawObject> objects = new();
+        List<RawObject> objects = [];
         bool isCutter = false;
 
         bool hasGraphics =

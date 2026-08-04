@@ -130,9 +130,9 @@ namespace ModHearth
         public bool IsSortRulesDocked { get; set; } = false;
 
         // Proportions of each docked splitter control mapped by key.
-        public Dictionary<string, double> DockSplitterProportions { get; set; } = new();
+        public Dictionary<string, double> DockSplitterProportions { get; set; } = [];
 
         // Dock side (DockSide enum int) mapped by key.
-        public Dictionary<string, int> DockSides { get; set; } = new();
+        public Dictionary<string, int> DockSides { get; set; } = [];
     }
 }

@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>resources\\modhearth_icon_v2.ico</ApplicationIcon>
     <IsPublishing>true</IsPublishing>
-    <PublishDir>artifacts\$(RuntimeIdentifier)\</PublishDir>
+    <PublishDir>artifacts\\$(RuntimeIdentifier)\\</PublishDir>
 
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

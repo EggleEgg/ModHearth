@@ -67,6 +67,7 @@ public partial class MainWindow
                 ContentIndex = 0,
                 SplitterControl = leftDockSplitter,
                 DockHostControl = leftDockHost,
+                DockHostBorder = leftDockHostLine,
                 PreviewBorder = leftDockPreviewBorder
             },
             [DockSide.Right] = new DockingTarget
@@ -77,6 +78,7 @@ public partial class MainWindow
                 ContentIndex = 7,
                 SplitterControl = rightDockSplitter,
                 DockHostControl = rightDockHost,
+                DockHostBorder = rightDockHostLine,
                 PreviewBorder = rightDockPreviewBorder
             },
             [DockSide.Bottom] = new DockingTarget
@@ -87,6 +89,7 @@ public partial class MainWindow
                 ContentIndex = 2,
                 SplitterControl = bottomDockSplitter,
                 DockHostControl = bottomDockHost,
+                DockHostBorder = bottomDockHostLine,
                 PreviewBorder = bottomDockPreviewBorder
             }
         };

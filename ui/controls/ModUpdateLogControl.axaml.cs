@@ -17,8 +17,8 @@ namespace ModHearth.UI;
 public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, IModRefContextMenuProvider, IStyleAwareWindow
 {
     private readonly ModHearthManager? manager;
-    private readonly List<ModUpdateLogItemViewModel> allEntries = new();
-    private readonly BulkObservableCollection<ModUpdateLogItemViewModel> entries = new();
+    private readonly List<ModUpdateLogItemViewModel> allEntries = [];
+    private readonly BulkObservableCollection<ModUpdateLogItemViewModel> entries = [];
     public ObservableCollection<ModUpdateLogItemViewModel> Entries => entries;
     private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
     private ModRefControl? contextMenuHost;

@@ -12,7 +12,7 @@ namespace ModHearth.UI;
 /// </summary>
 public sealed class SearchButtonBehavior
 {
-    private static readonly Dictionary<Button, SearchButtonBehavior> behaviors = new();
+    private static readonly Dictionary<Button, SearchButtonBehavior> behaviors = [];
 
     public static SearchButtonBehavior GetOrCreate(Button button)
     {

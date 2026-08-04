@@ -19,7 +19,7 @@ internal static class SteamProcessHelper
 
     public static bool TryDetectSteamProcess(out List<string> runningProcesses)
     {
-        runningProcesses = new List<string>();
+        runningProcesses = [];
         HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try

@@ -18,14 +18,6 @@ public static class HorizontalScrollHelper
         if (scrollViewer == null)
             return;
 
-        scrollViewer.AddHandler(InputElement.PointerPressedEvent, (sender, args) =>
-        {
-            if (args.Source is Visual visual && visual.FindAncestorOfType<ScrollBar>(includeSelf: true) != null)
-            {
-                args.Handled = true;
-            }
-        }, RoutingStrategies.Tunnel);
-
         scrollViewer.PointerWheelChanged += (sender, args) =>
         {
             if (args.Delta.Y != 0)

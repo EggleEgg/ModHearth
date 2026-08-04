@@ -8,7 +8,7 @@ namespace ModHearth.Utilities
 {
     internal static class SteamManifestAuditor
     {
-        private static readonly HashSet<ulong> recentlyUnsubscribedIds = new();
+        private static readonly HashSet<ulong> recentlyUnsubscribedIds = [];
         private static readonly object unsubscribedGate = new();
 
         public static void MarkAsUnsubscribed(IEnumerable<ulong> workshopIds)
@@ -27,10 +27,10 @@ namespace ModHearth.Utilities
             if (steamService == null || !steamService.IsAvailable)
                 return;
 
-            SteamConnectionLogger.Log("Starting Steam workshop manifest audit...");
+            SteamConnectionLogger.LogInfo("Starting Steam workshop manifest audit...");
 
             var acfPaths = ConfigManager.GetSteamWorkshopAcfPaths();
-            List<ulong> missingItemIds = new List<ulong>();
+            List<ulong> missingItemIds = [];
 
             foreach (string acfPath in acfPaths)
             {
@@ -46,7 +46,7 @@ namespace ModHearth.Utilities
 
             if (missingItemIds.Count == 0)
             {
-                SteamConnectionLogger.Log("Manifest audit completed. No discrepancies found.");
+                SteamConnectionLogger.LogInfo("Manifest audit completed. No discrepancies found.");
                 return;
             }
 
@@ -58,7 +58,7 @@ namespace ModHearth.Utilities
             switch (wakeUpCalls)
             {
                 case > 0:
-                    SteamConnectionLogger.Log($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
+                    SteamConnectionLogger.LogInfo($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
                     break;
                 default:
                     SteamConnectionLogger.LogError("Manifest audit completed. Failed to send any wake-up calls for missing items.");

@@ -16,28 +16,28 @@ namespace ModHearth
     public class ModReference
     {
         // Data found in modinfo files.
-        public string ID { get; set; } = string.Empty;
-        public string numericVersion { get; set; } = string.Empty;
-        public string displayedVersion { get; set; } = string.Empty;
-        public string earliestCompatibleNumericVersion { get; set; } = string.Empty;
-        public string earliestCompatibleDisplayedVersion { get; set; } = string.Empty;
-        public string author { get; set; } = string.Empty;
-        public string name { get; set; } = string.Empty;
-        public string description { get; set; } = string.Empty;
+        public string ID { get; set; }
+        public string numericVersion { get; set; }
+        public string displayedVersion { get; set; }
+        public string earliestCompatibleNumericVersion { get; set; }
+        public string earliestCompatibleDisplayedVersion { get; set; }
+        public string author { get; set; }
+        public string name { get; set; }
+        public string description { get; set; }
 
-        public ModColor AssignedColor { get; set; } = ModColor.None;
+        public ModColor AssignedColor { get; set; }
 
-        public string steamName { get; set; } = string.Empty;
-        public string steamDescription { get; set; } = string.Empty;
-        public string steamID { get; set; } = string.Empty;
+        public string steamName { get; set; }
+        public string steamDescription { get; set; }
+        public string steamID { get; set; }
 
-        public List<string> require_before_me { get; set; } = new List<string>();
-        public List<string> require_after_me { get; set; } = new List<string>();
-        public List<string> require_ids { get; set; } = new List<string>();
-        public List<string> conflicts_with { get; set; } = new List<string>();
+        public List<string> require_before_me { get; set; }
+        public List<string> require_after_me { get; set; }
+        public List<string> require_ids { get; set; }
+        public List<string> conflicts_with { get; set; }
 
         // Path of mod folder, not path to info.
-        public string path { get; set; } = string.Empty;
+        public string path { get; set; }
 
         // Is this modref missing a version (one mod did this, dfhack set version to 1 so this matches it).
         public bool MissingVersion { get; set; } = false;
@@ -68,10 +68,10 @@ namespace ModHearth
             AssignedColor = ModColor.None;
             IsIgnored = false;
 
-            require_before_me = new List<string>();
-            require_after_me = new List<string>();
-            require_ids = new List<string>();
-            conflicts_with = new List<string>();
+            require_before_me = [];
+            require_after_me = [];
+            require_ids = [];
+            conflicts_with = [];
         }
 
 
@@ -95,10 +95,10 @@ namespace ModHearth
             Source = string.IsNullOrWhiteSpace(steamID) ? ModSource.Local : ModSource.Steam;
             IsIgnored = false; // Initialize the new property
 
-            require_before_me = new List<string>();
-            require_after_me = new List<string>();
-            require_ids = new List<string>();
-            conflicts_with = new List<string>();
+            require_before_me = [];
+            require_after_me = [];
+            require_ids = [];
+            conflicts_with = [];
 
             // In theory info file is always present, but handle missing files gracefully.
             string? modInfoPath = ResolveInfoPath(path);

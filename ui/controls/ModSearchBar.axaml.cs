@@ -26,8 +26,8 @@ public enum SearchFilterMode
 
 public partial class ModSearchBar : UserControl
 {
-    private readonly Dictionary<SearchFilterMode, TextBlock> searchModeLabels = new();
-    private readonly Dictionary<SearchFilterMode, Image> searchModeIcons = new();
+    private readonly Dictionary<SearchFilterMode, TextBlock> searchModeLabels = [];
+    private readonly Dictionary<SearchFilterMode, Image> searchModeIcons = [];
 
     public static readonly StyledProperty<string?> PlaceholderTextProperty =
         AvaloniaProperty.Register<ModSearchBar, string?>(nameof(PlaceholderText), "Search");
@@ -52,8 +52,8 @@ public partial class ModSearchBar : UserControl
     public event EventHandler? SearchModeChanged;
     public event EventHandler? SortOrderChanged;
 
-    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = new();
-    private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = new();
+    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = [];
+    private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = [];
     private Flyout? searchModeFlyout;
     private int clearClickCount;
     private DateTime lastClearClickTime;

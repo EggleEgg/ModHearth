@@ -41,7 +41,7 @@ public partial class MainWindow
 
     private async Task UndoListChangesAsync()
     {
-        redoMods = new List<DFHMod>(manager.enabledMods);
+        redoMods = [.. manager.enabledMods];
         redoAvailable = true;
 
         manager.SetSelectedModpack(lastIndex);
@@ -57,7 +57,7 @@ public partial class MainWindow
         isRedoing = true;
         try
         {
-            manager.SetActiveMods(new List<DFHMod>(redoMods));
+            manager.SetActiveMods([.. redoMods]);
             RefreshModlistPanels();
             await SetAndMarkChangesAsync(true);
         }
@@ -366,7 +366,7 @@ public partial class MainWindow
         if (manager.enabledMods.Count == 0)
             return;
 
-        manager.SetActiveMods(new List<DFHMod>());
+        manager.SetActiveMods([]);
         RefreshModlistPanels();
         await SetAndMarkChangesAsync(true);
     }

@@ -20,7 +20,7 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
     private readonly string ownerId;
     private readonly HashSet<string> alreadyAdded;
     private readonly List<ModRefViewModel> allMods;
-    private readonly ObservableCollection<ModRefViewModel> visibleItems = new();
+    private readonly ObservableCollection<ModRefViewModel> visibleItems = [];
     private readonly ModSearchBar searchBar = new();
     private readonly ListBox listBox = new();
     private readonly ListSelectionController<ModRefViewModel> selectionController = new();
@@ -150,6 +150,7 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
         ApplyFilter();
         listBox.SelectedItem = visibleItems.FirstOrDefault(vm => !this.alreadyAdded.Contains(vm.ModReference.ID.Trim()));
         Opened += (_, _) => searchBar.FocusSearchBox();
+        Closed += (_, _) => searchController?.Dispose();
         WindowThemeManager.Register(this);
     }
 

@@ -56,7 +56,7 @@ internal static class ModContextMenuSupport
         Func<T, ModReference> getModReference,
         out List<ModReference> modReferences) where T : class
     {
-        modReferences = new List<ModReference>();
+        modReferences = [];
         if (sender is not MenuItem menuItem)
             return false;
 
@@ -74,7 +74,7 @@ internal static class ModContextMenuSupport
             }
         }
 
-        List<T> selected = selectedItems?.Cast<T>().ToList() ?? new List<T>();
+        List<T> selected = selectedItems?.Cast<T>().ToList() ?? [];
         IEnumerable<T> targets = selected.Count > 0 && selected.Contains(contextItem)
             ? selected
             : new[] { contextItem };
@@ -88,9 +88,8 @@ internal static class ModContextMenuSupport
         IEnumerable<ModReference> selectedMods)
     {
         List<ModReference> selection = selectedMods?.Where(mod => mod != null).ToList()
-            ?? new List<ModReference>();
+            ?? [];
         manager.SplitActionableMods(selection, out List<ModReference> localMods, out List<ModReference> steamMods);
-        manager.SplitActionableMods([contextMod], out _, out _);
 
         bool canOpenFolder = !string.IsNullOrWhiteSpace(contextMod.path) && Directory.Exists(contextMod.path);
         bool hasSteamPage = ModHearthManager.TryGetSteamWorkshopItemId(contextMod, out _);
@@ -317,7 +316,7 @@ internal static class ModContextMenuSupport
 
     public static List<string> DeleteLocalMods(ModHearthManager manager, IEnumerable<ModReference> localTargets)
     {
-        List<string> failures = new List<string>();
+        List<string> failures = [];
         foreach (ModReference modref in localTargets)
         {
             if (!manager.DeleteModFromModsFolder(modref, out string message))
@@ -431,7 +430,7 @@ internal static class ModContextMenuSupport
             await clipboard.SetTextAsync(id);
 
             if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
-                desktop.MainWindow is UI.MainWindow mainWindow)
+                desktop.MainWindow is MainWindow mainWindow)
             {
                 mainWindow.ShowNotification($"Copied ID: {id}", "copyIcon.svg");
             }

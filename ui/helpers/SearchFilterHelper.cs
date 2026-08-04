@@ -72,7 +72,7 @@ public static class SearchFilterHelper
         if (list.SelectedItems == null || list.SelectedItems.Count == 0)
             return;
 
-        HashSet<ModRefViewModel> visibleSet = new HashSet<ModRefViewModel>(displayItems);
+        HashSet<ModRefViewModel> visibleSet = [.. displayItems];
         List<ModRefViewModel> retained = list.SelectedItems
             .OfType<ModRefViewModel>()
             .Where(visibleSet.Contains)

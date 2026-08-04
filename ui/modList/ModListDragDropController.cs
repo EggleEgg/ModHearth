@@ -22,14 +22,11 @@ public sealed record ModListDropContext(
 public sealed class ModListDragDropController
 {
     private const string DragDataKey = "ModHearth.ModRefs";
-    private static readonly DataFormat<string> DragDataFormat =
-        DataFormat.CreateStringApplicationFormat(DragDataKey);
-
+    private static readonly DataFormat<string> DragDataFormat = DataFormat.CreateStringApplicationFormat(DragDataKey);
     private readonly Window owner;
-    private readonly Func<IEnumerable<ModRefViewModel>> allItemsProvider;
     private readonly Func<string, ModRefViewModel?> resolveItem;
     private readonly Func<ModRefViewModel, string> getItemKey;
-    private readonly Dictionary<ListBox, bool> sortableLists = new();
+    private readonly Dictionary<ListBox, bool> sortableLists = [];
 
     private Point? dragStartPoint;
     private PointerPressedEventArgs? dragTriggerEvent;
@@ -56,7 +53,7 @@ public sealed class ModListDragDropController
         Func<ModRefViewModel, string> getItemKey)
     {
         this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
-        this.allItemsProvider = allItemsProvider ?? throw new ArgumentNullException(nameof(allItemsProvider));
+        _ = allItemsProvider ?? throw new ArgumentNullException(nameof(allItemsProvider));
         this.resolveItem = resolveItem ?? throw new ArgumentNullException(nameof(resolveItem));
         this.getItemKey = getItemKey ?? throw new ArgumentNullException(nameof(getItemKey));
     }
@@ -143,12 +140,12 @@ public sealed class ModListDragDropController
             return;
 
         List<ModRefViewModel> selected = dragSourceList.SelectedItems?.Cast<ModRefViewModel>().ToList()
-            ?? new List<ModRefViewModel>();
+            ?? [];
         ModRefViewModel? hit = dragHitItem ?? GetItemAtPoint(dragSourceList, current);
 
         if (dragPreserveSelection && dragSelectionSnapshot != null && dragSelectionSnapshot.Count > 0)
         {
-            selected = new List<ModRefViewModel>(dragSelectionSnapshot);
+            selected = [.. dragSelectionSnapshot];
             RestoreListSelection(dragSourceList, dragSelectionSnapshot);
         }
 
@@ -156,7 +153,7 @@ public sealed class ModListDragDropController
         {
             dragSourceList.SelectedItems?.Clear();
             _ = (dragSourceList.SelectedItems?.Add(hit));
-            selected = new List<ModRefViewModel> { hit };
+            selected = [hit];
         }
         else if (selected.Count == 0 && hit != null)
         {
@@ -173,7 +170,7 @@ public sealed class ModListDragDropController
         SetDragHighlight(selected);
         // Set the flag and spin up the background loop thread
         isDragging = true;
-        await StartBackgroundScrollLoop();
+        _ = StartBackgroundScrollLoop();
         try
         {
             string payload = SerializeDragData(selected);
@@ -276,9 +273,9 @@ public sealed class ModListDragDropController
     {
         List<string>? keys = JsonSerializer.Deserialize<List<string>>(payload);
         if (keys == null || keys.Count == 0)
-            return new List<ModRefViewModel>();
+            return [];
 
-        List<ModRefViewModel> mods = new List<ModRefViewModel>();
+        List<ModRefViewModel> mods = [];
         foreach (string key in keys)
         {
             ModRefViewModel? vm = resolveItem(key);
@@ -428,7 +425,7 @@ public sealed class ModListDragDropController
 
     private static List<ModRefViewModel> OrderSelectionByList(ListBox list, IEnumerable<ModRefViewModel> selection)
     {
-        HashSet<ModRefViewModel> selectedSet = new HashSet<ModRefViewModel>(selection);
+        HashSet<ModRefViewModel> selectedSet = [.. selection];
         switch (list.ItemsSource)
         {
             case IEnumerable<ModRefViewModel> items:

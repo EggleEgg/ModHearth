@@ -134,19 +134,19 @@ namespace ModHearth
         public IReadOnlyDictionary<string, List<ModReference>> GetDuplicateModRefs() => duplicateModRefs;
 
         // The sorted list of enabled DFHmods. This list is modified by the form, and when saved it overwrites the list of a ModPack.
-        public volatile List<DFHMod> enabledMods = new();
+        public volatile List<DFHMod> enabledMods = [];
 
         // The unsorted list of disabled DFHmods
-        public volatile HashSet<DFHMod> disabledMods = new();
+        public volatile HashSet<DFHMod> disabledMods = [];
 
         // The unsorted list of all available DFHmods
-        public volatile HashSet<DFHMod> modPool = new();
+        public volatile HashSet<DFHMod> modPool = [];
 
         // Get the currently selected modpack
         public DFHModpack SelectedModlist => modpacks[selectedModlistIndex];
 
         // List of all modpacks. After a modpack in this list is modified the list is saved to file.
-        public volatile List<DFHModpack> modpacks = new();
+        public volatile List<DFHModpack> modpacks = [];
 
         // The index of the currently selected modpack.
         public volatile int selectedModlistIndex;
@@ -172,12 +172,12 @@ namespace ModHearth
         private static readonly Regex DuplicateWarningCountRegex = new("\\s*\\(x\\d+\\)\\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Mod problem tracker.
-        public volatile List<ModProblem> modproblems = new();
+        public volatile List<ModProblem> modproblems = [];
         private volatile Dictionary<string, List<ModReference>> duplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
         private volatile Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
         private volatile Dictionary<string, List<string>> cacheDuplicateMap = new(StringComparer.OrdinalIgnoreCase);
-        private volatile List<HashSet<string>> duplicateWarningGroups = new();
-        private volatile List<HashSet<string>> cacheDuplicateGroups = new();
+        private volatile List<HashSet<string>> duplicateWarningGroups = [];
+        private volatile List<HashSet<string>> cacheDuplicateGroups = [];
         private DateTime savingModpacksCooldownUntilUtc = DateTime.MinValue;
         public bool IsSavingModpacks
         {
@@ -191,8 +191,8 @@ namespace ModHearth
         private readonly object installedCacheGate = new();
         private HashSet<string>? installedCacheModIds;
         private Dictionary<string, ModRelationshipRule> relationshipRules = new(StringComparer.OrdinalIgnoreCase);
-        private List<ModSortRule> sortRules = new();
-        private List<ModSortRule> communitySortRules = new();
+        private List<ModSortRule> sortRules = [];
+        private List<ModSortRule> communitySortRules = [];
         public string LastMissingModsMessage { get; private set; } = string.Empty;
         private DateTime? duplicateWarningLastWriteUtc;
 
@@ -416,7 +416,7 @@ namespace ModHearth
 
         private static List<string> NormalizeIdList(IEnumerable<string>? ids)
         {
-            List<string> normalized = new();
+            List<string> normalized = [];
             HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
             if (ids == null)
                 return normalized;
@@ -434,7 +434,7 @@ namespace ModHearth
         private static List<ModSortRule> RelationshipRulesToSortRules(
             IDictionary<string, ModRelationshipRule> rules)
         {
-            List<ModSortRule> converted = new();
+            List<ModSortRule> converted = [];
             foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
             {
                 string ownerId = kvp.Key.Trim();
@@ -451,7 +451,7 @@ namespace ModHearth
 
         private static List<ModSortRule> NormalizeSortRules(IEnumerable<ModSortRule>? rules)
         {
-            List<ModSortRule> normalized = new List<ModSortRule>();
+            List<ModSortRule> normalized = [];
             if (rules == null)
                 return normalized;
 
@@ -508,7 +508,7 @@ namespace ModHearth
                 return;
             }
 
-            sortRules = new List<ModSortRule>();
+            sortRules = [];
             if (!File.Exists(modSortRulesPath))
                 return;
 
@@ -522,7 +522,7 @@ namespace ModHearth
             }
             catch
             {
-                sortRules = new List<ModSortRule>();
+                sortRules = [];
                 relationshipRules = new Dictionary<string, ModRelationshipRule>(StringComparer.OrdinalIgnoreCase);
             }
         }
@@ -535,8 +535,7 @@ namespace ModHearth
             try
             {
                 string jsonContent = File.ReadAllText(modRelationshipRulesPath);
-                Dictionary<string, ModRelationshipRule>? loadedRules =
-                    JsonSerializer.Deserialize<Dictionary<string, ModRelationshipRule>>(jsonContent);
+                Dictionary<string, ModRelationshipRule>? loadedRules = JsonSerializer.Deserialize<Dictionary<string, ModRelationshipRule>>(jsonContent);
                 return NormalizeRelationshipRules(loadedRules);
             }
             catch
@@ -611,7 +610,7 @@ namespace ModHearth
             string? rawUrl = GitHubUrlParser.ToRawFileUrl(repositoryUrl);
             if (string.IsNullOrWhiteSpace(rawUrl))
             {
-                communitySortRules = new List<ModSortRule>();
+                communitySortRules = [];
                 return false;
             }
 
@@ -620,7 +619,7 @@ namespace ModHearth
                 using HttpResponseMessage response = await GitHubFileClient.Instance.GetAsync(rawUrl, cancellationToken);
                 if (!response.IsSuccessStatusCode)
                 {
-                    communitySortRules = new List<ModSortRule>();
+                    communitySortRules = [];
                     return false;
                 }
 
@@ -631,7 +630,7 @@ namespace ModHearth
             }
             catch
             {
-                communitySortRules = new List<ModSortRule>();
+                communitySortRules = [];
                 return false;
             }
         }
@@ -647,17 +646,17 @@ namespace ModHearth
             string url = ConfigManager.Config.CommunitySortRulesUrl;
             if (string.IsNullOrWhiteSpace(url))
             {
-                communitySortRules = new List<ModSortRule>();
+                communitySortRules = [];
                 return;
             }
 
             try
             {
-                Task.Run(async () => await FetchCommunitySortRulesAsync(url), deferredModManagerReloadCts?.Token ?? CancellationToken.None).Wait();
+                Task.Run(async () => await FetchCommunitySortRulesAsync(url, deferredModManagerReloadCts?.Token ?? CancellationToken.None), deferredModManagerReloadCts?.Token ?? CancellationToken.None).Wait();
             }
             catch
             {
-                communitySortRules = new List<ModSortRule>();
+                communitySortRules = [];
             }
         }
 
@@ -712,7 +711,7 @@ namespace ModHearth
 
         private static bool TryReadModpackFile(string path, out List<DFHModpack> loadedModpacks, out string error)
         {
-            loadedModpacks = new List<DFHModpack>();
+            loadedModpacks = [];
             error = string.Empty;
 
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
@@ -737,7 +736,7 @@ namespace ModHearth
                 foreach (DFHModpack modpack in loadedModpacks)
                 {
                     modpack.name ??= "Unnamed";
-                    modpack.modlist ??= new List<DFHMod>();
+                    modpack.modlist ??= [];
                 }
 
                 return true;
@@ -745,7 +744,7 @@ namespace ModHearth
             catch (Exception ex)
             {
                 error = ex.Message;
-                loadedModpacks = new List<DFHModpack>();
+                loadedModpacks = [];
                 return false;
             }
         }
@@ -753,7 +752,7 @@ namespace ModHearth
         private List<DFHModpack> CreateDefaultModpacks()
         {
             DFHModpack newPack = new DFHModpack(true, GenerateVanillaModlist(), "Default");
-            return new List<DFHModpack> { newPack };
+            return [newPack];
         }
 
         public static bool CanDeleteModFromModsFolder(ModReference modref)
@@ -806,10 +805,10 @@ namespace ModHearth
             DFHMod dfm = modref.ToDFHMod();
             string modrefKey = modref.DFHackCompatibleString();
 
-            HashSet<DFHMod> newModPool = new HashSet<DFHMod>(modPool);
+            HashSet<DFHMod> newModPool = [.. modPool];
             _ = newModPool.Remove(dfm);
             List<DFHMod> newEnabledMods = enabledMods.Where(m => m != dfm).ToList();
-            HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
+            HashSet<DFHMod> newDisabledMods = [.. disabledMods];
             _ = newDisabledMods.Remove(dfm);
             Dictionary<string, ModReference> newModrefMap = new Dictionary<string, ModReference>(modrefMap, StringComparer.OrdinalIgnoreCase);
             _ = newModrefMap.Remove(modrefKey);
@@ -857,7 +856,7 @@ namespace ModHearth
             }
 
             int deleted = 0;
-            List<string> failures = new List<string>();
+            List<string> failures = [];
             foreach (string entry in Directory.EnumerateFileSystemEntries(installedModsPath))
             {
                 try
@@ -907,7 +906,7 @@ namespace ModHearth
 
         private static HashSet<string> BuildInstalledCacheModIds()
         {
-            List<string> roots = new List<string>();
+            List<string> roots = [];
 
             string installedModsPath = GetInstalledModsPath();
             if (!string.IsNullOrWhiteSpace(installedModsPath))
@@ -920,7 +919,7 @@ namespace ModHearth
                     roots.Add(ResolveExistingDirectoryPath(vanillaPath) ?? vanillaPath);
             }
 
-            List<string> candidateDirs = new List<string>();
+            List<string> candidateDirs = [];
             foreach (string root in roots)
             {
                 if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
@@ -961,7 +960,7 @@ namespace ModHearth
             return new HashSet<string>(ids.Keys, StringComparer.OrdinalIgnoreCase);
         }
 
-        private static string scrDir = "src_dir";
+        private static readonly string scrDir = "src_dir";
 
         /// <summary>
         /// Will attempt to find mods from DFHack's Lua memory interface, otherwise fallbacks to filesystem scan
@@ -1029,7 +1028,7 @@ namespace ModHearth
             // Sequential merge. Preserves "first occurrence wins" for duplicates, same as before.
             Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
             Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
-            HashSet<DFHMod> newModPool = new();
+            HashSet<DFHMod> newModPool = [];
 
             foreach (ModReference? modRef in results.Where(m => m != null))
             {
@@ -1041,7 +1040,7 @@ namespace ModHearth
                 {
                     if (!newDuplicateModRefs.TryGetValue(key, out var list))
                     {
-                        list = new List<ModReference> { newModrefMap[key] };
+                        list = [newModrefMap[key]];
                         newDuplicateModRefs[key] = list;
                     }
                     list.Add(modRef);
@@ -1063,7 +1062,7 @@ namespace ModHearth
         {
             Console.WriteLine("Finding all mods (filesystem)...");
 
-            List<(string Root, string Dir)> candidates = new List<(string, string)>();
+            List<(string Root, string Dir)> candidates = [];
             foreach (string root in EnumerateModRoots())
             {
                 if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
@@ -1085,7 +1084,7 @@ namespace ModHearth
 
             Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
             Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
-            HashSet<DFHMod> newModPool = new();
+            HashSet<DFHMod> newModPool = [];
 
             string? currentRoot = null;
             int candidateCount = 0;
@@ -1123,7 +1122,7 @@ namespace ModHearth
                     duplicateCount++;
                     if (!newDuplicateModRefs.TryGetValue(key, out var list))
                     {
-                        list = new List<ModReference> { newModrefMap[key] };
+                        list = [newModrefMap[key]];
                         newDuplicateModRefs[key] = list;
                     }
                     list.Add(modRef);
@@ -1429,7 +1428,7 @@ namespace ModHearth
         private static Dictionary<string, string> BuildModIdPathMap()
         {
             // Enumerate phase: preserve root/dir order so the merge below reproduces the original "first occurrence wins" semantics.
-            List<string> candidateDirs = new List<string>();
+            List<string> candidateDirs = [];
             foreach (string root in EnumerateModRoots())
             {
                 if (!Directory.Exists(root))
@@ -1546,7 +1545,7 @@ namespace ModHearth
         // Because this relies on the DFHack codebase there is a non 0 chance of becoming incompatible with future versions of DFHack.
         private HashSet<Dictionary<string, string>> GetModMemoryData()
         {
-            HashSet<Dictionary<string, string>> modData = new HashSet<Dictionary<string, string>>();
+            HashSet<Dictionary<string, string>> modData = [];
 
             // Load raw memory data string, and parse it with regex
             string RawModData = LoadModMemoryData();
@@ -1589,7 +1588,7 @@ namespace ModHearth
                 throw new FileNotFoundException("GetModMemoryData.lua not found.", luaPath);
 
             // Try direct RPC first (faster, avoids spawning processes)
-            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, Config?.DFFolderPath, out string rpcError);
+            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", ["-f", luaPath], Config?.DFFolderPath, out string rpcError);
             if (rpcOutput != null)
             {
                 return rpcOutput;
@@ -1862,7 +1861,7 @@ namespace ModHearth
         // Alter the current modpack with enabledMods and save modpack list.
         public ModpackSaveResult SaveCurrentModpack()
         {
-            SelectedModlist.modlist = new List<DFHMod>(enabledMods);
+            SelectedModlist.modlist = [.. enabledMods];
 
             return SaveAllModpacks();
         }
@@ -2010,7 +2009,7 @@ namespace ModHearth
                 return false;
 
             // Try direct RPC first (faster, avoids spawning processes)
-            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", new List<string> { "-f", luaPath }, Config?.DFFolderPath, out string rpcError);
+            string? rpcOutput = DFHackRpcClient.ExecuteDFHackCommandViaRpc("lua", ["-f", luaPath], Config?.DFFolderPath, out string rpcError);
             if (rpcOutput != null)
             {
                 if (!string.IsNullOrWhiteSpace(rpcOutput))
@@ -2169,8 +2168,8 @@ namespace ModHearth
         // The only time this is called (other than SetSelectedModpack) is when overwriting a modpack due to importing.
         public void SetActiveMods(List<DFHMod> mods)
         {
-            List<DFHMod> newEnabledMods = new List<DFHMod>(mods);
-            HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(modPool);
+            List<DFHMod> newEnabledMods = [.. mods];
+            HashSet<DFHMod> newDisabledMods = [.. modPool];
             foreach (DFHMod mod in newEnabledMods)
                 _ = newDisabledMods.Remove(mod);
 
@@ -2188,8 +2187,8 @@ namespace ModHearth
             if (mods == null || mods.Count == 0)
                 return;
 
-            List<DFHMod> uniqueMods = new List<DFHMod>();
-            HashSet<DFHMod> seen = new HashSet<DFHMod>();
+            List<DFHMod> uniqueMods = [];
+            HashSet<DFHMod> seen = [];
             foreach (DFHMod mod in mods.Where(seen.Add))
             {
                 uniqueMods.Add(mod);
@@ -2206,7 +2205,7 @@ namespace ModHearth
             }
             else if (!sourceLeft && !destinationLeft)
             {
-                HashSet<DFHMod> selectedSet = new HashSet<DFHMod>(uniqueMods);
+                HashSet<DFHMod> selectedSet = [.. uniqueMods];
                 List<DFHMod> selectedInOrder = enabledMods.Where(selectedSet.Contains).ToList();
                 if (selectedInOrder.Count == 0)
                     return;
@@ -2218,10 +2217,12 @@ namespace ModHearth
                 List<DFHMod> remaining = enabledMods.Where(m => !selectedSet.Contains(m)).ToList();
                 targetIndex = Math.Max(0, Math.Min(targetIndex, remaining.Count));
 
-                List<DFHMod> newList = new List<DFHMod>();
-                newList.AddRange(remaining.Take(targetIndex));
-                newList.AddRange(selectedInOrder);
-                newList.AddRange(remaining.Skip(targetIndex));
+                List<DFHMod> newList =
+                [
+                    .. remaining.Take(targetIndex),
+                    .. selectedInOrder,
+                    .. remaining.Skip(targetIndex),
+                ];
 
                 if (!enabledMods.SequenceEqual(newList))
                 {
@@ -2232,11 +2233,11 @@ namespace ModHearth
             }
             else if (!sourceLeft && destinationLeft)
             {
-                HashSet<DFHMod> selectedSet = new HashSet<DFHMod>(uniqueMods);
+                HashSet<DFHMod> selectedSet = [.. uniqueMods];
                 int beforeCount = enabledMods.Count;
                 List<DFHMod> newEnabledMods = enabledMods.Where(m => !selectedSet.Contains(m)).ToList();
 
-                HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
+                HashSet<DFHMod> newDisabledMods = [.. disabledMods];
                 foreach (DFHMod mod in uniqueMods)
                     _ = newDisabledMods.Add(mod);
 
@@ -2249,11 +2250,11 @@ namespace ModHearth
             }
             else if (sourceLeft && !destinationLeft)
             {
-                HashSet<DFHMod> newDisabledMods = new HashSet<DFHMod>(disabledMods);
+                HashSet<DFHMod> newDisabledMods = [.. disabledMods];
                 foreach (DFHMod mod in uniqueMods)
                     _ = newDisabledMods.Remove(mod);
 
-                List<DFHMod> newEnabledMods = new List<DFHMod>(enabledMods);
+                List<DFHMod> newEnabledMods = [.. enabledMods];
                 int insertIndex = Math.Max(0, Math.Min(newIndex, newEnabledMods.Count));
                 newEnabledMods.InsertRange(insertIndex, uniqueMods);
 
@@ -2272,7 +2273,7 @@ namespace ModHearth
         // Tuple representing problem has problem mod, int problemType (missing before, missing after, conflict present), and string modID.
         public void FindModlistProblems()
         {
-            List<ModProblem> newModProblems = new List<ModProblem>();
+            List<ModProblem> newModProblems = [];
 
             string installedModsPath = GetInstalledModsPath();
             bool hasInstalledModsPath = !string.IsNullOrWhiteSpace(installedModsPath);
@@ -2307,7 +2308,7 @@ namespace ModHearth
                 _ = unscannedModIDs.Add(dfm.id);
 
             HashSet<string> allEnabledIDs = new HashSet<string>(unscannedModIDs, StringComparer.OrdinalIgnoreCase);
-            string modNeedIsStr = " mod needing is: ";
+            string modNeedIsStr = " needs mod: ";
 
             for (int i = 0; i < enabledMods.Count; i++)
             {
@@ -2422,22 +2423,33 @@ namespace ModHearth
                 modproblems = newModProblems;
         }
 
-        public IReadOnlyDictionary<string, List<string>> GetDuplicateWarningMap()
+        private HashSet<string> GetActiveModIds()
         {
-            EnsureDuplicateWarningCache(logFound: true);
+            return new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+        }
 
-            HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+        private HashSet<string> GetLiveConflictedIds(HashSet<string> activeModIds)
+        {
             HashSet<string> liveConflictedIds = new(StringComparer.OrdinalIgnoreCase);
             foreach (var group in duplicateWarningGroups.Where(group => group.Count(activeModIds.Contains) > 1))
             {
                 liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
             }
+            return liveConflictedIds;
+        }
+
+        public IReadOnlyDictionary<string, List<string>> GetDuplicateWarningMap()
+        {
+            EnsureDuplicateWarningCache(logFound: true);
+
+            HashSet<string> activeModIds = GetActiveModIds();
+            HashSet<string> liveConflictedIds = GetLiveConflictedIds(activeModIds);
 
 
             Dictionary<string, List<string>> combinedMap = new(StringComparer.OrdinalIgnoreCase);
             foreach (var kvp in duplicateWarningMap.Where(kvp => liveConflictedIds.Contains(kvp.Key)))
             {
-                combinedMap[kvp.Key] = new List<string>(kvp.Value);
+                combinedMap[kvp.Key] = [.. kvp.Value];
             }
 
 
@@ -2446,7 +2458,7 @@ namespace ModHearth
                 if (combinedMap.TryGetValue(kvp.Key, out var list))
                     list.AddRange(kvp.Value);
                 else
-                    combinedMap[kvp.Key] = new List<string>(kvp.Value);
+                    combinedMap[kvp.Key] = [.. kvp.Value];
             }
             return combinedMap;
         }
@@ -2457,12 +2469,8 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(modId))
                 return false;
 
-            HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
-            HashSet<string> liveConflictedIds = new(StringComparer.OrdinalIgnoreCase);
-            foreach (var group in duplicateWarningGroups.Where(group => group.Count(activeModIds.Contains) > 1))
-            {
-                liveConflictedIds.UnionWith(group.Where(activeModIds.Contains));
-            }
+            HashSet<string> activeModIds = GetActiveModIds();
+            HashSet<string> liveConflictedIds = GetLiveConflictedIds(activeModIds);
 
 
             return duplicateWarningMap.ContainsKey(modId) && liveConflictedIds.Contains(modId);
@@ -2472,8 +2480,8 @@ namespace ModHearth
         {
             EnsureDuplicateWarningCache(logFound: true);
 
-            HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
-            List<HashSet<string>> combinedGroups = new();
+            HashSet<string> activeModIds = GetActiveModIds();
+            List<HashSet<string>> combinedGroups = [];
             foreach (HashSet<string> group in duplicateWarningGroups)
             {
                 HashSet<string> activeMembers = new(group.Where(activeModIds.Contains), StringComparer.OrdinalIgnoreCase);
@@ -2505,7 +2513,7 @@ namespace ModHearth
                 {
                     duplicateWarningLastWriteUtc = null;
                     duplicateWarningMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                    duplicateWarningGroups = new List<HashSet<string>>();
+                    duplicateWarningGroups = [];
                 }
                 return;
             }
@@ -2527,7 +2535,7 @@ namespace ModHearth
             catch
             {
                 newMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                newGroups = new List<HashSet<string>>();
+                newGroups = [];
             }
 
             lock (stateGate)
@@ -2545,7 +2553,7 @@ namespace ModHearth
         {
             Dictionary<string, string> aliasMap = BuildDuplicateWarningAliasMap();
             Dictionary<string, HashSet<string>> map = new(StringComparer.OrdinalIgnoreCase);
-            List<HashSet<string>> groupList = new();
+            List<HashSet<string>> groupList = [];
             HashSet<string> groupKeys = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (string line in File.ReadLines(errorLogPath))
@@ -2601,7 +2609,7 @@ namespace ModHearth
             var cache = ModRawDependencyCacheStore.Load();
             HashSet<string> activeModIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             Dictionary<string, List<string>> newMap = new(StringComparer.OrdinalIgnoreCase);
-            List<HashSet<string>> newGroups = new();
+            List<HashSet<string>> newGroups = [];
             Dictionary<string, List<string>> definitionToMods = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in cache.Values)
@@ -2613,7 +2621,7 @@ namespace ModHearth
                 {
                     if (!definitionToMods.TryGetValue(defId, out var mods))
                     {
-                        mods = new List<string>();
+                        mods = [];
                         definitionToMods[defId] = mods;
                     }
                     mods.Add(entry.ModId);
@@ -2632,7 +2640,7 @@ namespace ModHearth
                     {
                         if (!newMap.TryGetValue(modId, out var objects))
                         {
-                            objects = new List<string>();
+                            objects = [];
                             newMap[modId] = objects;
                         }
                         objects.Add($"[Cache] Duplicate raw definition: {displayLabel} (also in: {string.Join(", ", kvp.Value.Where(id => !string.Equals(id, modId, StringComparison.OrdinalIgnoreCase)))})");
@@ -2698,7 +2706,7 @@ namespace ModHearth
                 }
             }
 
-            List<DFHModpack> newModpacks = new List<DFHModpack>(loadedModpacks);
+            List<DFHModpack> newModpacks = [.. loadedModpacks];
 
             Console.WriteLine();
             Console.WriteLine("Found modlists: ");
@@ -2706,7 +2714,7 @@ namespace ModHearth
             // Handle mods missing.
             bool modMissing = false;
             string missingMessage = $"Some mods missing. \nModlists will be modified to not require lost mods. \nMissing mods: ";
-            HashSet<DFHMod> notFound = new HashSet<DFHMod>();
+            HashSet<DFHMod> notFound = [];
 
             // If a default modpack exists.
             int defaultIndex = -1;
@@ -2720,7 +2728,7 @@ namespace ModHearth
                 DFHModpack modlist = newModpacks[i];
 
                 // Remove the missing mods from the modlist.
-                HashSet<DFHMod> thisListMissingMods = new HashSet<DFHMod>();
+                HashSet<DFHMod> thisListMissingMods = [];
                 for (int mIndex = 0; mIndex < modlist.modlist.Count; mIndex++)
                 {
                     DFHMod mod = modlist.modlist[mIndex];
@@ -2832,7 +2840,7 @@ namespace ModHearth
             if (hasVanillaPath)
                 vanillaPath = Path.GetFullPath(vanillaPath);
 
-            List<ModReference> vanillaRefs = new List<ModReference>();
+            List<ModReference> vanillaRefs = [];
             foreach (ModReference modref in modrefMap.Values)
             {
                 if (!hasVanillaPath || string.IsNullOrWhiteSpace(modref.path))

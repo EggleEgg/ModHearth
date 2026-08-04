@@ -71,7 +71,7 @@ internal static class AppLogging
     public static void LogException(string label, Exception? ex)
     {
         //See avalonia issues #17616, #18703, #4175. Likely wont be fixed ever, so we just ignore these.
-        if (ex is System.AggregateException aggregate &&
+        if (ex is AggregateException aggregate &&
             aggregate.InnerException?.GetType().FullName == "Tmds.DBus.Protocol.DBusException" &&
             aggregate.InnerException.Message.Contains("AppMenu.Registrar", StringComparison.OrdinalIgnoreCase))
         {

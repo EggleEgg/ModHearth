@@ -28,9 +28,9 @@ public partial class MainWindow
     private Tool? modPreviewTool;
     private Tool? modDataTool;
     private Tool? descriptionTool;
-    private readonly HashSet<ToolDock> emptyToolDocks = new();
+    private readonly HashSet<ToolDock> emptyToolDocks = [];
     private readonly HashSet<object> knownSplitters = new(ReferenceEqualityComparer.Instance);
-    private readonly Dictionary<ToolDock, double> reclaimedToolDockProportions = new();
+    private readonly Dictionary<ToolDock, double> reclaimedToolDockProportions = [];
     private const double CollapsedToolDockProportion = 0.000001; //slightly sketchy but it works
     private ModReference? currentModDataModRef;
     private readonly ModInfoDockFactory factory = new();

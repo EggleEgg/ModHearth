@@ -7,7 +7,7 @@ namespace ModHearth.UI;
 
 public sealed class ModDataPanelViewModel : Tool
 {
-    public ObservableCollection<ModDataEntryViewModel> Entries { get; } = new();
+    public ObservableCollection<ModDataEntryViewModel> Entries { get; } = [];
 
     private bool hasSelection;
     public bool HasSelection

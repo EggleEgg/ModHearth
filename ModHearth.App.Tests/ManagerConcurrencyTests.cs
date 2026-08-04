@@ -40,7 +40,7 @@ public class ManagerConcurrencyTests
 
         await Task.Run(() => Parallel.Invoke(
             () => Hammer(() => manager.Initialize(), initializeIterations),
-            () => Hammer(() => manager.SetActiveMods(new List<DFHMod>(manager.enabledMods)), cheapIterations),
+            () => Hammer(() => manager.SetActiveMods([.. manager.enabledMods]), cheapIterations),
             () => Hammer(() => manager.GetInstalledCacheModIds(), cheapIterations),
             () => Hammer(() => manager.RefreshInstalledCacheModIds(), cheapIterations),
             () => Hammer(() => manager.FindModlistProblems(), cheapIterations),

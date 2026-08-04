@@ -28,7 +28,6 @@ public sealed class SteamWorkshopService
     // It exists so callers fail fast with a clear message instead of spawning a doomed worker
     // process when Steam obviously isn't running at all.
     public bool IsAvailable => SteamProcessHelper.TryDetectSteamProcess(out _);
-
     public static bool Subscribe(ulong workshopId) => RunWorker("subscribe", workshopId.ToString());
 
     public static bool Unsubscribe(ulong workshopId) => RunWorker("unsubscribe", workshopId.ToString());

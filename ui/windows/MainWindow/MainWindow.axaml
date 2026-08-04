@@ -1,5 +1,4 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:html="clr-namespace:TheArtOfDev.HtmlRenderer.Avalonia;assembly=Avalonia.HtmlRenderer"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:ModHearth.UI"
         xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
@@ -101,14 +100,14 @@
         <Style Selector="Border[Tag=DockHost]">
           <Setter Property="Background" Value="{DynamicResource PanelDarkBrush}"/>
         </Style>
-        <Style Selector="Border[Tag=DockHost]:pressed">
+        <Style Selector="Border[Tag=DockHost].pressed">
           <Setter Property="Background" Value="{DynamicResource LowAlphaModRefHighlightBrush}" />
         </Style>
 
       </Grid.Styles>
 
       <ContentControl x:Name="leftDockHost" Tag="DockHost" Grid.Column="0" />
-      <Border Grid.Column="0" Tag="DockHost" Width="3" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+      <Border x:Name="leftDockHostLine" Grid.Column="0" Tag="DockHost" Width="3" HorizontalAlignment="Right" VerticalAlignment="Stretch"
               Margin="0,12,0,0" IsVisible="{Binding IsVisible, ElementName=leftDockHost}" />
 
       <Border x:Name="leftDockSplitter" Grid.Column="1" Width="10" Background="Transparent" Cursor="SizeWestEast"
@@ -337,14 +336,14 @@
               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0, 36, 0, 0" IsVisible="False" />
 
       <ContentControl x:Name="rightDockHost" Tag="DockHost" Grid.Column="7" />
-      <Border Grid.Column="7" Tag="DockHost" Width="3" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+      <Border x:Name="rightDockHostLine" Grid.Column="7" Tag="DockHost" Width="3" HorizontalAlignment="Left" VerticalAlignment="Stretch"
               Margin="0,12,0,0" IsVisible="{Binding IsVisible, ElementName=rightDockHost}" />
 
       <Border x:Name="bottomDockSplitter" Grid.Row="1" Grid.ColumnSpan="8" Height="7" Background="Transparent" Cursor="SizeNorthSouth"
               HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0, 0, 36, 0" IsVisible="False" />
 
       <ContentControl x:Name="bottomDockHost" Tag="DockHost" Grid.Row="2" Grid.ColumnSpan="8" />
-      <Border Grid.Row="2" Grid.ColumnSpan="8" Tag="DockHost" Height="3" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+      <Border x:Name="bottomDockHostLine" Grid.Row="2" Grid.ColumnSpan="8" Tag="DockHost" Height="3" VerticalAlignment="Top" HorizontalAlignment="Stretch"
               Margin="0,0,12,0" IsVisible="{Binding IsVisible, ElementName=bottomDockHost}" />
 
       <!-- TODO Refactor to stop using weird "magic number" margins to center the buttons. Image rotation should be accounted for too -->

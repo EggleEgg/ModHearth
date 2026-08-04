@@ -14,7 +14,7 @@ namespace ModHearth.UI;
 public sealed record RuleBadgeInfo(IImage? Icon, int Count);
 public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 {
-    private static readonly List<WeakReference<ModRefViewModel>> allInstances = new();
+    private static readonly List<WeakReference<ModRefViewModel>> allInstances = [];
     private static readonly object instancesLock = new();
 
     private readonly ModReference modref;
@@ -68,7 +68,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 
     public static void RefreshAllStyles()
     {
-        List<ModRefViewModel> targets = new();
+        List<ModRefViewModel> targets = [];
         lock (instancesLock)
         {
             CleanupInstancesLocked();
@@ -588,19 +588,11 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             textBrush = newBrush;
             OnPropertyChanged(nameof(TextBrush));
         }
-        else
-        {
-            OnPropertyChanged(nameof(TextBrush));
-        }
 
         var targetDecoration = IsFilteredOut ? Avalonia.Media.TextDecorations.Strikethrough : null;
         if (textDecorations != targetDecoration)
         {
             textDecorations = targetDecoration;
-            OnPropertyChanged(nameof(TextDecorations));
-        }
-        else
-        {
             OnPropertyChanged(nameof(TextDecorations));
         }
     }

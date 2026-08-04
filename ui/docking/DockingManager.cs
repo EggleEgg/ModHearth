@@ -29,6 +29,7 @@ namespace ModHearth.UI
         public Control SplitterControl { get; set; } = null!;
         public ContentControl DockHostControl { get; set; } = null!;
         public Border? PreviewBorder { get; set; }
+        public Border? DockHostBorder { get; set; }
     }
 
     /// <summary>
@@ -74,9 +75,9 @@ namespace ModHearth.UI
         private double _initialParentSize;
         private bool _isDisposed;
 
-        private readonly Dictionary<Control, EventHandler<PointerPressedEventArgs>> _splitterPressedHandlers = new();
-        private readonly Dictionary<Control, EventHandler<PointerEventArgs>> _splitterMovedHandlers = new();
-        private readonly Dictionary<Control, EventHandler<PointerReleasedEventArgs>> _splitterReleasedHandlers = new();
+        private readonly Dictionary<Control, EventHandler<PointerPressedEventArgs>> _splitterPressedHandlers = [];
+        private readonly Dictionary<Control, EventHandler<PointerEventArgs>> _splitterMovedHandlers = [];
+        private readonly Dictionary<Control, EventHandler<PointerReleasedEventArgs>> _splitterReleasedHandlers = [];
 
         private EventHandler<PointerReleasedEventArgs>? _pointerReleasedHandler;
         private EventHandler<PointerCaptureLostEventArgs>? _pointerCaptureLostHandler;
@@ -810,6 +811,7 @@ namespace ModHearth.UI
 
                     _isDraggingSplitter = true;
                     _splitterStartPoint = e.GetPosition(_parentWindow);
+                    target.DockHostBorder?.Classes.Add("pressed");
 
                     if (IsHorizontal(_activeSide))
                     {
@@ -849,7 +851,7 @@ namespace ModHearth.UI
                         case DockSide.Left:
                             {
                                 double deltaX = currentPoint.X - _splitterStartPoint.X;
-                                double newSize = Math.Clamp(_initialContentSize - deltaX, _minSize, _maxSize);
+                                double newSize = Math.Clamp(_initialContentSize + deltaX, _minSize, _maxSize);
                                 if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
                                     target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
                                 _parentWindow.Width = _initialParentSize + (newSize - _initialContentSize);
@@ -886,6 +888,7 @@ namespace ModHearth.UI
 
                 EventHandler<PointerReleasedEventArgs> releasedHandler = (sender, e) =>
                 {
+                    target.DockHostBorder?.Classes.Remove("pressed");
                     if (!_isDraggingSplitter || _isDisposed) return;
                     _isDraggingSplitter = false;
                     e.Pointer.Capture(null);
@@ -901,6 +904,19 @@ namespace ModHearth.UI
                     e.Handled = true;
                 };
 
+                splitter.PointerCaptureLost += (sender, e) =>
+                {
+                    target.DockHostBorder?.Classes.Remove("pressed");
+                    _isDraggingSplitter = false;
+                };
+
+                if (target.DockHostBorder != null)
+                {
+                    target.DockHostBorder.PointerPressed += (s, e) => target.DockHostBorder.Classes.Add("pressed");
+                    target.DockHostBorder.PointerReleased += (s, e) => target.DockHostBorder.Classes.Remove("pressed");
+                    target.DockHostBorder.PointerCaptureLost += (s, e) => target.DockHostBorder.Classes.Remove("pressed");
+                }
+
                 splitter.PointerPressed += pressedHandler;
                 splitter.PointerMoved += movedHandler;
                 splitter.PointerReleased += releasedHandler;
@@ -911,33 +927,42 @@ namespace ModHearth.UI
             }
         }
 
-        public void Dispose()
+        protected virtual void Dispose(bool disposing)
         {
             if (_isDisposed) return;
             _isDisposed = true;
 
-            foreach (var (splitter, handler) in _splitterPressedHandlers)
-                splitter.PointerPressed -= handler;
-            foreach (var (splitter, handler) in _splitterMovedHandlers)
-                splitter.PointerMoved -= handler;
-            foreach (var (splitter, handler) in _splitterReleasedHandlers)
-                splitter.PointerReleased -= handler;
-
-            _splitterPressedHandlers.Clear();
-            _splitterMovedHandlers.Clear();
-            _splitterReleasedHandlers.Clear();
-
-            if (_dragTracker != null)
+            if (disposing)
             {
-                _dragTracker.DragFinished -= OnDragFinished;
-                _dragTracker.Dispose();
-                _dragTracker = null;
+                foreach (var (splitter, handler) in _splitterPressedHandlers)
+                    splitter.PointerPressed -= handler;
+                foreach (var (splitter, handler) in _splitterMovedHandlers)
+                    splitter.PointerMoved -= handler;
+                foreach (var (splitter, handler) in _splitterReleasedHandlers)
+                    splitter.PointerReleased -= handler;
+
+                _splitterPressedHandlers.Clear();
+                _splitterMovedHandlers.Clear();
+                _splitterReleasedHandlers.Clear();
+
+                if (_dragTracker != null)
+                {
+                    _dragTracker.DragFinished -= OnDragFinished;
+                    _dragTracker.Dispose();
+                    _dragTracker = null;
+                }
+
+                (_sharedControl as IDisposable)?.Dispose();
+                _sharedControl = null;
+
+                Close();
             }
+        }
 
-            (_sharedControl as IDisposable)?.Dispose();
-            _sharedControl = null;
-
-            Close();
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }

@@ -133,7 +133,7 @@ public static class ModUpdateLogger
                 int count = entries?.Count ?? 0;
                 InfoLogger.LogRunDf($"ModUpdateLogger: Successfully deserialized {count} log entries.");
 
-                return entries ?? new List<ModUpdateLogEntry>();
+                return entries ?? [];
             }
             catch (Exception ex)
             {
@@ -168,7 +168,7 @@ public static class ModUpdateLogger
         {
             try
             {
-                List<ModUpdateLogEntry> entries = new();
+                List<ModUpdateLogEntry> entries = [];
                 Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
                 bool snapshotChanged = false;
 
@@ -213,7 +213,7 @@ public static class ModUpdateLogger
         {
             try
             {
-                List<ModUpdateLogEntry> entries = new();
+                List<ModUpdateLogEntry> entries = [];
                 Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
                 bool snapshotChanged = false;
 
@@ -298,7 +298,7 @@ public static class ModUpdateLogger
                 }, i =>
                 {
                     ModUpdateSnapshotEntry currentEntry = currentList[i];
-                    List<ModUpdateLogEntry> localEntries = new();
+                    List<ModUpdateLogEntry> localEntries = [];
 
                     if (!previous.TryGetValue(currentEntry.ModId, out ModUpdateSnapshotEntry? oldEntry))
                     {
@@ -319,7 +319,7 @@ public static class ModUpdateLogger
                     perEntryResults[i] = localEntries.Count > 0 ? localEntries : null;
                 });
 
-                List<ModUpdateLogEntry> entries = new List<ModUpdateLogEntry>();
+                List<ModUpdateLogEntry> entries = [];
                 foreach (List<ModUpdateLogEntry>? localEntries in perEntryResults)
                 {
                     if (localEntries != null)
@@ -575,7 +575,7 @@ public static class ModUpdateLogger
 
         try
         {
-            List<string> metadata = new List<string>();
+            List<string> metadata = [];
             foreach (string filePath in Directory.EnumerateFiles(normalizedPath, "*", SearchOption.AllDirectories))
             {
                 try
@@ -727,29 +727,30 @@ public static class ModUpdateLogger
         HashSet<string> activeIds,
         IEnumerable<string>? workshopAcfPaths)
     {
-        List<ModUpdateLogEntry> entries = new List<ModUpdateLogEntry>();
+        void LogInfo(string message) => SteamConnectionLogger.LogInfo(message);
+
+        List<ModUpdateLogEntry> entries = [];
         if (!SteamProcessHelper.TryDetectSteamProcess(out List<string> runningProcesses))
         {
-            SteamConnectionLogger.Log("Steam workshop update scan skipped: no active Steam process detected.");
+            LogInfo("Steam workshop update scan skipped: no active Steam process detected.");
             return entries;
         }
 
-        SteamConnectionLogger.Log(
-            $"Steam workshop update scan started. Active Steam process(es): {string.Join(", ", runningProcesses)}.");
+        LogInfo($"Steam workshop update scan started. Active Steam process(es): {string.Join(", ", runningProcesses)}.");
 
         StringComparer pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         List<string> acfPaths = workshopAcfPaths?
             .Select(ResolveCanonicalPath)
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .Distinct(pathComparer)
-            .ToList() ?? new List<string>();
+            .ToList() ?? [];
 
-        SteamConnectionLogger.Log($"Steam workshop update scan: {acfPaths.Count} workshop ACF path(s) received.");
+        LogInfo($"Steam workshop update scan: {acfPaths.Count} workshop ACF path(s) received.");
         if (acfPaths.Count == 0)
             return entries;
 
         Dictionary<string, long> currentUpdates = LoadWorkshopUpdateTimes(acfPaths);
-        SteamConnectionLogger.Log($"Steam workshop update scan: parsed {currentUpdates.Count} workshop item timestamps.");
+        LogInfo($"Steam workshop update scan: parsed {currentUpdates.Count} workshop item timestamps.");
         if (currentUpdates.Count == 0)
             return entries;
 
@@ -757,7 +758,7 @@ public static class ModUpdateLogger
         Dictionary<string, long> previousUpdates = LoadWorkshopSnapshot();
         if (!snapshotExists)
         {
-            SteamConnectionLogger.Log("Steam workshop snapshot missing. Creating baseline snapshot.");
+            LogInfo("Steam workshop snapshot missing. Creating baseline snapshot.");
             SaveWorkshopSnapshot(currentUpdates);
             return entries;
         }
@@ -799,7 +800,7 @@ public static class ModUpdateLogger
         }
 
         SaveWorkshopSnapshot(currentUpdates);
-        SteamConnectionLogger.Log(
+        LogInfo(
             $"Steam workshop update scan completed. Logged {entries.Count} updated mod(s), {unchangedCount} unchanged item(s), {unmappedCount} unmapped item(s).");
         return entries;
     }

@@ -164,7 +164,7 @@ public partial class MainWindow : IModRefContextMenuProvider
 
         List<ModRefViewModel> targets = selected.Count > 0 && selected.Contains(contextVm)
             ? selected
-            : new List<ModRefViewModel> { contextVm };
+            : [contextVm];
         List<ModReference> modReferences = targets.Select(t => t.ModReference).ToList();
 
         colorRoot.Header = targets.Count > 1
@@ -286,7 +286,7 @@ public partial class MainWindow : IModRefContextMenuProvider
 
     private bool TryGetContextModReferences(object? sender, out List<ModReference> modReferences)
     {
-        modReferences = new List<ModReference>();
+        modReferences = [];
         if (sender is not MenuItem menuItem || menuItem.DataContext is not ModRefViewModel vm)
             return false;
 

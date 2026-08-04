@@ -5,16 +5,16 @@ namespace ModHearth;
 public sealed class ModRelationshipRule
 {
     [JsonPropertyName("beforeIds")]
-    public List<string> BeforeIds { get; set; } = new();
+    public List<string> BeforeIds { get; set; } = [];
 
     [JsonPropertyName("afterIds")]
-    public List<string> AfterIds { get; set; } = new();
+    public List<string> AfterIds { get; set; } = [];
 
     [JsonPropertyName("requiredIds")]
-    public List<string> RequiredIds { get; set; } = new();
+    public List<string> RequiredIds { get; set; } = [];
 
     [JsonPropertyName("incompatibleIds")]
-    public List<string> IncompatibleIds { get; set; } = new();
+    public List<string> IncompatibleIds { get; set; } = [];
 
     [JsonIgnore]
     public bool IsEmpty =>
@@ -27,18 +27,22 @@ public sealed class ModRelationshipRule
     {
         return new ModRelationshipRule
         {
-            BeforeIds = new List<string>(BeforeIds),
-            AfterIds = new List<string>(AfterIds),
-            RequiredIds = new List<string>(RequiredIds),
-            IncompatibleIds = new List<string>(IncompatibleIds)
+            BeforeIds = [.. BeforeIds],
+            AfterIds = [.. AfterIds],
+            RequiredIds = [.. RequiredIds],
+            IncompatibleIds = [.. IncompatibleIds]
         };
     }
 }
 
 public enum ModRelationshipKind
 {
+    // Unlike vanilla df these 2 only care about position, not dependencies (except against each other)
     Before,
     After,
+
+    // Needs to be anywhere in the list
     Required,
+    // Conflicts with everything else
     Incompatible
 }

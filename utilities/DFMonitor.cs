@@ -89,7 +89,7 @@ public class DFMonitor
 
         try
         {
-            var p = Process.GetProcessById(pid);
+            using var p = Process.GetProcessById(pid);
             return !p.HasExited;
         }
         catch (ArgumentException)
@@ -133,12 +133,26 @@ public class DFMonitor
         }
 
         // Fallback for Windows / macOS
-        var processes = Process.GetProcesses()
-            .Where(p => p.ProcessName.Contains("Dwarf Fortress", StringComparison.OrdinalIgnoreCase) ||
+        try
+        {
+            foreach (var p in Process.GetProcesses())
+            {
+                using (p)
+                {
+                    if (p.ProcessName.Contains("Dwarf Fortress", StringComparison.OrdinalIgnoreCase) ||
                         p.ProcessName.Contains("dwarfort", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+                    {
+                        return p.Id;
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Ignored
+        }
 
-        return processes.FirstOrDefault()?.Id;
+        return null;
     }
 
     public async Task SafeExecuteRpcAsync(Func<Task> rpcAction)

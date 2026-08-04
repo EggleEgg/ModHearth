@@ -179,7 +179,7 @@ namespace ModHearth.Utilities.Workshop
             catch (Exception ex)
             {
                 AppLogging.LogException($"Failed to write SteamCMD batch script at {scriptPath}", ex);
-                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch { }
+                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch (Exception cleanupEx) { AppLogging.LogException($"Failed to delete staging directory at {stagingPath}", cleanupEx); }
                 return result;
             }
 
@@ -272,7 +272,7 @@ namespace ModHearth.Utilities.Workshop
             }
             finally
             {
-                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch { }
+                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch (Exception cleanupEx) { AppLogging.LogException($"Failed to delete staging directory at {stagingPath}", cleanupEx); }
             }
 
             return result;
@@ -302,7 +302,7 @@ namespace ModHearth.Utilities.Workshop
                     catch (IOException)
                     {
                         File.Copy(filePath, destFile, true);
-                        try { File.Delete(filePath); } catch { }
+                        try { File.Delete(filePath); } catch (Exception ex) { AppLogging.LogException($"Failed to delete file {filePath}", ex); }
                     }
                 }
                 foreach (string subDir in Directory.GetDirectories(nestedContentDir))
@@ -317,14 +317,14 @@ namespace ModHearth.Utilities.Workshop
                     catch (IOException)
                     {
                         MoveOrCopyDirectory(subDir, destSubDir);
-                        try { Directory.Delete(subDir, true); } catch { }
+                        try { Directory.Delete(subDir, true); } catch (Exception ex) { AppLogging.LogException($"Failed to delete subdirectory {subDir}", ex); }
                     }
                 }
 
                 string scaffoldRoot = Path.Combine(downloadPath, SteamApps);
                 if (Directory.Exists(scaffoldRoot))
                 {
-                    try { Directory.Delete(scaffoldRoot, true); } catch { }
+                    try { Directory.Delete(scaffoldRoot, true); } catch (Exception ex) { AppLogging.LogException($"Failed to delete scaffold root {scaffoldRoot}", ex); }
                 }
             }
             catch (Exception ex)

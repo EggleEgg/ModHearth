@@ -75,10 +75,10 @@ namespace ModHearth.UI
         private string _lastRawClipboard = string.Empty;
         private bool _isCheckingClipboard;
         private bool _suppressClipboardTextBoxAutoResolve;
-        private readonly HashSet<ulong> _idsBeingResolved = new();
+        private readonly HashSet<ulong> _idsBeingResolved = [];
         private CancellationTokenSource? _statusCts;
-        private NotifyCollectionChangedEventHandler? _queueCollectionChangedHandler;
-        private ModRefControl? _contextMenuHost;
+        private readonly NotifyCollectionChangedEventHandler? _queueCollectionChangedHandler;
+        private readonly ModRefControl? _contextMenuHost;
         private bool _isSetupDialogShowing;
 
         public WorkshopDownloaderControl() : this(null!) { }
@@ -305,7 +305,7 @@ namespace ModHearth.UI
                 }
             }
 
-            List<string> statusParts = new();
+            List<string> statusParts = [];
             if (ignoredCount > 0)
                 statusParts.Add($"Ignored {ignoredCount} existing mod(s).");
             if (inFlightCount > 0)

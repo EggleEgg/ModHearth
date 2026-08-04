@@ -315,7 +315,7 @@ namespace ModHearth.UI
             }
         }
 
-        private async System.Threading.Tasks.Task CheckForMovementStop()
+        private async Task CheckForMovementStop()
         {
             while (true)
             {

@@ -30,16 +30,13 @@ function GetAllMods()
         local modHeaderString = "{"
         for k, v in pairs(mod_header) do
             -- Dependencies and such not handled for now.
-            if tostring(k) == "dependencies" or tostring(k) == "dependency_type" or tostring(k) == "conflicts" or tostring(k) == "flags" or tostring(k) == "steam_tag" or tostring(k) == "steam_key_tag" or tostring(k) == "steam_value_tag" or string.find(tostring(k), "steamapi") then
-                if (not string.find(tostring(k), "steamapi")) and (not tostring(k) == "flags") then
-                    for k2,v2 in pairs(v) do
-                    end
-                end
-            else
+            local kstr = tostring(k)
+            local skip = kstr == "dependencies" or kstr == "dependency_type" or kstr == "conflicts" or kstr == "flags" or kstr == "steam_tag" or kstr == "steam_key_tag" or kstr == "steam_value_tag" or string.find(kstr, "steamapi")
+            if not skip then
                 local addition = tostring(v)
                 addition = string.gsub(addition, '\\', '\\\\')
                 addition = string.gsub(addition, '"', '\\"')
-                modHeaderString = modHeaderString.."\n\""..tostring(k).."\": \""..addition.."\","
+                modHeaderString = modHeaderString.."\n\""..kstr.."\": \""..addition.."\","
             end
         end
         -- Remove trailing comma from JSON.

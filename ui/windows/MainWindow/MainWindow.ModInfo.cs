@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.Svg.Skia;
 using System.Text.RegularExpressions;
 
 namespace ModHearth.UI;
@@ -51,17 +50,9 @@ public partial class MainWindow
         PopulateModDataViewer(modref);
 
         IImage? previewImage = null;
-        // Technically not necessary but whatever
-        string? previewSvgPath = ResolveFilePathCaseInsensitive(modref.path, "preview.svg");
-        if (!string.IsNullOrWhiteSpace(previewSvgPath))
-            previewImage = ImageSourceLoader.LoadFromFilePath(previewSvgPath);
-
-        if (previewImage == null)
-        {
-            string? previewPath = ResolveFilePathCaseInsensitive(modref.path, "preview.png");
-            if (!string.IsNullOrWhiteSpace(previewPath))
-                previewImage = ImageSourceLoader.LoadFromFilePath(previewPath);
-        }
+        string? previewPath = ResolveFilePathCaseInsensitive(modref.path, "preview.png");
+        if (!string.IsNullOrWhiteSpace(previewPath))
+            previewImage = ImageSourceLoader.LoadFromFilePath(previewPath);
 
         SetPreviewImage(previewImage ?? LoadFallbackPreview());
     }
@@ -127,17 +118,9 @@ public partial class MainWindow
         modPreviewPanelViewModel.PreviewImage = image;
     }
 
-    // SvgImage (unlike Bitmap) doesn't implement IDisposable
     private static void DisposePreviewImage(IImage? image)
     {
-        switch (image)
-        {
-            case SvgImage svgImage:
-                svgImage.Source?.Dispose();
-                return;
-            case IDisposable disposable:
-                disposable.Dispose();
-                break;
-        }
+        if (image is IDisposable disposable)
+            disposable.Dispose();
     }
 }

@@ -59,7 +59,7 @@ namespace ModHearth.Utilities.Workshop
         public string Author { get; set; } = string.Empty;
         public long FileSize { get; set; }
         public DateTime UpdatedAt { get; set; }
-        public List<ulong> Dependencies { get; set; } = new();
+        public List<ulong> Dependencies { get; set; } = [];
 
         public DownloadState State
         {
@@ -190,8 +190,8 @@ namespace ModHearth.Utilities.Workshop
             });
         }
 
-        public ObservableCollection<WorkshopDownloadItem> Queue { get; } = new();
-        public List<IWorkshopDownloadProvider> Providers { get; } = new();
+        public ObservableCollection<WorkshopDownloadItem> Queue { get; } = [];
+        public List<IWorkshopDownloadProvider> Providers { get; } = [];
         public IWorkshopDownloadProvider? SelectedProvider { get; set; }
         public ModHearthManager Manager => _manager;
 
@@ -211,18 +211,25 @@ namespace ModHearth.Utilities.Workshop
                 ?? Providers.FirstOrDefault();
         }
 
+        private static bool IsDuplicateSelection(ulong id, List<ulong>? allIds)
+        {
+            if (allIds == null)
+                return false;
+            int firstIdx = allIds.IndexOf(id);
+            if (firstIdx < 0)
+                return false;
+            int lastIdx = allIds.LastIndexOf(id);
+            return firstIdx != lastIdx;
+        }
+
         public ModStatusClassification ClassifyMod(ulong id, List<ulong>? allSelectedIds = null)
         {
             string idStr = id.ToString();
 
             // Check for duplicates in current selection/checklist
-            if (allSelectedIds != null && allSelectedIds.Count(x => x == id) > 1)
+            if (IsDuplicateSelection(id, allSelectedIds))
             {
-                int index = allSelectedIds.IndexOf(id);
-                if (index >= 0 && allSelectedIds.FindIndex(index + 1, x => x == id) >= 0)
-                {
-                    return ModStatusClassification.Duplicate;
-                }
+                return ModStatusClassification.Duplicate;
             }
 
             // Find installed mod
@@ -243,14 +250,9 @@ namespace ModHearth.Utilities.Workshop
             string idStr = meta.PublishedFileId.ToString();
 
             // Duplicate check
-            if (allIds.Count(x => x == meta.PublishedFileId) > 1)
+            if (IsDuplicateSelection(meta.PublishedFileId, allIds))
             {
-                int firstIdx = allIds.IndexOf(meta.PublishedFileId);
-                int lastIdx = allIds.LastIndexOf(meta.PublishedFileId);
-                if (firstIdx != lastIdx)
-                {
-                    return ModStatusClassification.Duplicate;
-                }
+                return ModStatusClassification.Duplicate;
             }
 
             var installedMods = _manager.LoadedMods;
@@ -398,6 +400,8 @@ namespace ModHearth.Utilities.Workshop
             if (item.CanCancel)
             {
                 item.Cts?.Cancel();
+                item.Cts?.Dispose();
+                item.Cts = null;
                 item.SetState(DownloadState.Cancelled);
                 item.SetStatus("Cancelled");
             }
@@ -532,7 +536,7 @@ namespace ModHearth.Utilities.Workshop
                     return;
                 }
 
-                List<WorkshopDownloadItem> batchGroup = new() { item };
+                List<WorkshopDownloadItem> batchGroup = [item];
                 switch (provider)
                 {
                     case SteamCmdDownloadProvider:
@@ -605,7 +609,7 @@ namespace ModHearth.Utilities.Workshop
                                 batchItems.Add(new BatchDownloadItem(batchItem.PublishedFileId, targetDir, prog, batchItem.Cts!.Token));
                             }
 
-                            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ctsList.Select(c => c.Token).ToArray());
+                            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ctsList.Select(c => c.Token).ToArray());
                             var results = await steamCmdProvider.DownloadBatchAsync(batchItems, linkedCts.Token);
 
                             bool anySuccess = false;
@@ -719,13 +723,37 @@ namespace ModHearth.Utilities.Workshop
                     // Stop the UI timer on the UI thread
                     Dispatcher.UIThread.Post(() =>
                     {
-                        try { _reloadTimer?.Stop(); } catch { }
+                        try { _reloadTimer?.Stop(); } catch (Exception ex) { AppLogging.LogException("Failed to stop reload timer", ex); }
                         _reloadTimer = null;
                     });
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("Failed to post reload timer stop action to UI thread", ex);
+                }
 
-                try { _concurrencySemaphore?.Dispose(); } catch { }
+                try
+                {
+                    foreach (var item in Queue)
+                    {
+                        try
+                        {
+                            item.Cts?.Cancel();
+                            item.Cts?.Dispose();
+                            item.Cts = null;
+                        }
+                        catch (Exception ex)
+                        {
+                            AppLogging.LogException($"Failed to cancel/dispose cancellation token source for workshop item {item.PublishedFileId}", ex);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("Failed to iterate workshop queue items during disposal", ex);
+                }
+
+                try { _concurrencySemaphore?.Dispose(); } catch (Exception ex) { AppLogging.LogException("Failed to dispose concurrency semaphore", ex); }
             }
 
             _disposed = true;

@@ -35,7 +35,7 @@ public partial class ModColorPicker : UserControl
 
     public ICommand ClearSelectionCommand { get; }
 
-    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = new();
+    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = [];
 
     public ObservableCollection<ModColorInfo> AvailableColors
     {
@@ -58,8 +58,8 @@ public partial class ModColorPicker : UserControl
     public ModColorPicker()
     {
         // Initialize collections before InitializeComponent to ensure they are available for binding
-        AvailableColors = new ObservableCollection<ModColorInfo>();
-        SelectedColors = new ObservableCollection<ModColorInfo>();
+        AvailableColors = [];
+        SelectedColors = [];
 
         InitializeComponent();
 

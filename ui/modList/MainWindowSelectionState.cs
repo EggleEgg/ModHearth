@@ -23,9 +23,9 @@ internal static class MainWindowSelectionState
     public static List<ModSelectionToken> CaptureSelectionTokens(ListBox list)
     {
         if (list.SelectedItems == null || list.SelectedItems.Count == 0)
-            return new List<ModSelectionToken>();
+            return [];
 
-        List<ModSelectionToken> tokens = new List<ModSelectionToken>();
+        List<ModSelectionToken> tokens = [];
         HashSet<string> seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (ModRefViewModel vm in list.SelectedItems.OfType<ModRefViewModel>())
         {
@@ -59,8 +59,8 @@ internal static class MainWindowSelectionState
                 byId[id] = vm;
         }
 
-        List<ModRefViewModel> restored = new List<ModRefViewModel>();
-        HashSet<ModRefViewModel> seen = new HashSet<ModRefViewModel>();
+        List<ModRefViewModel> restored = [];
+        HashSet<ModRefViewModel> seen = [];
         foreach (ModSelectionToken token in tokens)
         {
             ModRefViewModel? vm = null;

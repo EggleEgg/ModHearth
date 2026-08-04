@@ -45,8 +45,7 @@ internal static class MainWindowModListBuilder
 
     public static void ApplyClassification(ModRefViewModel vm, ModReference modref, string modsFolderPath, string vanillaFolderPath)
     {
-        (bool isVanilla, bool isLocal, bool isSteam, bool isSteamLocal) =
-            ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
+        (bool isVanilla, bool isLocal, bool isSteam, bool isSteamLocal) = ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
         vm.IsVanillaModSource = isVanilla;
         vm.IsLocalModSource = isLocal;
         vm.IsSteamModSource = isSteam;

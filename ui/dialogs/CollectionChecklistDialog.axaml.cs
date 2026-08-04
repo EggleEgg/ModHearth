@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Microsoft.VisualBasic;
 using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
@@ -64,7 +63,7 @@ namespace ModHearth.UI
 
     public partial class CollectionChecklistDialog : Window
     {
-        private List<CollectionChecklistItem> _items = new();
+        private List<CollectionChecklistItem> _items = [];
 
         public CollectionChecklistDialog()
         {

@@ -70,6 +70,6 @@ public partial class MainWindow
         if (leftModlist.SelectedItems != null && leftModlist.SelectedItems.Count > 0)
             return leftModlist.SelectedItems.OfType<ModRefViewModel>().ToList();
 
-        return new List<ModRefViewModel>();
+        return [];
     }
 }

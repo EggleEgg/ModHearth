@@ -18,8 +18,8 @@ namespace ModHearth.UI;
 
 public partial class SortRulesControl : UserControl, IModRefContextMenuProvider, IStyleAwareWindow, IDisposable
 {
-    private readonly ObservableCollection<ModRefViewModel> visibleMods = new();
-    private readonly List<ModRefViewModel> allMods = new();
+    private readonly ObservableCollection<ModRefViewModel> visibleMods = [];
+    private readonly List<ModRefViewModel> allMods = [];
     private readonly Dictionary<string, ModRefViewModel> modIdMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ModRelationshipRule> rules = new(StringComparer.OrdinalIgnoreCase);
     private readonly Stack<Dictionary<string, ModRelationshipRule>> undoStack = new();
@@ -67,6 +67,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         fixConflictsButton.Click += async (_, _) => await FixConflictsAsync();
         clearAllRelationshipsButton.Click += async (_, _) => await ClearAllRelationshipsAsync();
         HorizontalScrollHelper.EnableSidewaysScrolling(titleScrollViewer);
+        HorizontalScrollHelper.EnableSidewaysScrolling(validationScrollViewer);
 
         double sortRatio = ConfigManager.GetSortRulesWindowGridSplitterRatio();
         if (sortRatio > 0 && sortRatio < 1 && MainGrid != null && MainGrid.ColumnDefinitions.Count >= 3)
@@ -688,7 +689,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
     private static List<string> NormalizeList(IEnumerable<string> ids)
     {
         HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
-        List<string> normalized = new();
+        List<string> normalized = [];
         foreach (string id in ids)
         {
             string trimmed = id?.Trim() ?? string.Empty;
@@ -737,8 +738,8 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private ValidationResult ValidateRules(string? filterModId = null)
     {
-        List<Control> warnings = new();
-        List<Control> errors = new();
+        List<Control> warnings = [];
+        List<Control> errors = [];
         Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
 
         Dictionary<string, List<Control>> issuesPerMod = new(StringComparer.OrdinalIgnoreCase);
@@ -748,16 +749,38 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             else warnings.Add(issueControl);
 
             if (!issuesPerMod.TryGetValue(modId, out List<Control>? list))
-                issuesPerMod[modId] = list = new List<Control>();
+                issuesPerMod[modId] = list = [];
             list.Add(issueControl);
         }
 
         foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
         {
             string ownerId = kvp.Key;
-            AddEdges(ownerId, kvp.Value.BeforeIds, ownerId, target => target, "before");
-            AddEdges(ownerId, kvp.Value.AfterIds, ownerId, target => ownerId, "after", targetIsSource: true);
-            AddEdges(ownerId, kvp.Value.RequiredIds, ownerId, target => ownerId, "required", targetIsSource: true);
+
+            HashSet<string> beforeSet = new(kvp.Value.BeforeIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> afterSet = new(kvp.Value.AfterIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> requiredSet = new(kvp.Value.RequiredIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> incompatibleSet = new(kvp.Value.IncompatibleIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
+
+            foreach (string target in incompatibleSet)
+            {
+                if (requiredSet.Contains(target))
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both required and incompatible with ", DisplayLabel(target), "."), true);
+                if (beforeSet.Contains(target))
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both before and incompatible with ", DisplayLabel(target), "."), true);
+                if (afterSet.Contains(target))
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both after and incompatible with ", DisplayLabel(target), "."), true);
+            }
+
+            foreach (string target in beforeSet)
+            {
+                if (afterSet.Contains(target))
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both before and after ", DisplayLabel(target), "."), true);
+            }
+
+            AddEdges(ownerId, kvp.Value.BeforeIds, ownerId, target => target, "before", targetIsSource: false, conflictSet: afterSet);
+            AddEdges(ownerId, kvp.Value.AfterIds, ownerId, target => ownerId, "after", targetIsSource: true, conflictSet: beforeSet);
+            AddEdges(ownerId, kvp.Value.RequiredIds, ownerId, target => ownerId, "required", targetIsSource: true, conflictSet: incompatibleSet);
 
             foreach (string id in kvp.Value.IncompatibleIds)
             {
@@ -767,8 +790,6 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
                 if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
                     AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be incompatible with itself."), true);
-                else if (kvp.Value.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)))
-                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both required and incompatible with ", DisplayLabel(target), "."), true);
                 else if (!modIdMap.ContainsKey(target))
                     AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), $" references missing mod {target}."), false);
             }
@@ -778,7 +799,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         {
             foreach (var target in kvp.Value.Where(target => WouldCreateCycle(graph, kvp.Key, target)))
             {
-                Control circularCtrl = BuildIssueControl("Circular dependency detected: ", DisplayLabel(kvp.Key), " conflicts with ", DisplayLabel(target), ".");
+                Control circularCtrl = BuildIssueControl("Circular dependency detected: ", DisplayLabel(kvp.Key), " and ", DisplayLabel(target));
                 AddIssue(kvp.Key, circularCtrl, true);
                 AddIssue(target, circularCtrl, true);
             }
@@ -804,12 +825,16 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             string source,
             Func<string, string> destinationFactory,
             string category,
-            bool targetIsSource = false)
+            bool targetIsSource = false,
+            HashSet<string>? conflictSet = null)
         {
             foreach (string rawId in ids)
             {
                 string target = rawId.Trim();
                 if (string.IsNullOrWhiteSpace(target))
+                    continue;
+
+                if (conflictSet != null && conflictSet.Contains(target))
                     continue;
 
                 if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
@@ -851,25 +876,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private static bool WouldCreateCycle(Dictionary<string, HashSet<string>> graph, string fromId, string toId)
     {
-        if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
-        Stack<string> stack = new();
-        stack.Push(toId);
-        while (stack.Count > 0)
-        {
-            string current = stack.Pop();
-            if (!visited.Add(current))
-                continue;
-            if (string.Equals(current, fromId, StringComparison.OrdinalIgnoreCase))
-                return true;
-            if (!graph.TryGetValue(current, out HashSet<string>? destinations))
-                continue;
-            foreach (string destination in destinations)
-                stack.Push(destination);
-        }
-        return false;
+        return ModHearthManager.WouldCreateCycle(graph, fromId, toId);
     }
 
     private TextBlock DisplayLabel(string id)
@@ -1005,7 +1012,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
         PushUndo();
 
-        List<string> ownerIds = isGlobal ? rules.Keys.ToList() : new List<string> { ownerId! };
+        List<string> ownerIds = isGlobal ? rules.Keys.ToList() : [ownerId!];
         Dictionary<string, ModRelationshipRule> targetRules = ownerIds.ToDictionary(
             id => id, GetOrCreateRule, StringComparer.OrdinalIgnoreCase);
 
@@ -1017,6 +1024,8 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             _ = rule.IncompatibleIds.RemoveAll(target => IsSelfOrMissing(id, target));
 
             _ = rule.IncompatibleIds.RemoveAll(target => rule.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)));
+            _ = rule.IncompatibleIds.RemoveAll(target => rule.BeforeIds.Any(b => string.Equals(b, target, StringComparison.OrdinalIgnoreCase)));
+            _ = rule.IncompatibleIds.RemoveAll(target => rule.AfterIds.Any(a => string.Equals(a, target, StringComparison.OrdinalIgnoreCase)));
             _ = rule.AfterIds.RemoveAll(target => rule.BeforeIds.Any(b => string.Equals(b, target, StringComparison.OrdinalIgnoreCase)));
         }
 
@@ -1036,7 +1045,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
         foreach ((string id, ModRelationshipRule rule) in targetRules)
         {
-            List<string> validBefore = new();
+            List<string> validBefore = [];
             foreach (var target in from string target in rule.BeforeIds
                                    where !WouldCreateCycle(graph, id, target)
                                    select target)
@@ -1048,7 +1057,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
             rule.BeforeIds = validBefore;
 
-            List<string> validAfter = new();
+            List<string> validAfter = [];
             foreach (var target in from string target in rule.AfterIds
                                    where !WouldCreateCycle(graph, target, id)
                                    select target)
@@ -1060,7 +1069,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
             rule.AfterIds = validAfter;
 
-            List<string> validRequired = new();
+            List<string> validRequired = [];
             foreach (var target in rule.RequiredIds.Where(target => !WouldCreateCycle(graph, target, id)))
             {
                 validRequired.Add(target);

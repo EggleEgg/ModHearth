@@ -53,9 +53,9 @@ internal static class UpdateHelpers
     public static string GetReleaseTitle(GitHubRelease release, int index)
     {
         if (!string.IsNullOrWhiteSpace(release.Name))
-            return release.Name!;
+            return release.Name;
         if (!string.IsNullOrWhiteSpace(release.TagName))
-            return release.TagName!;
+            return release.TagName;
 
 
         return $"Build {index + 1}";
@@ -71,8 +71,8 @@ internal static class UpdateHelpers
                          string.Equals(buildNumber, currentBuild, StringComparison.OrdinalIgnoreCase);
 
         return isCurrent
-            ? $"{buildLabel} Â· {date} (current)"
-            : $"{buildLabel} Â· {date}";
+            ? $"{buildLabel} · {date} (current)"
+            : $"{buildLabel} · {date}";
     }
 }
 

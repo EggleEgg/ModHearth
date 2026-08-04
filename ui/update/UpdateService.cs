@@ -93,7 +93,14 @@ internal static class UpdateService
                 return;
 
             string content = File.ReadAllText(statusFile).Trim();
-            try { File.Delete(statusFile); } catch { }
+            try
+            {
+                File.Delete(statusFile);
+            }
+            catch (Exception ex)
+            {
+                UpdateLogger.Log($"Failed to delete status file: {ex.Message}");
+            }
 
             if (content.StartsWith("FAILED", StringComparison.OrdinalIgnoreCase))
             {
@@ -127,7 +134,7 @@ internal static class UpdateService
             stream,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-        return releases?.ToList() ?? new List<GitHubRelease>();
+        return releases?.ToList() ?? [];
     }
 
     private static async Task<bool> PerformUpdateAsync(Window owner, GitHubRelease release)

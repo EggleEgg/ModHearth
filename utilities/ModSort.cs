@@ -47,7 +47,7 @@ namespace ModHearth
         // True if adding fromId -> toId would create a cycle given the edges already in the graph (i.e. toId can already reach fromId). This is
         // what makes tiered priority work: since tiers are added in priority order, a lower-priority edge that contradicts a higher-priority one
         // always fails this check and gets dropped, never the reverse.
-        private static bool WouldCreateCycle(Dictionary<string, List<string>> edges, string fromId, string toId)
+        internal static bool WouldCreateCycle(Dictionary<string, List<string>> edges, string fromId, string toId)
         {
             if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -69,6 +69,37 @@ namespace ModHearth
                     return true;
 
                 if (edges.TryGetValue(current, out List<string>? destinations))
+                {
+                    foreach (string dest in destinations)
+                        stack.Push(dest);
+                }
+            }
+
+            return false;
+        }
+
+        internal static bool WouldCreateCycle(Dictionary<string, HashSet<string>> edges, string fromId, string toId)
+        {
+            if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!edges.ContainsKey(toId))
+                return false;
+
+            HashSet<string> visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            Stack<string> stack = new Stack<string>();
+            stack.Push(toId);
+
+            while (stack.Count > 0)
+            {
+                string current = stack.Pop();
+                if (!visited.Add(current))
+                    continue;
+
+                if (string.Equals(current, fromId, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (edges.TryGetValue(current, out HashSet<string>? destinations))
                 {
                     foreach (string dest in destinations)
                         stack.Push(dest);
@@ -143,7 +174,7 @@ namespace ModHearth
         {
             Dictionary<string, ModReference> idMap;
             Dictionary<string, int> originalIndex = new(StringComparer.OrdinalIgnoreCase);
-            List<ModReference> enabledRefs = new();
+            List<ModReference> enabledRefs = [];
             List<ModSortRule> sortRulesSnapshot;
             List<ModSortRule> communitySortRulesSnapshot;
             Dictionary<string, ModRelationshipRule> relationshipRulesSnapshot;
@@ -156,9 +187,9 @@ namespace ModHearth
                     if (!idMap.ContainsKey(modref.ID))
                         idMap.Add(modref.ID, modref);
 
-                enabledModsSnapshot = new List<DFHMod>(enabledMods);
-                sortRulesSnapshot = new List<ModSortRule>(sortRules);
-                communitySortRulesSnapshot = new List<ModSortRule>(communitySortRules);
+                enabledModsSnapshot = [.. enabledMods];
+                sortRulesSnapshot = [.. sortRules];
+                communitySortRulesSnapshot = [.. communitySortRules];
                 relationshipRulesSnapshot = new Dictionary<string, ModRelationshipRule>(relationshipRules, StringComparer.OrdinalIgnoreCase);
             }
 
@@ -244,7 +275,7 @@ namespace ModHearth
                 }
             }
 
-            List<ModReference> allEnabled = new List<ModReference>();
+            List<ModReference> allEnabled = [];
             foreach (string id in enabledIds)
                 if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
                     allEnabled.Add(modref);
@@ -274,7 +305,7 @@ namespace ModHearth
             Dictionary<string, int> indegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (ModReference modref in allEnabled)
             {
-                edges[modref.ID] = new List<string>();
+                edges[modref.ID] = [];
                 indegree[modref.ID] = 0;
             }
 
@@ -378,8 +409,8 @@ namespace ModHearth
             var duplicateWarningGroupsSnapshot = GetDuplicateWarningGroups();
             foreach (HashSet<string> group in duplicateWarningGroupsSnapshot)
             {
-                List<string> vanillaIds = new List<string>();
-                List<string> modIds = new List<string>();
+                List<string> vanillaIds = [];
+                List<string> modIds = [];
 
                 foreach (string id in group)
                 {
@@ -428,7 +459,7 @@ namespace ModHearth
                 {
                     if (!directDefiners.TryGetValue(definedId, out List<string>? definers))
                     {
-                        definers = new List<string>();
+                        definers = [];
                         directDefiners[definedId] = definers;
                     }
                     definers.Add(id);
@@ -438,7 +469,7 @@ namespace ModHearth
                 {
                     if (!selectorsByTarget.TryGetValue(targetId, out List<string>? selectors))
                     {
-                        selectors = new List<string>();
+                        selectors = [];
                         selectorsByTarget[targetId] = selectors;
                     }
                     selectors.Add(id);
@@ -530,8 +561,8 @@ namespace ModHearth
                 if (modIds.Count <= 1)
                     continue;
 
-                List<string> cutterIds = new List<string>();
-                List<string> baseIds = new List<string>();
+                List<string> cutterIds = [];
+                List<string> baseIds = [];
                 foreach (string id in modIds)
                 {
                     if (rawInfoSnapshot.TryGetValue(id, out ModRawDependencyInfo? info) && info.IsCutter)
@@ -562,7 +593,7 @@ namespace ModHearth
             }
 
             // Direct definition conflicts
-            List<string> conflictingKeys = new List<string>();
+            List<string> conflictingKeys = [];
             HashSet<string> activeModIds = new HashSet<string>(enabledModsSnapshot.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, List<string>> kvp in directDefiners)
             {
@@ -609,12 +640,12 @@ namespace ModHearth
                 ShowNotification("Conflicting keys present. Applying a best-effort order", "sortCancelIcon.svg");
             }
 
-            List<string> available = new List<string>();
+            List<string> available = [];
             foreach (KeyValuePair<string, int> kv in indegree)
                 if (kv.Value == 0)
                     available.Add(kv.Key);
 
-            List<string> sortedIds = new List<string>();
+            List<string> sortedIds = [];
             while (available.Count > 0)
             {
                 string next = available.OrderBy(id => baseIndex.TryGetValue(id, out int idx) ? idx : int.MaxValue).First();
@@ -631,7 +662,7 @@ namespace ModHearth
             if (sortedIds.Count != enabledIds.Count)
                 sortedIds = baseOrder.Select(m => m.ID).ToList();
 
-            List<DFHMod> sortedMods = new List<DFHMod>();
+            List<DFHMod> sortedMods = [];
             foreach (string id in sortedIds)
                 if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
                     sortedMods.Add(modref.ToDFHMod());

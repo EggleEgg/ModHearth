@@ -17,7 +17,7 @@ public static class WindowThemeManager
     public static bool GetIsThemed(Button element) => element.GetValue(IsThemedProperty);
     public static void SetIsThemed(Button element, bool value) => element.SetValue(IsThemedProperty, value);
 
-    private static readonly List<WeakReference<Window>> registered = new();
+    private static readonly List<WeakReference<Window>> registered = [];
 
     [ThreadStatic]
     private static bool isApplying;

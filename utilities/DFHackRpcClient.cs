@@ -319,7 +319,7 @@ namespace ModHearth.Utilities
                     if (doc.RootElement.TryGetProperty("port", out JsonElement portElem) && portElem.ValueKind == JsonValueKind.Number)
                     {
                         int getInt = portElem.GetInt32();
-                        // Comented out to avoid spamming logs
+                        // Commented out to avoid spamming logs
                         //LogRpcClient(" Resolved port from {remoteServerJsonPath}: {getInt}");
                         return getInt;
                     }

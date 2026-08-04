@@ -166,7 +166,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
             return;
         }
 
-        HashSet<T> selected = selectedItems?.Cast<T>().ToHashSet() ?? new HashSet<T>();
+        HashSet<T> selected = selectedItems?.Cast<T>().ToHashSet() ?? [];
 
         foreach (T item in items)
         {
@@ -230,8 +230,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
 
         suppressSelectionForScrollbar = true;
         suppressSelectionList = list.SelectedItems;
-        suppressSelectionSnapshot = list.SelectedItems?.Cast<T>().ToList()
-            ?? new List<T>();
+        suppressSelectionSnapshot = list.SelectedItems?.Cast<T>().ToList() ?? [];
     }
 
     private void CaptureScrollbarSelectionSnapshot(DataGrid grid, PointerPoint point)
@@ -241,8 +240,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
 
         suppressSelectionForScrollbar = true;
         suppressSelectionList = grid.SelectedItems;
-        suppressSelectionSnapshot = grid.SelectedItems?.Cast<T>().ToList()
-            ?? new List<T>();
+        suppressSelectionSnapshot = grid.SelectedItems?.Cast<T>().ToList() ?? [];
     }
 
 
@@ -258,7 +256,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (hit == null)
             return;
 
-        List<T> selected = list.SelectedItems?.Cast<T>().ToList() ?? new List<T>();
+        List<T> selected = list.SelectedItems?.Cast<T>().ToList() ?? [];
         if (selected.Count > 1 && selected.Contains(hit))
         {
             contextSelectionSnapshot = selected;
@@ -278,7 +276,7 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (hit == null)
             return;
 
-        List<T> selected = grid.SelectedItems?.Cast<T>().ToList() ?? new List<T>();
+        List<T> selected = grid.SelectedItems?.Cast<T>().ToList() ?? [];
         if (selected.Count > 1 && selected.Contains(hit))
         {
             contextSelectionSnapshot = selected;

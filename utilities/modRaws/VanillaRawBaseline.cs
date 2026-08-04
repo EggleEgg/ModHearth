@@ -16,7 +16,7 @@ public sealed class VanillaRawBaseline
 
     public VanillaRawBaseline(IEnumerable<ObjectKey> keys)
     {
-        _baseline = new HashSet<ObjectKey>(keys);
+        _baseline = [.. keys];
     }
 
     public bool Contains(ObjectKey? key)
@@ -45,7 +45,7 @@ public sealed class VanillaRawBaseline
         try
         {
             List<string> modDirs = Directory.EnumerateDirectories(vanillaModsPath).ToList();
-            ConcurrentBag<ObjectKey> keys = new();
+            ConcurrentBag<ObjectKey> keys = [];
 
             _ = Parallel.ForEach(modDirs, new ParallelOptions
             {

@@ -40,7 +40,7 @@ internal static class ModListIndicatorUpdater
                 continue;
             }
 
-            List<RuleBadgeInfo> badges = new();
+            List<RuleBadgeInfo> badges = [];
 
             if (rule.BeforeIds.Count > 0)
                 badges.Add(CreateBadgeInfo("arrowUpIcon.svg", rule.BeforeIds.Count, RelationshipBrush(ModRelationshipKind.Before)));
@@ -78,7 +78,7 @@ internal static class ModListIndicatorUpdater
                 vm.ProblemTooltip = null;
             }
 
-            return new List<DFHMod>();
+            return [];
         }
 
         Dictionary<string, List<ModProblem>> problemMap = new(StringComparer.OrdinalIgnoreCase);
@@ -86,7 +86,7 @@ internal static class ModListIndicatorUpdater
         {
             if (!problemMap.TryGetValue(problem.problemThrowerID, out List<ModProblem>? list))
             {
-                list = new List<ModProblem>();
+                list = [];
                 problemMap[problem.problemThrowerID] = list;
             }
 
