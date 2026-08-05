@@ -1,11 +1,6 @@
-using System;
 using System.Diagnostics;
-using System.IO;
 using System.IO.Compression;
-using System.Net.Http;
 using System.Formats.Tar;
-using System.Threading;
-using System.Threading.Tasks;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities.Steam

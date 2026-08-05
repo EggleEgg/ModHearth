@@ -170,7 +170,6 @@ public static class WindowThemeManager
             app.Resources["BorderPanelBrush"] = brushes.BorderPanel;
             app.Resources["BackgroundBrush"] = brushes.Background;
             app.Resources["MainTextBrush"] = brushes.Text;
-            app.Resources["DimTextBrush"] = BrushCache.EditBrushAlpha(brushes.Text, 160);
             app.Resources["PanelBrush"] = brushes.Panel;
             app.Resources["PanelDarkBrush"] = BrushCache.GetBrush(style.panelColorDark);
             // Use this for generic gridsplitters and linebreakers
@@ -205,8 +204,7 @@ public static class WindowThemeManager
         bool inSearchBar = false,
         bool inDockHeader = false,
         bool inButtonOrCombo = false,
-        bool inDockPanel = false,
-        bool inDataGrid = false)
+        bool inDockPanel = false)
     {
         switch (visual)
         {
@@ -260,32 +258,9 @@ public static class WindowThemeManager
         {
             case TextBlock textBlock:
                 {
-                    if (!inButtonOrCombo && !inDockHeader)
+                    if (!inButtonOrCombo && !inDockHeader && !HasThemedForeground(textBlock))
                     {
-                        if (inDataGrid)
-                        {
-                            ModUpdateLogItemViewModel? vm = textBlock.DataContext as ModUpdateLogItemViewModel;
-                            Visual? current = textBlock;
-                            while (current != null && vm == null)
-                            {
-                                vm = current.DataContext as ModUpdateLogItemViewModel;
-                                current = current.GetVisualParent();
-                            }
-
-                            bool hasSpecialColor = vm != null && (
-                                vm.Entry.ChangeType == ModUpdateChangeType.Deleted ||
-                                vm.Entry.ChangeType == ModUpdateChangeType.Updated ||
-                                vm.Entry.ChangeType == ModUpdateChangeType.Added ||
-                                vm.IsActive
-                            );
-
-                            if (!hasSpecialColor)
-                                textBlock.Foreground = brushes.Text;
-                        }
-                        else
-                        {
-                            textBlock.Foreground = brushes.Text;
-                        }
+                        textBlock.Foreground = brushes.Text;
                     }
 
                     break;
@@ -318,12 +293,9 @@ public static class WindowThemeManager
 
             case DataGrid dataGrid:
                 dataGrid.Background = brushes.DataGrid;
-                inDataGrid = true;
                 break;
             default:
-                if (typeName is "DataGridCell" || typeName.Contains("DataGrid"))
-                    inDataGrid = true;
-                else if (visual is DockPanel)
+                if (visual is DockPanel)
                 {
                     inDockPanel = true;
                 }
@@ -334,9 +306,12 @@ public static class WindowThemeManager
         // 5. Recurse down to children without heap allocations or ancestor searches
         foreach (Visual child in visual.GetVisualChildren())
         {
-            ApplyToVisualRecursive(child, style, brushes, inSearchBar, inDockHeader, inButtonOrCombo, inDockPanel, inDataGrid);
+            ApplyToVisualRecursive(child, style, brushes, inSearchBar, inDockHeader, inButtonOrCombo, inDockPanel);
         }
     }
+
+    private static bool HasThemedForeground(TextBlock textBlock)
+        => textBlock.DataContext is IThemedViewModel;
 
     private static void StyleNotificationContainer(StackPanel container, in StyleBrushes brushes)
     {

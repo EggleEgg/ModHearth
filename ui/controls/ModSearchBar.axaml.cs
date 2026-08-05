@@ -8,9 +8,6 @@ using Avalonia.Layout;
 using System.Diagnostics;
 using ModHearth.Utilities.Logging;
 using ModHearth.Models;
-using System.Collections.Generic;
-using System;
-using System.Linq;
 
 namespace ModHearth.UI;
 
@@ -386,7 +383,7 @@ public partial class ModSearchBar : UserControl
         SearchBorder.Background = panelBrush;
         SearchBorder.BorderBrush = searchBorderBrush;
         SearchBox.Background = Brushes.Transparent;
-        SearchBox.ClearValue(TextBox.ForegroundProperty);
+        SearchBox.ClearValue(ForegroundProperty);
 
         Button[] buttons =
         [

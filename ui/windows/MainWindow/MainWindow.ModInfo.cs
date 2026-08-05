@@ -43,7 +43,8 @@ public partial class MainWindow
 
     private void ShowModInfo(ModReference modref)
     {
-        modTitleLabel.Text = modref.name ?? string.Empty;
+        //Add an empty string at the end so that text selection can select the last string (notification button is inlined). Very hacky but whatever
+        modTitleRun.Text = modref.name + " " ?? string.Empty;
 
         currentDescriptionBBCode = modref.description ?? string.Empty;
         RefreshDescriptionHtml();

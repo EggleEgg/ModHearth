@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Linq;
 
 namespace ModHearth.Metadata
 {
@@ -56,6 +55,38 @@ namespace ModHearth.Metadata
                         break;
                 }
                 SaveModColors();
+            }
+        }
+
+        public static void SetModColors(IEnumerable<KeyValuePair<string, ModColor>> updates)
+        {
+            lock (FileLock)
+            {
+                bool changed = false;
+                foreach (var pair in updates)
+                {
+                    if (string.IsNullOrWhiteSpace(pair.Key))
+                        continue;
+
+                    switch (pair.Value)
+                    {
+                        case ModColor.None:
+                            if (_modColors.Remove(pair.Key))
+                                changed = true;
+                            break;
+                        default:
+                            if (!_modColors.TryGetValue(pair.Key, out var existing) || existing != pair.Value)
+                            {
+                                _modColors[pair.Key] = pair.Value;
+                                changed = true;
+                            }
+                            break;
+                    }
+                }
+                if (changed)
+                {
+                    SaveModColors();
+                }
             }
         }
 

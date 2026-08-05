@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using Steamworks;
-
-namespace ModHearth.Utilities
+﻿namespace ModHearth.Utilities
 {
     internal static class SteamManifestAuditor
     {

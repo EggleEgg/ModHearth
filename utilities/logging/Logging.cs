@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ModHearth.Utilities.Logging
+﻿namespace ModHearth.Utilities.Logging
 {
     /// <summary>
     /// Logging for debugging search actions

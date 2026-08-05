@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -196,7 +192,7 @@ namespace ModHearth.UI
                 await ResolveAndEnqueueAsync(WorkshopUrlTextBox.Text ?? string.Empty);
             };
 
-            BtnResolveAndQueue.AddHandler(InputElement.PointerPressedEvent, BtnResolveAndQueuePointerPressed, RoutingStrategies.Tunnel, true);
+            BtnResolveAndQueue.AddHandler(PointerPressedEvent, BtnResolveAndQueuePointerPressed, RoutingStrategies.Tunnel, true);
 
             WorkshopUrlTextBox.TextChanged += async (_, _) =>
             {
@@ -217,7 +213,7 @@ namespace ModHearth.UI
             UpdateClearButtonState();
             BtnClearCompleted.Click += (_, _) => _queueManager.ClearCompleted();
             BtnRetryAll.Click += (_, _) => _queueManager.RetryAll();
-            BtnRetryAll.AddHandler(InputElement.PointerPressedEvent, BtnRetryAllPointerPressed, RoutingStrategies.Tunnel, true);
+            BtnRetryAll.AddHandler(PointerPressedEvent, BtnRetryAllPointerPressed, RoutingStrategies.Tunnel, true);
             BtnCancelAll.Click += (_, _) => _queueManager.CancelAll();
         }
 

@@ -2,17 +2,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using ModHearth.Models;
-using Avalonia.VisualTree;
-using Avalonia.Interactivity;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Avalonia.Markup.Xaml;
 using ReactiveUI;
-using System;
-using System.Linq;
-using Avalonia.Controls.Primitives;
 using Avalonia.Media;
-using Avalonia.Reactive;
 
 namespace ModHearth.UI;
 

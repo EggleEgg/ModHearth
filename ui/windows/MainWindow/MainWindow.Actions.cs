@@ -1,12 +1,6 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Threading;
-using Avalonia.Media;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace ModHearth.UI;
 
@@ -312,13 +306,17 @@ public partial class MainWindow
         if (!confirm)
             return;
 
-        bool success = manager.ClearInstalledModsFolder(out string message);
+        (bool success, string message) = await Task.Run(() =>
+        {
+            bool res = manager.ClearInstalledModsFolder(out string msg);
+            return (res, msg);
+        });
         await DialogService.ShowMessageAsync(this, message, success ? "Installed mods cleared" : "Clear failed");
 
         clearInstalledModsButton.IsEnabled = Directory.Exists(installedModsPath);
         if (success)
         {
-            manager.RefreshInstalledCacheModIds();
+            await Task.Run(() => manager.RefreshInstalledCacheModIds());
             RefreshModlistPanels();
         }
     }

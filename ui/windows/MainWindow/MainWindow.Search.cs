@@ -1,13 +1,8 @@
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
 using System.Collections.ObjectModel;
 using ModHearth.Utilities;
-using ModHearth.Models;
 using ModHearth.Utilities.Logging;
-using Avalonia.Media;
-using ModHearth.UI;
 
 namespace ModHearth.UI;
 

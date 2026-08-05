@@ -1,19 +1,11 @@
-﻿using Avalonia;
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ModHearth.Utilities.Logging;
-using System.Collections.Generic;
-using System.Linq;
-using ModHearth.Models;
-using ModHearth.Utilities;
-using ModHearth.UI;
 
 namespace ModHearth.UI;
 
@@ -137,6 +129,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 
         manager = new ModHearthManager();
         manager.RequestUIReload += () => Dispatcher.UIThread.Post(async () => await ReloadModpacksFromDisk());
+        manager.RequestNotification += (msg, icon) => ShowNotification(msg, icon);
         modListController = new ModListDragDropController(
             this,
             () => modViewMap.Values,
@@ -171,7 +164,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         rightModlist.SelectionChanged += ModlistSelectionChanged;
         leftModlist.DoubleTapped += async (_, _) => await MoveSelectedBetweenListsAsync(true);
         rightModlist.DoubleTapped += async (_, _) => await MoveSelectedBetweenListsAsync(false);
-        AddHandler(InputElement.PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
+        AddHandler(PointerPressedEvent, WindowPointerPressed, RoutingStrategies.Tunnel, true);
         KeyDown += MainWindowKeyDown;
 
         searchDebounceTimer = new DispatcherTimer
@@ -233,16 +226,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 
 
         saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
-        saveButton.AddHandler(InputElement.PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);
+        saveButton.AddHandler(PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);
         runDwarfFortressButton.Click += async (_, _) => await RunDwarfFortressAsync();
         undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
         sortButton.Click += async (_, _) => await ModSortAsync();
-        sortButton.AddHandler(InputElement.PointerPressedEvent, SortButtonPointerPressed, RoutingStrategies.Tunnel, true);
+        sortButton.AddHandler(PointerPressedEvent, SortButtonPointerPressed, RoutingStrategies.Tunnel, true);
         sortRulesButton.Click += async (_, _) => await OpenSortRulesAsync();
         clearInstalledModsButton.Click += async (_, _) => await ClearInstalledModsAsync();
-        clearInstalledModsButton.AddHandler(InputElement.PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);
+        clearInstalledModsButton.AddHandler(PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);
         reloadButton.Click += async (_, _) => await ReloadModpacksAsync();
-        reloadButton.AddHandler(InputElement.PointerPressedEvent, ReloadButtonPointerPressed, RoutingStrategies.Tunnel, true);
+        reloadButton.AddHandler(PointerPressedEvent, ReloadButtonPointerPressed, RoutingStrategies.Tunnel, true);
 
         newListButton.Click += async (_, _) => await CreateNewModpackAsync();
         renameListButton.Click += async (_, _) => await RenameModpackAsync();

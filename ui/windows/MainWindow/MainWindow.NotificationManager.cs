@@ -5,18 +5,14 @@ using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media.Imaging;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using ModHearth.Models;
 
 namespace ModHearth.UI;
 
-public class NotificationRecord : INotifyPropertyChanged
+public class NotificationRecord : INotifyPropertyChanged, IThemedViewModel
 {
     private bool isFilteredOut;
     private bool isVisible = true;
@@ -24,11 +20,17 @@ public class NotificationRecord : INotifyPropertyChanged
     private IBrush messageForeground = Brushes.White;
     private double itemOpacity = 1.0;
 
+    public NotificationRecord()
+    {
+        RefreshStyle(Style.instance);
+        ThemedViewModelRegistry.Register(this);
+    }
+
     public string Message { get; set; } = string.Empty;
     public string IconResourceName { get; set; } = "infoCircleWhiteIcon.svg";
     public IImage? IconSource { get; set; }
     public DateTime Timestamp { get; set; }
-    public string FormattedTime => Timestamp.ToString("HH : mm : ss");
+    public string FormattedTime => "At:    " + Timestamp.ToString("HH'h 'mm'm 'ss's'");
 
     public bool IsFilteredOut
     {
@@ -93,15 +95,14 @@ public class NotificationRecord : INotifyPropertyChanged
 
     public void RefreshStyle()
     {
-        IBrush defaultBrush;
-        if (Style.instance != null)
-        {
-            defaultBrush = BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
-        }
-        else
-        {
-            defaultBrush = Brushes.White;
-        }
+        RefreshStyle(Style.instance);
+    }
+
+    public void RefreshStyle(Style? style)
+    {
+        IBrush defaultBrush = style != null
+            ? BrushCache.GetBrush(style.textColor.ToAvaloniaColor())
+            : Brushes.White;
 
         if (IsFilteredOut)
         {
@@ -128,6 +129,7 @@ public class NotificationRecord : INotifyPropertyChanged
 public partial class MainWindow
 {
     private const int MaxNotificationRecords = 2000;
+    private const int MaxShownNotifications = 4;
     private readonly List<NotificationRecord> allNotificationRecords = [];
     private readonly ObservableCollection<NotificationRecord> notificationRecords = [];
 
@@ -213,7 +215,7 @@ public partial class MainWindow
                 return;
 
             // Limit to 3 notifications by removing the oldest (last in children list)
-            while (container.Children.Count >= 3)
+            while (container.Children.Count >= MaxShownNotifications)
             {
                 var oldest = container.Children[container.Children.Count - 1];
                 if (oldest is Border b && b.Tag is CancellationTokenSource oldCts)
@@ -251,8 +253,8 @@ public partial class MainWindow
             }
             else
             {
-                panelBrushClear = BrushCache.GetBrush(Avalonia.Media.Color.Parse("#2D2D30"));
-                buttonOutlineBrush = BrushCache.GetBrush(Avalonia.Media.Color.Parse("#3F3F46"));
+                panelBrushClear = BrushCache.GetBrush(Color.Parse("#2D2D30"));
+                buttonOutlineBrush = BrushCache.GetBrush(Color.Parse("#3F3F46"));
                 textBrush = Brushes.White;
             }
 

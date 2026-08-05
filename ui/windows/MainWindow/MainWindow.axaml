@@ -122,16 +122,17 @@
               <RowDefinition Height="*" />
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="2,2,2,5">
-              <Button x:Name="notificationManagerButton" Width="32" Height="32" Margin="0,0,8,0" Tag="Themed"
-                      Click="OnToggleNotificationDrawerClick"
-                      ToolTip.Tip="Open Notification Manager">
-                <Image Source="{ui:AssetImage infoCircleWhiteIcon}" Width="16" Height="16" />
-              </Button>
-              <TextBlock x:Name="modTitleLabel" Grid.Column="1" FontSize="24" FontWeight="Bold"
-                         TextWrapping="WrapWithOverflow"
-                         VerticalAlignment="Center" MinHeight="42" />
-            </Grid>
+            <SelectableTextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold" TextWrapping="WrapWithOverflow"
+                                 VerticalAlignment="Center" MinHeight="42" Margin="2,2,2,5">
+              <InlineUIContainer>
+                <Button x:Name="notificationManagerButton" Width="26" Height="26" Margin="-5,-4,4,-4" Tag="Themed" Padding="-1"
+                        Click="OnToggleNotificationDrawerClick" VerticalAlignment="Center" ToolTip.Tip="Open Notification Logs">
+                  <Image Source="{ui:AssetImage notificationIcon}" Stretch="Uniform"
+                         VerticalAlignment="Center" HorizontalAlignment="Right" />
+                </Button>
+              </InlineUIContainer>
+              <Run x:Name="modTitleRun" />
+            </SelectableTextBlock>
             <dock:DockControl x:Name="modInfoDockControl" Grid.Row="1" Grid.RowSpan="2"
                               Margin="2,2,2,2" InitializeFactory="False" InitializeLayout="False" />
             <Grid Grid.Row="3" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
@@ -305,7 +306,7 @@
               <Grid>
                 <Image Source="{ui:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
                 <Image x:Name="workshopModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
-                       Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1.5,0,0" />
+                       Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-2.5,0,0" />
               </Grid>
             </Button>
             <Grid ColumnDefinitions="*,Auto" Height="28">
@@ -411,7 +412,7 @@
 
       <Grid RowDefinitions="Auto,Auto,*">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,12,12,8">
-          <TextBlock Text="Notification Manager" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+          <TextBlock Text="Notification Logs" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
           <Button Grid.Column="1" Click="OnToggleNotificationDrawerClick" Width="28" Height="28" Padding="2" Tag="Themed">
             <Image Source="{ui:AssetImage cancelIcon}" />
           </Button>
@@ -425,18 +426,19 @@
           <ItemsControl x:Name="NotificationItemsControl">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="ui:NotificationRecord">
-                <Border Margin="0,4" Padding="8" CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource ButtonOutlineBrush}" BorderThickness="1" Opacity="{Binding ItemOpacity}">
-                  <StackPanel Spacing="2" Margin="0">
+                <Border Margin="0,4" Padding="4,4,8,4" CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource ButtonOutlineBrush}" BorderThickness="1" Opacity="{Binding ItemOpacity}">
+                  <StackPanel Spacing="2">
                     <Grid ColumnDefinitions="Auto,*">
-                      <Image Width="16" Height="16" VerticalAlignment="Center" Source="{Binding IconSource}" />
+                      <Image Width="16" Height="16" VerticalAlignment="Bottom" Source="{Binding IconSource}" />
                       <TextBlock Grid.Column="1" Text="{Binding Message}" FontSize="12" FontWeight="SemiBold"
                                  VerticalAlignment="Center" TextWrapping="Wrap" Margin="6,0,0,0"
                                  Foreground="{Binding MessageForeground}"
                                  TextDecorations="{Binding TextDecorations}" />
                     </Grid>
-                    <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{Binding MessageForeground}" Opacity="0.8"
-                               Background="{DynamicResource PanelDarkBrush}" Margin="22,0,0,0" Padding="4,2"
-                               TextDecorations="{Binding TextDecorations}" />
+                    <Border Background="{DynamicResource PanelDarkBrush}" CornerRadius="12" Margin="22,0,0,0" Padding="4,2" HorizontalAlignment="Stretch">
+                        <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{Binding MessageForeground}" Opacity="0.8"
+                                   TextDecorations="{Binding TextDecorations}" HorizontalAlignment="Center" />
+                    </Border>
                   </StackPanel>
                 </Border>
               </DataTemplate>

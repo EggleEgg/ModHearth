@@ -1,7 +1,4 @@
 using Avalonia;
-using ModHearth.Utilities;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 namespace ModHearth;
 

@@ -1,8 +1,5 @@
-using System;
 using System.Runtime.InteropServices;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Threading;
 
 namespace ModHearth.UI
 {

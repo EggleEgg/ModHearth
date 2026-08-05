@@ -1,5 +1,3 @@
-using ModHearth.Utilities;
-
 namespace ModHearth.UI;
 
 internal static class MainWindowModListBuilder

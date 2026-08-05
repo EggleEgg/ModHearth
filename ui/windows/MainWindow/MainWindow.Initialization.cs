@@ -1,7 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
-using ModHearth.Utilities;
 
 namespace ModHearth.UI;
 
@@ -10,7 +9,7 @@ public partial class MainWindow
     public const string AvaloniaUri = "avares://ModHearth/";
     private void ShowFallbackHelpText()
     {
-        modTitleLabel.Text = "Welcome to ModHearth!";
+        modTitleRun.Text = "Welcome to ModHearth!" + " ";
         currentDescriptionBBCode = null;
         modDescriptionPanelViewModel.DescriptionHtml = BBCodeRenderer.PlainTextToHtml(
             MainWindowHelpContent.GetHelpText(), GetDescriptionTextColor(), "transparent");

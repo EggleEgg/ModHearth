@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Threading;
-using ModHearth.Models;
 using ModHearth.UI;
-using ModHearth.Utilities;
 using Xunit;
 using Xunit.Abstractions;
 

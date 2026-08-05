@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using System.Threading;
 using Steamworks;
 
 namespace ModHearth.SteamWorker;

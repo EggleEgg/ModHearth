@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -8,7 +7,6 @@ using ModHearth.UI;
 using ModHearth.Utilities;
 using System.Collections.Concurrent;
 using ModHearth.Utilities.Logging;
-using System.Linq;
 
 namespace ModHearth
 {
@@ -74,10 +72,16 @@ namespace ModHearth
     public partial class ModHearthManager
     {
         public event Action? RequestUIReload;
+        public event Action<string, string>? RequestNotification;
 
         public void TriggerUIReload()
         {
             RequestUIReload?.Invoke();
+        }
+
+        public void TriggerNotification(string message, string icon)
+        {
+            RequestNotification?.Invoke(message, icon);
         }
 
         public enum ModpackStorageBackend
@@ -673,7 +677,14 @@ namespace ModHearth
 
             try
             {
-                Task.Run(async () => await FetchCommunitySortRulesAsync(url, deferredModManagerReloadCts?.Token ?? CancellationToken.None), deferredModManagerReloadCts?.Token ?? CancellationToken.None).Wait();
+                _ = Task.Run(async () =>
+                {
+                    bool success = await FetchCommunitySortRulesAsync(url, deferredModManagerReloadCts?.Token ?? CancellationToken.None);
+                    if (success)
+                    {
+                        TriggerUIReload();
+                    }
+                }, deferredModManagerReloadCts?.Token ?? CancellationToken.None);
             }
             catch
             {

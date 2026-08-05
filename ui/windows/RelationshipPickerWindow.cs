@@ -1,17 +1,12 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Presenters;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using ModHearth.Models;
 
 namespace ModHearth.UI;
 
@@ -77,9 +72,9 @@ internal sealed class RelationshipPickerWindow : Window
         {
             Setters =
             {
-                new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent),
-                new Setter(ListBoxItem.PaddingProperty, new Thickness(0)),
-                new Setter(ListBoxItem.MarginProperty, new Thickness(0))
+                new Setter(BackgroundProperty, Brushes.Transparent),
+                new Setter(PaddingProperty, new Thickness(0)),
+                new Setter(MarginProperty, new Thickness(0))
             }
         };
 

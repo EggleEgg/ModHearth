@@ -1,9 +1,11 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Loader;
 
 namespace ModHearth;
 
+/// <summary>
+/// Initializes runtime components (such as the console) and logging for the application
+/// </summary>
 internal static class RuntimeBootstrap
 {
     private static bool initialized;

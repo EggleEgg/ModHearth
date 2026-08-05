@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using ModHearth.Utilities.Logging;
-using System.Linq;
 
 namespace ModHearth.UI;
 

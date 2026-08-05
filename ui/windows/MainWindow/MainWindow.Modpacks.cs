@@ -1,6 +1,5 @@
 ﻿using Avalonia.Platform.Storage;
 using System.Text.Json;
-using System.Threading;
 
 namespace ModHearth.UI;
 

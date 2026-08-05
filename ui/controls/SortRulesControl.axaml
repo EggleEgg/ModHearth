@@ -49,8 +49,8 @@
         <StackPanel x:Name="editorPanel" Spacing="10">
           <ScrollViewer x:Name="titleScrollViewer" ScrollViewer.HorizontalScrollBarVisibility="Auto" >
             <StackPanel Margin="0,0,0,4">
-              <TextBlock x:Name="selectedTitleText" FontSize="18" FontWeight="Bold" />
-              <TextBlock x:Name="selectedSubtitleText" FontSize="12" Opacity="0.7" />
+              <SelectableTextBlock x:Name="selectedTitleText" FontSize="18" FontWeight="Bold" />
+              <SelectableTextBlock x:Name="selectedSubtitleText" FontSize="12" Opacity="0.7" />
             </StackPanel>
           </ScrollViewer>
 

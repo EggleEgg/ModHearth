@@ -1,8 +1,7 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="clr-namespace:ModHearth.UI"
-             x:Class="ModHearth.UI.App"
-             xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia">
+             x:Class="ModHearth.UI.App">
 
   <!-- Stick default style replacements in here -->
 

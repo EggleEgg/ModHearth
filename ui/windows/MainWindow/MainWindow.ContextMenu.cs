@@ -193,11 +193,12 @@ public partial class MainWindow : IModRefContextMenuProvider
 
         void ApplyColor(ModColor color)
         {
+            var updates = modReferences.Select(modRef => new KeyValuePair<string, ModColor>(modRef.ID, color)).ToList();
             foreach (ModReference modRef in modReferences)
             {
                 modRef.AssignedColor = color;
-                ModColorMetadataStore.SetModColor(modRef.ID, color);
             }
+            ModColorMetadataStore.SetModColors(updates);
             RefreshModColorUnderlays(modReferences);
             // Closes the whole menu tree, including this open submenu. The submenu itself has no independent "close" concept, 
             // it lives inside the root ContextMenu's popup.

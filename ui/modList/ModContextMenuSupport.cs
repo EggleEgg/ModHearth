@@ -219,7 +219,7 @@ internal static class ModContextMenuSupport
         if (!confirm)
             return false;
 
-        List<string> failures = DeleteLocalMods(manager, localTargets);
+        List<string> failures = await Task.Run(() => DeleteLocalMods(manager, localTargets));
         if (failures.Count > 0)
             await DialogService.ShowMessageAsync(owner, string.Join(Environment.NewLine, failures), "Delete Mod");
 

@@ -4,7 +4,6 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
 using System.ComponentModel;
-using System.Linq;
 
 namespace ModHearth.UI;
 

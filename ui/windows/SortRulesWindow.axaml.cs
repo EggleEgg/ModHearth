@@ -1,9 +1,5 @@
-using System;
-using System.IO;
 using System.Text.RegularExpressions;
-using System.Collections.Generic;
 using Avalonia.Controls;
-using ModHearth.Utilities;
 using System.Globalization;
 
 namespace ModHearth.UI;

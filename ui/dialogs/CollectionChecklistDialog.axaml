@@ -9,7 +9,7 @@
     <!-- Header Controls -->
     <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,12">
       <TextBlock Text="Collection Mods" FontSize="18" FontWeight="Bold" />
-      <TextBlock Text="Select the mods you wish to download or update:" Foreground="Gray" />
+      <TextBlock Text="Select the mods you wish to download or update:" Opacity="0.7" />
       <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
         <Button x:Name="BtnDownloadAll" Content="Download All" Padding="12,6" />
         <Button x:Name="BtnClearAll" Content="Clear All" Padding="12,6" />
@@ -19,17 +19,17 @@
     </StackPanel>
 
     <!-- Checklist grid -->
-    <Border Grid.Row="1" BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4">
+    <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBrush}" BorderThickness="1" CornerRadius="4">
       <ScrollViewer VerticalScrollBarVisibility="Auto">
         <ItemsControl x:Name="ItemsList">
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="ui:CollectionChecklistItem">
-              <Border BorderBrush="#27272A" BorderThickness="0,0,0,1" Padding="10, 4">
+              <Border BorderBrush="{DynamicResource PanelBrush}" BorderThickness="0,0,0,1" Padding="10,4">
                 <Grid ColumnDefinitions="Auto, *, Auto">
                   <CheckBox Grid.Column="0" IsChecked="{Binding IsChecked}" Margin="0,0,12,0" VerticalAlignment="Center" />
                   <TextBlock Text="{Binding Title}" Grid.Column="1" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                   <Border Grid.Column="2" Padding="8,4" CornerRadius="4" VerticalAlignment="Center" Background="{Binding ClassificationBrush}">
-                    <TextBlock Text="{Binding ClassificationText}" FontSize="11" Foreground="White" FontWeight="Bold" />
+                    <TextBlock Text="{Binding ClassificationText}" FontSize="11" FontWeight="Bold" Tag="IgnoreTheme" />
                   </Border>
                 </Grid>
               </Border>

@@ -8,9 +8,9 @@ public partial class MainWindow
 {
     private void InitializeDockingButtons()
     {
-        updateLogButton.AddHandler(InputElement.PointerPressedEvent, ModUpdateLogButtonPointerPressed, RoutingStrategies.Tunnel, true);
-        workshopDownloaderButton.AddHandler(InputElement.PointerPressedEvent, WorkshopDownloaderButtonPointerPressed, RoutingStrategies.Tunnel, true);
-        sortRulesButton.AddHandler(InputElement.PointerPressedEvent, SortRulesButtonPointerPressed, RoutingStrategies.Tunnel, true);
+        updateLogButton.AddHandler(PointerPressedEvent, ModUpdateLogButtonPointerPressed, RoutingStrategies.Tunnel, true);
+        workshopDownloaderButton.AddHandler(PointerPressedEvent, WorkshopDownloaderButtonPointerPressed, RoutingStrategies.Tunnel, true);
+        sortRulesButton.AddHandler(PointerPressedEvent, SortRulesButtonPointerPressed, RoutingStrategies.Tunnel, true);
 
         UpdateDockingButtonModeImages();
     }

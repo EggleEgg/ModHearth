@@ -1,11 +1,5 @@
-﻿using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Collections.Generic;
-using System.Collections.Concurrent;
-using Steamworks;
+﻿using System.Collections.Concurrent;
 using ModHearth.Utilities;
-using ModHearth.UI;
 
 namespace ModHearth
 {
@@ -422,15 +416,11 @@ namespace ModHearth
             return modref.ID?.Trim() ?? string.Empty;
         }
 
-        private static void ShowNotification(string message, string icon)
+        private void ShowNotification(string message, string icon)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop &&
-                    desktop.MainWindow is MainWindow mainWindow)
-                {
-                    mainWindow.ShowNotification(message, icon);
-                }
+                TriggerNotification(message, icon);
             });
         }
     }

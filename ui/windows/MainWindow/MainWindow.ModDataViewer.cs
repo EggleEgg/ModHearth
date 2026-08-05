@@ -1,4 +1,3 @@
-using Avalonia;
 using Avalonia.Controls;
 using Dock.Avalonia.Controls;
 using Dock.Model.Controls;

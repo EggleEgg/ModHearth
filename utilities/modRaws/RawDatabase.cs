@@ -1,5 +1,3 @@
-using ModHearth;
-
 namespace ModHearth.Utilities;
 
 /// <summary>

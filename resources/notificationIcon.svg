@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   fill="#000000"
+   width="599.92297"
+   height="666.6748"
+   viewBox="0 0 17.997689 20.000245"
+   id="notification-circle"
+   data-name="Line Color"
+   class="icon line-color"
+   version="1.1"
+   sodipodi:docname="notificationIcon.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.1767767"
+     inkscape:cx="-964.49361"
+     inkscape:cy="14.142135"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="notification-circle" />
+  <path
+     d="m 5.997878,15.000264 a 1.000105,1.000105 0 0 0 -1.0000195,1.00002 c 0,2.197297 1.8027224,3.999961 4.0000195,3.999961 2.197298,0 3.999961,-1.802664 3.999961,-3.999961 a 1.000105,1.000105 0 0 0 -0.999961,-1.00002 z m 1.4101172,1.999981 h 3.1816408 c -0.35099,0.564225 -0.8688899,1.000019 -1.591758,1.000019 -0.7227889,0 -1.2388712,-0.435898 -1.5898828,-1.000019 z"
+     style="baseline-shift:baseline;display:inline;overflow:visible;opacity:1;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+     id="path9"
+     inkscape:label="secondary" />
+  <path
+     d="M 8.9988155,2.6369887e-4 C 6.1855021,-0.02832655 1.9978585,2.2676711 1.9978585,7.0002832 v 3.5859378 l -1.08591799,1.087852 c -0.9528696,0.952799 -1.12291983,2.326095 -0.67775391,3.400429 0.44537242,1.074832 1.5363713,1.926932 2.8847461,1.925743 H 14.878699 c 1.348375,0.0012 2.439431,-0.850911 2.884804,-1.925743 0.445166,-1.074334 0.275117,-2.44763 -0.677753,-3.400429 v -0.002 l -1.087383,-1.08539 c 9.57e-4,-3.24e-4 0.0015,-4.69e-4 0.0015,-4.69e-4 V 8.5748145 c -0.60925,0.2740207 -1.286142,0.4263281 -2.000039,0.4263281 v 1.9986914 l -0.002,4.1e-4 c 4.6e-5,0.265206 0.105428,0.519534 0.292969,0.707051 l 1.380879,1.380879 c 0.383407,0.382929 0.410526,0.819044 0.244101,1.220684 -0.166379,0.401639 -0.495196,0.691884 -1.037078,0.691406 H 3.1189327 3.1169991 C 2.5751109,15.000742 2.2482484,14.710497 2.0818233,14.308858 1.9153981,13.907218 1.9425764,13.471103 2.3259835,13.088174 L 3.7048702,11.707295 C 3.8924113,11.519778 3.9977932,11.26545 3.997839,11.000244 V 7.0002832 c 0,-2.7732684 2.2267706,-5.000039 5.000039,-5.000039 3.222e-4,0 6.152e-4,5.1e-6 9.375e-4,0 h 5.86e-5 c 3.223e-4,5.1e-6 6.153e-4,0 9.375e-4,0 0.2094209,0 0.4156994,0.01271 0.6181641,0.037383 C 9.9409786,1.3635981 10.414712,0.77677455 10.996101,0.32018558 10.303312,0.10023639 9.6178216,-0.00602704 8.9988155,2.6369887e-4 Z"
+     style="baseline-shift:baseline;display:inline;overflow:visible;opacity:1;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+     id="path7"
+     inkscape:label="bell"
+     sodipodi:nodetypes="csccsccscccccccccccccsscccsssssccc" />
+  <path
+     d="m 13.999851,1.2871582 c -1.594535,0 -2.856504,1.2620865 -2.856504,2.8566211 0,1.5945347 1.261969,2.8565039 2.856504,2.8565039 1.594534,0 2.856504,-1.2619692 2.856504,-2.8565039 0,-1.5945346 -1.26197,-2.8566211 -2.856504,-2.8566211 z m 0,2.0000391 c 0.478125,0 0.856524,0.3784058 0.856524,0.8565234 0,0.4781176 -0.378399,0.8565235 -0.856524,0.8565235 -0.478124,0 -0.856523,-0.3784059 -0.856523,-0.8565235 0,-0.4781176 0.378399,-0.8565234 0.856523,-0.8565234 z"
+     style="baseline-shift:baseline;display:inline;overflow:visible;opacity:1;mix-blend-mode:normal;stroke-width:2.26193;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke fill markers;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+     id="path5"
+     inkscape:label="circle"
+     sodipodi:nodetypes="ssssssssss" />
+</svg>
