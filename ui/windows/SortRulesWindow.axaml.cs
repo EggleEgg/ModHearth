@@ -8,7 +8,7 @@ using System.Globalization;
 
 namespace ModHearth.UI;
 
-public partial class SortRulesWindow : Window, IStyleAwareWindow, IDisposable
+public partial class SortRulesWindow : Window, IDisposable
 {
     public static double DefaultWidth => LoadDimension("Width", 760);
     public static double DefaultMinWidth => LoadDimension("MinWidth", 480);
@@ -73,14 +73,7 @@ public partial class SortRulesWindow : Window, IStyleAwareWindow, IDisposable
         };
     }
 
-    public void ApplyCustomStyle(Style style)
-    {
-        WindowThemeManager.ApplyToWindow(this, style);
-        if (Content is SortRulesControl control)
-        {
-            control.ApplyCustomStyle(style);
-        }
-    }
+
 
     public void Dispose()
     {

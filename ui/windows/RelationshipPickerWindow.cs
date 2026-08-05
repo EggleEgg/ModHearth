@@ -15,7 +15,7 @@ using ModHearth.Models;
 
 namespace ModHearth.UI;
 
-internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
+internal sealed class RelationshipPickerWindow : Window
 {
     private readonly string ownerId;
     private readonly HashSet<string> alreadyAdded;
@@ -55,8 +55,11 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
         MinWidth = 360;
         MinHeight = 360;
 
-        Grid rootGrid = new() { RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto") };
-        rootGrid.Margin = new Thickness(12);
+        Grid rootGrid = new()
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"),
+            Margin = new Thickness(12)
+        };
 
         TextBlock searchLabel = new() { Text = "Search Mods", FontWeight = FontWeight.Bold, Margin = new Thickness(0, 0, 0, 8) };
         Grid.SetRow(searchLabel, 0);
@@ -205,15 +208,7 @@ internal sealed class RelationshipPickerWindow : Window, IStyleAwareWindow
         Close(vm.ModReference.ID.Trim());
     }
 
-    public void ApplyCustomStyle(Style style)
-    {
-        if (style == null || allMods == null)
-            return;
-        foreach (ModRefViewModel vm in allMods)
-        {
-            vm.RefreshStyle();
-        }
-    }
+
 
     private static string LabelFor(ModRelationshipKind kind)
     {

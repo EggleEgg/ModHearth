@@ -305,7 +305,6 @@ namespace ModHearth.UI
             }
 
             HidePreview();
-            WindowThemeManager.ApplyToOpenWindows();
             Closed?.Invoke(this, EventArgs.Empty);
         }
 
@@ -786,7 +785,6 @@ namespace ModHearth.UI
                 if (Style.instance != null)
                 {
                     WindowThemeManager.ApplyToVisual(_sharedControl, Style.instance);
-                    WindowThemeManager.ApplyToOpenWindows();
                 }
 
                 _sharedControl.Opacity = 1;

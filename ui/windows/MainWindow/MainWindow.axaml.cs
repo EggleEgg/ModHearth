@@ -98,6 +98,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private DispatcherTimer? dfHackStatusTimer;
     private DispatcherTimer? autoReloadTimer;
     private readonly DispatcherTimer? searchDebounceTimer;
+    private readonly DispatcherTimer? searchStateSaveTimer;
     private Flyout? reloadOptionsFlyout;
     private CheckBox? autoReloadEnabledCheckBox;
     private TextBox? autoReloadSecondsTextBox;
@@ -184,6 +185,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
             ApplySearchFilter();
         };
 
+        searchStateSaveTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        searchStateSaveTimer.Tick += (_, _) =>
+        {
+            searchStateSaveTimer?.Stop();
+            SaveSearchBarStates();
+        };
+
         leftSearchBar.SetStringState(ConfigManager.GetLeftSearchBarState());
         rightSearchBar.SetStringState(ConfigManager.GetRightSearchBarState());
 
@@ -208,6 +219,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         rightSearchBar.SearchModeChanged += OnSearchModeChanged;
         leftSearchBar.SortOrderChanged += OnSearchModeChanged;
         rightSearchBar.SortOrderChanged += OnSearchModeChanged;
+
+        if (notificationSearchBar != null)
+        {
+            notificationSearchBar.SearchMode = SearchFilterMode.ModifiedTime;
+            notificationSearchBar.SortDescending = true;
+            notificationSearchBar.SearchTextChanged += (_, _) => ApplyNotificationFilterAndSort();
+            notificationSearchBar.SearchModeChanged += (_, _) => ApplyNotificationFilterAndSort();
+            notificationSearchBar.SortOrderChanged += (_, _) => ApplyNotificationFilterAndSort();
+            notificationSearchBar.HideFilteredToggled += (_, _) => ApplyNotificationFilterAndSort();
+        }
 
 
 
@@ -259,6 +280,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
             dfHackStatusTimer?.Stop();
             autoReloadTimer?.Stop();
             searchDebounceTimer?.Stop();
+            searchStateSaveTimer?.Stop();
             DisposePreviewImage(currentPreview);
         };
 

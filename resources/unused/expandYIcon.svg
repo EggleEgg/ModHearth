@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
 
 <svg
    width="349.5094"
@@ -8,38 +8,15 @@
    fill="none"
    version="1.1"
    id="svg1"
-   sodipodi:docname="expand-alt-1-svgrepo-com.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
      id="defs1" />
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#505050"
-     bordercolor="#ffffff"
-     borderopacity="1"
-     inkscape:showpageshadow="0"
-     inkscape:pageopacity="0"
-     inkscape:pagecheckerboard="1"
-     inkscape:deskcolor="#505050"
-     inkscape:zoom="0.17832349"
-     inkscape:cx="-972.95089"
-     inkscape:cy="137.39076"
-     inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg1" />
   <path
      d="M 5.2426407,6.4852921 V 1 m 0,0 -3.1819805,3.1819806 M 5.2426407,1 8.4246217,4.1819806 M 5.2426407,16.170552 v 5.485292 m 0,0 3.181981,-3.18198 m -3.181981,3.18198 -3.1819805,-3.18198 M 9.4852817,11.327922 H 1"
      stroke="#000000"
      stroke-width="2"
      stroke-linecap="round"
      stroke-linejoin="round"
-     id="path1"
-     sodipodi:nodetypes="cccccccccccccc" />
+     id="path1" />
 </svg>

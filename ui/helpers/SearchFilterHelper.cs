@@ -20,28 +20,31 @@ public static class SearchFilterHelper
         string trimmed = filter?.Trim() ?? string.Empty;
         bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
 
-        // handles sorting
-        IEnumerable<ModRefViewModel> sorted = (!isSortingEnabled)
-            ? source
-            : (searchMode, sortDescending) switch
-            {
-                (SearchFilterMode.ModifiedTime, true) => source.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-                (SearchFilterMode.ModifiedTime, false) => source.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue),
-                (_, true) => source.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase),
-                (_, false) => source.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
-            };
-
-        // handles filtering
-        return sorted.Where(vm =>
+        // Visit every item once to set IsFilteredOut and IsVisible
+        List<ModRefViewModel> items = source is List<ModRefViewModel> list ? list : source.ToList();
+        foreach (var vm in items)
         {
             bool match = !hasFilter || vm.MatchesFilter(trimmed, searchMode);
             vm.IsFilteredOut = hasFilter && !match;
             vm.IsVisible = !hideFiltered || match;
-            return vm.IsVisible;
-        }).ToList();
+        }
+
+        // Get the surviving subset (visible items)
+        IEnumerable<ModRefViewModel> visibleItems = items.Where(vm => vm.IsVisible);
+
+        // Sort only the surviving subset
+        return (!isSortingEnabled)
+            ? visibleItems.ToList()
+            : (searchMode, sortDescending) switch
+            {
+                (SearchFilterMode.ModifiedTime, true) => visibleItems.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue).ToList(),
+                (SearchFilterMode.ModifiedTime, false) => visibleItems.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue).ToList(),
+                (_, true) => visibleItems.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase).ToList(),
+                (_, false) => visibleItems.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase).ToList()
+            };
     }
 
-    public static void ReplaceCollection(ObservableCollection<ModRefViewModel> target, List<ModRefViewModel> items)
+    public static void ReplaceCollection<T>(ObservableCollection<T> target, List<T> items)
     {
         if (target.Count == items.Count)
         {
@@ -58,9 +61,9 @@ public static class SearchFilterHelper
         }
 
         target.Clear();
-        foreach (ModRefViewModel vm in items)
+        foreach (T item in items)
         {
-            target.Add(vm);
+            target.Add(item);
         }
     }
 

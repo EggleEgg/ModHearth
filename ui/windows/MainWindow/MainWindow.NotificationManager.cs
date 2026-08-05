@@ -6,23 +6,178 @@ using Avalonia.Threading;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using ModHearth.Models;
 
 namespace ModHearth.UI;
 
-public class NotificationRecord
+public class NotificationRecord : INotifyPropertyChanged
 {
+    private bool isFilteredOut;
+    private bool isVisible = true;
+    private TextDecorationCollection? textDecorations;
+    private IBrush messageForeground = Brushes.White;
+    private double itemOpacity = 1.0;
+
     public string Message { get; set; } = string.Empty;
     public string IconResourceName { get; set; } = "infoCircleWhiteIcon.svg";
     public IImage? IconSource { get; set; }
     public DateTime Timestamp { get; set; }
     public string FormattedTime => Timestamp.ToString("HH : mm : ss");
+
+    public bool IsFilteredOut
+    {
+        get => isFilteredOut;
+        set
+        {
+            if (isFilteredOut == value)
+                return;
+            isFilteredOut = value;
+            RefreshStyle();
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsVisible
+    {
+        get => isVisible;
+        set
+        {
+            if (isVisible == value)
+                return;
+            isVisible = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public TextDecorationCollection? TextDecorations
+    {
+        get => textDecorations;
+        private set
+        {
+            if (Equals(textDecorations, value))
+                return;
+            textDecorations = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public IBrush MessageForeground
+    {
+        get => messageForeground;
+        private set
+        {
+            if (Equals(messageForeground, value))
+                return;
+            messageForeground = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public double ItemOpacity
+    {
+        get => itemOpacity;
+        private set
+        {
+            if (Math.Abs(itemOpacity - value) < 0.001)
+                return;
+            itemOpacity = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public void RefreshStyle()
+    {
+        IBrush defaultBrush;
+        if (Style.instance != null)
+        {
+            defaultBrush = BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
+        }
+        else
+        {
+            defaultBrush = Brushes.White;
+        }
+
+        if (IsFilteredOut)
+        {
+            MessageForeground = BrushCache.EditBrushAlpha(Brushes.Gray, 160);
+            TextDecorations = Avalonia.Media.TextDecorations.Strikethrough;
+            ItemOpacity = 0.5;
+        }
+        else
+        {
+            MessageForeground = defaultBrush;
+            TextDecorations = null;
+            ItemOpacity = 1.0;
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
 
 public partial class MainWindow
 {
+    private const int MaxNotificationRecords = 2000;
+    private readonly List<NotificationRecord> allNotificationRecords = [];
     private readonly ObservableCollection<NotificationRecord> notificationRecords = [];
+
+    public void ApplyNotificationFilterAndSort()
+    {
+        string filter = notificationSearchBar?.Text?.Trim() ?? string.Empty;
+        SearchFilterMode mode = notificationSearchBar?.SearchMode ?? SearchFilterMode.ModifiedTime;
+        bool sortDescending = notificationSearchBar?.SortDescending ?? true;
+        bool hideFiltered = notificationSearchBar?.HideFiltered ?? true;
+        bool hasFilter = !string.IsNullOrWhiteSpace(filter);
+
+        foreach (var r in allNotificationRecords)
+        {
+            bool match = !hasFilter || (mode == SearchFilterMode.Regex
+                ? IsRegexMatch(r.Message, filter)
+                : r.Message.Contains(filter, StringComparison.OrdinalIgnoreCase));
+
+            r.IsFilteredOut = hasFilter && !match;
+            r.IsVisible = !hideFiltered || match;
+        }
+
+        IEnumerable<NotificationRecord> query = allNotificationRecords.Where(r => r.IsVisible);
+
+        query = sortDescending
+            ? query.OrderByDescending(r => r.Timestamp)
+            : query.OrderBy(r => r.Timestamp);
+
+        var filteredList = query.ToList();
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            SearchFilterHelper.ReplaceCollection(notificationRecords, filteredList);
+            if (NotificationItemsControl != null && NotificationItemsControl.ItemsSource == null)
+            {
+                NotificationItemsControl.ItemsSource = notificationRecords;
+            }
+        });
+    }
+
+    private static bool IsRegexMatch(string input, string pattern)
+    {
+        try
+        {
+            return Regex.IsMatch(input, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public void ShowNotification(string message, string iconResourceName, int notificationDelay)
         => ShowNotification(message, iconResourceName, showAfterReload: false, notificationDelay);
@@ -46,11 +201,12 @@ public partial class MainWindow
 
         Dispatcher.UIThread.Post(() =>
         {
-            notificationRecords.Insert(0, record);
-            if (NotificationItemsControl != null && NotificationItemsControl.ItemsSource == null)
+            allNotificationRecords.Insert(0, record);
+            if (allNotificationRecords.Count > MaxNotificationRecords)
             {
-                NotificationItemsControl.ItemsSource = notificationRecords;
+                allNotificationRecords.RemoveRange(MaxNotificationRecords, allNotificationRecords.Count - MaxNotificationRecords);
             }
+            ApplyNotificationFilterAndSort();
 
             var container = this.FindControl<StackPanel>("notificationContainer");
             if (container == null)

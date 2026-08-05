@@ -6,7 +6,7 @@ using Avalonia.Controls;
 
 namespace ModHearth.UI
 {
-    public partial class WorkshopDownloaderWindow : Window, IStyleAwareWindow
+    public partial class WorkshopDownloaderWindow : Window
     {
         public static double DefaultWidth => LoadDimension("Width", 550);
         public static double DefaultMinWidth => LoadDimension("MinWidth", 400);
@@ -49,9 +49,6 @@ namespace ModHearth.UI
             Content = control ?? new WorkshopDownloaderControl(manager);
         }
 
-        public void ApplyCustomStyle(Style style)
-        {
-            WindowThemeManager.ApplyToWindow(this, style);
-        }
+
     }
 }

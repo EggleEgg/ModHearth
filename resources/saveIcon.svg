@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
 
 <svg
    fill="#000000"
@@ -10,37 +10,14 @@
    enable-background="new 0 0 24 24"
    xml:space="preserve"
    id="svg2"
-   sodipodi:docname="saveIcon.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg"><defs
-   id="defs2" /><sodipodi:namedview
-   id="namedview2"
-   pagecolor="#505050"
-   bordercolor="#ffffff"
-   borderopacity="1"
-   inkscape:showpageshadow="0"
-   inkscape:pageopacity="0"
-   inkscape:pagecheckerboard="1"
-   inkscape:deskcolor="#505050"
-   inkscape:zoom="0.35664698"
-   inkscape:cx="166.83164"
-   inkscape:cy="424.7898"
-   inkscape:window-width="1920"
-   inkscape:window-height="1009"
-   inkscape:window-x="-8"
-   inkscape:window-y="-8"
-   inkscape:window-maximized="1"
-   inkscape:current-layer="svg2" />
+   id="defs2" />
 <g
-   id="g37"
-   inkscape:label="save"><path
+   id="g37"><path
      d="M 7.0000195,1.9999805 C 6.4480195,1.9999805 6,2.448 6,3 v 6 c 0,0.552 0.4480195,1.00002 1.0000195,1.00002 H 16.99998 C 17.55198,10.00002 18,9.552 18,9 V 3 C 18,2.448 17.55198,1.9999805 16.99998,1.9999805 Z M 12,3 h 4.00002 V 9 H 12 Z M 4.9999805,13.99998 c -0.552,0 -0.999961,0.44802 -0.999961,1.00002 v 7.00002 H 19.99998 V 15 c 0,-0.552 -0.44796,-1.00002 -0.99996,-1.00002 z"
      style="display:inline;opacity:1;fill:#ffffff;stroke-width:3;stroke-linejoin:bevel;stroke-opacity:0;paint-order:stroke fill markers"
-     id="path35"
-     sodipodi:nodetypes="ssssssssscccccssccsss" /><path
+     id="path35" /><path
      d="M 1.0000195,0 C 0.44801956,0 0,0.44801956 0,1.0000195 V 22.99998 C 0,23.55198 0.44801956,24 1.0000195,24 H 22.99998 C 23.55198,24 24,23.55198 24,22.99998 V 4.9999805 L 19.00002,0 Z m 6,1.9999805 H 16.99998 C 17.55198,1.9999805 18,2.448 18,3 v 6 c 0,0.552 -0.44802,1.00002 -1.00002,1.00002 H 7.0000195 C 6.4480195,10.00002 6,9.552 6,9 V 3 C 6,2.448 6.4480195,1.9999805 7.0000195,1.9999805 Z M 12,3 v 6 h 4.00002 V 3 Z M 4.9999805,13.99998 H 19.00002 c 0.552,0 0.99996,0.44802 0.99996,1.00002 v 7.00002 H 4.0000195 V 15 c 0,-0.552 0.447961,-1.00002 0.999961,-1.00002 z"
      style="display:inline;opacity:1"
      id="path34" /></g>

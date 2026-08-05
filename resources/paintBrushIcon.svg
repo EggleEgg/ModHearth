@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
 
 <svg
    fill="#000000"
@@ -8,32 +8,10 @@
    viewBox="0 0 1919.9997 1873.4418"
    version="1.1"
    id="svg1"
-   sodipodi:docname="paintBrushIcon.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
      id="defs1" />
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#505050"
-     bordercolor="#ffffff"
-     borderopacity="1"
-     inkscape:showpageshadow="0"
-     inkscape:pageopacity="0"
-     inkscape:pagecheckerboard="1"
-     inkscape:deskcolor="#505050"
-     inkscape:zoom="0.504375"
-     inkscape:cx="238.90954"
-     inkscape:cy="423.29616"
-     inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg1" />
   <path
      d="m 392.26,1019.4999 c 137.747,-57.67005 292.85,-15.269 425.873,116.217 l 4.394,4.833 c 116.656,146.425 149.5,279.119 97.873,394.237 -128.85,287.138 -740.692,328.77 -810.005,332.504 L 0,1873.4419 l 61.953,-91.83 c 0.989,-1.539 105.013,-158.728 105.013,-427.192 0,-141.811 92.6,-279.558 225.294,-334.92 z M 1728.701,0.05185342 c 54.923,-1.09900002 99.96,15.26799958 135.111,49.42999958 40.643,40.644 58.109,87.876997 56.021,140.602997 -10.983,261.435 -496.503,740.362 -866.683,1067.70505 -24.276,-64.81 -63.711,-136.21 -125.335,-213.102 l -8.787,-9.886 C 838.95,954.61485 749.865,899.69185 656.605,873.32885 955.276,535.00185 1460.677,10.926853 1728.701,0.05185342 Z"
      fill-rule="evenodd"

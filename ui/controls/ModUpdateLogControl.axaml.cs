@@ -373,11 +373,6 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         {
             logList.Background = BackgroundColorBrush;
         }
-
-        foreach (var vm in allEntries)
-        {
-            vm.RefreshStyle(style);
-        }
     }
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)

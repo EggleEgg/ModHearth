@@ -1,0 +1,30 @@
+
+Modified and ported Steam Icon svg by Valve Corporation
+
+Modified and ported Dwarf Fortress image and svg by Bay 12 Games & Kitfox Games
+
+--- https://fontello.com/ --- Ported into svgs using https://icomoon.io/app/ ---
+
+Font Awesome by Dave Gandy. Fonticons, Inc. (https://fontawesome.com)
+
+Font Entypo by Daniel Bruce https://www.entypo.com/
+
+Font Iconic by http://somerandomdude.com/work/iconic/
+
+Font MFG Labs by MFG Labs https://www.mfglabs.com/
+
+--- https://www.svgrepo.com ---
+
+Vectors and icons by <a href="https://github.com/etn-ccis/blui-icons?ref=svgrepo.com" target="_blank">Etn Ccis</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://github.com/microsoft/vscode-codicons?ref=svgrepo.com" target="_blank">Microsoft</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://github.com/instructure/instructure-ui?ref=svgrepo.com" target="_blank">Instructure Ui</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://github.com/UXAspects/UXAspects?ref=svgrepo.com" target="_blank">Uxaspects</a> in Apache License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://github.com/540co/govicons?ref=svgrepo.com" target="_blank">Govicons</a> in OFL License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://www.figma.com/@thewolfkit?ref=svgrepo.com" target="_blank">Thewolfkit</a> in CC Attribution License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://iconoir.com/?ref=svgrepo.com" target="_blank">Iconoir</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://iconhub.io?ref=svgrepo.com" target="_blank">Iconhub</a> in CC Attribution License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+
+
+
+
+

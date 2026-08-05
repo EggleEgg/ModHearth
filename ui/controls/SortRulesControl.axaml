@@ -63,15 +63,15 @@
                         HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
               </Grid>
               <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" HorizontalAlignment="Stretch" ColumnSpacing="8">
-                <TextBlock x:Name="summaryText" Margin="0,0,0,4" />
-                <TextBlock x:Name="validationText"/>
+                <TextBlock x:Name="summaryText" Grid.ColumnSpan="2" Margin="0,0,0,4" />
+                <TextBlock x:Name="validationText" Grid.Row="1" VerticalAlignment="Center" Tag="IgnoreTheme" />
 
-                <ScrollViewer x:Name="validationScrollViewer" Grid.Row="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" >
-                  <StackPanel x:Name="validationIssuesPanel" Spacing="4" IsVisible="False" Margin="0,0,0,10" />
+                <ScrollViewer x:Name="validationScrollViewer" Grid.Row="1" ScrollViewer.HorizontalScrollBarVisibility="Auto" VerticalAlignment="Center" >
+                  <StackPanel x:Name="validationIssuesPanel" Spacing="4" IsVisible="False" Margin="0,0,0,10" Tag="IgnoreTheme" />
                 </ScrollViewer>
 
                 <Button x:Name="fixConflictsButton" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource MainTextBrush}"
-                        Content="Fix conflicts" Padding="10,4" VerticalAlignment="Top" BorderBrush="Transparent"
+                        Content="Fix conflicts" Padding="10,4" VerticalAlignment="Center" BorderBrush="Transparent"
                         HorizontalAlignment="Right" HorizontalContentAlignment="Center" FontWeight="SemiBold" />
               </Grid>
             </StackPanel>

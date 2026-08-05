@@ -300,12 +300,12 @@
           </Grid>
 
           <StackPanel Grid.Row="7" Spacing="12" Margin="0,0,0,6" VerticalAlignment="Bottom">
-            <Button x:Name="workshopDownloaderButton" Tag="Themed" Width="42" Height="42"
+            <Button x:Name="workshopDownloaderButton" Tag="Themed" Width="50" Height="50"
                     ToolTip.Tip="Open the Steam Workshop Downloader. Right click to toggle docking mode" HorizontalAlignment="Right">
               <Grid>
                 <Image Source="{ui:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
                 <Image x:Name="workshopModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
-                       Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1.5,0,0" />
+                       Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1.5,0,0" />
               </Grid>
             </Button>
             <Grid ColumnDefinitions="*,Auto" Height="28">
@@ -409,27 +409,34 @@
         </Transitions>
       </Border.Transitions>
 
-      <Grid RowDefinitions="Auto,*">
+      <Grid RowDefinitions="Auto,Auto,*">
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,12,12,8">
           <TextBlock Text="Notification Manager" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
-          <Button Grid.Column="1" Click="OnToggleNotificationDrawerClick" Width="28" Height="28" Padding="6" Tag="Themed">
+          <Button Grid.Column="1" Click="OnToggleNotificationDrawerClick" Width="28" Height="28" Padding="2" Tag="Themed">
             <Image Source="{ui:AssetImage cancelIcon}" />
           </Button>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" Margin="12,0,12,12" VerticalScrollBarVisibility="Auto">
+        <ui:ModSearchBar x:Name="notificationSearchBar" Grid.Row="1" Margin="12,0,12,8" IsSortingEnabled="True" IsColorSearchEnabled="False"
+                         IsIdSearchEnabled="False" IsSteamFileIdSearchEnabled="False" IsNameSearchEnabled="True"
+                         IsRegexSearchEnabled="True" IsModifiedTimeSearchEnabled="True" SearchMode="ModifiedTime" SortDescending="True" />
+
+        <ScrollViewer Grid.Row="2" Margin="12,0,12,12" VerticalScrollBarVisibility="Auto">
           <ItemsControl x:Name="NotificationItemsControl">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="ui:NotificationRecord">
-                <Border Margin="0,4" Padding="8" CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource ButtonOutlineBrush}" BorderThickness="1">
-                  <StackPanel Spacing="2">
+                <Border Margin="0,4" Padding="8" CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource ButtonOutlineBrush}" BorderThickness="1" Opacity="{Binding ItemOpacity}">
+                  <StackPanel Spacing="2" Margin="0">
                     <Grid ColumnDefinitions="Auto,*">
                       <Image Width="16" Height="16" VerticalAlignment="Center" Source="{Binding IconSource}" />
                       <TextBlock Grid.Column="1" Text="{Binding Message}" FontSize="12" FontWeight="SemiBold"
-                                 VerticalAlignment="Center" TextWrapping="Wrap" Margin="6,0,0,0" />
+                                 VerticalAlignment="Center" TextWrapping="Wrap" Margin="6,0,0,0"
+                                 Foreground="{Binding MessageForeground}"
+                                 TextDecorations="{Binding TextDecorations}" />
                     </Grid>
-                    <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{DynamicResource DimTextBrush}"
-                               Background="{DynamicResource PanelDarkBrush}" Margin="22,0,0,0" Padding="4,2"/>
+                    <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{Binding MessageForeground}" Opacity="0.8"
+                               Background="{DynamicResource PanelDarkBrush}" Margin="22,0,0,0" Padding="4,2"
+                               TextDecorations="{Binding TextDecorations}" />
                   </StackPanel>
                 </Border>
               </DataTemplate>

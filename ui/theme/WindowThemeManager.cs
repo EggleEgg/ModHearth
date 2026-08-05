@@ -170,6 +170,7 @@ public static class WindowThemeManager
             app.Resources["BorderPanelBrush"] = brushes.BorderPanel;
             app.Resources["BackgroundBrush"] = brushes.Background;
             app.Resources["MainTextBrush"] = brushes.Text;
+            app.Resources["DimTextBrush"] = BrushCache.EditBrushAlpha(brushes.Text, 160);
             app.Resources["PanelBrush"] = brushes.Panel;
             app.Resources["PanelDarkBrush"] = BrushCache.GetBrush(style.panelColorDark);
             // Use this for generic gridsplitters and linebreakers
@@ -194,10 +195,7 @@ public static class WindowThemeManager
         // Single top-down $O(N)$ pass through the visual tree
         ApplyToVisualRecursive(visual, style, brushes);
 
-        if (visual is IStyleAwareWindow styleAware)
-            styleAware.ApplyCustomStyle(style);
-
-        ModRefViewModel.RefreshAllStyles();
+        ThemedViewModelRegistry.RefreshAll(style);
     }
 
     private static void ApplyToVisualRecursive(

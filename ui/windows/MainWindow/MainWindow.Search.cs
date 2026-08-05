@@ -64,7 +64,13 @@ public partial class MainWindow
 
     private void OnSearchBarStateChanged()
     {
-        SaveSearchBarStates();
+        if (searchStateSaveTimer == null)
+        {
+            SaveSearchBarStates();
+            return;
+        }
+        searchStateSaveTimer.Stop();
+        searchStateSaveTimer.Start();
     }
 
     private void SaveSearchBarStates()

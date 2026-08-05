@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
 
 <svg
    width="407.74802"
@@ -8,32 +8,10 @@
    fill="none"
    version="1.1"
    id="svg1"
-   sodipodi:docname="cancelBorderIcon.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
      id="defs1" />
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#505050"
-     bordercolor="#ffffff"
-     borderopacity="1"
-     inkscape:showpageshadow="0"
-     inkscape:pageopacity="0"
-     inkscape:pagecheckerboard="1"
-     inkscape:deskcolor="#505050"
-     inkscape:zoom="0.5"
-     inkscape:cx="-126"
-     inkscape:cy="-87"
-     inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg1" />
   <path
      d="m 0.84074579,10.340775 c -0.29289,0.2929 -0.29289,0.767701 0,1.060601 0.29289001,0.292899 0.76777001,0.292899 1.06066001,0 z M 6.9013758,6.4013758 c 0.2929,-0.2929 0.2929,-0.7677 0,-1.0606 -0.2929,-0.2929 -0.7677,-0.2929 -1.0606,0 z m -1.0606,-1.0606 c -0.2929,0.2929 -0.2929,0.7677 0,1.0606 0.2929,0.2929 0.7677,0.2929 1.0606,0 z m 6.0606002,-3.93937 c 0.292899,-0.29289 0.292899,-0.76777 0,-1.06066 -0.2929,-0.29289 -0.767701,-0.29289 -1.060601,0 z m -5.0000002,3.93937 c -0.2929,-0.2929 -0.7677,-0.2929 -1.0606,0 -0.2929,0.2929 -0.2929,0.7677 0,1.0606 z m 3.9393992,6.0606002 c 0.2929,0.292899 0.767701,0.292899 1.060601,0 0.292899,-0.2929 0.292899,-0.767701 0,-1.060601 z M 5.8407758,6.4013758 c 0.2929,0.2929 0.7677,0.2929 1.0606,0 0.2929,-0.2929 0.2929,-0.7677 0,-1.0606 z m -3.93937,-6.06063 c -0.29289,-0.29289 -0.76777,-0.29289 -1.06066001,0 -0.29289,0.29289 -0.29289,0.76777 0,1.06066 z m 0,11.0606302 4.99997,-5.0000002 -1.0606,-1.0606 -5.00003001,4.9999992 z m 4.99997,-5.0000002 5.0000002,-4.99997 -1.060601,-1.06066 -4.9999992,5.00003 z m -1.0606,0 4.9999992,5.0000002 1.060601,-1.060601 -5.0000002,-4.9999992 z m 1.0606,-1.0606 -4.99997,-5.00003 -1.06066001,1.06066 5.00003001,4.99997 z"
      fill="#000000"

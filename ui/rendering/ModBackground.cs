@@ -42,6 +42,10 @@ public class ModBackground : Control
         AffectsRender<ModBackground>(UnderlayBrushProperty, LineThicknessProperty, SpacingProperty);
     }
 
+    private Pen? _cachedPen;
+    private IBrush? _cachedBrush;
+    private double _cachedThickness = -1;
+
     public override void Render(DrawingContext context)
     {
         var brush = UnderlayBrush;
@@ -55,8 +59,15 @@ public class ModBackground : Control
         if (width <= 0 || height <= 0)
             return;
 
-        // Use the configured LineThickness
-        var pen = new Pen(brush, LineThickness);
+        double thickness = LineThickness;
+        var pen = _cachedPen;
+        if (pen == null || _cachedBrush != brush || _cachedThickness != thickness)
+        {
+            pen = new Pen(brush, thickness);
+            _cachedPen = pen;
+            _cachedBrush = brush;
+            _cachedThickness = thickness;
+        }
 
         // Use the configured Spacing (safety check to prevent infinite loops)
         double spacing = Spacing;

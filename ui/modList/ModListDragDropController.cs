@@ -43,6 +43,8 @@ public sealed class ModListDragDropController
     private bool isDragging;
     private ListBox? currentDragOverList;
     private Point? currentDragOverPosition;
+    private DateTime lastDragOverTime = DateTime.MinValue;
+    private Point lastDragOverPos;
 
     public event Action<ModListDropContext>? Dropped;
 
@@ -205,6 +207,16 @@ public sealed class ModListDragDropController
 
         e.DragEffects = DragDropEffects.Move;
         Point pos = e.GetPosition(list);
+
+        if ((DateTime.UtcNow - lastDragOverTime).TotalMilliseconds < 40 && Math.Abs(pos.X - lastDragOverPos.X) < 3 && Math.Abs(pos.Y - lastDragOverPos.Y) < 3)
+        {
+            currentDragOverList = list;
+            currentDragOverPosition = pos;
+            return;
+        }
+        lastDragOverTime = DateTime.UtcNow;
+        lastDragOverPos = pos;
+
         UpdateDropHighlight(list, pos);
 
         currentDragOverList = list;

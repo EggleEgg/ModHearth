@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
 
 <svg
    width="396.41833"
@@ -9,33 +9,11 @@
    enable-background="new 0 0 76.00 76.00"
    xml:space="preserve"
    id="svg1"
-   sodipodi:docname="horizontalClearFullIcon.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg"><defs
-   id="defs1" /><sodipodi:namedview
-   id="namedview1"
-   pagecolor="#505050"
-   bordercolor="#ffffff"
-   borderopacity="1"
-   inkscape:showpageshadow="0"
-   inkscape:pageopacity="0"
-   inkscape:pagecheckerboard="1"
-   inkscape:deskcolor="#505050"
-   inkscape:zoom="0.71329397"
-   inkscape:cx="-45.563262"
-   inkscape:cy="-59.582727"
-   inkscape:window-width="1920"
-   inkscape:window-height="1009"
-   inkscape:window-x="-8"
-   inkscape:window-y="-8"
-   inkscape:window-maximized="1"
-   inkscape:current-layer="svg1" />
+   id="defs1" />
 	<path
    d="m 12.609613,0 c -2,0 -2.9315733,0.29235 -4.0352733,1.0767284 L 1.5243012,6.9476169 c -1.51309994,1.2851012 -1.94859354,3.1897441 -1.08582034,4.7531541 0.250604,0.454113 0.62168204,0.865905 1.08582034,1.252441 l 7.0500385,5.871074 c 1.1037,0.784379 2.0352733,1.076543 4.0352733,1.076543 h 21.000009 c 2.7614,0 4.050117,-1.907569 4.050117,-3.795918 V 3.7959178 C 37.659739,1.907568 36.371022,0 33.609622,0 Z m 8.230303,2.4221288 4.949834,4.9498337 4.949648,-4.9498337 2.578359,2.5785448 -4.949648,4.9496485 4.949648,4.9498339 -2.578359,2.578359 -4.949648,-4.949834 -4.949834,4.949834 -2.578359,-2.578359 4.949648,-4.9498339 -4.949648,-4.9496485 z"
    style="baseline-shift:baseline;display:inline;overflow:visible;fill:#000000;fill-opacity:1;stroke:none;stroke-width:3.8;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:0.5;paint-order:stroke fill markers;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
-   id="path4"
-   inkscape:label="background" />
+   id="path4" />
 </svg>

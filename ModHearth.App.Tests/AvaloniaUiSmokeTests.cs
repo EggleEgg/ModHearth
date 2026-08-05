@@ -160,7 +160,7 @@ public class AvaloniaUiSmokeTests : IClassFixture<AvaloniaAppFixture>
             _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - calling RunJobs()...");
             Dispatcher.UIThread.RunJobs();
             _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - sleeping...");
-            Thread.Sleep(100);
+            await Task.Delay(100);
             iteration++;
         }
         _output.WriteLine("AvaloniaUiSmokeTests: UI event loop completed successfully.");

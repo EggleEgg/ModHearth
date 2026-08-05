@@ -12,34 +12,11 @@
    overflow="visible"
    version="1.1"
    id="svg1"
-   sodipodi:docname="arrowUpIcon.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
      id="defs1" />
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#505050"
-     bordercolor="#ffffff"
-     borderopacity="1"
-     inkscape:showpageshadow="0"
-     inkscape:pageopacity="0"
-     inkscape:pagecheckerboard="1"
-     inkscape:deskcolor="#505050"
-     inkscape:zoom="25.21875"
-     inkscape:cx="-4.5204461"
-     inkscape:cy="7.11772"
-     inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg1" />
   <path
      d="M 2.5009518,3.5004478 H 0.25095183 c -0.223094,3.992e-4 -0.334951,-0.2694481 -0.177,-0.427 L 3.0739518,0.0734475 c 0.09768,-0.09793 0.256318,-0.09793 0.354,0 l 3.0000001,3.0000003 c 0.1579514,0.1575519 0.046094,0.4273992 -0.177,0.427 H 4.0009518 v 6.25 c 0,0.9999992 -1.5,0.9999992 -1.5,0 z"
-     id="path1"
-     sodipodi:nodetypes="ccccccccssc" />
+     id="path1" />
 </svg>

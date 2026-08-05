@@ -211,11 +211,6 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         isRefreshing = true;
         try
         {
-            //TODO Check if performance can be improved
-            foreach (ModRefViewModel vm in allMods)
-            {
-                vm.RefreshStyle();
-            }
             RefreshEditor();
         }
         finally { isRefreshing = false; }
@@ -249,6 +244,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             if (globalValidation.Issues != null && globalValidation.Issues.Count > 0)
             {
                 validationText.IsVisible = false;
+                validationScrollViewer.IsVisible = true;
                 validationIssuesPanel.IsVisible = true;
                 validationIssuesPanel.Children.Clear();
                 foreach (Control issueCtrl in globalValidation.Issues)
@@ -257,6 +253,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             else
             {
                 validationText.IsVisible = true;
+                validationScrollViewer.IsVisible = false;
                 validationIssuesPanel.IsVisible = false;
                 validationText.Text = globalValidation.Message;
             }
@@ -296,6 +293,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         if (modValidation.Issues != null && modValidation.Issues.Count > 0)
         {
             validationText.IsVisible = false;
+            validationScrollViewer.IsVisible = true;
             validationIssuesPanel.IsVisible = true;
             validationIssuesPanel.Children.Clear();
             foreach (Control issueCtrl in modValidation.Issues)
@@ -304,6 +302,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         else
         {
             validationText.IsVisible = true;
+            validationScrollViewer.IsVisible = false;
             validationIssuesPanel.IsVisible = false;
             validationText.Text = modValidation.Message;
         }
@@ -341,9 +340,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         text.Foreground = brush;
 
         foreach (Control control in issuesPanel.Children)
-        {
             ApplyBrushRecursive(control, brush);
-        }
     }
 
     private static void ApplyBrushRecursive(Control control, IBrush brush)
@@ -410,6 +407,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         TextBlock titleText = new()
         {
             Text = title,
+            Tag = "IgnoreTheme",
             FontWeight = FontWeight.Bold,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis
@@ -765,17 +763,17 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             foreach (string target in incompatibleSet)
             {
                 if (requiredSet.Contains(target))
-                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both required and incompatible with ", DisplayLabel(target), "."), true);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both required and incompatible with ", DisplayLabel(target)), true);
                 if (beforeSet.Contains(target))
-                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both before and incompatible with ", DisplayLabel(target), "."), true);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both before and incompatible with ", DisplayLabel(target)), true);
                 if (afterSet.Contains(target))
-                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both after and incompatible with ", DisplayLabel(target), "."), true);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both after and incompatible with ", DisplayLabel(target)), true);
             }
 
             foreach (string target in beforeSet)
             {
                 if (afterSet.Contains(target))
-                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both before and after ", DisplayLabel(target), "."), true);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be both before and after ", DisplayLabel(target)), true);
             }
 
             AddEdges(ownerId, kvp.Value.BeforeIds, ownerId, target => target, "before", targetIsSource: false, conflictSet: afterSet);
@@ -790,7 +788,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
                 if (string.Equals(ownerId, target, StringComparison.OrdinalIgnoreCase))
                     AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " cannot be incompatible with itself."), true);
                 else if (!modIdMap.ContainsKey(target))
-                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), $" references missing mod {target}."), false);
+                    AddIssue(ownerId, BuildIssueControl(DisplayLabel(ownerId), " references missing mod ", DisplayLabel(target)), false);
             }
         }
 
@@ -910,6 +908,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
                     panel.Children.Add(new TextBlock
                     {
                         Text = s,
+                        Tag = "IgnoreTheme",
                         VerticalAlignment = VerticalAlignment.Center
                     });
                     break;

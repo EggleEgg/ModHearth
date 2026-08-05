@@ -15,9 +15,6 @@ public partial class MainWindow
         RefreshDescriptionHtml();
         RefreshModDataViewer();
 
-        foreach (ModRefViewModel vm in modViewMap.Values)
-            vm.RefreshStyle();
-
         int theme = ConfigManager.GetTheme();
         if (themeComboBox != null && themeComboBox.SelectedIndex != theme)
             themeComboBox.SelectedIndex = theme;

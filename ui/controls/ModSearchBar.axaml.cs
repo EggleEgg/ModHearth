@@ -43,9 +43,24 @@ public partial class ModSearchBar : UserControl
     public static readonly StyledProperty<bool> IsSortingEnabledProperty =
         AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsSortingEnabled), true);
 
+    public static readonly StyledProperty<bool> IsNameSearchEnabledProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsNameSearchEnabled), true);
+
+    public static readonly StyledProperty<bool> IsRegexSearchEnabledProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsRegexSearchEnabled), true);
+
     // Disables the color filter too
     public static readonly StyledProperty<bool> IsColorSearchEnabledProperty =
         AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsColorSearchEnabled), true);
+
+    public static readonly StyledProperty<bool> IsModifiedTimeSearchEnabledProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsModifiedTimeSearchEnabled), true);
+
+    public static readonly StyledProperty<bool> IsIdSearchEnabledProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsIdSearchEnabled), true);
+
+    public static readonly StyledProperty<bool> IsSteamFileIdSearchEnabledProperty =
+        AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsSteamFileIdSearchEnabled), true);
 
     public event EventHandler? SearchTextChanged;
     public event EventHandler? HideFilteredToggled;
@@ -144,22 +159,20 @@ public partial class ModSearchBar : UserControl
                 UpdateSearchModeButtonTooltip();
                 SortOrderChanged?.Invoke(this, EventArgs.Empty);
             }
-            else if (args.Property == IsSortingEnabledProperty)
+            else if (args.Property == IsSortingEnabledProperty ||
+                     args.Property == IsNameSearchEnabledProperty ||
+                     args.Property == IsRegexSearchEnabledProperty ||
+                     args.Property == IsColorSearchEnabledProperty ||
+                     args.Property == IsModifiedTimeSearchEnabledProperty ||
+                     args.Property == IsIdSearchEnabledProperty ||
+                     args.Property == IsSteamFileIdSearchEnabledProperty)
             {
-                if (!IsSortingEnabled && SearchMode == SearchFilterMode.ModifiedTime)
+                if (!IsSearchModeAllowed(SearchMode))
                 {
-                    SearchMode = SearchFilterMode.Name;
+                    SearchMode = GetFirstAllowedSearchMode();
                 }
                 UpdateSearchModeIcon();
                 UpdateSearchModeButtonTooltip();
-                searchModeFlyout = null;
-            }
-            else if (args.Property == IsColorSearchEnabledProperty)
-            {
-                if (!IsColorSearchEnabled && SearchMode == SearchFilterMode.Color)
-                {
-                    SearchMode = SearchFilterMode.Name;
-                }
                 searchModeFlyout = null;
             }
         };
@@ -269,10 +282,65 @@ public partial class ModSearchBar : UserControl
         set => SetValue(IsSortingEnabledProperty, value);
     }
 
+    public bool IsNameSearchEnabled
+    {
+        get => GetValue(IsNameSearchEnabledProperty);
+        set => SetValue(IsNameSearchEnabledProperty, value);
+    }
+
+    public bool IsRegexSearchEnabled
+    {
+        get => GetValue(IsRegexSearchEnabledProperty);
+        set => SetValue(IsRegexSearchEnabledProperty, value);
+    }
+
     public bool IsColorSearchEnabled
     {
         get => GetValue(IsColorSearchEnabledProperty);
         set => SetValue(IsColorSearchEnabledProperty, value);
+    }
+
+    public bool IsModifiedTimeSearchEnabled
+    {
+        get => GetValue(IsModifiedTimeSearchEnabledProperty);
+        set => SetValue(IsModifiedTimeSearchEnabledProperty, value);
+    }
+
+    public bool IsIdSearchEnabled
+    {
+        get => GetValue(IsIdSearchEnabledProperty);
+        set => SetValue(IsIdSearchEnabledProperty, value);
+    }
+
+    public bool IsSteamFileIdSearchEnabled
+    {
+        get => GetValue(IsSteamFileIdSearchEnabledProperty);
+        set => SetValue(IsSteamFileIdSearchEnabledProperty, value);
+    }
+
+    private bool IsSearchModeAllowed(SearchFilterMode mode)
+    {
+        return mode switch
+        {
+            SearchFilterMode.Name => IsNameSearchEnabled,
+            SearchFilterMode.Regex => IsRegexSearchEnabled,
+            SearchFilterMode.Color => IsColorSearchEnabled,
+            SearchFilterMode.ModifiedTime => IsSortingEnabled && IsModifiedTimeSearchEnabled,
+            SearchFilterMode.Id => IsIdSearchEnabled,
+            SearchFilterMode.SteamFileId => IsSteamFileIdSearchEnabled,
+            _ => true
+        };
+    }
+
+    private SearchFilterMode GetFirstAllowedSearchMode()
+    {
+        if (IsNameSearchEnabled) return SearchFilterMode.Name;
+        if (IsRegexSearchEnabled) return SearchFilterMode.Regex;
+        if (IsColorSearchEnabled) return SearchFilterMode.Color;
+        if (IsSortingEnabled && IsModifiedTimeSearchEnabled) return SearchFilterMode.ModifiedTime;
+        if (IsIdSearchEnabled) return SearchFilterMode.Id;
+        if (IsSteamFileIdSearchEnabled) return SearchFilterMode.SteamFileId;
+        return SearchFilterMode.Name;
     }
 
     public SearchFilterMode SearchMode
@@ -379,16 +447,20 @@ public partial class ModSearchBar : UserControl
             MinWidth = 160
         };
 
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name));
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex));
+        if (IsNameSearchEnabled)
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name));
+        if (IsRegexSearchEnabled)
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex));
         if (IsColorSearchEnabled)
             panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color));
 
-        if (IsSortingEnabled)
+        if (IsSortingEnabled && IsModifiedTimeSearchEnabled)
             panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime));
 
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id));
-        panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId));
+        if (IsIdSearchEnabled)
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id));
+        if (IsSteamFileIdSearchEnabled)
+            panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId));
         UpdateSearchModeOptionLabels();
 
         searchModeFlyout = new Flyout
@@ -418,7 +490,7 @@ public partial class ModSearchBar : UserControl
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Padding = new Thickness(4, 4, 6, 4),
+            Padding = new Thickness(6, 4, 6, 4),
         };
 
         TextBlock text = new TextBlock
@@ -435,8 +507,10 @@ public partial class ModSearchBar : UserControl
                 {
                     ToolTip.SetTip(button, "Search includes mod title and description");
 
-                    Grid grid = new Grid();
-                    grid.ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto");
+                    Grid grid = new Grid
+                    {
+                        ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto")
+                    };
 
                     Button helpButton = new Button
                     {

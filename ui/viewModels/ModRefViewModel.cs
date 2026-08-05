@@ -9,14 +9,11 @@ using ModHearth.Utilities.Logging;
 namespace ModHearth.UI;
 
 /// <summary>
-/// For creating new view instances per window
+/// 
 /// </summary>
 public sealed record RuleBadgeInfo(IImage? Icon, int Count);
-public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
+public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedViewModel
 {
-    private static readonly List<WeakReference<ModRefViewModel>> allInstances = [];
-    private static readonly object instancesLock = new();
-
     private readonly ModReference modref;
     private bool isProblem;
     private bool isDuplicateWarning;
@@ -54,37 +51,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
             ? baseName
             : $"{baseName} {modref.displayedVersion}";
 
-        lock (instancesLock)
-        {
-            CleanupInstancesLocked();
-            allInstances.Add(new WeakReference<ModRefViewModel>(this));
-        }
-    }
-
-    private static void CleanupInstancesLocked()
-    {
-        _ = allInstances.RemoveAll(weak => !weak.TryGetTarget(out _));
-    }
-
-    public static void RefreshAllStyles()
-    {
-        List<ModRefViewModel> targets = [];
-        lock (instancesLock)
-        {
-            CleanupInstancesLocked();
-            foreach (var weak in allInstances)
-            {
-                if (weak.TryGetTarget(out var vm))
-                {
-                    targets.Add(vm);
-                }
-            }
-        }
-
-        foreach (var vm in targets)
-        {
-            vm.RefreshStyle();
-        }
+        ThemedViewModelRegistry.Register(this);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -523,6 +490,13 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem
 
     public void RefreshStyle()
     {
+        RefreshStyle(Style.instance ?? throw new InvalidOperationException("Style not loaded."));
+    }
+
+    public void RefreshStyle(Style style)
+    {
+        if (style == null)
+            return;
         RefreshBackground();
         RefreshTextStyle();
         RefreshAuxStyles();

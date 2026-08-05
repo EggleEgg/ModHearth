@@ -1032,8 +1032,10 @@ namespace ModHearth
                 modDataEntry[scrDir] = ResolveModPath(modDataEntry, modIdPathMap);
 
                 // Mod setup and registry.
-                ModReference modRef = new ModReference(modDataEntry);
-                modRef.LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"]);
+                ModReference modRef = new ModReference(modDataEntry)
+                {
+                    LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"])
+                };
 
                 _ = ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
                 if (modRef.IsIgnored)

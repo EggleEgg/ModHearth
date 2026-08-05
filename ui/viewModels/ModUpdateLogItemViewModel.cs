@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace ModHearth.UI;
 
-public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelectableItem
+public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelectableItem, IThemedViewModel
 {
     private readonly IBrush defaultBackgroundBrush = Brushes.Transparent;
     private IBrush selectedBackgroundBrush;
@@ -36,6 +36,8 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
         IsActive = isActive;
         ActiveText = isActive ? "Yes" : "No";
         Path = entry.Path;
+
+        ThemedViewModelRegistry.Register(this);
     }
 
     public ModUpdateLogEntry Entry { get; }

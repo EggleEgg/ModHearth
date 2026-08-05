@@ -6,7 +6,7 @@ using Avalonia.Controls;
 
 namespace ModHearth.UI;
 
-public partial class ModUpdateLogWindow : Window, IStyleAwareWindow
+public partial class ModUpdateLogWindow : Window
 {
     public static double DefaultWidth => LoadDimension("Width", 980);
     public static double DefaultMinWidth => LoadDimension("MinWidth", 820);
@@ -50,12 +50,5 @@ public partial class ModUpdateLogWindow : Window, IStyleAwareWindow
         Content = control ?? new ModUpdateLogControl(manager);
     }
 
-    public void ApplyCustomStyle(Style style)
-    {
-        WindowThemeManager.ApplyToWindow(this, style);
-        if (Content is ModUpdateLogControl control)
-        {
-            control.ApplyCustomStyle(style);
-        }
-    }
+
 }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
 
 <svg
    fill="#000000"
@@ -9,36 +9,13 @@
    id="Layer_1"
    data-name="Layer 1"
    version="1.1"
-   sodipodi:docname="checkIcon.svg"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
      id="defs1" />
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#505050"
-     bordercolor="#ffffff"
-     borderopacity="1"
-     inkscape:showpageshadow="0"
-     inkscape:pageopacity="0"
-     inkscape:pagecheckerboard="1"
-     inkscape:deskcolor="#505050"
-     inkscape:zoom="0.2521875"
-     inkscape:cx="-497.6456"
-     inkscape:cy="-17.843866"
-     inkscape:window-width="1920"
-     inkscape:window-height="1009"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="Layer_1" />
   <title
      id="title1">check</title>
   <path
      d="m 51.021894,-3.0481058 -4.07,-4.06 c -1.151401,-1.1891923 -3.058599,-1.1891923 -4.21,0 l -23.88,23.8899998 -9.7099997,-9.7299998 c -1.1665305,-1.1434286 -3.0334695,-1.1434286 -4.2,0 L 0.89189426,11.121894 c -1.18919235,1.151401 -1.18919235,3.058599 0,4.21 l 15.86999974,15.88 c 0.544889,0.577068 1.306391,0.8998 2.1,0.89 0.78942,0.0034 1.545385,-0.318519 2.09,-0.89 l 30.05,-29.9999998 c 1.189192,-1.15140128 1.189192,-3.0585987 0,-4.21 z"
-     id="path1"
-     sodipodi:nodetypes="cccccccccccccc" />
+     id="path1" />
 </svg>
