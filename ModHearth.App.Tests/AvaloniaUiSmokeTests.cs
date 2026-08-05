@@ -78,69 +78,80 @@ public class AvaloniaUiSmokeTests : IClassFixture<AvaloniaAppFixture>
 
         // 2. Instantiate and verify UserControls & Views
         _output.WriteLine("AvaloniaUiSmokeTests: Instantiating UserControls & Views...");
-        var controls = new Control[]
+        var controlFactories = new (string Name, Func<Control> Factory)[]
         {
-            new ModColorPicker(),
-            new ModRefControl { DataContext = exampleModVm },
-            new ModSearchBar(),
-            new ModUpdateLogControl(),
-            new SortRulesControl(),
-            new WorkshopDownloaderControl(),
-            new ModDataEntryView { DataContext = exampleModRef },
-            new ModDataPanelView { DataContext = exampleModRef },
-            new ModDescriptionPanelView { DataContext = exampleModRef },
-            new ModPreviewPanelView { DataContext = exampleModRef }
+            ("ModColorPicker", () => new ModColorPicker()),
+            ("ModRefControl", () => new ModRefControl { DataContext = exampleModVm }),
+            ("ModSearchBar", () => new ModSearchBar()),
+            ("ModUpdateLogControl", () => new ModUpdateLogControl()),
+            ("SortRulesControl", () => new SortRulesControl()),
+            ("WorkshopDownloaderControl", () => new WorkshopDownloaderControl()),
+            ("ModDataEntryView", () => new ModDataEntryView { DataContext = exampleModRef }),
+            ("ModDataPanelView", () => new ModDataPanelView { DataContext = exampleModRef }),
+            ("ModDescriptionPanelView", () => new ModDescriptionPanelView { DataContext = exampleModRef }),
+            ("ModPreviewPanelView", () => new ModPreviewPanelView { DataContext = exampleModRef })
         };
 
-        foreach (var control in controls)
+        foreach (var (name, factory) in controlFactories)
         {
+            _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
+            var control = factory();
             Assert.NotNull(control);
+            _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
         }
-        _output.WriteLine("AvaloniaUiSmokeTests: UserControls & Views instantiated successfully.");
+        _output.WriteLine("AvaloniaUiSmokeTests: All UserControls & Views instantiated successfully.");
 
         // 3. Instantiate and verify Dialogs
         _output.WriteLine("AvaloniaUiSmokeTests: Instantiating Dialogs...");
-        var dialogs = new Window[]
+        var dialogFactories = new (string Name, Func<Window> Factory)[]
         {
-            new CollectionChecklistDialog(),
-            new InputDialog(),
-            new MessageDialog(),
-            new SteamCmdSetupDialog(),
-            new UpdateDialog()
+            ("CollectionChecklistDialog", () => new CollectionChecklistDialog()),
+            ("InputDialog", () => new InputDialog()),
+            ("MessageDialog", () => new MessageDialog()),
+            ("SteamCmdSetupDialog", () => new SteamCmdSetupDialog()),
+            ("UpdateDialog", () => new UpdateDialog())
         };
 
-        foreach (var dialog in dialogs)
+        foreach (var (name, factory) in dialogFactories)
         {
+            _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
+            var dialog = factory();
             Assert.NotNull(dialog);
+            _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
         }
-        _output.WriteLine("AvaloniaUiSmokeTests: Dialogs instantiated successfully.");
+        _output.WriteLine("AvaloniaUiSmokeTests: All Dialogs instantiated successfully.");
 
         // 4. Instantiate and verify Windows & Apply Themes
         _output.WriteLine("AvaloniaUiSmokeTests: Instantiating Windows...");
         var candidates = exampleModVm != null ? new List<ModRefViewModel> { exampleModVm } : [];
-        var relationshipWindow = new RelationshipPickerWindow(
-            "test_mod",
-            ModRelationshipKind.Before,
-            candidates,
-            new HashSet<string>(),
-            new Dictionary<string, ModRelationshipRule>()
-        );
 
-        var windows = new Window[]
+        var windowFactories = new (string Name, Func<Window> Factory)[]
         {
-            new ModUpdateLogWindow(),
-            new SortRulesWindow(),
-            new WorkshopDownloaderWindow(),
-            relationshipWindow,
-            new MainWindow()
+            ("ModUpdateLogWindow", () => new ModUpdateLogWindow()),
+            ("SortRulesWindow", () => new SortRulesWindow()),
+            ("WorkshopDownloaderWindow", () => new WorkshopDownloaderWindow()),
+            ("RelationshipPickerWindow", () => new RelationshipPickerWindow(
+                "test_mod",
+                ModRelationshipKind.Before,
+                candidates,
+                new HashSet<string>(),
+                new Dictionary<string, ModRelationshipRule>()
+            )),
+            ("MainWindow", () => new MainWindow())
         };
 
-        foreach (var window in windows)
+        foreach (var (name, factory) in windowFactories)
         {
+            _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
+            var window = factory();
             Assert.NotNull(window);
+            _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
+
             if (Style.instance != null)
             {
+                _output.WriteLine($"AvaloniaUiSmokeTests: Applying theme to {name}...");
                 WindowThemeManager.ApplyToWindow(window, Style.instance);
+                _output.WriteLine($"AvaloniaUiSmokeTests: Theme applied to {name} successfully.");
             }
         }
         _output.WriteLine("AvaloniaUiSmokeTests: Windows instantiated and themed successfully.");
@@ -154,7 +165,8 @@ public class AvaloniaUiSmokeTests : IClassFixture<AvaloniaAppFixture>
             _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - calling RunJobs()...");
             Dispatcher.UIThread.RunJobs();
             _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - sleeping...");
-            await Task.Delay(100);
+            Thread.Sleep(50);
+            _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - finished sleep.");
             iteration++;
         }
         _output.WriteLine("AvaloniaUiSmokeTests: UI event loop completed successfully.");

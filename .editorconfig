@@ -2,3 +2,6 @@
 
 csharp_prefer_braces = false:suggestion
 csharp_prefer_braces = when_multiline:suggestion
+
+# xUnit1030: Do not call ConfigureAwait(false) in test method
+dotnet_diagnostic.xUnit1030.severity = suggestion
