@@ -79,4 +79,97 @@
     </DataTemplate>
   </Application.DataTemplates>
 
+
+  <!-- Generic mod context menu populated on init instead of dynamically. Ugly, but it drastically improves performance/latency on the avalonia side of modref construction in lists -->
+  <Application.Resources>
+    <ContextMenu x:Key="ModRefContextMenu" Opened="OnModRefContextMenuOpened" x:DataType="ui:ModRefViewModel">
+
+      <ContextMenu.Resources>
+        <ui:BoolToTextConverter x:Key="SteamTextConverter" TrueValue="Open URL in steam" FalseValue="Open URL in browser" />
+        <ui:BoolToTextConverter x:Key="FolderTextConverter" TrueValue="Open Steam Folder" FalseValue="Open Local Folder" />
+        <ui:BoolToTextConverter x:Key="IdTextConverter" TrueValue="Copy Steam File ID" FalseValue="Copy Mod ID" />
+      </ContextMenu.Resources>
+
+      <ContextMenu.Styles>
+        <Style Selector="MenuItem.remove-arrow-row">
+          <Setter Property="Padding" Value="10,6,0,6" />
+          <Setter Property="Template">
+            <ControlTemplate>
+              <Border Name="PART_LayoutRoot"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      Padding="{TemplateBinding Padding}">
+                <ContentPresenter Name="PART_HeaderPresenter"
+                                  Content="{TemplateBinding Header}"
+                                  ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Center" />
+              </Border>
+            </ControlTemplate>
+          </Setter>
+        </Style>
+        <Style Selector="MenuItem.remove-arrow-row TextBlock">
+          <Setter Property="MinWidth" Value="150" />
+          <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="MenuItem.remove-arrow-row CheckBox">
+          <Setter Property="Grid.Column" Value="1" />
+          <Setter Property="Margin" Value="25,0,0,0" />
+          <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+      </ContextMenu.Styles>
+
+      <MenuItem Header="Relations" Tag="relations-root">
+        <MenuItem Header="Add Before..." Tag="relation-before" Click="OnModRefContextMenuItemClick" />
+        <MenuItem Header="Add After..." Tag="relation-after" Click="OnModRefContextMenuItemClick" />
+        <MenuItem Header="Require..." Tag="relation-required" Click="OnModRefContextMenuItemClick" />
+        <MenuItem Header="Mark Incompatible..." Tag="relation-incompatible" Click="OnModRefContextMenuItemClick" />
+        <Separator />
+        <MenuItem Header="Clear All Relationships" Tag="relation-clear-all" Click="OnModRefContextMenuItemClick" />
+      </MenuItem>
+      <MenuItem Header="Delete local mod" Tag="delete-mod" Click="OnModRefContextMenuItemClick" />
+      <MenuItem Header="Delete Duplicate Mod" Tag="delete-duplicate-mod-root" IsVisible="False" />
+      <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnModRefContextMenuItemClick" />
+      <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnModRefContextMenuItemClick" />
+      <Separator Tag="separator-1" />
+      <MenuItem Tag="open" Classes="remove-arrow-row" Click="OnModRefContextMenuItemClick" PointerPressed="OnModRefContextMenuItemPointerPressed">
+        <MenuItem.Header>
+          <Panel>
+            <TextBlock Text="Open Folder"
+                       IsVisible="{Binding !IsSteamLocalModSource}" />
+            <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch"
+                  IsVisible="{Binding IsSteamLocalModSource}">
+              <TextBlock Text="{Binding #OpenSteamFolderCheckBox.IsChecked, Converter={StaticResource FolderTextConverter}}" />
+              <CheckBox x:Name="OpenSteamFolderCheckBox"
+                        IsChecked="{Binding IsOpenSteamFolderEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
+            </Grid>
+          </Panel>
+        </MenuItem.Header>
+      </MenuItem>
+      <MenuItem Tag="open-steam" Classes="remove-arrow-row" Click="OnModRefContextMenuItemClick" PointerPressed="OnModRefContextMenuItemPointerPressed">
+        <MenuItem.Header>
+          <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+            <TextBlock x:Name="OpenSteamText"
+                       Text="{Binding #OpenSteamInClientCheckBox.IsChecked, Converter={StaticResource SteamTextConverter}}" />
+            <CheckBox x:Name="OpenSteamInClientCheckBox"
+                      IsChecked="{Binding IsOpenSteamInClientEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
+          </Grid>
+        </MenuItem.Header>
+      </MenuItem>
+
+      <MenuItem Tag="copy-id" Classes="remove-arrow-row" Click="OnModRefContextMenuItemClick" PointerPressed="OnModRefContextMenuItemPointerPressed">
+        <MenuItem.Header>
+          <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
+            <TextBlock x:Name="CopyIdText"
+                       Text="{Binding #CopySteamFileIdCheckBox.IsChecked, Converter={StaticResource IdTextConverter}}" />
+            <CheckBox x:Name="CopySteamFileIdCheckBox"
+                      IsChecked="{Binding IsCopySteamFileIdEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
+          </Grid>
+        </MenuItem.Header>
+      </MenuItem>
+      <MenuItem Header="Set Mod Color" Tag="set-mod-color-root" />
+    </ContextMenu>
+  </Application.Resources>
+
 </Application>

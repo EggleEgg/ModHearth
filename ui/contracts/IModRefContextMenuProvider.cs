@@ -8,4 +8,5 @@ public interface IModRefContextMenuProvider
     void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm);
     IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm);
     ModHearthManager? GetManager();
+    ModRefControl? GetContextMenuHost();
 }

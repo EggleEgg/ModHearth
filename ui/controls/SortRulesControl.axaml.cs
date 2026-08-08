@@ -186,6 +186,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     // Handled by ModRefControl
     public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
+    public ModRefControl? GetContextMenuHost() => null;
 
     public ModHearthManager? GetManager() => null;
 

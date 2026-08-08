@@ -75,6 +75,7 @@ namespace ModHearth.UI
         private CancellationTokenSource? _statusCts;
         private readonly NotifyCollectionChangedEventHandler? _queueCollectionChangedHandler;
         private readonly ModRefControl? _contextMenuHost;
+        public ModRefControl? GetContextMenuHost() => _contextMenuHost;
         private bool _isSetupDialogShowing;
 
         public WorkshopDownloaderControl() : this(null!) { }

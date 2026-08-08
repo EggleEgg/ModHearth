@@ -87,7 +87,17 @@ public partial class ModRefControl : UserControl
     public ModRefControl()
     {
         InitializeComponent();
+        ContextMenu = GetSharedContextMenu();
         UpdateContextMenuState();
+    }
+
+    // Resolved once and reused for the app's lifetime. Application.Resources is populated exactly once at startup, so this is genuinely one object shared by every ModRefControl ever constructed.
+    private static ContextMenu? sharedContextMenu;
+
+    private static ContextMenu GetSharedContextMenu()
+    {
+        sharedContextMenu ??= (ContextMenu)Application.Current!.Resources["ModRefContextMenu"]!;
+        return sharedContextMenu;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -155,122 +165,8 @@ public partial class ModRefControl : UserControl
         }
     }
 
-    private static bool IsRelationshipTag(string? tag) => tag is not null &&
+    internal static bool IsRelationshipTag(string? tag) => tag is not null &&
         (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
         tag.StartsWith("relation-", StringComparison.Ordinal));
 
-
-    private void OnContextMenuOpened(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not ContextMenu menu)
-            return;
-
-        if (DataContext is not ModRefViewModel vm)
-            return;
-
-        // The ContextMenu can be reassigned to a different owning control (ModUpdateLogWindow and
-        // WorkshopDownloaderWindow both do this via a hidden ContextMenuHost), so its own DataContext
-        // inheritance can't be relied on -- bind the Header content directly against the resolved vm.
-        menu.DataContext = vm;
-
-        IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
-
-        // 1. Centralized preparation if a manager is available via the provider.
-        // This deduplicates calls to ModContextMenuSupport.PrepareContextMenu across all windows.
-        if (provider != null)
-        {
-            ModHearthManager? manager = provider.GetManager();
-            if (manager != null)
-            {
-                var selected = provider.GetSelectedModReferences(vm);
-                ModContextMenuSupport.PrepareContextMenu(menu, manager, vm.ModReference, selected);
-            }
-        }
-
-        // 2. Let the ancestor window customize content (wording, steam-vs-local enable/disable, etc).
-        // Instance-level flags below run last so they always have final say for THIS control.
-        provider?.OnModRefContextMenuOpened(menu, vm);
-
-        bool allowRelationships = AllowRelationshipEditing;
-        bool allowActions = AllowContextActions;
-        bool allowColor = AllowColorEditing;
-        bool allowSeparators = AllowSeparators;
-        bool anyVisible = false;
-
-        foreach (Control item in menu.Items.OfType<Control>())
-        {
-            // Change checkbox state on right click
-            if (item is MenuItem menuItem)
-            {
-                menuItem.PointerPressed -= OnContextMenuItemPointerPressed;
-                menuItem.PointerPressed += OnContextMenuItemPointerPressed;
-            }
-
-            string? tag = (item as MenuItem)?.Tag?.ToString() ?? (item as Separator)?.Tag?.ToString();
-
-            // Only ever suppress here, never re-enable. Preserves per-item decisions providers already made (e.g. hiding "Open Steam Page" for non-steam mods).
-            if (IsRelationshipTag(tag))
-            {
-                if (!allowRelationships)
-                    item.IsVisible = false;
-                else if (string.Equals(tag, "relations-root", StringComparison.Ordinal) && item is MenuItem relationsRoot)
-                    ModContextMenuSupport.ConfigureRelationsMenu(relationsRoot, vm);
-            }
-            else if (string.Equals(tag, "set-mod-color-root", StringComparison.Ordinal))
-            {
-                if (!allowColor)
-                    item.IsVisible = false;
-            }
-            else if (item is Separator)
-            {
-                if (!allowSeparators)
-                    item.IsVisible = false;
-            }
-            else if (!allowActions)
-            {
-                item.IsVisible = false;
-            }
-
-            if (item.IsVisible)
-                anyVisible = true;
-        }
-
-        if (!anyVisible)
-        {
-            menu.Close();
-            e.Handled = true;
-        }
-    }
-
-    private void OnContextMenuItemClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuItem item)
-            return;
-
-        if (DataContext is not ModRefViewModel vm)
-            return;
-
-        IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
-        Console.WriteLine($"[ModRefControl] OnContextMenuItemClick - Provider found: {provider != null}");
-        if (provider != null)
-        {
-            provider.OnModRefContextMenuItemClicked(item, vm);
-        }
-    }
-
-    private void OnContextMenuItemPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-    {
-        if (sender is not MenuItem item)
-            return;
-
-        if (!e.GetCurrentPoint(item).Properties.IsRightButtonPressed)
-            return;
-
-        var checkBox = item.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault();
-        if (checkBox != null)
-        {
-            checkBox.IsChecked = !(checkBox.IsChecked ?? false);
-            e.Handled = true;
-        }
-    }
 }

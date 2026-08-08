@@ -48,6 +48,7 @@ public partial class MainWindow : IModRefContextMenuProvider
         return [contextVm.ModReference];
     }
 
+    public ModRefControl? GetContextMenuHost() => null;
     public void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
     {
         string? tag = item.Tag?.ToString();
@@ -286,26 +287,40 @@ public partial class MainWindow : IModRefContextMenuProvider
     private bool TryGetContextModReferences(object? sender, out List<ModReference> modReferences)
     {
         modReferences = [];
-        if (sender is not MenuItem menuItem || menuItem.DataContext is not ModRefViewModel vm)
+        if (sender is not MenuItem menuItem)
+            return false;
+
+        ModRefViewModel? vm = menuItem.DataContext as ModRefViewModel
+            ?? (menuItem.Parent as ContextMenu)?.DataContext as ModRefViewModel
+            ?? (Application.Current as App)?.GetCurrentContextMenuVm();
+
+        if (vm == null)
             return false;
 
         ListBox? list = GetListForMod(vm);
-        switch (list)
+        if (list == null || list.SelectedItems == null)
         {
-            case null:
-                return false;
-            default:
-                return ModContextMenuSupport.TryGetContextModReferences<ModRefViewModel>(
-                    sender,
-                    list.SelectedItems,
-                    contextVm => contextVm.ModReference,
-                    out modReferences);
+            modReferences = [vm.ModReference];
+            return true;
         }
+
+        return ModContextMenuSupport.TryGetContextModReferences<ModRefViewModel>(
+            sender,
+            list.SelectedItems,
+            contextVm => contextVm.ModReference,
+            out modReferences);
     }
 
     private IList? GetContextMenuSelectedItems(object? sender)
     {
-        if (sender is not MenuItem menuItem || menuItem.DataContext is not ModRefViewModel vm)
+        if (sender is not MenuItem menuItem)
+            return null;
+
+        ModRefViewModel? vm = menuItem.DataContext as ModRefViewModel
+            ?? (menuItem.Parent as ContextMenu)?.DataContext as ModRefViewModel
+            ?? (Application.Current as App)?.GetCurrentContextMenuVm();
+
+        if (vm == null)
             return null;
 
         return GetListForMod(vm)?.SelectedItems;

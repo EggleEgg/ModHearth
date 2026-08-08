@@ -78,13 +78,18 @@ internal static class ModContextMenuSupport
         if (menuItem.DataContext is not T contextItem)
         {
             // The menu item might inherit DataContext from its parent context menu or placement target.
-            // If the MenuItem itself doesn't have the T, we check if the MenuItem's parent ContextMenu has it.
+            // If the MenuItem itself doesn't have the T, we check if the MenuItem's parent ContextMenu has it, or App's current context menu VM.
             switch (menuItem.Parent)
             {
                 case ContextMenu menu when menu.DataContext is T menuContext:
                     contextItem = menuContext;
                     break;
                 default:
+                    if (Application.Current is App app && app.GetCurrentContextMenuVm() is T appVm)
+                    {
+                        contextItem = appVm;
+                        break;
+                    }
                     return false;
             }
         }

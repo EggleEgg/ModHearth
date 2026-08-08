@@ -16,6 +16,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
     public ObservableCollection<ModUpdateLogItemViewModel> Entries => entries;
     private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
     private ModRefControl? contextMenuHost;
+    public ModRefControl? GetContextMenuHost() => contextMenuHost;
     private IBrush backgroundColorBrush = Brushes.Transparent;
     private readonly SemaphoreSlim loadGate = new(1, 1);
     private bool loadRerunRequested;
