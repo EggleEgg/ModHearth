@@ -36,7 +36,7 @@ internal static class MainWindowModListBuilder
 
     public static ModRefViewModel CreateViewModel(ModReference modref, string modsFolderPath, string vanillaFolderPath)
     {
-        ModRefViewModel vm = new ModRefViewModel(modref);
+        ModRefViewModel vm = new(modref);
         ApplyClassification(vm, modref, modsFolderPath, vanillaFolderPath);
         return vm;
     }

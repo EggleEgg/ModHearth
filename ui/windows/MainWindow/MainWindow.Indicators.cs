@@ -10,6 +10,7 @@ public partial class MainWindow
     }
 
     private int lastRelationshipRulesVersion = -1;
+    private string? lastWarningTooltip;
 
     private void UpdateRelationshipBadges()
     {
@@ -45,7 +46,13 @@ public partial class MainWindow
 
         warningIssuesButton.IsVisible = hasIssues;
         warningIssuesButton.IsEnabled = hasIssues;
-        ToolTip.SetTip(warningIssuesButton, ModListIndicatorUpdater.BuildWarningIssuesTooltip(problemCount, duplicateCount));
+        
+        string? tooltip = ModListIndicatorUpdater.BuildWarningIssuesTooltip(problemCount, duplicateCount);
+        if (tooltip != lastWarningTooltip)
+        {
+            lastWarningTooltip = tooltip;
+            ToolTip.SetTip(warningIssuesButton, tooltip);
+        }
 
         if (!hasIssues || warningIssuesIcon == null)
             return;
@@ -60,6 +67,8 @@ public partial class MainWindow
         warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
             ?? warningIssuesIcon.Source;
     }
+
+    private ModRefViewModel? currentJumpHighlighted;
 
     private void JumpToNextProblem()
     {
@@ -88,10 +97,11 @@ public partial class MainWindow
         if (vm == null)
             return;
 
-        foreach (ModRefViewModel other in activeMods)
-            other.IsJumpHighlighted = false;
+        if (currentJumpHighlighted != null)
+            currentJumpHighlighted.IsJumpHighlighted = false;
 
         vm.IsJumpHighlighted = true;
+        currentJumpHighlighted = vm;
         rightModlist.SelectedItems?.Clear();
         _ = (rightModlist.SelectedItems?.Add(vm));
         rightModlist.ScrollIntoView(vm);
@@ -100,12 +110,14 @@ public partial class MainWindow
 
     private bool HasJumpHighlights()
     {
-        return modViewMap.Values.Any(vm => vm.IsJumpHighlighted);
+        return currentJumpHighlighted != null;
     }
 
     private void ClearJumpHighlights()
     {
-        foreach (ModRefViewModel vm in modViewMap.Values)
-            vm.IsJumpHighlighted = false;
+        if (currentJumpHighlighted == null)
+            return;
+        currentJumpHighlighted.IsJumpHighlighted = false;
+        currentJumpHighlighted = null;
     }
 }

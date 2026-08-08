@@ -52,8 +52,8 @@ namespace ModHearth
             if (!edges.ContainsKey(toId))
                 return false;
 
-            HashSet<string> visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            Stack<string> stack = new Stack<string>();
+            HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
+            Stack<string> stack = new();
             stack.Push(toId);
 
             while (stack.Count > 0)
@@ -83,8 +83,8 @@ namespace ModHearth
             if (!edges.ContainsKey(toId))
                 return false;
 
-            HashSet<string> visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            Stack<string> stack = new Stack<string>();
+            HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
+            Stack<string> stack = new();
             stack.Push(toId);
 
             while (stack.Count > 0)
@@ -200,7 +200,7 @@ namespace ModHearth
                 }
             }
 
-            HashSet<string> enabledIds = new HashSet<string>(enabledRefs.Select(m => m.ID), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> enabledIds = new(enabledRefs.Select(m => m.ID), StringComparer.OrdinalIgnoreCase);
 
             foreach (ModReference modref in idMap.Values)
             {
@@ -238,7 +238,7 @@ namespace ModHearth
                 _ = enabledIds.Add(requiredRef.ID);
             }
 
-            Queue<ModReference> queue = new Queue<ModReference>();
+            Queue<ModReference> queue = new();
             foreach (string enabledId in enabledIds)
             {
                 if (!idMap.TryGetValue(enabledId, out ModReference? enabledRef) || enabledRef == null)
@@ -294,19 +294,19 @@ namespace ModHearth
                 .ThenBy(m => m.name ?? m.ID)
                 .ToList();
 
-            Dictionary<string, int> baseIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, int> baseIndex = new(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < baseOrder.Count; i++)
                 baseIndex[baseOrder[i].ID] = i;
 
-            Dictionary<string, List<string>> edges = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, int> indegree = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, List<string>> edges = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, int> indegree = new(StringComparer.OrdinalIgnoreCase);
             foreach (ModReference modref in allEnabled)
             {
                 edges[modref.ID] = [];
                 indegree[modref.ID] = 0;
             }
 
-            object syncRoot = new object();
+            object syncRoot = new();
 
             // --- Tier 1: per-mod relationship rules ---
             foreach (KeyValuePair<string, ModRelationshipRule> kvp in relationshipRulesSnapshot)
@@ -583,7 +583,7 @@ namespace ModHearth
 
             // Direct definition conflicts
             List<string> conflictingKeys = [];
-            HashSet<string> activeModIds = new HashSet<string>(enabledModsSnapshot.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> activeModIds = new(enabledModsSnapshot.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, List<string>> kvp in directDefiners)
             {
                 if (kvp.Value.Count <= 1)

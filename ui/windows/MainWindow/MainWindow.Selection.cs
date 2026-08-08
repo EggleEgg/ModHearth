@@ -62,7 +62,7 @@ public partial class MainWindow
 
     private SearchFilterStateSnapshot CaptureSearchFilterStateSnapshot()
     {
-        SearchFilterStateSnapshot snapshot = new SearchFilterStateSnapshot(
+        SearchFilterStateSnapshot snapshot = new(
             leftSearchBar.Text ?? string.Empty,
             leftSearchBar.HideFiltered,
             leftSearchBar.SearchMode,

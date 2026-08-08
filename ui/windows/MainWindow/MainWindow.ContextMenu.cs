@@ -97,6 +97,9 @@ public partial class MainWindow : IModRefContextMenuProvider
         if (!await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(this, manager, modReferences))
             return;
 
+        ClearPreviewCache();
+        SetPreviewImage(LoadFallbackPreview());
+
         try
         {
             await ReloadModpacksFromDisk();
@@ -123,6 +126,40 @@ public partial class MainWindow : IModRefContextMenuProvider
     {
         if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
             return;
+
+        manager.SplitActionableMods(modReferences, out _, out List<ModReference> steamMods);
+
+        if (steamMods.Count > 0)
+        {
+            await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(this, manager, modReferences);
+            return;
+        }
+
+        if (new Utilities.Steam.SteamCmdService().IsAvailable() && _workshopDockManager != null)
+        {
+            List<ulong> workshopIds = [];
+            foreach (var mod in modReferences)
+            {
+                if (ModHearthManager.TryGetSteamWorkshopItemId(mod, out string steamId) && ulong.TryParse(steamId, out ulong id))
+                {
+                    workshopIds.Add(id);
+                }
+            }
+
+            if (workshopIds.Count > 0)
+            {
+                if (!_workshopDockManager.IsOpen)
+                {
+                    _workshopDockManager.Open();
+                }
+                if (_workshopDockManager.SharedControl != null)
+                {
+                    await _workshopDockManager.SharedControl.CheckProviderSetupAsync();
+                    await _workshopDockManager.SharedControl.RedownloadModsAsync(workshopIds);
+                }
+                return;
+            }
+        }
 
         await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(this, manager, modReferences);
     }
@@ -186,7 +223,7 @@ public partial class MainWindow : IModRefContextMenuProvider
         int targetColumns = (int)Math.Sqrt(allColorInfos.Count + 1); // +1 for the "None" option
         if (targetColumns < 1) targetColumns = 1; // Safety fallback
 
-        UniformGrid swatchPanel = new UniformGrid
+        UniformGrid swatchPanel = new()
         {
             Columns = targetColumns
         };
@@ -206,7 +243,7 @@ public partial class MainWindow : IModRefContextMenuProvider
         }
 
         // Add the "None" option first
-        swatchPanel.Children.Add(CreateColorSwatchButton(new ModColorInfo
+        swatchPanel.Children.Add(ColorSwatchHelper.CreateColorSwatchButton(new ModColorInfo
         {
             ModColor = ModColor.None,
             Name = "None (clear color)",
@@ -216,13 +253,13 @@ public partial class MainWindow : IModRefContextMenuProvider
 
         foreach (ModColorInfo colorInfo in allColorInfos)
         {
-            swatchPanel.Children.Add(CreateColorSwatchButton(colorInfo, ApplyColor));
+            swatchPanel.Children.Add(ColorSwatchHelper.CreateColorSwatchButton(colorInfo, ApplyColor));
         }
 
         // Same trick SortRulesWindow's "Add required mod" submenu uses to host a live search box: a single submenu row whose Header is an arbitrary
         // control rather than text. StaysOpenOnClick keeps the grid usable. ApplyColor above is what actually closes the menu once a color is
         // picked, not the framework's default click-to-close behavior.
-        MenuItem swatchHost = new MenuItem
+        MenuItem swatchHost = new()
         {
             Header = swatchPanel,
             StaysOpenOnClick = true,
@@ -231,45 +268,6 @@ public partial class MainWindow : IModRefContextMenuProvider
         swatchHost.Classes.Add("color-grid");
 
         colorRoot.ItemsSource = new[] { swatchHost };
-    }
-
-    private static Button CreateColorSwatchButton(ModColorInfo colorInfo, Action<ModColor> onSelected)
-    {
-        Border swatch = new Border
-        {
-            Width = 30,
-            Height = 30,
-            CornerRadius = new CornerRadius(3),
-            Background = (colorInfo.ModColor == ModColor.None) ? Brushes.Transparent : BrushCache.GetBrush(colorInfo.Color),
-            BorderBrush = colorInfo.IsSelected ? BrushCache.GetBrush(Style.instance!.selectionColor.ToAvaloniaColor()) : Brushes.Gray,
-            BorderThickness = new Thickness(colorInfo.IsSelected ? 4 : 1)
-        };
-
-        if (colorInfo.ModColor == ModColor.None)
-        {
-            swatch.Child = new TextBlock
-            {
-                Text = "\u2715",
-                FontSize = 11,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.Gray
-            };
-        }
-
-        Button button = new Button
-        {
-            Content = swatch,
-            Padding = new Thickness(0),
-            Margin = new Thickness(2),
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0)
-        };
-
-        ToolTip.SetTip(button, colorInfo.Name);
-        button.Click += (_, _) => onSelected(colorInfo.ModColor);
-
-        return button;
     }
 
     // Refreshes only the specific mods that changed, looked up via modViewMap.

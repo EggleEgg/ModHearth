@@ -2,12 +2,90 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Threading;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace ModHearth.UI;
 
 public partial class MainWindow
 {
+    private static readonly object previewCacheGate = new();
+    private static readonly LinkedList<string> previewCacheOrder = new();
+    private static readonly Dictionary<string, (DateTime StampUtc, IImage Image, LinkedListNode<string> Node)> previewCache
+        = new(StringComparer.OrdinalIgnoreCase);
+
+    // Limits to cached previews are important to not hog memory on large modlists
+    private const int MaxCachedPreviews = 24;
+
+    private static bool TryGetCachedPreview(string path, out IImage? image)
+    {
+        lock (previewCacheGate)
+        {
+            if (previewCache.TryGetValue(path, out var entry) &&
+                File.Exists(path) && File.GetLastWriteTimeUtc(path) == entry.StampUtc)
+            {
+                previewCacheOrder.Remove(entry.Node);
+                previewCacheOrder.AddFirst(entry.Node);
+                image = entry.Image;
+                return true;
+            }
+        }
+        image = null;
+        return false;
+    }
+
+    private static void CachePreview(string path, IImage image)
+    {
+        DateTime stamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+        lock (previewCacheGate)
+        {
+            if (previewCache.TryGetValue(path, out var existing))
+            {
+                previewCacheOrder.Remove(existing.Node);
+                if (existing.Image != image && existing.Image is IDisposable dispOld)
+                {
+                    dispOld.Dispose();
+                }
+            }
+            var node = previewCacheOrder.AddFirst(path);
+            previewCache[path] = (stamp, image, node);
+            while (previewCache.Count > MaxCachedPreviews)
+            {
+                var last = previewCacheOrder.Last!;
+                previewCacheOrder.RemoveLast();
+                if (previewCache.TryGetValue(last.Value, out var evicted))
+                {
+                    if (evicted.Image is IDisposable dispEvicted)
+                        dispEvicted.Dispose();
+                    previewCache.Remove(last.Value);
+                }
+            }
+        }
+    }
+
+    public static void ClearPreviewCache()
+    {
+        lock (previewCacheGate)
+        {
+            foreach (var entry in previewCache.Values)
+            {
+                if (entry.Image is IDisposable disp)
+                {
+                    try { disp.Dispose(); }
+                    catch (Exception ex) { AppLogging.LogException("Failed to dispose cached preview image", ex); }
+                }
+            }
+            previewCache.Clear();
+            previewCacheOrder.Clear();
+        }
+        ImageSourceLoader.ClearCache();
+    }
+
+    private int previewRequestVersion;
 
     private void ShowFallbackInfo()
     {
@@ -50,12 +128,34 @@ public partial class MainWindow
         RefreshDescriptionHtml();
         PopulateModDataViewer(modref);
 
-        IImage? previewImage = null;
+        int requestVersion = ++previewRequestVersion;
         string? previewPath = ResolveFilePathCaseInsensitive(modref.path, "preview.png");
-        if (!string.IsNullOrWhiteSpace(previewPath))
-            previewImage = ImageSourceLoader.LoadFromFilePath(previewPath);
 
-        SetPreviewImage(previewImage ?? LoadFallbackPreview());
+        if (string.IsNullOrWhiteSpace(previewPath))
+        {
+            SetPreviewImage(LoadFallbackPreview());
+            return;
+        }
+
+        if (TryGetCachedPreview(previewPath, out IImage? cached))
+        {
+            SetPreviewImage(cached);
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            IImage? image = ImageSourceLoader.LoadFromFilePath(previewPath);
+            if (image != null)
+                CachePreview(previewPath, image);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (requestVersion != previewRequestVersion)
+                    return; // a newer selection has already superseded this one
+                SetPreviewImage(image ?? LoadFallbackPreview());
+            });
+        });
     }
 
     private static string? ResolveFilePathCaseInsensitive(string directory, string fileName)
@@ -89,7 +189,7 @@ public partial class MainWindow
 
         try
         {
-            Uri uri = new Uri($"{AvaloniaUri}/resources/{file}");
+            Uri uri = new($"{AvaloniaUri}/resources/{file}");
             using Stream stream = AssetLoader.Open(uri);
             return new Bitmap(stream);
         }
@@ -100,7 +200,7 @@ public partial class MainWindow
 
         try
         {
-            Uri uri = new Uri($"{AvaloniaUri}/Resources/{file}");
+            Uri uri = new($"{AvaloniaUri}/Resources/{file}");
             using Stream stream = AssetLoader.Open(uri);
             return new Bitmap(stream);
         }
@@ -114,7 +214,25 @@ public partial class MainWindow
 
     private void SetPreviewImage(IImage? image)
     {
-        DisposePreviewImage(currentPreview);
+        if (currentPreview != null && currentPreview != image)
+        {
+            bool isCached = false;
+            lock (previewCacheGate)
+            {
+                foreach (var entry in previewCache.Values)
+                {
+                    if (entry.Image == currentPreview)
+                    {
+                        isCached = true;
+                        break;
+                    }
+                }
+            }
+            if (!isCached)
+            {
+                DisposePreviewImage(currentPreview);
+            }
+        }
         currentPreview = image;
         modPreviewPanelViewModel.PreviewImage = image;
     }

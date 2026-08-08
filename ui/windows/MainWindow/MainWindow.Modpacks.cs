@@ -217,7 +217,7 @@ public partial class MainWindow
         if (string.IsNullOrWhiteSpace(newName))
             return;
 
-        DFHModpack newPack = new DFHModpack(false, manager.GenerateVanillaModlist(), newName);
+        DFHModpack newPack = new(false, manager.GenerateVanillaModlist(), newName);
         await RegisterNewModpackAsync(newPack);
     }
 
@@ -265,7 +265,7 @@ public partial class MainWindow
     private async Task DeleteModpackAsync()
     {
         bool confirm = await DialogService.ShowConfirmAsync(this,
-            $"Are you sure you want to delete {manager.SelectedModlist.name}? This is final.",
+            $"Are you sure you want to delete the modlist '{manager.SelectedModlist.name}'? This is final.",
             "Delete modlist");
         if (!confirm)
             return;
@@ -356,7 +356,7 @@ public partial class MainWindow
 
         try
         {
-            JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
+            JsonSerializerOptions options = new() { WriteIndented = true };
             string exportString = JsonSerializer.Serialize(manager.SelectedModlist, options);
             await File.WriteAllTextAsync(filePath, exportString);
             await DialogService.ShowMessageAsync(this, "File saved successfully.", "Success");

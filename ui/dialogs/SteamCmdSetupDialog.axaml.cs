@@ -5,23 +5,17 @@ using ModHearth.Utilities.Steam;
 
 namespace ModHearth.UI
 {
-    public partial class SteamCmdSetupDialog : Window
+    public partial class SteamCmdSetupDialog : ProgressDialogBase
     {
-        private CancellationTokenSource? _cts;
         private readonly ISteamCmdService _steamCmdService = new SteamCmdService();
 
         public SteamCmdSetupDialog()
         {
             InitializeComponent();
-            WindowThemeManager.Register(this);
+            InitializeCancellation(BtnCancel);
 
             BtnInstall.Click += async (_, _) => await InstallSteamCmdAsync();
             BtnBrowse.Click += async (_, _) => await BrowseExistingAsync();
-            BtnCancel.Click += (_, _) =>
-            {
-                _cts?.Cancel();
-                Close(false);
-            };
         }
 
         private async Task InstallSteamCmdAsync()
@@ -29,18 +23,15 @@ namespace ModHearth.UI
             BtnInstall.IsEnabled = false;
             BtnBrowse.IsEnabled = false;
             ProgressPanel.IsVisible = true;
-            _cts?.Dispose();
-            _cts = new CancellationTokenSource();
+            Cts?.Dispose();
+            Cts = new CancellationTokenSource();
 
             string installDir = Path.Combine(AppContext.BaseDirectory, "steamcmd");
-            var progress = new Progress<string>(msg =>
-            {
-                Dispatcher.UIThread.Post(() => StatusTextBlock.Text = msg);
-            });
+            var progress = CreateProgressReporter(StatusTextBlock);
 
             try
             {
-                bool success = await _steamCmdService.InstallAsync(installDir, progress, _cts.Token);
+                bool success = await _steamCmdService.InstallAsync(installDir, progress, Cts.Token);
                 if (success)
                 {
                     if (IsLoaded)
@@ -100,19 +91,11 @@ namespace ModHearth.UI
             }
         }
 
-        [SuppressMessage("Performance", "S2325:Methods and properties that don't access instance data should be static", Justification = "Accesses instance UI controls.")]
         private void ResetUI()
         {
             BtnInstall.IsEnabled = true;
             BtnBrowse.IsEnabled = true;
             ProgressPanel.IsVisible = false;
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            base.OnClosed(e);
-            _cts?.Dispose();
-            _cts = null;
         }
 
         public static async Task<bool> ShowAsync(Window owner)

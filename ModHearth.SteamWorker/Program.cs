@@ -40,7 +40,7 @@ internal static class Program
         if (!ulong.TryParse(args[1], out ulong rawId))
             return Fail($"Invalid workshop id: '{args[1]}'");
 
-        PublishedFileId_t id = new PublishedFileId_t(rawId);
+        PublishedFileId_t id = new(rawId);
 
         try
         {

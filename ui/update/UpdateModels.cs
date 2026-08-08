@@ -85,7 +85,7 @@ public static class GitHubFileClient
 
     private static HttpClient CreateClient()
     {
-        HttpClient client = new HttpClient();
+        HttpClient client = new();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("ModHearth/1.0");
         return client;
     }

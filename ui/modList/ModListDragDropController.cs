@@ -26,6 +26,8 @@ public sealed class ModListDragDropController
     private readonly Func<string, ModRefViewModel?> resolveItem;
     private readonly Func<ModRefViewModel, string> getItemKey;
     private readonly Dictionary<ListBox, bool> sortableLists = [];
+    private readonly DispatcherTimer dragDelayTimer;
+    private bool canDrag;
 
     private Point? dragStartPoint;
     private PointerPressedEventArgs? dragTriggerEvent;
@@ -57,6 +59,16 @@ public sealed class ModListDragDropController
         _ = allItemsProvider ?? throw new ArgumentNullException(nameof(allItemsProvider));
         this.resolveItem = resolveItem ?? throw new ArgumentNullException(nameof(resolveItem));
         this.getItemKey = getItemKey ?? throw new ArgumentNullException(nameof(getItemKey));
+
+        dragDelayTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(180)
+        };
+        dragDelayTimer.Tick += (_, _) =>
+        {
+            dragDelayTimer.Stop();
+            canDrag = true;
+        };
     }
 
     public void RegisterList(ListBox list, bool allowReorder, bool allowDrop = true)
@@ -68,6 +80,7 @@ public sealed class ModListDragDropController
 
         list.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel, true);
         list.AddHandler(InputElement.PointerMovedEvent, OnPointerMoved, RoutingStrategies.Tunnel, true);
+        list.AddHandler(InputElement.PointerReleasedEvent, OnPointerReleased, RoutingStrategies.Tunnel, true);
         selectionController.RegisterList(list);
 
         if (allowDrop)
@@ -101,10 +114,15 @@ public sealed class ModListDragDropController
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        dragDelayTimer.Stop();
+        canDrag = false;
         dragTriggerEvent = e;
         dragStartPoint = e.GetPosition(sender as Control);
         ResetDragState();
         ClearDragHighlight();
+
+        if (e.ClickCount > 1)
+            return;
 
         if (sender is not ListBox list)
             return;
@@ -126,11 +144,13 @@ public sealed class ModListDragDropController
             dragPreserveSelection = true;
             dragSelectionSnapshot = list.SelectedItems.Cast<ModRefViewModel>().ToList();
         }
+
+        dragDelayTimer.Start();
     }
 
     private async void OnPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (dragStartPoint == null || dragSourceList == null || dragTriggerEvent == null)
+        if (!canDrag || dragStartPoint == null || dragSourceList == null || dragTriggerEvent == null)
             return;
 
         if (!e.GetCurrentPoint(dragSourceList).Properties.IsLeftButtonPressed)
@@ -175,7 +195,7 @@ public sealed class ModListDragDropController
         try
         {
             string payload = SerializeDragData(selected);
-            DataTransfer data = new DataTransfer();
+            DataTransfer data = new();
             data.Add(DataTransferItem.Create(DragDataFormat, payload));
 
             // The native OS blocking loop runs here
@@ -192,6 +212,8 @@ public sealed class ModListDragDropController
     }
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        dragDelayTimer.Stop();
+        canDrag = false;
         dragTriggerEvent = null;
         ResetDragState();
     }
@@ -498,6 +520,8 @@ public sealed class ModListDragDropController
 
     private void ResetDragState()
     {
+        dragDelayTimer.Stop();
+        canDrag = false;
         dragStartPoint = null;
         dragSourceList = null;
         dragSelectionSnapshot = null;

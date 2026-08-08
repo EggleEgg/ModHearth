@@ -26,13 +26,13 @@ namespace ModHearth
         public const string DwarfFortressSteamAppId = "975370";
         private const string Message = "Panel data";
         private static List<string>? _cachedSteamLibraryRoots;
-        private static readonly object _steamLibraryRootsLock = new object();
+        private static readonly object _steamLibraryRootsLock = new();
         private static List<string>? _cachedSteamAppsRoots;
-        private static readonly object _steamAppsRootsLock = new object();
+        private static readonly object _steamAppsRootsLock = new();
         private static List<string>? _cachedWorkshopContentPaths;
-        private static readonly object _workshopContentPathsLock = new object();
+        private static readonly object _workshopContentPathsLock = new();
         private static List<string>? _cachedEffectiveModRoots;
-        private static readonly object _effectiveModRootsLock = new object();
+        private static readonly object _effectiveModRootsLock = new();
         private static void LogInfo(string message) => SteamConnectionLogger.LogInfo(message);
         private static string DFHackExeName => OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
         private static readonly string installedMods = "installed_mods", dfString = "Dwarf Fortress", steamString = "Steam", steamApps = "steamapps";
@@ -89,7 +89,8 @@ namespace ModHearth
 
                 try
                 {
-                    JsonSerializerOptions options = new JsonSerializerOptions
+                    JsonSerializerOptions options = new()
+
                     {
                         WriteIndented = true
                     };
@@ -606,7 +607,7 @@ namespace ModHearth
                     return _cachedSteamLibraryRoots;
                 }
 
-                HashSet<string> libraries = new HashSet<string>(
+                HashSet<string> libraries = new(
                     OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
                 List<string> candidateRoots = GetSteamRootCandidates()
                     .Where(root => !string.IsNullOrWhiteSpace(root))
@@ -614,7 +615,7 @@ namespace ModHearth
 
                 LogInfo($"Steam root candidates ({candidateRoots.Count}): {FormatPathListForLog(candidateRoots)}");
 
-                HashSet<string> processedRoots = new HashSet<string>(
+                HashSet<string> processedRoots = new(
                     OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
                 foreach (string root in candidateRoots)
@@ -686,7 +687,7 @@ namespace ModHearth
 
         private static IEnumerable<string> GetWindowsSteamRootCandidates()
         {
-            HashSet<string> candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> candidates = new(StringComparer.OrdinalIgnoreCase);
 
             string? registryPath = TryGetWindowsSteamPathFromRegistry();
             if (!string.IsNullOrWhiteSpace(registryPath))
@@ -732,7 +733,7 @@ namespace ModHearth
 
         private static IEnumerable<string> ReadSteamLibraryFolders(string steamRoot)
         {
-            HashSet<string> libraries = new HashSet<string>(
+            HashSet<string> libraries = new(
                 OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
             string vdfPath = Path.Combine(steamRoot, steamApps, "libraryfolders.vdf");
@@ -1097,7 +1098,7 @@ namespace ModHearth
                 }
 
                 StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-                HashSet<string> steamAppsRoots = new HashSet<string>(comparer);
+                HashSet<string> steamAppsRoots = new(comparer);
 
                 foreach (string libraryRoot in EnumerateSteamLibraryRoots())
                 {
@@ -1130,7 +1131,7 @@ namespace ModHearth
                 }
 
                 StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-                HashSet<string> paths = new HashSet<string>(comparer);
+                HashSet<string> paths = new(comparer);
                 List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
                 LogInfo($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
                 foreach (string steamAppsRoot in steamAppsRoots)
@@ -1160,7 +1161,7 @@ namespace ModHearth
         public static IEnumerable<string> GetSteamWorkshopAcfPaths()
         {
             StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> paths = new HashSet<string>(comparer);
+            HashSet<string> paths = new(comparer);
             List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
 
             LogInfo($"Steam workshop scan started for app {DwarfFortressSteamAppId}. Library roots discovered: {steamAppsRoots.Count}.");
@@ -1314,7 +1315,7 @@ namespace ModHearth
 
         private static IEnumerable<string> GetAppDataBasePaths()
         {
-            HashSet<string> bases = new HashSet<string>(
+            HashSet<string> bases = new(
                 OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -1396,7 +1397,7 @@ namespace ModHearth
                 }
 
                 StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-                HashSet<string> seen = new HashSet<string>(comparer);
+                HashSet<string> seen = new(comparer);
                 List<string> resolvedRoots = [];
 
                 IEnumerable<string> configuredRoots = EnumerateConfiguredModRoots();
@@ -1416,14 +1417,10 @@ namespace ModHearth
             }
         }
 
-        // IMPORTANT: order matters here. When the same mod (same id, same numeric_version) exists both as
-        // a Steam Workshop subscription and as a shadow/manual copy under the local Mods\ folder --
-        // Dwarf Fortress's own well-documented habit, see IsLikelySteamShadowCopy -- FindAllModsFromDisk's
-        // "first occurrence wins" duplicate handling means whichever root is enumerated first becomes the
-        // one visible ModReference for that mod, and ModSourceClassifier.Classify's result comes from
-        // THAT copy's path. The local Mods\ copy is what Dwarf Fortress actually loads in that situation,
-        // so it must win the primacy slot -- enumerating it before the workshop content paths accomplishes
-        // that without needing a special-cased duplicate-resolution pass elsewhere.
+        // IMPORTANT: order matters here. When the same mod (same id, same numeric_version) exists both as a Steam Workshop subscription and as a shadow/manual copy under the local Mods\ folder
+        // FindAllModsFromDisk's "first occurrence wins" duplicate handling means whichever root is enumerated first becomes the one visible ModReference for that mod,
+        // and ModSourceClassifier.Classify's result comes from THAT copy's path. The local Mods\ copy is what Dwarf Fortress actually loads in that situation,
+        // so it must win the primacy slot; enumerating it before the workshop content paths accomplishes that without needing a special-cased duplicate-resolution pass elsewhere.
         public static IEnumerable<string> EnumerateConfiguredModRoots()
         {
             string modsPath = GetModsPath();

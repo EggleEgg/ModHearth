@@ -12,7 +12,7 @@ namespace ModHearth.Utilities.Workshop
         // - https://steamcommunity.com/sharedfiles/filedetails/changelog/3445635304
 
         // Rigid regex requiring valid Steam domains, exact path structures, and realistic 64-bit Steam ID digit counts (7-20 digits)
-        private static readonly Regex WorkshopIdRegex = new Regex(
+        private static readonly Regex WorkshopIdRegex = new(
             @"^(?:https?://)?(?:www\.)?(?:" +
             @"steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/(?:changelog/)?(?:\?(?:[^&\s]+&)*id=|/)?|" +
             @"steam://url/CommunityFilePage/" +
@@ -20,7 +20,7 @@ namespace ModHearth.Utilities.Workshop
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Ensures standalone numeric inputs strictly match valid Steam PublishedFileId length bounds
-        private static readonly Regex PlainIdRegex = new Regex(@"^\d{7,20}$", RegexOptions.Compiled);
+        private static readonly Regex PlainIdRegex = new(@"^\d{7,20}$", RegexOptions.Compiled);
 
         private static IEnumerable<(ulong Id, string Token)> ExtractEntries(string input)
         {

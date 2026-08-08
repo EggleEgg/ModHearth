@@ -125,9 +125,9 @@
             <SelectableTextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold" TextWrapping="WrapWithOverflow"
                                  VerticalAlignment="Center" MinHeight="42" Margin="2,2,2,5">
               <InlineUIContainer>
-                <Button x:Name="notificationManagerButton" Width="26" Height="26" Margin="-5,-4,4,-4" Tag="Themed" Padding="-1"
+                <Button x:Name="notificationManagerButton" Width="26" Height="26" Margin="-4,-4,4,-4" Tag="Themed" Padding="-1"
                         Click="OnToggleNotificationDrawerClick" VerticalAlignment="Center" ToolTip.Tip="Open Notification Logs">
-                  <Image Source="{ui:AssetImage notificationIcon}" Stretch="Uniform"
+                  <Image Source="{ui:AssetImage notificationFullIcon}" Stretch="Uniform"
                          VerticalAlignment="Center" HorizontalAlignment="Right" />
                 </Button>
               </InlineUIContainer>
@@ -290,8 +290,9 @@
                        HorizontalAlignment="Left" VerticalAlignment="Center" Margin="6,0,0,0"/>
               </Grid>
             </Button>
+            <!-- Use &#x0a; as a substitute for \n (new line) -->
             <Button x:Name="sortRulesButton" Grid.Column="1" Tag="Themed"
-                    ToolTip.Tip="Custom sorting rules. Right click to toggle docking mode">
+                    ToolTip.Tip="Custom sorting rules. These override default sorting.&#x0a;Right click to toggle docking mode">
               <Grid>
                 <Image Source="{ui:AssetImage gearIcon}" />
                 <Image x:Name="sortRulesModeIndicator" Source="{ui:AssetImage windowDoubleIcon}"
@@ -419,8 +420,9 @@
         </Grid>
 
         <ui:ModSearchBar x:Name="notificationSearchBar" Grid.Row="1" Margin="12,0,12,8" IsSortingEnabled="True" IsColorSearchEnabled="False"
-                         IsIdSearchEnabled="False" IsSteamFileIdSearchEnabled="False" IsNameSearchEnabled="True"
-                         IsRegexSearchEnabled="True" IsModifiedTimeSearchEnabled="True" SearchMode="ModifiedTime" SortDescending="True" />
+                         IsIdSearchEnabled="False" IsSteamFileIdSearchEnabled="False" IsNameSearchEnabled="False"
+                         IsRegexSearchEnabled="True" IsModifiedTimeSearchEnabled="True" SearchMode="ModifiedTime" SortDescending="True"
+                         ModifiedTimeLabel="Time" />
 
         <ScrollViewer Grid.Row="2" Margin="12,0,12,12" VerticalScrollBarVisibility="Auto">
           <ItemsControl x:Name="NotificationItemsControl">

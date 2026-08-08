@@ -13,7 +13,7 @@ public static class MarkdownFormatter
         if (string.IsNullOrWhiteSpace(markdown))
             return string.Empty;
 
-        StringBuilder builder = new StringBuilder();
+        StringBuilder builder = new();
         string[] lines = markdown.Replace("\r\n", "\n").Split('\n');
         foreach (string rawLine in lines)
         {
@@ -83,7 +83,7 @@ public static class MarkdownFormatter
     public static string ExtractMarkdownSection(string markdown, string sectionTitle)
     {
         string[] lines = markdown.Replace("\r\n", "\n").Split('\n');
-        StringBuilder builder = new StringBuilder();
+        StringBuilder builder = new();
         bool inSection = false;
         int sectionLevel = 0;
 

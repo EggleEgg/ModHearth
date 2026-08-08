@@ -13,14 +13,15 @@ namespace ModHearth.Metadata
     {
         private static readonly string MetadataDir = Path.Combine(AppContext.BaseDirectory, "metadata");
         private static readonly string MetadataPath = Path.Combine(MetadataDir, "mod_colors.json");
-        private static readonly object FileLock = new object();
-        private static readonly JsonSerializerOptions SerializerOptions = new JsonSerializerOptions
+        private static readonly object FileLock = new();
+        private static readonly JsonSerializerOptions SerializerOptions = new()
+
         {
             WriteIndented = true,
             Converters = { new JsonStringEnumConverter() }
         };
 
-        private static Dictionary<string, ModColor> _modColors = new Dictionary<string, ModColor>(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, ModColor> _modColors = new(StringComparer.OrdinalIgnoreCase);
 
         static ModColorMetadataStore()
         {
@@ -104,7 +105,7 @@ namespace ModHearth.Metadata
                 {
                     string json = File.ReadAllText(MetadataPath);
                     List<ModColorMetadata>? data = JsonSerializer.Deserialize<List<ModColorMetadata>>(json, SerializerOptions);
-                    Dictionary<string, ModColor> loaded = new Dictionary<string, ModColor>(StringComparer.OrdinalIgnoreCase);
+                    Dictionary<string, ModColor> loaded = new(StringComparer.OrdinalIgnoreCase);
                     if (data != null)
                     {
                         foreach (var entry in from ModColorMetadata entry in data

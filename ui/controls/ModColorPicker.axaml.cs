@@ -29,8 +29,6 @@ public partial class ModColorPicker : UserControl
 
     public ICommand ClearSelectionCommand { get; }
 
-    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = [];
-
     public ObservableCollection<ModColorInfo> AvailableColors
     {
         get => GetValue(AvailableColorsProperty);
@@ -75,7 +73,7 @@ public partial class ModColorPicker : UserControl
         var clearSelectionButton = this.FindControl<Button>("ClearSelectionButton");
         if (clearSelectionButton != null)
         {
-            RegisterSearchButton(clearSelectionButton);
+            SearchButtonBehavior.GetOrCreate(clearSelectionButton);
         }
     }
 
@@ -120,29 +118,12 @@ public partial class ModColorPicker : UserControl
         SelectedColors.Clear();
     }
 
-    private void RegisterSearchButton(Button button)
-    {
-        searchButtonBehaviors[button] = new SearchButtonBehavior(button);
-    }
-
-    private void ApplySearchButtonBrushes(
-        Button button,
-        IBrush normalBrush,
-        IBrush hoverBrush,
-        IBrush pressedBrush)
-    {
-        if (searchButtonBehaviors.TryGetValue(button, out SearchButtonBehavior? behavior))
-        {
-            behavior.ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
-        }
-    }
-
     public void ApplyStyle(IBrush normalBrush, IBrush hoverBrush, IBrush pressedBrush, IBrush textBrush)
     {
         var clearSelectionButton = this.FindControl<Button>("ClearSelectionButton");
         if (clearSelectionButton != null)
         {
-            ApplySearchButtonBrushes(clearSelectionButton, normalBrush, hoverBrush, pressedBrush);
+            SearchButtonBehavior.GetOrCreate(clearSelectionButton).ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
             clearSelectionButton.Foreground = textBrush;
             clearSelectionButton.BorderBrush = Brushes.Transparent;
             clearSelectionButton.BorderThickness = new Thickness(0);

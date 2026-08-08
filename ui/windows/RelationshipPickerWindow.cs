@@ -33,16 +33,9 @@ internal sealed class RelationshipPickerWindow : Window
 
         allMods = candidates
             .Where(vm => !string.Equals(vm.ModReference.ID, this.ownerId, StringComparison.OrdinalIgnoreCase))
-            .Select(vm =>
-            {
-                ModRefViewModel copy = new ModRefViewModel(vm.ModReference);
-                MainWindowModListBuilder.CopyClassification(copy, vm);
-                return copy;
-            })
             .OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        ModListIndicatorUpdater.UpdateRelationshipBadges(allMods, relationshipRules);
 
         Title = $"Add {LabelFor(kind)}";
         Width = 460;
@@ -157,6 +150,7 @@ internal sealed class RelationshipPickerWindow : Window
         searchController.ApplyFilterImmediately();
     }
 
+    // Handles quick keyboard actions
     private void PickerKeyDown(object? sender, KeyEventArgs e)
     {
         switch (e.Key)

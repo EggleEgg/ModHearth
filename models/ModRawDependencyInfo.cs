@@ -29,6 +29,10 @@ namespace ModHearth
         // defining the same ID with no CUT relationship is the "duplicate raws" silent-breakage case. DF's errorlog.txt won't necessarily catch it.
         public List<string> DirectDefinitionIds { get; set; } = [];
 
+        // Capability flags detected for this mod (raw content, graphics, sound, Lua, DFHack, native plugin,
+        // DFHack startup scripts). Independent of the raw-object-specific fields above -- see ModCapabilityScanner and ModCapabilities.
+        public ModCapabilities Capabilities { get; set; } = ModCapabilities.None;
+
         // Coarse traits used only for tie-breaking mods that have no
         // explicit graph relationship to anything else.
         public bool HasVanillaEntity { get; set; }

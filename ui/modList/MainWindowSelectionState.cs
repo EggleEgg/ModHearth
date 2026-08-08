@@ -26,7 +26,7 @@ internal static class MainWindowSelectionState
             return [];
 
         List<ModSelectionToken> tokens = [];
-        HashSet<string> seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> seenKeys = new(StringComparer.OrdinalIgnoreCase);
         foreach (ModRefViewModel vm in list.SelectedItems.OfType<ModRefViewModel>())
         {
             string key = vm.DfMod.ToString();
@@ -46,8 +46,8 @@ internal static class MainWindowSelectionState
         IEnumerable<ModRefViewModel> candidates,
         IReadOnlyList<ModSelectionToken> tokens)
     {
-        Dictionary<string, ModRefViewModel> byKey = new Dictionary<string, ModRefViewModel>(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, ModRefViewModel> byId = new Dictionary<string, ModRefViewModel>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, ModRefViewModel> byKey = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, ModRefViewModel> byId = new(StringComparer.OrdinalIgnoreCase);
         foreach (ModRefViewModel vm in candidates)
         {
             string key = vm.DfMod.ToString();

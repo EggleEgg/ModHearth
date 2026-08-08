@@ -91,7 +91,7 @@ public partial class MainWindow
             : DockOrientation.Vertical;
         bool previewFirst = ConfigManager.GetModPreviewPanelFirst();
 
-        ToolDock modDataDock = new ToolDock
+        ToolDock modDataDock = new()
         {
             Id = ModDataDockId,
             Proportion = modDataProportion,
@@ -104,7 +104,7 @@ public partial class MainWindow
             CanDrag = true,
             IsCollapsable = false
         };
-        ToolDock descriptionDock = new ToolDock
+        ToolDock descriptionDock = new()
         {
             Id = DescriptionDockId,
             Proportion = descriptionProportion,
@@ -118,7 +118,7 @@ public partial class MainWindow
             IsCollapsable = false
         };
 
-        ToolDock previewDock = new ToolDock
+        ToolDock previewDock = new()
         {
             Id = ModPreviewDockId,
             Proportion = previewProportion,
@@ -132,13 +132,13 @@ public partial class MainWindow
             IsCollapsable = false
         };
 
-        ProportionalDockSplitter splitter = new ProportionalDockSplitter
+        ProportionalDockSplitter splitter = new()
         {
             Id = "ModInfoSplitter"
         };
         _ = knownSplitters.Add(splitter);
 
-        ProportionalDock layoutDock = new ProportionalDock
+        ProportionalDock layoutDock = new()
         {
             Id = ModInfoLayoutId,
             Orientation = innerOrientation,
@@ -149,14 +149,14 @@ public partial class MainWindow
                 : factory.CreateList<IDockable>(descriptionDock, splitter, modDataDock)
         };
 
-        ProportionalDockSplitter previewSplitter = new ProportionalDockSplitter
+        ProportionalDockSplitter previewSplitter = new()
         {
             Id = "ModPreviewSplitter"
         };
         _ = knownSplitters.Add(previewSplitter);
 
 
-        ProportionalDock outerLayoutDock = new ProportionalDock
+        ProportionalDock outerLayoutDock = new()
         {
             Id = ModInfoOuterLayoutId,
             Orientation = previewOrientation,
@@ -166,7 +166,7 @@ public partial class MainWindow
                 : factory.CreateList<IDockable>(layoutDock, previewSplitter, previewDock)
         };
 
-        RootDock root = new RootDock
+        RootDock root = new()
         {
             Id = "ModInfoRoot",
             VisibleDockables = factory.CreateList<IDockable>(outerLayoutDock),

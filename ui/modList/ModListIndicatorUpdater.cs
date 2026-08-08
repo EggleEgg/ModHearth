@@ -140,7 +140,7 @@ internal static class ModListIndicatorUpdater
 
     public static string BuildProblemTooltip(List<ModProblem> problems)
     {
-        StringBuilder builder = new StringBuilder("Problems:");
+        StringBuilder builder = new("Problems:");
         foreach (ModProblem problem in problems)
             _ = builder.AppendLine().Append(problem.ToString());
         return builder.ToString();
@@ -148,7 +148,7 @@ internal static class ModListIndicatorUpdater
 
     public static string BuildDuplicateWarningTooltip(ModHearthManager? manager, string modId, IEnumerable<string> duplicates)
     {
-        StringBuilder builder = new StringBuilder();
+        StringBuilder builder = new();
 
         bool hasCache = duplicates.Any(d => d.Contains("[Cache]"));
         bool hasErrorLog = manager != null && manager.HasErrorLogDuplicateWarning(modId);

@@ -297,32 +297,6 @@ public partial class MainWindow
             // Insert at top (index 0) so newest is on top, oldest is on bottom
             container.Children.Insert(0, border);
 
-            // Gradually reduce transparency (increase opacity) up to 0.75
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    int steps = 15;
-                    int stepDelay = notificationDelay / steps; // animation time in ms = steps * stepDelay
-                    double targetOpacity = 0.7;
-                    for (int i = 0; i <= steps; i++)
-                    {
-                        if (notificationCts.Token.IsCancellationRequested)
-                            break;
-
-                        //linear interpolation between 1 and target
-                        double currentOpacity = 1 + (targetOpacity - 1) * ((double)i / steps);
-
-                        Dispatcher.UIThread.Post(() => border.Opacity = currentOpacity);
-                        await Task.Delay(stepDelay, notificationCts.Token);
-                    }
-                }
-                catch (TaskCanceledException)
-                {
-                    // Graceful cancellation
-                }
-            });
-
             //timeout
             _ = Task.Run(async () =>
             {

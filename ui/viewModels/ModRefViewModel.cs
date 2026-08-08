@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -30,7 +31,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
     private bool showDropAbove;
     private bool showDropBelow;
     private ReferenceOverlayKind referenceOverlay;
-    private Thickness ruleGapMargin = new Thickness(0);
+    private Thickness ruleGapMargin = new(0);
     private string? problemTooltip;
     private string? duplicateWarningTooltip;
     private string ruleBadgesText = string.Empty;
@@ -263,6 +264,29 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
         }
     }
 
+    private static readonly ConcurrentDictionary<Color, IImage?> filterIconTintCache = new();
+
+    private static IImage? GetTintedFilterIcon(Color tint)
+        => filterIconTintCache.GetOrAdd(tint, static c => ImageSourceLoader.LoadFromAssetUri("filterIcon.svg", c));
+
+    private Color filterIconColor;
+    private Color lastFilterColor;
+    private IImage? cachedFilterIcon;
+
+    public IImage? FilterIconImage
+    {
+        get
+        {
+            Color color = filterIconColor;
+            if (cachedFilterIcon == null || lastFilterColor != color)
+            {
+                lastFilterColor = color;
+                cachedFilterIcon = GetTintedFilterIcon(color);
+            }
+            return cachedFilterIcon;
+        }
+    }
+
     public IBrush TextBrush
     {
         get => textBrush;
@@ -479,7 +503,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
             if (!HasRelationships)
                 return null;
 
-            StringBuilder sb = new StringBuilder("Custom Sort Rules");
+            StringBuilder sb = new("Custom Sort Rules");
             if (BeforeCount > 0) _ = sb.AppendLine().Append($"• Before: {BeforeCount}");
             if (AfterCount > 0) _ = sb.AppendLine().Append($"• After: {AfterCount}");
             if (RequiredCount > 0) _ = sb.AppendLine().Append($"• Required: {RequiredCount}");
@@ -561,6 +585,12 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
         {
             textBrush = newBrush;
             OnPropertyChanged(nameof(TextBrush));
+        }
+
+        if (filterIconColor != color)
+        {
+            filterIconColor = color;
+            OnPropertyChanged(nameof(FilterIconImage));
         }
 
         var targetDecoration = IsFilteredOut ? Avalonia.Media.TextDecorations.Strikethrough : null;

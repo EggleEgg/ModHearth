@@ -114,19 +114,63 @@ public partial class MainWindow
         }
     }
 
+    private DockingManager<TControl, TWindow> CreateDockingManager<TControl, TWindow>(
+        string configKeyPrefix,
+        DockSide defaultSide,
+        bool initialDocked,
+        Func<TControl> controlCreator,
+        Func<TControl, TWindow> windowCreator,
+        double defaultSize,
+        double minSize,
+        double maxSize,
+        Func<bool> getInitialDocked,
+        Action<bool> setInitialDocked,
+        IReadOnlyDictionary<DockSide, DockingTarget> sideTargets)
+        where TControl : UserControl
+        where TWindow : Window
+    {
+        DockingManager<TControl, TWindow>? managerRef = null;
+        var dockingManager = new DockingManager<TControl, TWindow>(
+            this,
+            sideTargets,
+            defaultSide,
+            controlCreator,
+            windowCreator,
+            defaultSize,
+            minSize,
+            maxSize,
+            splitterSize: 7,
+            initialDocked: initialDocked,
+            onSideAcquired: side => AcquireDockSide(side, managerRef!),
+            proportionLoader: side => ConfigManager.GetDockSplitterProportion($"{configKeyPrefix}_{side}", 0.0),
+            proportionSaver: (side, proportion) => ConfigManager.SetDockSplitterProportion($"{configKeyPrefix}_{side}", proportion),
+            sideLoader: () => (DockSide)ConfigManager.GetDockSide($"{configKeyPrefix}_Side", (int)defaultSide),
+            sideSaver: side => ConfigManager.SetDockSide($"{configKeyPrefix}_Side", (int)side)
+        );
+        managerRef = dockingManager;
+
+        dockingManager.DockStateChanged += (_, _) =>
+        {
+            bool docked = dockingManager.IsDocked;
+            if (getInitialDocked() != docked)
+            {
+                setInitialDocked(docked);
+                UpdateDockingButtonModeImages();
+            }
+        };
+
+        return dockingManager;
+    }
+
     private void InitializeDockingManagers()
     {
         var sideTargets = CreateDockSideTargets();
 
-        bool workshopInitialDocked = ConfigManager.GetIsWorkshopDownloaderDocked();
-        _workshopDockManager = new DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>(
-            this,
-            sideTargets,
+        _workshopDockManager = CreateDockingManager(
+            "WorkshopDownloaderControl",
             DockSide.Right,
-            () =>
-            {
-                return new WorkshopDownloaderControl(manager);
-            },
+            ConfigManager.GetIsWorkshopDownloaderDocked(),
+            () => new WorkshopDownloaderControl(manager),
             control => new WorkshopDownloaderWindow(manager, control)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -134,32 +178,16 @@ public partial class MainWindow
             WorkshopDownloaderWindow.DefaultWidth,
             WorkshopDownloaderWindow.DefaultMinWidth,
             WorkshopDownloaderWindow.DefaultMaxWidth,
-            splitterSize: 7,
-            initialDocked: workshopInitialDocked,
-            onSideAcquired: side => AcquireDockSide(side, _workshopDockManager!),
-            proportionLoader: side => ConfigManager.GetDockSplitterProportion($"WorkshopDownloaderControl_{side}", 0.0),
-            proportionSaver: (side, proportion) => ConfigManager.SetDockSplitterProportion($"WorkshopDownloaderControl_{side}", proportion),
-            sideLoader: () => (DockSide)ConfigManager.GetDockSide("WorkshopDownloaderControl_Side", (int)DockSide.Right),
-            sideSaver: side => ConfigManager.SetDockSide("WorkshopDownloaderControl_Side", (int)side)
+            ConfigManager.GetIsWorkshopDownloaderDocked,
+            ConfigManager.SetIsWorkshopDownloaderDocked,
+            sideTargets
         );
-        _workshopDockManager.DockStateChanged += (_, _) =>
-        {
-            bool docked = _workshopDockManager.IsDocked;
-            if (ConfigManager.GetIsWorkshopDownloaderDocked() != docked)
-            {
-                ConfigManager.SetIsWorkshopDownloaderDocked(docked);
-                UpdateDockingButtonModeImages();
-            }
-        };
 
-        _updateLogDockManager = new DockingManager<ModUpdateLogControl, ModUpdateLogWindow>(
-            this,
-            sideTargets,
+        _updateLogDockManager = CreateDockingManager(
+            "ModUpdateLogControl",
             DockSide.Bottom,
-            () =>
-            {
-                return new ModUpdateLogControl(manager);
-            },
+            ConfigManager.GetIsModUpdateLogDocked(),
+            () => new ModUpdateLogControl(manager),
             control => new ModUpdateLogWindow(manager, control)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -167,30 +195,15 @@ public partial class MainWindow
             ModUpdateLogWindow.DefaultHeight,
             ModUpdateLogWindow.DefaultMinHeight,
             ModUpdateLogWindow.DefaultMaxHeight,
-            splitterSize: 7,
-            initialDocked: ConfigManager.GetIsModUpdateLogDocked(),
-            onSideAcquired: side => AcquireDockSide(side, _updateLogDockManager!),
-            proportionLoader: side => ConfigManager.GetDockSplitterProportion($"ModUpdateLogControl_{side}", 0.0),
-            proportionSaver: (side, proportion) => ConfigManager.SetDockSplitterProportion($"ModUpdateLogControl_{side}", proportion),
-            sideLoader: () => (DockSide)ConfigManager.GetDockSide("ModUpdateLogControl_Side", (int)DockSide.Bottom),
-            sideSaver: side => ConfigManager.SetDockSide("ModUpdateLogControl_Side", (int)side)
+            ConfigManager.GetIsModUpdateLogDocked,
+            ConfigManager.SetIsModUpdateLogDocked,
+            sideTargets
         );
 
-        _updateLogDockManager.DockStateChanged += (_, _) =>
-        {
-            bool docked = _updateLogDockManager.IsDocked;
-            if (ConfigManager.GetIsModUpdateLogDocked() != docked)
-            {
-                ConfigManager.SetIsModUpdateLogDocked(docked);
-                UpdateDockingButtonModeImages();
-            }
-        };
-
-        bool sortRulesInitialDocked = ConfigManager.GetIsSortRulesDocked();
-        _sortRulesDockManager = new DockingManager<SortRulesControl, SortRulesWindow>(
-            this,
-            sideTargets,
+        _sortRulesDockManager = CreateDockingManager(
+            "SortRulesControl",
             DockSide.Left,
+            ConfigManager.GetIsSortRulesDocked(),
             () =>
             {
                 List<ModReference> modRefs = manager.modPool
@@ -227,24 +240,10 @@ public partial class MainWindow
             SortRulesWindow.DefaultWidth,
             SortRulesWindow.DefaultMinWidth,
             SortRulesWindow.DefaultMaxWidth,
-            splitterSize: 7,
-            initialDocked: sortRulesInitialDocked,
-            onSideAcquired: side => AcquireDockSide(side, _sortRulesDockManager!),
-            proportionLoader: side => ConfigManager.GetDockSplitterProportion($"SortRulesControl_{side}", 0.0),
-            proportionSaver: (side, proportion) => ConfigManager.SetDockSplitterProportion($"SortRulesControl_{side}", proportion),
-            sideLoader: () => (DockSide)ConfigManager.GetDockSide("SortRulesControl_Side", (int)DockSide.Left),
-            sideSaver: side => ConfigManager.SetDockSide("SortRulesControl_Side", (int)side)
+            ConfigManager.GetIsSortRulesDocked,
+            ConfigManager.SetIsSortRulesDocked,
+            sideTargets
         );
-
-        _sortRulesDockManager.DockStateChanged += (_, _) =>
-        {
-            bool docked = _sortRulesDockManager.IsDocked;
-            if (ConfigManager.GetIsSortRulesDocked() != docked)
-            {
-                ConfigManager.SetIsSortRulesDocked(docked);
-                UpdateDockingButtonModeImages();
-            }
-        };
 
         InitializeDockingButtons();
     }
@@ -300,18 +299,16 @@ public partial class MainWindow
     private async Task ClearInstalledModsAsync()
     {
         string installedModsPath = ConfigManager.GetInstalledModsPath();
-        bool confirm = await DialogService.ShowConfirmAsync(this,
+        bool success = await DialogService.RunConfirmedActionAsync(this,
             $"Clear installed mods cache?\n{installedModsPath}",
-            "Clear installed mods");
-        if (!confirm)
-            return;
-
-        (bool success, string message) = await Task.Run(() =>
-        {
-            bool res = manager.ClearInstalledModsFolder(out string msg);
-            return (res, msg);
-        });
-        await DialogService.ShowMessageAsync(this, message, success ? "Installed mods cleared" : "Clear failed");
+            "Clear installed mods",
+            () =>
+            {
+                bool res = manager.ClearInstalledModsFolder(out string msg);
+                return (res, msg);
+            },
+            "Installed mods cleared",
+            "Clear failed");
 
         clearInstalledModsButton.IsEnabled = Directory.Exists(installedModsPath);
         if (success)

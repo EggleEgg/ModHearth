@@ -2,7 +2,7 @@ namespace ModHearth.UI;
 
 internal static class UpdateLogger
 {
-    private static readonly Logger logger = new Logger(string.Empty, line =>
+    private static readonly Logger logger = new(string.Empty, line =>
     {
         string logDir = Path.Combine(AppContext.BaseDirectory, "logs");
         _ = Directory.CreateDirectory(logDir);

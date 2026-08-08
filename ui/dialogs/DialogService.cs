@@ -58,7 +58,7 @@ public static class DialogService
 
     public static async Task<string?> PickFileAsync(Window owner, string title, IEnumerable<FilePickerFileType> fileTypes)
     {
-        FilePickerOpenOptions options = new FilePickerOpenOptions
+        FilePickerOpenOptions options = new()
         {
             Title = title,
             AllowMultiple = false,
@@ -71,7 +71,7 @@ public static class DialogService
 
     public static async Task<string?> PickFolderAsync(Window owner, string title)
     {
-        FolderPickerOpenOptions options = new FolderPickerOpenOptions
+        FolderPickerOpenOptions options = new()
         {
             Title = title
         };
@@ -82,7 +82,7 @@ public static class DialogService
 
     public static async Task<string?> PickSaveFileAsync(Window owner, string title, string defaultFileName, IEnumerable<FilePickerFileType> fileTypes)
     {
-        FilePickerSaveOptions options = new FilePickerSaveOptions
+        FilePickerSaveOptions options = new()
         {
             Title = title,
             SuggestedFileName = defaultFileName,
@@ -91,5 +91,40 @@ public static class DialogService
 
         IStorageFile? result = await owner.StorageProvider.SaveFilePickerAsync(options);
         return result?.TryGetLocalPath();
+    }
+
+    public static async Task<bool> RunConfirmedActionAsync(
+        Window owner,
+        string prompt,
+        string title,
+        Func<List<string>> workFunc)
+    {
+        bool confirm = await ShowConfirmAsync(owner, prompt, title);
+        if (!confirm)
+            return false;
+
+        List<string> failures = await Task.Run(workFunc);
+        if (failures.Count > 0)
+            await ShowMessageAsync(owner, string.Join(Environment.NewLine, failures), title);
+
+        return true;
+    }
+
+    public static async Task<bool> RunConfirmedActionAsync(
+        Window owner,
+        string prompt,
+        string title,
+        Func<(bool success, string message)> workFunc,
+        string successTitle = "Success",
+        string failureTitle = "Clear failed")
+    {
+        bool confirm = await ShowConfirmAsync(owner, prompt, title);
+        if (!confirm)
+            return false;
+
+        (bool success, string message) = await Task.Run(workFunc);
+        await ShowMessageAsync(owner, message, success ? successTitle : failureTitle);
+
+        return success;
     }
 }

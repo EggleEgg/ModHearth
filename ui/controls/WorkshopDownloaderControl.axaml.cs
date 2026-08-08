@@ -425,6 +425,14 @@ namespace ModHearth.UI
             return [contextVm.ModReference];
         }
 
+        public async Task RedownloadModsAsync(IEnumerable<ulong> workshopIds)
+        {
+            if (_queueManager != null)
+            {
+                await _queueManager.RedownloadWorkshopItemsAsync(workshopIds);
+            }
+        }
+
         public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
             var manager = _queueManager?.Manager;
@@ -444,10 +452,29 @@ namespace ModHearth.UI
                     await ModContextMenuSupport.CopyModIdAsync(ownerWindow, vm.ModReference);
                     break;
                 case ModContextMenuSupport.RedownloadTag:
-                    await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
-                    break;
+                    {
+                        var targets = GetSelectedModReferences(vm);
+                        List<ulong> workshopIds = [];
+                        foreach (var target in targets)
+                        {
+                            if (ModHearthManager.TryGetSteamWorkshopItemId(target, out string steamId) && ulong.TryParse(steamId, out ulong id))
+                            {
+                                workshopIds.Add(id);
+                            }
+                        }
+
+                        if (workshopIds.Count > 0 && new Utilities.Steam.SteamCmdService().IsAvailable())
+                        {
+                            await RedownloadModsAsync(workshopIds);
+                        }
+                        else
+                        {
+                            await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, targets);
+                        }
+                        break;
+                    }
                 case ModContextMenuSupport.UnsubscribeTag:
-                    await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
+                    await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, GetSelectedModReferences(vm));
                     break;
             }
         }

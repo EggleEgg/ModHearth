@@ -7,7 +7,7 @@
         CanResize="False"
         Title="SteamCMD Setup">
   <StackPanel Margin="16" Spacing="14">
-    <TextBlock Text="SteamCMD is required for the SteamCMD download provider but is not set up or found."
+    <TextBlock Text="SteamCMD is required for the SteamCMD download provider but it is not set up or found."
                TextWrapping="Wrap" FontWeight="SemiBold" />
     <TextBlock Text="Choose whether to automatically install SteamCMD in a new folder inside ModHearth or select an existing SteamCMD executable location on your system."
                TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource MainTextBrush}" />

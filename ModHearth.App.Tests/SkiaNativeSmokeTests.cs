@@ -18,8 +18,8 @@ public class SkiaNativeSmokeTests
     [Fact]
     public void Can_Create_And_Draw_On_A_Bitmap()
     {
-        using SKBitmap bitmap = new SKBitmap(4, 4);
-        using SKCanvas canvas = new SKCanvas(bitmap);
+        using SKBitmap bitmap = new(4, 4);
+        using SKCanvas canvas = new(bitmap);
         canvas.Clear(SKColors.Transparent);
 
         Assert.Equal(4, bitmap.Width);

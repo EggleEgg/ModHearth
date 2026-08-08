@@ -42,8 +42,8 @@ namespace ModHearth.Utilities.Workshop
 
     public class SteamCmdDownloadProvider : IWorkshopDownloadProvider
     {
-        private static readonly Regex ProgressRegex = new Regex(@"progress:\s+([0-9.]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex DownloadingItemRegex = new Regex(@"Downloading item (\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex ProgressRegex = new(@"progress:\s+([0-9.]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex DownloadingItemRegex = new(@"Downloading item (\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly ISteamCmdService _steamCmdService = new SteamCmdService();
 
         public const string SteamApps = "steamapps";

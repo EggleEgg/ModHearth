@@ -13,31 +13,8 @@ public partial class SortRulesWindow : Window, IDisposable
     public static double DefaultMinHeight => LoadDimension("MinHeight", 350);
     public static double DefaultMaxHeight => LoadDimension("MaxHeight", 1100);
 
-    private static double LoadDimension(string attributeName, double fallback)
-    {
-        try
-        {
-            string path = Path.Combine("ui", "windows", "SortRulesWindow.axaml");
-            if (!File.Exists(path))
-            {
-                path = Path.Combine(AppContext.BaseDirectory, "ui", "windows", "SortRulesWindow.axaml");
-            }
-            if (File.Exists(path))
-            {
-                string content = File.ReadAllText(path);
-                var match = Regex.Match(content, $@"{attributeName}\s*=\s*""(?<val>[^""]+)""", RegexOptions.IgnoreCase);
-                if (match.Success && double.TryParse(match.Groups["val"].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
-                {
-                    return val;
-                }
-            }
-        }
-        catch
-        {
-            // Fallback
-        }
-        return fallback;
-    }
+    private static double LoadDimension(string attributeName, double fallback) =>
+        WindowDimensionLoader.Load("SortRulesWindow.axaml", attributeName, fallback);
 
     public SortRulesWindow()
         : this(new Dictionary<string, ModRelationshipRule>(), Array.Empty<ModReference>(), string.Empty, null)

@@ -25,7 +25,7 @@ namespace ModHearth
                 if (!TryEnsureSteamSession([]))
                     return;
 
-                SteamWorkshopService steam = new SteamWorkshopService();
+                SteamWorkshopService steam = new();
                 if (!steam.IsAvailable)
                     return;
 
@@ -62,8 +62,8 @@ namespace ModHearth
             if (mods == null)
                 return;
 
-            HashSet<string> uniqueLocalKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            HashSet<string> uniqueSteamIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> uniqueLocalKeys = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> uniqueSteamIds = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (ModReference modref in mods)
             {
@@ -129,7 +129,7 @@ namespace ModHearth
             if (!TryEnsureSteamSession(failures))
                 return failures;
 
-            SteamWorkshopService steam = new SteamWorkshopService();
+            SteamWorkshopService steam = new();
             if (!steam.IsAvailable)
             {
                 failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
@@ -242,7 +242,7 @@ namespace ModHearth
             if (!TryEnsureSteamSession(failures))
                 return failures;
 
-            SteamWorkshopService steam = new SteamWorkshopService();
+            SteamWorkshopService steam = new();
             if (!steam.IsAvailable)
             {
                 failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
@@ -322,7 +322,7 @@ namespace ModHearth
             IEnumerable<ModReference>? mods,
             List<string> failures)
         {
-            Dictionary<string, ModReference> steamModRefs = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ModReference> steamModRefs = new(StringComparer.OrdinalIgnoreCase);
             if (mods == null)
                 return steamModRefs;
 
@@ -416,7 +416,7 @@ namespace ModHearth
             return modref.ID?.Trim() ?? string.Empty;
         }
 
-        private void ShowNotification(string message, string icon)
+        public void ShowNotification(string message, string icon)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {

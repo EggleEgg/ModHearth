@@ -56,7 +56,7 @@ namespace ModHearth.UI
         private const uint WM_ENTERSIZEMOVE = 0x0231;
         private const uint WM_EXITSIZEMOVE = 0x0232;
         private const uint WM_DESTROY = 0x0002;
-        private static readonly IntPtr SubclassId = new IntPtr(1042);
+        private static readonly IntPtr SubclassId = new(1042);
 
         public WindowsWindowDragTracker(Window window)
         {

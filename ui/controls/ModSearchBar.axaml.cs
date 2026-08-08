@@ -26,6 +26,7 @@ public partial class ModSearchBar : UserControl
     private readonly Dictionary<SearchFilterMode, TextBlock> searchModeLabels = [];
     private readonly Dictionary<SearchFilterMode, Image> searchModeIcons = [];
 
+    // Avalonia properties for easy binding and styling in the axamls
     public static readonly StyledProperty<string?> PlaceholderTextProperty =
         AvaloniaProperty.Register<ModSearchBar, string?>(nameof(PlaceholderText), "Search");
 
@@ -59,12 +60,17 @@ public partial class ModSearchBar : UserControl
     public static readonly StyledProperty<bool> IsSteamFileIdSearchEnabledProperty =
         AvaloniaProperty.Register<ModSearchBar, bool>(nameof(IsSteamFileIdSearchEnabled), true);
 
+    public static readonly StyledProperty<string?> ModifiedTimeLabelProperty =
+        AvaloniaProperty.Register<ModSearchBar, string?>("ModifiedTimeLabel", "Modified");
+
+    public static readonly StyledProperty<SearchFilterMode> DefaultSearchModeProperty =
+        AvaloniaProperty.Register<ModSearchBar, SearchFilterMode>(nameof(DefaultSearchMode), SearchFilterMode.Name);
+
     public event EventHandler? SearchTextChanged;
     public event EventHandler? HideFilteredToggled;
     public event EventHandler? SearchModeChanged;
     public event EventHandler? SortOrderChanged;
 
-    private readonly Dictionary<Button, SearchButtonBehavior> searchButtonBehaviors = [];
     private readonly Dictionary<SearchFilterMode, Button> searchModeOptionButtons = [];
     private Flyout? searchModeFlyout;
     private int clearClickCount;
@@ -115,7 +121,7 @@ public partial class ModSearchBar : UserControl
             {
                 clearClickCount = 0;
                 SearchLogging.Log($"ModSearchBar ClearButton clicked {neededClicks} consecutive times - resetting to default search filter");
-                SearchMode = SearchFilterMode.Name;
+                SearchMode = IsSearchModeAllowed(DefaultSearchMode) ? DefaultSearchMode : GetFirstAllowedSearchMode();
                 ColorPicker.ClearSelection();
                 SearchBox.Text = string.Empty;
             }
@@ -172,6 +178,12 @@ public partial class ModSearchBar : UserControl
                 UpdateSearchModeButtonTooltip();
                 searchModeFlyout = null;
             }
+            else if (args.Property == ModifiedTimeLabelProperty)
+            {
+                UpdateSearchModeOptionLabels();
+                UpdateSearchModeIcon();
+                UpdateSearchModeButtonTooltip();
+            }
         };
         PlaceholderTextBlock.Text = PlaceholderText;
         UpdateToggleIcon();
@@ -190,9 +202,9 @@ public partial class ModSearchBar : UserControl
             }
         };
 
-        RegisterSearchButton(SearchModeButton);
-        RegisterSearchButton(ToggleButton);
-        RegisterSearchButton(ClearButton);
+        SearchButtonBehavior.GetOrCreate(SearchModeButton);
+        SearchButtonBehavior.GetOrCreate(ToggleButton);
+        SearchButtonBehavior.GetOrCreate(ClearButton);
     }
 
     public void SetAvailableColors(IEnumerable<ModColor> colors)
@@ -315,6 +327,26 @@ public partial class ModSearchBar : UserControl
         set => SetValue(IsSteamFileIdSearchEnabledProperty, value);
     }
 
+    public string? ModifiedTimeLabel
+    {
+        get => GetValue(ModifiedTimeLabelProperty);
+        set => SetValue(ModifiedTimeLabelProperty, value);
+    }
+
+    private SearchFilterMode? cachedDefaultSearchMode;
+
+    public SearchFilterMode DefaultSearchMode
+    {
+        get
+        {
+            if (IsSet(DefaultSearchModeProperty))
+                return GetValue(DefaultSearchModeProperty);
+            cachedDefaultSearchMode ??= SearchMode;
+            return cachedDefaultSearchMode.Value;
+        }
+        set => SetValue(DefaultSearchModeProperty, value);
+    }
+
     private bool IsSearchModeAllowed(SearchFilterMode mode)
     {
         return mode switch
@@ -394,7 +426,7 @@ public partial class ModSearchBar : UserControl
 
         foreach (Button button in buttons)
         {
-            ApplySearchButtonBrushes(button, searchButtonBrush, searchButtonHoverBrush, searchButtonPressedBrush);
+            SearchButtonBehavior.GetOrCreate(button).ApplyBrushes(searchButtonBrush, searchButtonHoverBrush, searchButtonPressedBrush);
             button.Foreground = buttonTextBrush;
             button.BorderBrush = Brushes.Transparent;
         }
@@ -402,23 +434,6 @@ public partial class ModSearchBar : UserControl
         SearchModeTextBlock.Foreground = buttonTextBrush;
 
         ColorPicker.ApplyStyle(searchButtonBrush, searchButtonHoverBrush, searchButtonPressedBrush, buttonTextBrush);
-    }
-
-    private void RegisterSearchButton(Button button)
-    {
-        searchButtonBehaviors[button] = new SearchButtonBehavior(button);
-    }
-
-    private void ApplySearchButtonBrushes(
-        Button button,
-        IBrush normalBrush,
-        IBrush hoverBrush,
-        IBrush pressedBrush)
-    {
-        if (searchButtonBehaviors.TryGetValue(button, out SearchButtonBehavior? behavior))
-        {
-            behavior.ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
-        }
     }
 
     private void UpdateToggleIcon()
@@ -437,7 +452,7 @@ public partial class ModSearchBar : UserControl
         if (searchModeFlyout != null)
             return;
 
-        StackPanel panel = new StackPanel
+        StackPanel panel = new()
         {
             Margin = new Thickness(0),
             Spacing = 4,
@@ -469,7 +484,7 @@ public partial class ModSearchBar : UserControl
 
     private Image CreateSearchModeIcon(SearchFilterMode mode)
     {
-        Image icon = new Image
+        Image icon = new()
         {
             Width = 16,
             Height = 16,
@@ -483,20 +498,20 @@ public partial class ModSearchBar : UserControl
     }
     private Button CreateSearchModeOptionButton(SearchFilterMode mode)
     {
-        Button button = new Button
+        Button button = new()
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
             Padding = new Thickness(6, 4, 6, 4),
         };
 
-        TextBlock text = new TextBlock
+        TextBlock text = new()
         {
             VerticalAlignment = VerticalAlignment.Center
         };
         searchModeLabels[mode] = text;
 
-        Thickness textRightSpacing = new Thickness(0, 0, 15, 0);
+        Thickness textRightSpacing = new(0, 0, 15, 0);
 
         switch (mode)
         {
@@ -504,12 +519,12 @@ public partial class ModSearchBar : UserControl
                 {
                     ToolTip.SetTip(button, "Search includes mod title and description");
 
-                    Grid grid = new Grid
+                    Grid grid = new()
                     {
                         ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto")
                     };
 
-                    Button helpButton = new Button
+                    Button helpButton = new()
                     {
                         Content = "?",
                         Width = 18,
@@ -536,7 +551,7 @@ public partial class ModSearchBar : UserControl
                     };
 
                     Image optionIcon = CreateSearchModeIcon(mode);
-                    StackPanel leftContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                    StackPanel leftContent = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
                     leftContent.Children.Add(optionIcon);
                     leftContent.Children.Add(text);
 
@@ -554,7 +569,7 @@ public partial class ModSearchBar : UserControl
             default:
                 {
                     Image optionIcon = CreateSearchModeIcon(mode);
-                    StackPanel content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                    StackPanel content = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
                     content.Children.Add(optionIcon);
                     content.Children.Add(text);
 
@@ -626,7 +641,7 @@ public partial class ModSearchBar : UserControl
         };
     }
 
-    private static string GetSearchModeLabel(SearchFilterMode mode, bool includePrefix = true)
+    private string GetSearchModeLabel(SearchFilterMode mode, bool includePrefix = true)
     {
         if (!includePrefix)
         {
@@ -635,7 +650,7 @@ public partial class ModSearchBar : UserControl
                 SearchFilterMode.Name => "Name",
                 SearchFilterMode.Regex => "Regex",
                 SearchFilterMode.Color => "Color",
-                SearchFilterMode.ModifiedTime => "Modified",
+                SearchFilterMode.ModifiedTime => ModifiedTimeLabel ?? "Modified",
                 SearchFilterMode.Id => "Mod ID",
                 SearchFilterMode.SteamFileId => "Steam ID",
                 _ => "Name"
@@ -647,7 +662,7 @@ public partial class ModSearchBar : UserControl
             SearchFilterMode.Name => "Search by name",
             SearchFilterMode.Regex => "Search by regex",
             SearchFilterMode.Color => "Search by color",
-            SearchFilterMode.ModifiedTime => "Sort by modified time",
+            SearchFilterMode.ModifiedTime => ModifiedTimeLabel == "Time" ? "Sort by time" : $"Sort by {(ModifiedTimeLabel ?? "Modified").ToLower()} time",
             SearchFilterMode.Id => "Search by mod id",
             SearchFilterMode.SteamFileId => "Search by steam file id",
             _ => "Search by name"
@@ -686,7 +701,7 @@ public partial class ModSearchBar : UserControl
             grid.Children.Clear();
 
             // Add "Clear" option
-            grid.Children.Add(CreateColorSwatchButton(new ModColorInfo
+            grid.Children.Add(ColorSwatchHelper.CreateColorSwatchButton(new ModColorInfo
             {
                 ModColor = ModColor.None,
                 Name = "Clear all filters",
@@ -711,7 +726,7 @@ public partial class ModSearchBar : UserControl
                     Color = ModColorMap.GetColor(color),
                     IsSelected = currentSelection.Contains(color.ToString())
                 };
-                grid.Children.Add(CreateColorSwatchButton(info, c =>
+                grid.Children.Add(ColorSwatchHelper.CreateColorSwatchButton(info, c =>
                 {
                     ToggleColor(c);
                     RefreshGrid();
@@ -748,44 +763,5 @@ public partial class ModSearchBar : UserControl
         };
 
         flyout.ShowAt(this);
-    }
-
-    private static Button CreateColorSwatchButton(ModColorInfo colorInfo, Action<ModColor> onSelected)
-    {
-        Border swatch = new Border
-        {
-            Width = 30,
-            Height = 30,
-            CornerRadius = new CornerRadius(3),
-            Background = (colorInfo.ModColor == ModColor.None) ? Brushes.Transparent : BrushCache.GetBrush(colorInfo.Color),
-            BorderBrush = colorInfo.IsSelected && Style.instance != null ? BrushCache.GetBrush(Style.instance.selectionColor.ToAvaloniaColor()) : Brushes.Gray,
-            BorderThickness = new Thickness(colorInfo.IsSelected ? 4 : 1)
-        };
-
-        if (colorInfo.ModColor == ModColor.None)
-        {
-            swatch.Child = new TextBlock
-            {
-                Text = "\u2715",
-                FontSize = 11,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.Gray
-            };
-        }
-
-        Button button = new Button
-        {
-            Content = swatch,
-            Padding = new Thickness(0),
-            Margin = new Thickness(2),
-            Background = Brushes.Transparent,
-            BorderThickness = new Thickness(0)
-        };
-
-        ToolTip.SetTip(button, colorInfo.Name);
-        button.Click += (_, _) => onSelected(colorInfo.ModColor);
-
-        return button;
     }
 }

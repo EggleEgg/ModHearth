@@ -154,7 +154,7 @@ namespace ModHearth.Utilities.Workshop
     {
         public const int MaxQueueSize = 100;
 
-        private readonly SemaphoreSlim _concurrencySemaphore = new SemaphoreSlim(3, 3);
+        private readonly SemaphoreSlim _concurrencySemaphore = new(3, 3);
         private readonly object _steamCmdBatchLock = new();
         private readonly SteamWebApiClient _apiClient = new();
         private readonly ModHearthManager _manager;
@@ -334,6 +334,34 @@ namespace ModHearth.Utilities.Workshop
                     }
                 });
             }
+        }
+
+        public async Task RedownloadWorkshopItemsAsync(IEnumerable<ulong> workshopIds)
+        {
+            var ids = workshopIds.Where(id => id > 0).Distinct().ToList();
+            if (ids.Count == 0)
+                return;
+
+            InfoLogger.LogRunDf($"WorkshopQueueManager: Redownloading {ids.Count} workshop items...");
+            var metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
+            if (metadataList.Count == 0)
+            {
+                InfoLogger.LogRunDf("WorkshopQueueManager: Steam API returned no metadata for redownload IDs.");
+                return;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                foreach (var meta in metadataList)
+                {
+                    var existing = Queue.FirstOrDefault(i => i.PublishedFileId == meta.PublishedFileId);
+                    if (existing != null && (existing.State == DownloadState.Completed || existing.State == DownloadState.Failed || existing.State == DownloadState.Cancelled))
+                    {
+                        RemoveFromQueue(existing);
+                    }
+                    Enqueue(meta);
+                }
+            });
         }
 
         public void Enqueue(WorkshopItemMetadata meta)
@@ -615,6 +643,9 @@ namespace ModHearth.Utilities.Workshop
                                     batchItem.SetState(DownloadState.Completed);
                                     batchItem.SetProgress(100, "Completed");
                                     anySuccess = true;
+
+                                    string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
+                                    CleanupOldModFolders(batchItem.PublishedFileId, targetDir);
                                 }
                                 else if (batchItem.Cts!.Token.IsCancellationRequested)
                                 {
@@ -672,6 +703,8 @@ namespace ModHearth.Utilities.Workshop
                                 item.SetState(DownloadState.Completed);
                                 item.SetProgress(100, "Completed");
 
+                                CleanupOldModFolders(item.PublishedFileId, targetDir);
+
                                 TriggerDebouncedUIReload();
                             }
                             else if (token.IsCancellationRequested)
@@ -703,6 +736,40 @@ namespace ModHearth.Utilities.Workshop
                 _ = _concurrencySemaphore.Release();
             }
         }
+
+        private void CleanupOldModFolders(ulong publishedFileId, string targetDir)
+        {
+            try
+            {
+                string idStr = publishedFileId.ToString();
+                string canonicalTargetDir = ConfigManager.ResolveCanonicalPath(targetDir);
+
+                var existingMods = _manager.LoadedMods.Where(m =>
+                    string.Equals(m.steamID, idStr, StringComparison.OrdinalIgnoreCase) ||
+                     (ModHearthManager.TryGetSteamWorkshopItemId(m, out string sId) && string.Equals(sId, idStr, StringComparison.OrdinalIgnoreCase))
+                ).ToList();
+
+                foreach (var oldMod in existingMods)
+                {
+                    if (!string.IsNullOrWhiteSpace(oldMod.path))
+                    {
+                        string canonicalOldPath = ConfigManager.ResolveCanonicalPath(oldMod.path);
+                        if (!string.Equals(canonicalOldPath, canonicalTargetDir, StringComparison.OrdinalIgnoreCase)
+                        && ModHearthManager.CanDeleteModFromModsFolder(oldMod) && _manager.DeleteModFromModsFolder(oldMod, out string _))
+                        {
+                            _manager.ShowNotification($"Deleted old mod folder: {Path.GetFileName(oldMod.path)}", "trashIcon.svg");
+                            InfoLogger.LogRunDf($"WorkshopQueueManager: Deleted old mod folder '{oldMod.path}' for workshop item {publishedFileId}.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                InfoLogger.LogRunDf($"WorkshopQueueManager: Error cleaning up old mod folders for {publishedFileId}: {ex.Message}");
+                AppLogging.LogException($"Error cleaning up old mod folders for {publishedFileId}", ex);
+            }
+        }
+
         private bool _disposed;
         protected virtual void Dispose(bool disposing)
         {

@@ -21,6 +21,27 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
     private bool applyingUndo;
     private readonly ListSelectionController<ModRefViewModel> selectionController = new();
     private readonly ModSearchController searchController;
+    private List<ModRefViewModel>? pickerModsCache;
+    private int pickerModsCacheVersion = -1;
+    private int rulesVersion;
+
+    private List<ModRefViewModel> GetOrBuildPickerMods()
+    {
+        if (pickerModsCache != null && pickerModsCacheVersion == rulesVersion)
+            return pickerModsCache;
+
+        List<ModRefViewModel> copies = allMods.Select(vm =>
+        {
+            ModRefViewModel copy = new(vm.ModReference);
+            MainWindowModListBuilder.CopyClassification(copy, vm);
+            return copy;
+        }).ToList();
+        ModListIndicatorUpdater.UpdateRelationshipBadges(copies, rules);
+
+        pickerModsCache = copies;
+        pickerModsCacheVersion = rulesVersion;
+        return pickerModsCache;
+    }
 
     public event EventHandler? CloseRequested;
 
@@ -507,7 +528,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private Control CreateKnownModRow(ModRefViewModel vm)
     {
-        ModRefViewModel displayVm = new ModRefViewModel(vm.ModReference)
+        ModRefViewModel displayVm = new(vm.ModReference)
         {
             IsVanillaModSource = vm.IsVanillaModSource,
             IsLocalModSource = vm.IsLocalModSource,
@@ -565,7 +586,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         string ownerId = selectedMod.ModReference.ID.Trim();
         ModRelationshipRule rule = GetRule(ownerId);
         HashSet<string> alreadyAdded = new(GetList(rule, kind), StringComparer.OrdinalIgnoreCase);
-        RelationshipPickerWindow picker = new(ownerId, kind, allMods, alreadyAdded, rules)
+        RelationshipPickerWindow picker = new(ownerId, kind, GetOrBuildPickerMods(), alreadyAdded, rules)
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
@@ -605,6 +626,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private void CommitRulesChanged()
     {
+        rulesVersion++;
         NormalizeRules();
         ModListIndicatorUpdater.UpdateRelationshipBadges(allMods, rules);
         onRulesChanged?.Invoke(CloneRules(rules));
@@ -628,6 +650,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             rules.Clear();
             foreach (KeyValuePair<string, ModRelationshipRule> kvp in undoStack.Pop())
                 rules[kvp.Key] = kvp.Value.Clone();
+            rulesVersion++;
             onRulesChanged?.Invoke(CloneRules(rules));
             RefreshEditor();
         }

@@ -7,6 +7,7 @@ public partial class MainWindow
 {
     private void BuildModViewModels()
     {
+        currentJumpHighlighted = null;
         lastRelationshipRulesVersion = -1;
         MainWindowModListBuilder.SyncViewModels(manager, modViewMap);
     }
@@ -153,7 +154,7 @@ public partial class MainWindow
     // modViewMap, rather than trusting activeMods' displayed order directly.
     private List<ModRefViewModel> BuildEnabledOrderViewModels()
     {
-        List<ModRefViewModel> master = new List<ModRefViewModel>(manager.enabledMods.Count);
+        List<ModRefViewModel> master = new(manager.enabledMods.Count);
         foreach (DFHMod mod in manager.enabledMods)
         {
             if (modViewMap.TryGetValue(mod.ToString(), out ModRefViewModel? vm) && vm != null)

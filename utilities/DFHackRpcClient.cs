@@ -28,7 +28,7 @@ namespace ModHearth.Utilities
 
             try
             {
-                using TcpClient client = new TcpClient();
+                using TcpClient client = new();
                 // Brief timeout to avoid blocking the UI if DF is not running or listening
                 var connectTask = client.ConnectAsync("127.0.0.1", port);
                 if (!connectTask.Wait(1000))
@@ -77,7 +77,7 @@ namespace ModHearth.Utilities
                 LogRpcClient($"Sent RunCommand request. Command: {command}, Args: {string.Join(", ", args)}");
 
                 // 4. Read response loop
-                StringBuilder outputSb = new StringBuilder();
+                StringBuilder outputSb = new();
                 while (true)
                 {
                     byte[] responseHeader = ReadExactly(stream, 8);
@@ -126,7 +126,7 @@ namespace ModHearth.Utilities
 
         private static byte[] SerializeRunCommandRequest(string command, List<string> args)
         {
-            using MemoryStream ms = new MemoryStream();
+            using MemoryStream ms = new();
 
             // Field 1: command (string) -> tag 0x0A (1 << 3 | 2)
             byte[] cmdBytes = Encoding.UTF8.GetBytes(command);
@@ -158,7 +158,7 @@ namespace ModHearth.Utilities
 
         private static string DecodeTextNotification(byte[] payload)
         {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new();
             int index = 0;
             while (index < payload.Length)
             {
@@ -272,7 +272,7 @@ namespace ModHearth.Utilities
             int port = ResolveDFHackPort(dfFolderPath);
             try
             {
-                using Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                using Socket socket = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 socket.Blocking = false;
                 try
                 {

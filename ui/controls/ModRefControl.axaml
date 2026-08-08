@@ -59,6 +59,7 @@
         <MenuItem Header="Clear All Relationships" Tag="relation-clear-all" Click="OnContextMenuItemClick" />
       </MenuItem>
       <MenuItem Header="Delete local mod" Tag="delete-mod" Click="OnContextMenuItemClick" />
+      <MenuItem Header="Delete Duplicate Mod" Tag="delete-duplicate-mod-root" IsVisible="False" />
       <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnContextMenuItemClick" />
       <Separator Tag="separator-1" />
@@ -193,7 +194,7 @@
 
         <Image Width="10" Height="10" Margin="0"
                VerticalAlignment="Center"
-               Source="{Binding TextBrush, Converter={x:Static ui:TintedAssetConverter.Instance}, ConverterParameter=filterIcon.svg}" />
+               Source="{Binding FilterIconImage}" />
         <TextBlock Text="{Binding RelationshipCount}"
                    FontSize="11"
                    FontWeight="Medium"

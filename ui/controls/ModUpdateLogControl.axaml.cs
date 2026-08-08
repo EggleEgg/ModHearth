@@ -17,7 +17,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
     private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
     private ModRefControl? contextMenuHost;
     private IBrush backgroundColorBrush = Brushes.Transparent;
-    private readonly SemaphoreSlim loadGate = new SemaphoreSlim(1, 1);
+    private readonly SemaphoreSlim loadGate = new(1, 1);
     private bool loadRerunRequested;
     private int loadedRawCount;
 
@@ -349,11 +349,13 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         }
     }
 
+    private static readonly Binding BackgroundBrushBinding = new(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay };
+
     private void LogListLoadingRow(object? sender, DataGridRowEventArgs e)
     {
         _ = e.Row.Bind(
             BackgroundProperty,
-            new Binding(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay });
+            BackgroundBrushBinding);
 
         if (e.Row.DataContext is ModUpdateLogItemViewModel vm && DevMode.IsEnabled)
             Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");

@@ -65,7 +65,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private readonly Dictionary<string, ModRefViewModel> modViewMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ModListDragDropController modListController;
     private readonly ShortcutKeyHandler shortcutKeyHandler;
-    private readonly SemaphoreSlim autoActionGate = new SemaphoreSlim(1, 1); // lives with SetAndMarkChangesAsync's other state
+    private readonly SemaphoreSlim autoActionGate = new(1, 1); // lives with SetAndMarkChangesAsync's other state
     private bool autoActionRerunRequested;
 
     private DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>? _workshopDockManager;

@@ -44,7 +44,8 @@ public partial class MessageDialog : Window
         string? noText = null,
         string? cancelText = null)
     {
-        MessageDialog dialog = new MessageDialog
+        MessageDialog dialog = new()
+
         {
             Title = title,
             WindowStartupLocation = WindowStartupLocation.CenterOwner

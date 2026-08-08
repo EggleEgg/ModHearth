@@ -10,8 +10,8 @@ internal static class SteamAcfKeyValueParser
 {
     public static Dictionary<string, object> Parse(string content)
     {
-        Dictionary<string, object> root = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        Stack<Dictionary<string, object>> stack = new Stack<Dictionary<string, object>>();
+        Dictionary<string, object> root = new(StringComparer.OrdinalIgnoreCase);
+        Stack<Dictionary<string, object>> stack = new();
         Dictionary<string, object> current = root;
         string? currentKey = null;
 
@@ -21,7 +21,7 @@ internal static class SteamAcfKeyValueParser
             {
                 case "{":
                     {
-                        Dictionary<string, object> child = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                        Dictionary<string, object> child = new(StringComparer.OrdinalIgnoreCase);
                         if (!string.IsNullOrWhiteSpace(currentKey))
                         {
                             current[currentKey] = child;
@@ -59,7 +59,7 @@ internal static class SteamAcfKeyValueParser
         if (string.IsNullOrEmpty(content))
             yield break;
 
-        StringBuilder builder = new StringBuilder();
+        StringBuilder builder = new();
         bool inString = false;
         int i = 0;
         int length = content.Length;

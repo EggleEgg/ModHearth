@@ -150,9 +150,9 @@ public sealed class SteamWorkshopService
             if (process == null)
                 return false;
 
-            StringBuilder stdoutBuilder = new StringBuilder();
-            StringBuilder stderrBuilder = new StringBuilder();
-            object outputGate = new object();
+            StringBuilder stdoutBuilder = new();
+            StringBuilder stderrBuilder = new();
+            object outputGate = new();
 
             // Read output line-by-line as it's produced (rather than blocking on ReadToEndAsync
             // until the process exits) so progress lines reach onProgress in real time instead of

@@ -175,13 +175,15 @@ public partial class MainWindow
         autoReloadSecondsTextBox.TextChanged += AutoReloadSecondsTextChanged;
         autoReloadSecondsTextBox.LostFocus += AutoReloadSecondsLostFocus;
 
-        TextBlock label = new TextBlock
+        TextBlock label = new()
+
         {
             Text = "Every (seconds):",
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        StackPanel secondsRow = new StackPanel
+        StackPanel secondsRow = new()
+
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8
@@ -189,7 +191,8 @@ public partial class MainWindow
         secondsRow.Children.Add(label);
         secondsRow.Children.Add(autoReloadSecondsTextBox);
 
-        StackPanel panel = new StackPanel
+        StackPanel panel = new()
+
         {
             Margin = new Thickness(6),
             Spacing = 8,
@@ -367,7 +370,8 @@ public partial class MainWindow
         if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName) || !Directory.Exists(directory))
             return;
 
-        DispatcherTimer newReloadTimer = new DispatcherTimer
+        DispatcherTimer newReloadTimer = new()
+
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };

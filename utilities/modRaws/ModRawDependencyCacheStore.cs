@@ -12,7 +12,7 @@ namespace ModHearth.Utilities
         // cached rows unsafe to reuse as-is (e.g. the ObjectType:Id key format introduced here).
         // Load() discards a cache file written under a different version wholesale, forcing a
         // one-time full rescan rather than silently mixing old- and new-format data.
-        private const int CurrentSchemaVersion = 2;
+        private const int CurrentSchemaVersion = 3;
 
         public static Dictionary<string, ModRawDependencyInfo> Load()
         {
@@ -54,7 +54,7 @@ namespace ModHearth.Utilities
                     if (!string.IsNullOrWhiteSpace(directory))
                         _ = Directory.CreateDirectory(directory);
 
-                    CacheFile file = new CacheFile { SchemaVersion = CurrentSchemaVersion, Entries = entries.ToList() };
+                    CacheFile file = new() { SchemaVersion = CurrentSchemaVersion, Entries = entries.ToList() };
                     string json = JsonSerializer.Serialize(file, new JsonSerializerOptions { WriteIndented = true });
                     File.WriteAllText(CachePath, json);
                 }

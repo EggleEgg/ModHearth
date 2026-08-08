@@ -17,7 +17,7 @@ public partial class UpdateDialog : Window
         IReadOnlyList<GitHubRelease> releases,
         string currentBuild)
     {
-        UpdateDialog dialog = new UpdateDialog
+        UpdateDialog dialog = new()
         {
             Title = "Update ModHearth",
             WindowStartupLocation = WindowStartupLocation.CenterOwner

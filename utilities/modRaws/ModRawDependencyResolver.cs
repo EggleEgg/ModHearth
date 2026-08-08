@@ -53,6 +53,11 @@ public partial class ModHearthManager
                 modref.numericVersion ?? string.Empty,
                 stamp,
                 vanillaBaseline);
+
+            scanned.Capabilities = ModCapabilityScanner.Scan(
+                modref.path,
+                hasRawDefinitions: rawDatabase.DefinedObjects.Count > 0,
+                hasGraphics: rawDatabase.HasGraphics);
             resolved[modId] = scanned;
             Interlocked.Increment(ref scannedCount);
             return ValueTask.CompletedTask;

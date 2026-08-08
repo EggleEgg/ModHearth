@@ -41,6 +41,7 @@ internal static class UpdateService
         ("libsteam_api.dylib", false, CleanupPlatforms.Windows | CleanupPlatforms.Linux),
         ("libsteam_api.so", false, CleanupPlatforms.Windows | CleanupPlatforms.macOS),
         ("steam_api64.dll", false, CleanupPlatforms.Linux | CleanupPlatforms.macOS ),
+        ("ModHearth.dll", false, CleanupPlatforms.All),
 
         ("libSkiaSharp.pdb", false, CleanupPlatforms.All),
         ("libHarfBuzzSharp.pdb", false, CleanupPlatforms.All),
@@ -121,7 +122,7 @@ internal static class UpdateService
     private static async Task<List<GitHubRelease>> FetchRecentBuildsAsync(int count)
     {
         string url = $"https://api.github.com/repos/{UpdateRepoOwner}/{UpdateRepoName}/releases?per_page={count}";
-        using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url);
+        using HttpRequestMessage request = new(HttpMethod.Get, url);
         using HttpResponseMessage response = await UpdateHttpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
@@ -167,7 +168,22 @@ internal static class UpdateService
         _ = Directory.CreateDirectory(tempRoot);
         UpdateLogger.Log($"Update temp directory: {tempRoot}");
 
-        string assetPath = await DownloadAssetAsync(asset, tempRoot);
+        string releaseTitle = UpdateHelpers.GetReleaseTitle(release, 0);
+        bool downloadSuccess = await ReleaseDownloadDialog.ShowAndDownloadAsync(owner, releaseTitle, async (progress, cancellationToken) =>
+        {
+            progress.Report("Downloading release asset...");
+            await DownloadAssetWithProgressAsync(asset, tempRoot, progress, cancellationToken);
+            return true;
+        });
+
+        if (!downloadSuccess)
+        {
+            UpdateLogger.Log("Update download canceled or failed.");
+            return false;
+        }
+
+        string fileName = asset.Name ?? "ModHearth-update";
+        string assetPath = Path.Combine(tempRoot, fileName);
         UpdateLogger.Log($"Downloaded update asset: {assetPath}");
         string extractDir = Path.Combine(tempRoot, "extract");
         _ = Directory.CreateDirectory(extractDir);
@@ -281,7 +297,7 @@ internal static class UpdateService
         if (ContainsAppFiles(extractDir))
             return extractDir;
 
-        DirectoryInfo root = new DirectoryInfo(extractDir);
+        DirectoryInfo root = new(extractDir);
         DirectoryInfo[] subDirs;
         try
         {
@@ -342,7 +358,7 @@ internal static class UpdateService
         return File.Exists(exe) || File.Exists(bin) || File.Exists(dll);
     }
 
-    private static async Task<string> DownloadAssetAsync(GitHubAsset asset, string tempRoot)
+    private static async Task<string> DownloadAssetWithProgressAsync(GitHubAsset asset, string tempRoot, IProgress<string> progress, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(asset.BrowserDownloadUrl))
             throw new InvalidOperationException("Release asset is missing a download URL.");
@@ -350,23 +366,44 @@ internal static class UpdateService
         string fileName = asset.Name ?? "ModHearth-update";
         string destinationPath = Path.Combine(tempRoot, fileName);
 
-        using HttpResponseMessage response = await UpdateHttpClient.GetAsync(asset.BrowserDownloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        using HttpResponseMessage response = await UpdateHttpClient.GetAsync(asset.BrowserDownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             string status = $"{(int)response.StatusCode} {response.ReasonPhrase}";
             throw new InvalidOperationException($"Failed to download update ({status}).");
         }
 
-        await using Stream responseStream = await response.Content.ReadAsStreamAsync();
+        long? totalBytes = response.Content.Headers.ContentLength;
+        await using Stream responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using FileStream fileStream = File.Create(destinationPath);
-        await responseStream.CopyToAsync(fileStream);
+
+        byte[] buffer = new byte[81920];
+        long totalRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = await responseStream.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+            totalRead += bytesRead;
+
+            if (totalBytes.HasValue && totalBytes.Value > 0)
+            {
+                double percentage = (double)totalRead / totalBytes.Value * 100;
+                progress.Report($"Downloading {fileName} ({percentage:F0}%, {totalRead / 1024 / 1024} MB / {totalBytes.Value / 1024 / 1024} MB)");
+            }
+            else
+            {
+                progress.Report($"Downloading {fileName} ({totalRead / 1024 / 1024} MB downloaded)");
+            }
+        }
+
         return destinationPath;
     }
 
     private static void ExtractTarGz(string archivePath, string destinationDirectory)
     {
         using FileStream fileStream = File.OpenRead(archivePath);
-        using GZipStream gzip = new GZipStream(fileStream, CompressionMode.Decompress);
+        using GZipStream gzip = new(fileStream, CompressionMode.Decompress);
         TarFile.ExtractToDirectory(gzip, destinationDirectory, true);
     }
 
@@ -438,7 +475,7 @@ internal static class UpdateService
             string destinationDirTrimmed = Path.TrimEndingDirectorySeparator(destinationDir);
             string exePath = ResolveUpdatedExecutablePath(destinationDirTrimmed);
 
-            StringBuilder script = new StringBuilder();
+            StringBuilder script = new();
             _ = script.AppendLine("@echo off");
             _ = script.AppendLine("setlocal");
             _ = script.AppendLine($"set \"PID={pid}\"");
@@ -486,7 +523,8 @@ internal static class UpdateService
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
 
-            ProcessStartInfo psi = new ProcessStartInfo
+            ProcessStartInfo psi = new()
+
             {
                 FileName = "cmd.exe",
                 Arguments = $"/c \"\"{scriptPath}\"\"",
@@ -526,7 +564,7 @@ internal static class UpdateService
             string scriptPath = Path.Combine(Path.GetTempPath(), $"modhearth_update_{Guid.NewGuid():N}.sh");
             string exePath = ResolveUpdatedExecutablePath(destinationDir);
 
-            StringBuilder script = new StringBuilder();
+            StringBuilder script = new();
             _ = script.AppendLine("#!/bin/sh");
             _ = script.AppendLine($"PID={pid}");
             _ = script.AppendLine($"SRC=\"{sourceDir}\"");
@@ -590,7 +628,8 @@ internal static class UpdateService
 
             File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
 
-            ProcessStartInfo psi = new ProcessStartInfo
+            ProcessStartInfo psi = new()
+
             {
                 UseShellExecute = false,
                 CreateNoWindow = true
@@ -642,7 +681,7 @@ internal static class UpdateService
 
     private static HttpClient CreateUpdateHttpClient()
     {
-        HttpClient client = new HttpClient();
+        HttpClient client = new();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("ModHearth/1.0");
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         return client;

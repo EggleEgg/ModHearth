@@ -46,7 +46,7 @@ public class PackageVersionConsistencyTests
 
     private static string FindMainCsprojPath()
     {
-        DirectoryInfo? dir = new DirectoryInfo(AppContext.BaseDirectory);
+        DirectoryInfo? dir = new(AppContext.BaseDirectory);
         while (dir != null)
         {
             string candidate = Path.Combine(dir.FullName, "ModHearth.csproj");

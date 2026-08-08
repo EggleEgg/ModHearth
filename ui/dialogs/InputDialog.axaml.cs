@@ -15,7 +15,7 @@ public partial class InputDialog : Window
 
     public static async Task<string?> ShowAsync(Window owner, string prompt, string title, string defaultValue)
     {
-        InputDialog dialog = new InputDialog
+        InputDialog dialog = new()
         {
             Title = title,
             WindowStartupLocation = WindowStartupLocation.CenterOwner

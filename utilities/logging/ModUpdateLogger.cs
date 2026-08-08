@@ -123,7 +123,7 @@ public static class ModUpdateLogger
                     return Array.Empty<ModUpdateLogEntry>();
                 }
 
-                FileInfo fileInfo = new FileInfo(LogPath);
+                FileInfo fileInfo = new(LogPath);
                 InfoLogger.LogRunDf($"ModUpdateLogger: Loading log file from '{LogPath}'. Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTimeUtc} UTC");
 
                 string json = File.ReadAllText(LogPath);
@@ -231,7 +231,8 @@ public static class ModUpdateLogger
 
                     // Update the snapshot entry for this mod
                     string path = ResolveCanonicalPath(modref.path ?? string.Empty);
-                    ModUpdateSnapshotEntry entry = new ModUpdateSnapshotEntry
+                    ModUpdateSnapshotEntry entry = new()
+
                     {
                         ModId = id,
                         ModName = string.IsNullOrWhiteSpace(modref.name) ? id : modref.name,
@@ -283,7 +284,7 @@ public static class ModUpdateLogger
                 }
 
                 Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
-                HashSet<string> activeIds = new HashSet<string>(
+                HashSet<string> activeIds = new(
                     activeMods.Select(m => m.id),
                     StringComparer.OrdinalIgnoreCase);
 
@@ -424,7 +425,8 @@ public static class ModUpdateLogger
         ModUpdateChangeType changeType,
         DateTime? timestampUtc)
     {
-        ModUpdateSnapshotEntry entry = new ModUpdateSnapshotEntry
+        ModUpdateSnapshotEntry entry = new()
+
         {
             ModId = modref.ID?.Trim() ?? string.Empty,
             ModName = string.IsNullOrWhiteSpace(modref.name) ? (modref.ID?.Trim() ?? string.Empty) : modref.name,
@@ -554,7 +556,7 @@ public static class ModUpdateLogger
             long infoSize = 0;
             if (File.Exists(infoPath))
             {
-                FileInfo info = new FileInfo(infoPath);
+                FileInfo info = new(infoPath);
                 infoTicks = info.LastWriteTimeUtc.Ticks;
                 infoSize = info.Length;
             }
@@ -580,7 +582,7 @@ public static class ModUpdateLogger
             {
                 try
                 {
-                    FileInfo fileInfo = new FileInfo(filePath);
+                    FileInfo fileInfo = new(filePath);
                     string relativePath = Path.GetRelativePath(normalizedPath, filePath);
                     if (Path.IsPathRooted(relativePath) && !relativePath.StartsWith("..", StringComparison.Ordinal))
                     {
@@ -763,7 +765,7 @@ public static class ModUpdateLogger
             return entries;
         }
 
-        Dictionary<string, ModReference> steamIdMap = new Dictionary<string, ModReference>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, ModReference> steamIdMap = new(StringComparer.OrdinalIgnoreCase);
         foreach (ModReference modref in mods)
         {
             if (modref == null)
@@ -807,7 +809,7 @@ public static class ModUpdateLogger
 
     private static Dictionary<string, long> LoadWorkshopUpdateTimes(IEnumerable<string> acfPaths)
     {
-        Dictionary<string, long> updates = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, long> updates = new(StringComparer.OrdinalIgnoreCase);
         foreach (string path in acfPaths)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
@@ -890,7 +892,7 @@ public static class ModUpdateLogger
             if (entries == null)
                 return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
 
-            Dictionary<string, long> map = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, long> map = new(StringComparer.OrdinalIgnoreCase);
             foreach (SteamWorkshopSnapshotEntry entry in entries)
             {
                 if (entry == null || string.IsNullOrWhiteSpace(entry.SteamId))

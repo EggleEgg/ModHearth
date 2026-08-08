@@ -123,6 +123,8 @@ namespace ModHearth
         // Maps strings to ModReferences. The keys match DFHMods.ToString() perfectly. Given a value V, V.ToDFHMod.ToString() returns it's key.
         private volatile Dictionary<string, ModReference> modrefMap = new(StringComparer.OrdinalIgnoreCase);
 
+        public ModCapabilities GetModCapabilities(ModReference? modref) => modref != null ? GetRawDependencyInfo(modref)?.Capabilities ?? ModCapabilities.None : ModCapabilities.None;
+
         // Get all currently loaded ModReferences.
         public IReadOnlyCollection<ModReference> LoadedMods => modrefMap.Values;
 
@@ -135,7 +137,7 @@ namespace ModHearth
         // Get a ModReference given a DFHMod key.
         public ModReference GetRefFromDFHMod(DFHMod dfmod) => modrefMap[dfmod.ToString()];
 
-        public IReadOnlyDictionary<string, List<ModReference>> GetDuplicateModRefs() => duplicateModRefs;
+        public IReadOnlyDictionary<string, List<ModReference>> GetDuplicateModRefs() => filteredDuplicateModRefs;
 
         // The sorted list of enabled DFHmods. This list is modified by the form, and when saved it overwrites the list of a ModPack.
         public volatile List<DFHMod> enabledMods = [];
@@ -178,6 +180,8 @@ namespace ModHearth
         // Mod problem tracker.
         public volatile List<ModProblem> modproblems = [];
         private volatile Dictionary<string, List<ModReference>> duplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
+        // Duplicate mod reference dictionary filtered to exclude SteamLocal sources for UI duplicate deletion context menus.
+        private volatile Dictionary<string, List<ModReference>> filteredDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
         private volatile Dictionary<string, List<string>> duplicateWarningMap = new(StringComparer.OrdinalIgnoreCase);
         private volatile Dictionary<string, List<string>> cacheDuplicateMap = new(StringComparer.OrdinalIgnoreCase);
         private volatile List<HashSet<string>> duplicateWarningGroups = [];
@@ -426,7 +430,8 @@ namespace ModHearth
                 if (string.IsNullOrWhiteSpace(key) || kvp.Value == null)
                     continue;
 
-                ModRelationshipRule rule = new ModRelationshipRule
+                ModRelationshipRule rule = new()
+
                 {
                     BeforeIds = NormalizeIdList(kvp.Value.BeforeIds),
                     AfterIds = NormalizeIdList(kvp.Value.AfterIds),
@@ -480,8 +485,8 @@ namespace ModHearth
             if (rules == null)
                 return normalized;
 
-            HashSet<string> seenEdges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            HashSet<string> seenRequires = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> seenEdges = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> seenRequires = new(StringComparer.OrdinalIgnoreCase);
             foreach (ModSortRule rule in rules)
             {
                 if (rule == null)
@@ -595,7 +600,8 @@ namespace ModHearth
         {
             try
             {
-                JsonSerializerOptions options = new JsonSerializerOptions
+                JsonSerializerOptions options = new()
+
                 {
                     WriteIndented = true
                 };
@@ -612,7 +618,8 @@ namespace ModHearth
         {
             try
             {
-                JsonSerializerOptions options = new JsonSerializerOptions
+                JsonSerializerOptions options = new()
+
                 {
                     WriteIndented = true
                 };
@@ -783,7 +790,7 @@ namespace ModHearth
 
         private List<DFHModpack> CreateDefaultModpacks()
         {
-            DFHModpack newPack = new DFHModpack(true, GenerateVanillaModlist(), "Default");
+            DFHModpack newPack = new(true, GenerateVanillaModlist(), "Default");
             return [newPack];
         }
 
@@ -842,7 +849,7 @@ namespace ModHearth
             List<DFHMod> newEnabledMods = enabledMods.Where(m => m != dfm).ToList();
             HashSet<DFHMod> newDisabledMods = [.. disabledMods];
             _ = newDisabledMods.Remove(dfm);
-            Dictionary<string, ModReference> newModrefMap = new Dictionary<string, ModReference>(modrefMap, StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ModReference> newModrefMap = new(modrefMap, StringComparer.OrdinalIgnoreCase);
             _ = newModrefMap.Remove(modrefKey);
 
             lock (stateGate)
@@ -856,6 +863,7 @@ namespace ModHearth
             RefreshInstalledCacheModIds();
             FindModlistProblems();
             _ = TryRequestModManagerReload(out _, out _);
+            TriggerUIReload();
 
             message = $"Deleted {modPath}";
             return true;
@@ -962,7 +970,7 @@ namespace ModHearth
 
             // A plain membership set has no "which duplicate wins" concern (unlike BuildModIdPathMap's
             // dir-per-id map), so a ConcurrentDictionary-backed set is enough
-            ConcurrentDictionary<string, byte> ids = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+            ConcurrentDictionary<string, byte> ids = new(StringComparer.OrdinalIgnoreCase);
             _ = Parallel.ForEach(candidateDirs, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
@@ -1043,7 +1051,7 @@ namespace ModHearth
                 modDataEntry[scrDir] = ResolveModPath(modDataEntry, modIdPathMap);
 
                 // Mod setup and registry.
-                ModReference modRef = new ModReference(modDataEntry)
+                ModReference modRef = new(modDataEntry)
                 {
                     LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"])
                 };
@@ -1128,9 +1136,7 @@ namespace ModHearth
             void FlushRootDiagnostics()
             {
                 if (currentRoot != null)
-                {
                     InfoLogger.Log($"Disk mod scan root: '{NormalizeFileSystemPath(currentRoot)}' candidates: {candidateCount}, added: {addedCount}, duplicates: {duplicateCount}, total registered: {newModrefMap.Count}.");
-                }
             }
 
             for (int i = 0; i < candidates.Count; i++)
@@ -1187,7 +1193,7 @@ namespace ModHearth
             if (!modData.TryGetValue("id", out string? id) || string.IsNullOrWhiteSpace(id))
                 return null;
 
-            ModReference modRef = new ModReference(modData)
+            ModReference modRef = new(modData)
             {
                 MissingVersion = missingVersion,
                 LastModifiedTime = GetLatestModifiedTimestampCached(dir)
@@ -1207,11 +1213,30 @@ namespace ModHearth
             HashSet<DFHMod> newModPool,
             Dictionary<string, List<ModReference>> newDuplicateModRefs)
         {
+            Dictionary<string, List<ModReference>> newFilteredDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in newDuplicateModRefs)
+            {
+                var nonSteamLocalList = kvp.Value.Where(m =>
+                {
+                    (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(
+                        m,
+                        GetModsPath(),
+                        GetVanillaModsPath());
+                    return !isSteamLocal;
+                }).ToList();
+
+                if (nonSteamLocalList.Count > 1)
+                {
+                    newFilteredDuplicateModRefs[kvp.Key] = nonSteamLocalList;
+                }
+            }
+
             lock (stateGate)
             {
                 modrefMap = newModrefMap;
                 modPool = newModPool;
                 duplicateModRefs = newDuplicateModRefs;
+                filteredDuplicateModRefs = newFilteredDuplicateModRefs;
             }
         }
 
@@ -1255,7 +1280,7 @@ namespace ModHearth
                 yield break;
 
             StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            HashSet<string> seen = new HashSet<string>(comparer);
+            HashSet<string> seen = new(comparer);
 
             foreach (string candidate in Directory.EnumerateDirectories(root))
             {
@@ -1383,7 +1408,7 @@ namespace ModHearth
                         string tag = info.Substring(tagStart + 1, colonIndex - tagStart - 1);
                         int valueStart = colonIndex + 1;
                         int depth = 1;
-                        StringBuilder valueBuilder = new StringBuilder();
+                        StringBuilder valueBuilder = new();
 
                         int j = valueStart;
                         while (j < info.Length)
@@ -1502,7 +1527,7 @@ namespace ModHearth
             });
 
             // Sequential-merge phase: same "first occurrence across roots/dirs wins" as the original loop.
-            Dictionary<string, string> map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
             foreach ((string? Id, string Dir)? entry in results)
             {
                 if (entry == null || string.IsNullOrEmpty(entry.Value.Id))
@@ -1640,7 +1665,8 @@ namespace ModHearth
                 throw new FileNotFoundException("dfhack-run executable not found.", dfhackRunPath);
 
             // Set up dfhack process.
-            ProcessStartInfo processStartInfo = new ProcessStartInfo
+            ProcessStartInfo processStartInfo = new()
+
             {
                 FileName = dfhackRunPath,
                 WorkingDirectory = Config!.DFFolderPath,
@@ -1652,7 +1678,8 @@ namespace ModHearth
             };
 
             // Start dfhack process.
-            Process process = new Process
+            Process process = new()
+
             {
                 StartInfo = processStartInfo
             };
@@ -1673,6 +1700,7 @@ namespace ModHearth
         }
 
         private static bool isDfSessionActive;
+        private static bool hasDfBeenSeenActive;
         private static DateTime lastDfLaunchTime = DateTime.MinValue;
 
         // Check if DF is running
@@ -1681,23 +1709,26 @@ namespace ModHearth
             if (DFMonitor.Shared.IsProcessRunning())
             {
                 isDfSessionActive = true;
+                hasDfBeenSeenActive = true;
                 return true;
             }
 
             if (IsDfhackRpcRunning())
             {
                 isDfSessionActive = true;
+                hasDfBeenSeenActive = true;
                 return true;
             }
 
-            // Account for initialization slowness if DF was recently launched
-            if (DFMonitor.Shared.IsBooting() || (isDfSessionActive && (DateTime.UtcNow - lastDfLaunchTime).TotalSeconds < 60))
+            // Account for initialization slowness if DF was recently launched and has not been seen active yet
+            if (!hasDfBeenSeenActive && (DFMonitor.Shared.IsBooting() || (isDfSessionActive && (DateTime.UtcNow - lastDfLaunchTime).TotalSeconds < 60)))
             {
                 return true;
             }
 
-            // Both process monitor and RPC checks failed, and process is not booting. DF is not running.
+            // Both process monitor and RPC checks failed, and process is not booting (or was already seen active). DF is not running.
             isDfSessionActive = false;
+            hasDfBeenSeenActive = false;
             return false;
         }
 
@@ -1736,7 +1767,8 @@ namespace ModHearth
                     bool launched = false;
                     try
                     {
-                        ProcessStartInfo startInfo = new ProcessStartInfo
+                        ProcessStartInfo startInfo = new()
+
                         {
                             FileName = "steam://run/975370",
                             UseShellExecute = true
@@ -1765,7 +1797,8 @@ namespace ModHearth
                             try
                             {
                                 InfoLogger.LogRunDf($"Trying fallback Steam CLI launch ({steamExecutable} -applaunch 975370)...");
-                                ProcessStartInfo fallbackStartInfo = new ProcessStartInfo
+                                ProcessStartInfo fallbackStartInfo = new()
+
                                 {
                                     FileName = steamExecutable,
                                     Arguments = "-applaunch 975370",
@@ -1794,6 +1827,7 @@ namespace ModHearth
                     }
 
                     isDfSessionActive = true;
+                    hasDfBeenSeenActive = false;
                     lastDfLaunchTime = DateTime.UtcNow;
 
                     if (OperatingSystem.IsLinux())
@@ -1825,7 +1859,8 @@ namespace ModHearth
                 {
                     InfoLogger.LogRunDf($"Launching Dwarf Fortress executable directly: {executablePath}");
 
-                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    ProcessStartInfo startInfo = new()
+
                     {
                         FileName = executablePath,
                         WorkingDirectory = dfFolderPath,
@@ -1852,6 +1887,7 @@ namespace ModHearth
 
                     DFMonitor.Shared.RegisterLaunchedPid(started.Id);
                     isDfSessionActive = true;
+                    hasDfBeenSeenActive = false;
                     lastDfLaunchTime = DateTime.UtcNow;
                     InfoLogger.LogRunDf($"Started direct process PID = {started.Id}");
 
@@ -2063,7 +2099,8 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
                 return false;
 
-            ProcessStartInfo processStartInfo = new ProcessStartInfo
+            ProcessStartInfo processStartInfo = new()
+
             {
                 FileName = dfhackRunPath,
                 WorkingDirectory = Config!.DFFolderPath,
@@ -2076,7 +2113,7 @@ namespace ModHearth
 
             try
             {
-                using Process process = new Process { StartInfo = processStartInfo };
+                using Process process = new() { StartInfo = processStartInfo };
                 _ = process.Start();
                 string output = process.StandardOutput.ReadToEnd();
                 string error = process.StandardError.ReadToEnd();
@@ -2108,7 +2145,7 @@ namespace ModHearth
             if (!DwarfFortressRunning())
                 return;
 
-            CancellationTokenSource cts = new CancellationTokenSource();
+            CancellationTokenSource cts = new();
             lock (modManagerReloadGate)
             {
                 deferredModManagerReloadCts?.Cancel();
@@ -2335,13 +2372,13 @@ namespace ModHearth
                 }
             }
 
-            HashSet<string> scannedModIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            HashSet<string> unscannedModIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> scannedModIDs = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> unscannedModIDs = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (DFHMod dfm in enabledMods)
                 _ = unscannedModIDs.Add(dfm.id);
 
-            HashSet<string> allEnabledIDs = new HashSet<string>(unscannedModIDs, StringComparer.OrdinalIgnoreCase);
+            HashSet<string> allEnabledIDs = new(unscannedModIDs, StringComparer.OrdinalIgnoreCase);
             string modNeedIsStr = " needs mod: ";
 
             for (int i = 0; i < enabledMods.Count; i++)
@@ -2667,11 +2704,17 @@ namespace ModHearth
             Dictionary<string, List<string>> newMap = new(StringComparer.OrdinalIgnoreCase);
             List<HashSet<string>> newGroups = [];
             Dictionary<string, List<string>> definitionToMods = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> activeCutIds = new(StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in cache.Values)
             {
                 if (!activeModIds.Contains(entry.ModId))
                     continue;
+
+                foreach (var cutId in entry.CutTargetIds)
+                {
+                    _ = activeCutIds.Add(cutId);
+                }
 
                 foreach (var defId in entry.DirectDefinitionIds)
                 {
@@ -2688,7 +2731,10 @@ namespace ModHearth
             {
                 if (kvp.Value.Count > 1)
                 {
-                    HashSet<string> group = new HashSet<string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
+                    if (activeCutIds.Contains(kvp.Key))
+                        continue;
+
+                    HashSet<string> group = new(kvp.Value, StringComparer.OrdinalIgnoreCase);
                     newGroups.Add(group);
 
                     string displayLabel = ObjectKey.FormatForDisplay(kvp.Key);
@@ -2778,7 +2824,7 @@ namespace ModHearth
             int defaultIndex = -1;
             int preferredIndex = -1;
 
-            StringBuilder messageBuilder = new StringBuilder(missingMessage);
+            StringBuilder messageBuilder = new(missingMessage);
 
             // Go through modpacks, and go through their modlists, looking for mods that we don't have.
             for (int i = 0; i < newModpacks.Count; i++)

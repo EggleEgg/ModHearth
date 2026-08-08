@@ -1,20 +1,33 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Input.Platform;
+using Avalonia;
+using Avalonia.Layout;
+using Avalonia.Media;
 using System.Collections;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using ModHearth.Utilities.Steam;
+using Avalonia.Controls.ApplicationLifetimes;
 
 namespace ModHearth.UI;
 
 internal readonly record struct ModContextMenuState(
     int LocalCount,
     int SteamCount,
+    int SteamRedownloadCount,
+    int LocalSteamCmdRedownloadCount,
     bool CanOpenFolder,
     bool HasSteamPage,
     bool ShowSteamActionsForContext,
-    bool IsSteamLocal)
+    bool IsSteamLocal,
+    bool IsSteamCmdAvailable)
 {
     public bool HasLocalActions => LocalCount > 0;
     public bool HasSteamActions => ShowSteamActionsForContext && SteamCount > 0;
+    public int TotalRedownloadCount => SteamRedownloadCount + LocalSteamCmdRedownloadCount;
+    public bool HasRedownloadActions => TotalRedownloadCount > 0;
 }
 
 internal static class ModContextMenuSupport
@@ -26,6 +39,7 @@ internal static class ModContextMenuSupport
     public const string OpenSteamTag = "open-steam";
     public const string CopyIdTag = "copy-id";
     public const string SetModColorTag = "set-mod-color";
+    public const string DeleteDuplicateModTag = "delete-duplicate-mod-root";
 
     public static void PrepareContextMenu(
         ContextMenu menu,
@@ -36,6 +50,7 @@ internal static class ModContextMenuSupport
         ContextMenuCoordinator.Activate(menu);
         ModContextMenuState state = BuildState(manager, contextMod, selectedMods);
         ApplyState(menu, state);
+        ConfigureDuplicateModSubmenu(menu, manager, contextMod);
     }
 
     public static void EnsureContextItemSelected(IList? selectedItems, object contextItem)
@@ -99,61 +114,43 @@ internal static class ModContextMenuSupport
             ModHearthManager.GetModsPath(),
             ModHearthManager.GetVanillaModsPath());
 
+        bool isSteamCmdAvailable = new SteamCmdService().IsAvailable();
+
+        int steamRedownloadCount = steamMods.Count;
+
+        // SteamLocalMods local folders are ignored on purpose for SteamCMD redownloads
+        int localSteamCmdRedownloadCount = isSteamCmdAvailable
+            ? localMods.Count(m =>
+            {
+                if (!ModHearthManager.TryGetSteamWorkshopItemId(m, out _))
+                    return false;
+
+                (_, _, _, bool isSteamLocalMod) = ModSourceClassifier.Classify(
+                    m,
+                    ModHearthManager.GetModsPath(),
+                    ModHearthManager.GetVanillaModsPath());
+
+                return !isSteamLocalMod;
+            })
+            : 0;
+
         return new ModContextMenuState(
             localMods.Count,
             steamMods.Count,
+            steamRedownloadCount,
+            localSteamCmdRedownloadCount,
             canOpenFolder,
             hasSteamPage,
             steamMods.Count > 0,
-            isSteamLocal);
+            isSteamLocal,
+            isSteamCmdAvailable);
     }
 
     public static void ApplyState(ContextMenu menu, ModContextMenuState state)
     {
-        string deleteText;
-        switch (state.LocalCount)
-        {
-            case > 1:
-                deleteText = $"Delete {state.LocalCount} local mods";
-                break;
-            default:
-                if (state.IsSteamLocal)
-                    deleteText = "Delete local mod copy";
-                else
-                    deleteText = "Delete local mod";
-
-                break;
-        }
-
-        string unsubscribeText;
-        switch (state.SteamCount)
-        {
-            case > 1:
-                unsubscribeText = $"Unsubscribe from {state.SteamCount} steam mods";
-                break;
-            default:
-                if (state.IsSteamLocal)
-                    unsubscribeText = "Unsubscribe from steam mod copy";
-                else
-                    unsubscribeText = "Unsubscribe from steam";
-
-                break;
-        }
-
-        string redownloadText;
-        switch (state.SteamCount)
-        {
-            case > 1:
-                redownloadText = $"Redownload {state.SteamCount} mods";
-                break;
-            default:
-                if (state.IsSteamLocal)
-                    redownloadText = "Redownload steam mod copy";
-                else
-                    redownloadText = "Redownload from steam";
-
-                break;
-        }
+        string deleteText = BuildDeleteText(state.LocalCount, state.IsSteamLocal);
+        string unsubscribeText = BuildUnsubscribeText(state.SteamCount, state.IsSteamLocal);
+        string redownloadText = BuildRedownloadText(state.SteamRedownloadCount, state.LocalSteamCmdRedownloadCount, state.IsSteamLocal);
 
         SetMenuItem(
             menu,
@@ -170,11 +167,57 @@ internal static class ModContextMenuSupport
         SetMenuItem(
             menu,
             RedownloadTag,
-            state.HasSteamActions,
-            state.HasSteamActions,
+            state.HasRedownloadActions,
+            state.HasRedownloadActions,
             redownloadText);
         SetMenuItem(menu, OpenFolderTag, true, state.CanOpenFolder);
         SetMenuItem(menu, OpenSteamTag, state.HasSteamPage, state.HasSteamPage);
+    }
+
+    public static string BuildDeleteText(int localCount, bool isSteamLocal)
+    {
+        if (localCount > 1)
+            return $"Delete {localCount} local mods";
+
+        return isSteamLocal ? "Delete local mod copy" : "Delete local mod";
+    }
+
+    public static string BuildUnsubscribeText(int steamCount, bool isSteamLocal)
+    {
+        if (steamCount > 1)
+            return $"Unsubscribe from {steamCount} steam mods";
+
+        return isSteamLocal ? "Unsubscribe from steam mod copy" : "Unsubscribe from steam";
+    }
+
+    public static string BuildRedownloadText(int steamCount, int localSteamCmdCount, bool isSteamLocal)
+    {
+        if (steamCount > 0 && localSteamCmdCount > 0)
+        {
+            int total = steamCount + localSteamCmdCount;
+            return $"Redownload {total} mods ({steamCount} Steam, {localSteamCmdCount} SteamCMD)";
+        }
+
+        if (localSteamCmdCount > 0)
+        {
+            return localSteamCmdCount == 1
+                ? "Redownload using SteamCMD"
+                : $"Redownload {localSteamCmdCount} mods using SteamCMD";
+        }
+
+        if (steamCount > 0)
+        {
+            if (steamCount == 1)
+            {
+                return isSteamLocal
+                    ? "Redownload steam mod copy"
+                    : "Redownload from steam";
+            }
+
+            return $"Redownload {steamCount} steam mods";
+        }
+
+        return "Redownload from steam";
     }
 
     public static string BuildDeletePrompt(IReadOnlyCollection<ModReference> localTargets)
@@ -215,15 +258,7 @@ internal static class ModContextMenuSupport
         }
 
         string prompt = BuildDeletePrompt(localTargets);
-        bool confirm = await DialogService.ShowConfirmAsync(owner, prompt, "Delete Mod");
-        if (!confirm)
-            return false;
-
-        List<string> failures = await Task.Run(() => DeleteLocalMods(manager, localTargets));
-        if (failures.Count > 0)
-            await DialogService.ShowMessageAsync(owner, string.Join(Environment.NewLine, failures), "Delete Mod");
-
-        return true;
+        return await DialogService.RunConfirmedActionAsync(owner, prompt, "Delete Mod", () => DeleteLocalMods(manager, localTargets));
     }
 
     public static async Task UnsubscribeSteamWithConfirmAsync(
@@ -243,13 +278,7 @@ internal static class ModContextMenuSupport
         }
 
         string prompt = BuildUnsubscribePrompt(steamTargets);
-        bool confirm = await DialogService.ShowConfirmAsync(owner, prompt, "Unsubscribe Steam Mod");
-        if (!confirm)
-            return;
-
-        List<string> failures = await Task.Run(() => UnsubscribeSteamMods(manager, steamTargets));
-        if (failures.Count > 0)
-            await DialogService.ShowMessageAsync(owner, string.Join(Environment.NewLine, failures), "Unsubscribe Steam Mod");
+        await DialogService.RunConfirmedActionAsync(owner, prompt, "Unsubscribe Steam Mod", () => UnsubscribeSteamMods(manager, steamTargets));
     }
 
     public static async Task RedownloadSteamWithConfirmAsync(
@@ -269,13 +298,7 @@ internal static class ModContextMenuSupport
         }
 
         string prompt = BuildRedownloadPrompt(steamTargets);
-        bool confirm = await DialogService.ShowConfirmAsync(owner, prompt, "Redownload Steam Mod");
-        if (!confirm)
-            return;
-
-        List<string> failures = await Task.Run(() => RedownloadSteamMods(manager, steamTargets));
-        if (failures.Count > 0)
-            await DialogService.ShowMessageAsync(owner, string.Join(Environment.NewLine, failures), "Redownload Steam Mod");
+        await DialogService.RunConfirmedActionAsync(owner, prompt, "Redownload Steam Mod", () => RedownloadSteamMods(manager, steamTargets));
     }
 
     public static async Task OpenFolderFromContextMenuAsync<T>(
@@ -480,5 +503,73 @@ internal static class ModContextMenuSupport
                     break;
             }
         }
+    }
+
+    public static void ConfigureDuplicateModSubmenu(
+        ContextMenu menu,
+        ModHearthManager manager,
+        ModReference contextMod)
+    {
+        MenuItem? duplicateRoot = menu.Items
+            .OfType<MenuItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), DeleteDuplicateModTag, StringComparison.Ordinal));
+        if (duplicateRoot == null)
+            return;
+
+        string key = contextMod.DFHackCompatibleString();
+        var duplicateRefs = manager.GetDuplicateModRefs();
+        bool hasDuplicates = duplicateRefs.TryGetValue(key, out var duplicates) && duplicates != null && duplicates.Count > 1;
+
+        if (!hasDuplicates || duplicates == null)
+        {
+            duplicateRoot.IsVisible = false;
+            duplicateRoot.ItemsSource = null;
+            return;
+        }
+
+        duplicateRoot.IsVisible = true;
+        duplicateRoot.Header = $"Delete a duplicate mod, {duplicates.Count} folders";
+
+        List<MenuItem> items = [];
+        foreach (ModReference dupRef in duplicates)
+        {
+            ModReference modRefToDel = dupRef;
+            TextBlock textBlock = new()
+            {
+                Text = modRefToDel.path,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxWidth = 350,
+            };
+            ToolTip.SetTip(textBlock, $"Delete folder: {modRefToDel.path}");
+
+            MenuItem item = new()
+            {
+                Header = textBlock
+            };
+
+            item.Click += async (_, _) =>
+            {
+                // Safely resolve owner Window via PlacementTarget or Desktop Lifetime
+                Window? owner = TopLevel.GetTopLevel(menu.PlacementTarget) as Window
+                    ?? (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+
+                if (owner == null)
+                    return;
+
+                bool confirm = await DialogService.ShowConfirmAsync(owner, $"Delete duplicate mod folder '{modRefToDel.path}'?", "Delete Duplicate Mod");
+
+                if (confirm)
+                {
+                    if (manager.DeleteModFromModsFolder(modRefToDel, out string msg))
+                        ContextMenuCoordinator.DismissActive();
+                    else
+                        await DialogService.ShowMessageAsync(owner, msg, "Delete Duplicate Mod");
+                }
+            };
+
+            items.Add(item);
+        }
+
+        duplicateRoot.ItemsSource = items;
     }
 }

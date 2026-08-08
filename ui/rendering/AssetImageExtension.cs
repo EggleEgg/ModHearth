@@ -165,7 +165,7 @@ internal static class ImageSourceLoader
     {
         try
         {
-            Uri uri = new Uri(assetUri, UriKind.Absolute);
+            Uri uri = new(assetUri, UriKind.Absolute);
             using Stream stream = AssetLoader.Open(uri);
             var xdoc = XDocument.Load(stream);
 
@@ -338,7 +338,7 @@ internal static class ImageSourceLoader
         {
             if (uriText.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
             {
-                Uri assetUri = new Uri(uriText, UriKind.Absolute);
+                Uri assetUri = new(uriText, UriKind.Absolute);
                 using Stream stream = AssetLoader.Open(assetUri);
                 return RenderSvgStream(stream);
             }
@@ -366,7 +366,7 @@ internal static class ImageSourceLoader
         {
             if (assetUri.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
             {
-                Uri uri = new Uri(assetUri, UriKind.Absolute);
+                Uri uri = new(assetUri, UriKind.Absolute);
                 using Stream stream = AssetLoader.Open(uri);
                 return new Bitmap(stream);
             }

@@ -12,31 +12,8 @@ namespace ModHearth.UI
         public static double DefaultHeight => LoadDimension("Height", 750);
         public static double DefaultMinHeight => LoadDimension("MinHeight", 400);
 
-        private static double LoadDimension(string attributeName, double fallback)
-        {
-            try
-            {
-                string path = Path.Combine("ui", "windows", "WorkshopDownloaderWindow.axaml");
-                if (!File.Exists(path))
-                {
-                    path = Path.Combine(AppContext.BaseDirectory, "ui", "windows", "WorkshopDownloaderWindow.axaml");
-                }
-                if (File.Exists(path))
-                {
-                    string content = File.ReadAllText(path);
-                    var match = Regex.Match(content, $@"{attributeName}\s*=\s*""(?<val>[^""]+)""", RegexOptions.IgnoreCase);
-                    if (match.Success && double.TryParse(match.Groups["val"].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
-                    {
-                        return val;
-                    }
-                }
-            }
-            catch
-            {
-                // Fallback
-            }
-            return fallback;
-        }
+        private static double LoadDimension(string attributeName, double fallback) =>
+            WindowDimensionLoader.Load("WorkshopDownloaderWindow.axaml", attributeName, fallback);
 
         public WorkshopDownloaderWindow() : this(null!) { }
 

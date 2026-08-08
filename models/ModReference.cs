@@ -157,7 +157,7 @@ namespace ModHearth
         {
             // DFHack does this to version, visible in the JSON file.
             int version = int.Parse(numericVersion.Replace(".", ""));
-            DFHMod mod = new DFHMod(ID, version);
+            DFHMod mod = new(ID, version);
             return mod;
         }
 

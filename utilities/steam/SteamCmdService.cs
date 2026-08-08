@@ -10,7 +10,7 @@ namespace ModHearth.Utilities.Steam
         private const string Steamcmd = "steamcmd";
         private const string SteamcmdExe = "steamcmd.exe";
         private const string SteamcmdSh = "steamcmd.sh";
-        private static readonly HttpClient HttpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+        private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromMinutes(10) };
 
         public string GetExecutablePath()
         {

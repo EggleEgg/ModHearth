@@ -10,7 +10,7 @@ public class ManagerConcurrencyTests
     [Fact(Timeout = 60000)]
     public async Task ConcurrentManagerOperations_DoNotThrow()
     {
-        ModHearthManager manager = new ModHearthManager();
+        ModHearthManager manager = new();
         _ = manager.Initialize(); // one real baseline call, not inside the hammer loop
 
         const int cheapIterations = 2000;
@@ -18,7 +18,7 @@ public class ManagerConcurrencyTests
         const int initializeIterations = 5; // keep this low, it's expensive by design, not by bug
 
         Exception? captured = null;
-        object captureLock = new object();
+        object captureLock = new();
 
         void Hammer(Action action, int iterations)
         {
