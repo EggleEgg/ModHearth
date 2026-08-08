@@ -125,7 +125,7 @@
             <SelectableTextBlock x:Name="modTitleLabel" FontSize="24" FontWeight="Bold" TextWrapping="WrapWithOverflow"
                                  VerticalAlignment="Center" MinHeight="42" Margin="2,2,2,5">
               <InlineUIContainer>
-                <Button x:Name="notificationManagerButton" Width="26" Height="26" Margin="-4,-4,4,-4" Tag="Themed" Padding="-1"
+                <Button x:Name="notificationManagerButton" Width="26" Height="26" Margin="-4,-4,4,-4" Tag="Themed" Padding="0"
                         Click="OnToggleNotificationDrawerClick" VerticalAlignment="Center" ToolTip.Tip="Open Notification Logs">
                   <Image Source="{ui:AssetImage notificationFullIcon}" Stretch="Uniform"
                          VerticalAlignment="Center" HorizontalAlignment="Right" />
