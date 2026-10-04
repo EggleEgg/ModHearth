@@ -13,10 +13,7 @@ public enum UnsavedChangesChoice
 
 public static class DialogService
 {
-    public static async Task ShowMessageAsync(Window owner, string message, string title)
-    {
-        _ = await MessageDialog.ShowAsync(owner, message, title, MessageDialogButtons.Ok);
-    }
+    public static async Task ShowMessageAsync(Window owner, string message, string title) => _ = await MessageDialog.ShowAsync(owner, message, title, MessageDialogButtons.Ok);
 
     public static async Task<bool> ShowConfirmAsync(Window owner, string message, string title)
     {
@@ -51,10 +48,7 @@ public static class DialogService
         };
     }
 
-    public static Task<string?> ShowInputAsync(Window owner, string prompt, string title, string defaultValue)
-    {
-        return InputDialog.ShowAsync(owner, prompt, title, defaultValue);
-    }
+    public static Task<string?> ShowInputAsync(Window owner, string prompt, string title, string defaultValue) => InputDialog.ShowAsync(owner, prompt, title, defaultValue);
 
     public static async Task<string?> PickFileAsync(Window owner, string title, IEnumerable<FilePickerFileType> fileTypes)
     {

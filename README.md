@@ -19,15 +19,6 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 3. Run ModHearth (ModHearth.exe on Windows)
 4. Locate the Dwarf Fortress executable (df.exe on Windows, df on Linux) if ModHearth fails to fetch it
 
-### Instructions
-
-Information on the four buttons from left to right:
-
-- Save button: saves the current modlist to file. With DFHack installed, it also reloads the game's mod screen.
-- Undo button: undoes changes made to the current modlist. Can only undo mod order/enable/disable changes, not renaming or deletion.
-- Trash can: clears installed mods cache. Right click to open the installed mods folder.
-- Reload button: restarts ModHearth. Right click for autoreload settings.
-
 ### Keyboard Shortcuts and Controls
 
 - Shift + click top to bottom to select multiple mods.
@@ -40,6 +31,7 @@ Information on the four buttons from left to right:
 - Delete selects the previously selected mod.
 - Backspace removes the selected mods.
 - Up/down arrow keys to scroll through mods, left/right to move mods between lists
+- Tab key (or Shift + Tab) switches selection between main modlists
 
 ## Contributor Information
 

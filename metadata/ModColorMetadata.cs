@@ -131,9 +131,7 @@ namespace ModHearth.Metadata
             if (!Directory.Exists(MetadataDir))
                 _ = Directory.CreateDirectory(MetadataDir);
 
-            List<ModColorMetadata> data = _modColors
-                .Select(entry => new ModColorMetadata { ModId = entry.Key, Color = entry.Value })
-                .ToList();
+            List<ModColorMetadata> data = [.. _modColors.Select(entry => new ModColorMetadata { ModId = entry.Key, Color = entry.Value })];
 
             try
             {

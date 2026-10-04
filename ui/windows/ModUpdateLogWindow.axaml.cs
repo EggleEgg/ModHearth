@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.RegularExpressions;
 using Avalonia.Controls;
 
 namespace ModHearth.UI;

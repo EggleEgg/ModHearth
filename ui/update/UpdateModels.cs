@@ -31,6 +31,10 @@ public sealed class GitHubAsset
 
     [JsonPropertyName("browser_download_url")]
     public string? BrowserDownloadUrl { get; set; }
+
+    // Used for sha verification
+    [JsonPropertyName("digest")]
+    public string? Digest { get; set; }
 }
 
 internal static class UpdateHelpers
@@ -46,6 +50,57 @@ internal static class UpdateHelpers
             return null;
 
         return tag.Substring(prefix.Length);
+    }
+
+    public static string CleanVersionString(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+            return string.Empty;
+
+        string v = version.Trim();
+        if (v.StartsWith("build-", StringComparison.OrdinalIgnoreCase))
+            v = v.Substring("build-".Length);
+        else if (v.StartsWith("v", StringComparison.OrdinalIgnoreCase) && v.Length > 1 && char.IsDigit(v[1]))
+            v = v.Substring(1);
+
+        return v.Trim();
+    }
+
+    public static bool IsNewerVersion(string? fetched, string? current)
+    {
+        if (string.IsNullOrWhiteSpace(fetched))
+            return false;
+
+        if (string.IsNullOrWhiteSpace(current) ||
+            string.Equals(current, "none", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(current, "local-dev", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(current, "dev", StringComparison.OrdinalIgnoreCase))
+        {
+            return !string.IsNullOrWhiteSpace(CleanVersionString(fetched));
+        }
+
+        string cleanFetched = CleanVersionString(fetched);
+        string cleanCurrent = CleanVersionString(current);
+
+        if (int.TryParse(cleanFetched, out int fNum) && int.TryParse(cleanCurrent, out int cNum))
+        {
+            return fNum > cNum;
+        }
+
+        if (Version.TryParse(cleanFetched, out Version? fVer) && Version.TryParse(cleanCurrent, out Version? cVer))
+        {
+            return fVer > cVer;
+        }
+
+        return string.Compare(cleanFetched, cleanCurrent, StringComparison.OrdinalIgnoreCase) > 0;
+    }
+
+    public static bool IsCurrentVersion(string? buildNumber, string? currentBuild)
+    {
+        if (string.IsNullOrWhiteSpace(buildNumber) || string.IsNullOrWhiteSpace(currentBuild))
+            return false;
+
+        return string.Equals(CleanVersionString(buildNumber), CleanVersionString(currentBuild), StringComparison.OrdinalIgnoreCase);
     }
 
     public static string GetReleaseTitle(GitHubRelease release, int index)
@@ -65,17 +120,14 @@ internal static class UpdateHelpers
         string? buildNumber = TryGetBuildNumber(release);
         string buildLabel = string.IsNullOrWhiteSpace(buildNumber) ? "unknown build" : $"build-{buildNumber}";
 
-        bool isCurrent = !string.IsNullOrWhiteSpace(buildNumber) &&
-                         string.Equals(buildNumber, currentBuild, StringComparison.OrdinalIgnoreCase);
+        bool isCurrent = !string.IsNullOrWhiteSpace(buildNumber) && IsCurrentVersion(buildNumber, currentBuild);
 
-        return isCurrent
-            ? $"{buildLabel} · {date} (current)"
-            : $"{buildLabel} · {date}";
+        return isCurrent ? $"{buildLabel} · {date} (current)" : $"{buildLabel} · {date}";
     }
 }
 
 /// <summary>
-/// Lightweight GitHub raw-content helper used to fetch files such as community modsort_rules.json.
+/// Lightweight GitHub raw-content helper used to fetch files such as community modsort_rules.json
 /// </summary>
 public static class GitHubFileClient
 {
@@ -94,7 +146,7 @@ public static class GitHubFileClient
 /// <summary>
 /// Parses common GitHub repository URLs and converts them to raw file URLs.
 /// </summary>
-public static class GitHubUrlParser
+public static partial class GitHubUrlParser
 {
     private static readonly Regex RepoRegex = new(
         @"^https?://(?:www\.)?github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)/?(?:$|(?:tree|blob)/(?<branch>[^/]+)(?:/(?<path>.*))?)",

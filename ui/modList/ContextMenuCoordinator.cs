@@ -31,10 +31,7 @@ internal static class ContextMenuCoordinator
             DismissActiveLocked();
     }
 
-    private static ContextMenu? GetActiveLocked()
-    {
-        return activeMenuRef != null && activeMenuRef.TryGetTarget(out ContextMenu? menu) ? menu : null;
-    }
+    private static ContextMenu? GetActiveLocked() => activeMenuRef != null && activeMenuRef.TryGetTarget(out ContextMenu? menu) ? menu : null;
 
     private static void DismissActiveLocked()
     {

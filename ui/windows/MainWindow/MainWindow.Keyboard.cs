@@ -9,7 +9,17 @@ public partial class MainWindow
 {
     private async void MainWindowKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Handled || e.KeyModifiers != KeyModifiers.None)
+        if (e.Handled)
+            return;
+
+        if (e.Key == Key.Tab && (e.KeyModifiers == KeyModifiers.None || e.KeyModifiers == KeyModifiers.Shift))
+        {
+            if (HandleTabKey())
+                e.Handled = true;
+            return;
+        }
+
+        if (e.KeyModifiers != KeyModifiers.None)
             return;
 
         if (e.Key == Key.Escape)
@@ -28,6 +38,66 @@ public partial class MainWindow
 
         e.Handled = true;
         await DeleteSelectedModsAsync(selection.Select(vm => vm.ModReference).ToList());
+    }
+
+    private bool HandleTabKey()
+    {
+        ListBox sourceList;
+        ListBox targetList;
+        System.Collections.ObjectModel.ObservableCollection<ModRefViewModel> sourceCol;
+        System.Collections.ObjectModel.ObservableCollection<ModRefViewModel> targetCol;
+
+        bool rightActive = rightModlist.IsKeyboardFocusWithin ||
+                           (rightModlist.SelectedItems?.Count > 0 && leftModlist.SelectedItems?.Count == 0) ||
+                           rightModlist.SelectedIndex >= 0 && leftModlist.SelectedIndex < 0;
+
+        if (rightActive)
+        {
+            sourceList = rightModlist;
+            targetList = leftModlist;
+            sourceCol = activeMods;
+            targetCol = inactiveMods;
+        }
+        else
+        {
+            sourceList = leftModlist;
+            targetList = rightModlist;
+            sourceCol = inactiveMods;
+            targetCol = activeMods;
+        }
+
+        List<ModRefViewModel> sourceVisible = [.. sourceCol.Where(vm => vm.IsVisible)];
+        List<ModRefViewModel> targetVisible = [.. targetCol.Where(vm => vm.IsVisible)];
+
+        if (sourceVisible.Count == 0 && targetVisible.Count == 0)
+            return false;
+
+        ModRefViewModel? selectedVm = sourceList.SelectedItem as ModRefViewModel
+            ?? sourceList.SelectedItems?.Cast<ModRefViewModel>().FirstOrDefault();
+
+        int visualRowIndex = selectedVm != null ? sourceVisible.IndexOf(selectedVm) : -1;
+        if (visualRowIndex < 0)
+            visualRowIndex = Math.Clamp(sourceList.SelectedIndex, 0, sourceVisible.Count - 1);
+        if (visualRowIndex < 0)
+            visualRowIndex = 0;
+
+        if (targetVisible.Count == 0)
+            return false;
+
+        visualRowIndex = Math.Clamp(visualRowIndex, 0, targetVisible.Count - 1);
+        ModRefViewModel targetVm = targetVisible[visualRowIndex];
+
+        leftModlist.SelectedItems?.Clear();
+        rightModlist.SelectedItems?.Clear();
+        _ = targetList.SelectedItems?.Add(targetVm);
+        modListController.UpdateSelectionState(leftModlist);
+        modListController.UpdateSelectionState(rightModlist);
+        targetList.ScrollIntoView(targetVm);
+        TrackSelectedMod(targetVm);
+        ShowModInfo(targetVm.ModReference);
+        _ = targetList.Focus();
+
+        return true;
     }
 
     private bool HandleEscapeKey(object? source)
@@ -65,10 +135,10 @@ public partial class MainWindow
     private List<ModRefViewModel> GetSelectedModsForDeletion()
     {
         if (rightModlist.SelectedItems != null && rightModlist.SelectedItems.Count > 0)
-            return rightModlist.SelectedItems.OfType<ModRefViewModel>().ToList();
+            return [.. rightModlist.SelectedItems.OfType<ModRefViewModel>()];
 
         if (leftModlist.SelectedItems != null && leftModlist.SelectedItems.Count > 0)
-            return leftModlist.SelectedItems.OfType<ModRefViewModel>().ToList();
+            return [.. leftModlist.SelectedItems.OfType<ModRefViewModel>()];
 
         return [];
     }

@@ -1,11 +1,9 @@
-using Avalonia;
+using System.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using Avalonia.Layout;
 using ModHearth.Metadata;
-using System.Collections;
 using ModHearth.Models;
 
 
@@ -94,7 +92,7 @@ public partial class MainWindow : IModRefContextMenuProvider
             targetAfterDeleteId = null;
         }
 
-        if (!await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(this, manager, modReferences))
+        if (!await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(this, manager, modReferences, requestUIReload: false))
             return;
 
         ClearPreviewCache();
@@ -164,32 +162,23 @@ public partial class MainWindow : IModRefContextMenuProvider
         await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(this, manager, modReferences);
     }
 
-    private async void ModContextOpenFolder(object? sender, RoutedEventArgs e)
-    {
-        await ModContextMenuSupport.OpenFolderFromContextMenuAsync(
+    private async void ModContextOpenFolder(object? sender, RoutedEventArgs e) => await ModContextMenuSupport.OpenFolderFromContextMenuAsync(
             sender,
             this,
             GetContextMenuSelectedItems(sender),
             (ModRefViewModel vm) => vm.ModReference);
-    }
 
-    private async void ModContextCopyId(object? sender, RoutedEventArgs e)
-    {
-        await ModContextMenuSupport.CopyModIdFromContextMenuAsync(
+    private async void ModContextCopyId(object? sender, RoutedEventArgs e) => await ModContextMenuSupport.CopyModIdFromContextMenuAsync(
             sender,
             this,
             GetContextMenuSelectedItems(sender),
             (ModRefViewModel vm) => vm.ModReference);
-    }
 
-    private async void ModContextOpenSteam(object? sender, RoutedEventArgs e)
-    {
-        await ModContextMenuSupport.OpenSteamPageFromContextMenuAsync(
+    private async void ModContextOpenSteam(object? sender, RoutedEventArgs e) => await ModContextMenuSupport.OpenSteamPageFromContextMenuAsync(
             sender,
             this,
             GetContextMenuSelectedItems(sender),
             (ModRefViewModel vm) => vm.ModReference);
-    }
 
     private void ConfigureModColorSubmenu(ContextMenu menu, ModRefViewModel contextVm, List<ModRefViewModel> selected)
     {
@@ -202,7 +191,7 @@ public partial class MainWindow : IModRefContextMenuProvider
         List<ModRefViewModel> targets = selected.Count > 0 && selected.Contains(contextVm)
             ? selected
             : [contextVm];
-        List<ModReference> modReferences = targets.Select(t => t.ModReference).ToList();
+        List<ModReference> modReferences = [.. targets.Select(t => t.ModReference)];
 
         colorRoot.Header = targets.Count > 1
             ? $"Set ({targets.Count}) Mods Color"

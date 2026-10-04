@@ -1,5 +1,5 @@
-using Avalonia.Controls;
 using System.Collections.ObjectModel;
+using Avalonia.Controls;
 
 namespace ModHearth.UI;
 
@@ -39,11 +39,10 @@ public partial class MainWindow
         ListBox list = destinationLeft ? leftModlist : rightModlist;
         ObservableCollection<ModRefViewModel> source = destinationLeft ? inactiveMods : activeMods;
 
-        List<ModRefViewModel> toSelect = mods
+        List<ModRefViewModel> toSelect = [.. mods
             .Select(mod => source.FirstOrDefault(m => m.DfMod == mod))
             .Where(vm => vm != null)
-            .Cast<ModRefViewModel>()
-            .ToList();
+            .Cast<ModRefViewModel>()];
 
         isBatchSelecting = true;
         try
@@ -109,8 +108,9 @@ public partial class MainWindow
         if (sender == rightModlist && rightModlist.SelectedItems?.Count > 0)
             leftModlist.SelectedItems?.Clear();
 
-        modListController.UpdateSelectionState(leftModlist);
-        modListController.UpdateSelectionState(rightModlist);
+
+        if (sender is ListBox changedList)
+            modListController.UpdateSelectionState(changedList);
 
         ModRefViewModel? selected = (sender as ListBox)?.SelectedItem as ModRefViewModel;
         if (selected != null)
@@ -135,7 +135,7 @@ public partial class MainWindow
         if (sourceLeft && destinationLeft)
             return;
 
-        List<DFHMod> mods = context.Items.Select(vm => vm.DfMod).ToList();
+        List<DFHMod> mods = [.. context.Items.Select(vm => vm.DfMod)];
 
         int insertIndex = destinationLeft
             ? context.InsertIndex
@@ -193,8 +193,8 @@ public partial class MainWindow
         if (source.SelectedItems == null || source.SelectedItems.Count == 0)
             return;
 
-        List<ModRefViewModel> selected = source.SelectedItems.Cast<ModRefViewModel>().ToList();
-        List<DFHMod> mods = selected.Select(vm => vm.DfMod).ToList();
+        List<ModRefViewModel> selected = [.. source.SelectedItems.Cast<ModRefViewModel>()];
+        List<DFHMod> mods = [.. selected.Select(vm => vm.DfMod)];
         int index = manager.enabledMods.Count;
         manager.MoveMods(mods, index, sourceLeft, !sourceLeft);
         bool sorted = await SetAndMarkChangesAsync(true);

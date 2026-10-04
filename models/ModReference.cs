@@ -31,10 +31,10 @@ namespace ModHearth
         public string steamDescription { get; set; }
         public string steamID { get; set; }
 
-        public List<string> require_before_me { get; set; }
-        public List<string> require_after_me { get; set; }
-        public List<string> require_ids { get; set; }
-        public List<string> conflicts_with { get; set; }
+        public List<string> requireBeforeMe { get; set; }
+        public List<string> requireAfterMe { get; set; }
+        public List<string> requireIds { get; set; }
+        public List<string> conflictsWith { get; set; }
 
         // Path of mod folder, not path to info.
         public string path { get; set; }
@@ -68,10 +68,10 @@ namespace ModHearth
             AssignedColor = ModColor.None;
             IsIgnored = false;
 
-            require_before_me = [];
-            require_after_me = [];
-            require_ids = [];
-            conflicts_with = [];
+            requireBeforeMe = [];
+            requireAfterMe = [];
+            requireIds = [];
+            conflictsWith = [];
         }
 
 
@@ -95,10 +95,10 @@ namespace ModHearth
             Source = string.IsNullOrWhiteSpace(steamID) ? ModSource.Local : ModSource.Steam;
             IsIgnored = false; // Initialize the new property
 
-            require_before_me = [];
-            require_after_me = [];
-            require_ids = [];
-            conflicts_with = [];
+            requireBeforeMe = [];
+            requireAfterMe = [];
+            requireIds = [];
+            conflictsWith = [];
 
             // In theory info file is always present, but handle missing files gracefully.
             string? modInfoPath = ResolveInfoPath(path);
@@ -117,28 +117,28 @@ namespace ModHearth
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        require_before_me.Add(value);
+                        requireBeforeMe.Add(value);
                 }
 
                 foreach (Match match in requireAfterMatches)
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        require_after_me.Add(value);
+                        requireAfterMe.Add(value);
                 }
 
                 foreach (Match match in conflictsMatches)
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        conflicts_with.Add(value);
+                        conflictsWith.Add(value);
                 }
 
                 foreach (Match match in requiresMatches)
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        require_ids.Add(value);
+                        requireIds.Add(value);
                 }
             }
             else
@@ -148,7 +148,7 @@ namespace ModHearth
             }
 
             // Set problematic based on if this mod has extra needs.
-            problematic = require_before_me.Count != 0 || require_after_me.Count != 0 || require_ids.Count != 0 || conflicts_with.Count != 0;
+            problematic = requireBeforeMe.Count != 0 || requireAfterMe.Count != 0 || requireIds.Count != 0 || conflictsWith.Count != 0;
 
         }
 

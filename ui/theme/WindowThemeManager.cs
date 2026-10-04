@@ -42,10 +42,7 @@ public static class WindowThemeManager
         }
     }
 
-    public static void ApplyToOpenWindows()
-    {
-        ApplyToOpenWindows(Style.instance);
-    }
+    public static void ApplyToOpenWindows() => ApplyToOpenWindows(Style.instance);
 
     public static void ApplyToOpenWindows(Style? style)
     {
@@ -81,15 +78,9 @@ public static class WindowThemeManager
         }, Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
-    private static void OnWindowClosed(object? sender, EventArgs e)
-    {
-        Cleanup();
-    }
+    private static void OnWindowClosed(object? sender, EventArgs e) => Cleanup();
 
-    private static void Cleanup()
-    {
-        _ = registered.RemoveAll(weak => !weak.TryGetTarget(out _));
-    }
+    private static void Cleanup() => _ = registered.RemoveAll(weak => !weak.TryGetTarget(out _));
 
     public static void ApplyToWindow(Window window, Style style)
     {

@@ -35,7 +35,7 @@ public static class StringFormatter
         if (items == null)
             return "(none)";
 
-        List<string> list = items.Where(item => !string.IsNullOrWhiteSpace(item)).ToList();
+        List<string> list = [.. items.Where(item => !string.IsNullOrWhiteSpace(item))];
 
         if (list.Count == 0)
             return "(none)";

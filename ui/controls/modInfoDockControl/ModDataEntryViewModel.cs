@@ -1,6 +1,6 @@
-using Avalonia.Media;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia.Media;
 
 namespace ModHearth.UI;
 

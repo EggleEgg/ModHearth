@@ -12,10 +12,7 @@
         private static readonly StringComparer IdComparer = StringComparer.OrdinalIgnoreCase;
 
         // For display and hash function.
-        public override string ToString()
-        {
-            return id + "|" + version;
-        }
+        public override string ToString() => id + "|" + version;
 
         // Simple check if they represent the same mod or not.
         public static bool operator ==(DFHMod lhs, DFHMod rhs)
@@ -32,10 +29,7 @@
         }
 
         // Simple hash code generation using tostring.
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(IdComparer.GetHashCode(id ?? string.Empty), version);
-        }
+        public override int GetHashCode() => HashCode.Combine(IdComparer.GetHashCode(id ?? string.Empty), version);
 
         // Just use ==.
         public override bool Equals(Object? other)

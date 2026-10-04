@@ -326,10 +326,7 @@ namespace ModHearth.Utilities.Workshop
             }
         }
 
-        private static bool HasModContent(string path)
-        {
-            return !string.IsNullOrWhiteSpace(ConfigManager.ResolveInfoFilePath(path));
-        }
+        private static bool HasModContent(string path) => !string.IsNullOrWhiteSpace(ConfigManager.ResolveInfoFilePath(path));
 
         private static void MoveOrCopyDirectory(string sourceDir, string destinationDir)
         {

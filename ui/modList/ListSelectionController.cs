@@ -122,9 +122,13 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (list.SelectedItems == null)
             return;
 
+        List<T> target = selection as List<T> ?? [.. selection];
+        if (SelectionAlreadyMatches(list.SelectedItems, target))
+            return;
+
         suppressSelectionHandling = true;
         list.SelectedItems.Clear();
-        foreach (T item in selection)
+        foreach (T item in target)
             _ = list.SelectedItems.Add(item);
         UpdateSelectionState(list);
         suppressSelectionHandling = false;
@@ -135,12 +139,29 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (grid.SelectedItems == null)
             return;
 
+        List<T> target = selection as List<T> ?? [.. selection];
+        if (SelectionAlreadyMatches(grid.SelectedItems, target))
+            return;
+
         suppressSelectionHandling = true;
         grid.SelectedItems.Clear();
-        foreach (T item in selection)
+        foreach (T item in target)
             _ = grid.SelectedItems.Add(item);
         UpdateSelectionState(grid);
         suppressSelectionHandling = false;
+    }
+
+    private static bool SelectionAlreadyMatches(IList currentSelectedItems, List<T> target)
+    {
+        if (currentSelectedItems.Count != target.Count)
+            return false;
+
+        foreach (T item in target)
+        {
+            if (!currentSelectedItems.Contains(item))
+                return false;
+        }
+        return true;
     }
 
     public void UpdateSelectionState(DataGrid list)

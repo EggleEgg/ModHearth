@@ -1,10 +1,9 @@
-﻿using Avalonia.Controls;
-using Avalonia.Input;
+﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI;
@@ -13,10 +12,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
 {
     public new event PropertyChangedEventHandler? PropertyChanged;
 
-    protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+    protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     public bool IsAutoSaveEnabled
     {
@@ -105,7 +101,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private const int MinimumAutoReloadSeconds = 3;
     private static readonly TimeSpan DfHackStatusRefreshInterval = TimeSpan.FromSeconds(3);
 
-    private IImage? currentPreview;
+    private static IImage? currentPreview;
     private bool updateInProgress;
     private bool pendingReloadQueued;
     private string? currentSelectedModId;

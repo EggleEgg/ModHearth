@@ -1,5 +1,5 @@
-﻿using Avalonia.Platform.Storage;
-using System.Text.Json;
+﻿using System.Text.Json;
+using Avalonia.Platform.Storage;
 
 namespace ModHearth.UI;
 
@@ -90,7 +90,7 @@ public partial class MainWindow
         if (index < 0 || index >= manager.modpacks.Count)
             return;
 
-        List<string> names = manager.modpacks.Select(m => m.name).ToList();
+        List<string> names = [.. manager.modpacks.Select(m => m.name)];
         names[index] = names[index] + "*";
         modifyingComboBox = true;
         modpackComboBox.ItemsSource = names;
@@ -109,7 +109,7 @@ public partial class MainWindow
             return;
         }
 
-        List<string> names = manager.modpacks.Select(m => m.name).ToList();
+        List<string> names = [.. manager.modpacks.Select(m => m.name)];
         if (names[index].EndsWith("*", StringComparison.Ordinal))
             names[index] = names[index][..^1];
 

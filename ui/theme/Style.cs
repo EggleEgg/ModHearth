@@ -61,10 +61,9 @@ namespace ModHearth.UI
         // thread reading this after a theme swap on another thread sees the new reference promptly rather than a cached stale one.
         public static volatile Style? instance;
 
-        private static readonly PropertyInfo[] RequiredColorProperties = typeof(Style)
+        private static readonly PropertyInfo[] RequiredColorProperties = [.. typeof(Style)
             .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Where(property => property.PropertyType == typeof(SimpleColor))
-            .ToArray();
+            .Where(property => property.PropertyType == typeof(SimpleColor))];
 
         // Colors.
         public SimpleColor backgroundColor { get; set; } = null!;
@@ -94,9 +93,6 @@ namespace ModHearth.UI
         {
         }
 
-        public bool IsComplete()
-        {
-            return RequiredColorProperties.All(property => property.GetValue(this) is SimpleColor);
-        }
+        public bool IsComplete() => RequiredColorProperties.All(property => property.GetValue(this) is SimpleColor);
     }
 }

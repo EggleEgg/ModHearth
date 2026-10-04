@@ -119,115 +119,119 @@ namespace ModHearth
 
         public List<string> UnsubscribeSteamMods(IEnumerable<ModReference>? mods)
         {
-            List<string> failures = [];
-            Dictionary<string, ModReference> steamModRefs = ResolveUniqueSteamWorkshopItemIds(mods, failures);
-
-            List<string> steamItemIds = steamModRefs.Keys.ToList();
-            if (steamItemIds.Count == 0)
-                return failures;
-
-            if (!TryEnsureSteamSession(failures))
-                return failures;
-
-            SteamWorkshopService steam = new();
-            if (!steam.IsAvailable)
+            using (BeginDeletionBatch())
             {
-                failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
-                return failures;
-            }
+                List<string> failures = [];
+                Dictionary<string, ModReference> steamModRefs = ResolveUniqueSteamWorkshopItemIds(mods, failures);
 
-            SteamConnectionLogger.LogInfo($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
+                List<string> steamItemIds = [.. steamModRefs.Keys];
+                if (steamItemIds.Count == 0)
+                    return failures;
 
-            ConcurrentBag<string> failureBag = [];
-            ConcurrentBag<ulong> successBag = [];
+                if (!TryEnsureSteamSession(failures))
+                    return failures;
 
-            _ = Parallel.ForEach(steamItemIds, new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            }, steamItemId =>
-            {
-                if (!steamModRefs.TryGetValue(steamItemId, out ModReference? modrefToDelete))
-                    return;
-
-                if (!ulong.TryParse(steamItemId, out ulong workshopId))
+                SteamWorkshopService steam = new();
+                if (!steam.IsAvailable)
                 {
-                    failureBag.Add($"Invalid workshop id '{steamItemId}'.");
-                    return;
+                    failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
+                    return failures;
                 }
 
-                if (!SteamWorkshopService.Unsubscribe(workshopId))
-                {
-                    failureBag.Add($"Failed to unsubscribe workshop item {steamItemId}.");
-                }
-                else
-                {
-                    successBag.Add(workshopId);
-                    SteamConnectionLogger.LogInfo($"Requested Steam API unsubscribe for workshop item {steamItemId}.");
+                SteamConnectionLogger.LogInfo($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
-                    // Attempt to delete the mod folder
-                    if (!string.IsNullOrWhiteSpace(modrefToDelete.path) && Directory.Exists(modrefToDelete.path))
+                ConcurrentBag<string> failureBag = [];
+                ConcurrentBag<ulong> successBag = [];
+
+                _ = Parallel.ForEach(steamItemIds, new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                }, steamItemId =>
+                {
+                    if (!steamModRefs.TryGetValue(steamItemId, out ModReference? modrefToDelete))
+                        return;
+
+                    if (!ulong.TryParse(steamItemId, out ulong workshopId))
                     {
-                        try
-                        {
-                            Directory.Delete(modrefToDelete.path, true);
-                            ShowNotification($"Deleted mod folder: {Path.GetFileName(modrefToDelete.path)}", "trashIcon.svg");
-                            SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.path}");
+                        failureBag.Add($"Invalid workshop id '{steamItemId}'.");
+                        return;
+                    }
 
-                            if (!string.IsNullOrWhiteSpace(modrefToDelete.ID))
-                            {
-                                lock (installedCacheGate)
-                                {
-                                    _ = (installedCacheModIds?.Remove(modrefToDelete.ID));
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            failureBag.Add($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
-                            SteamConnectionLogger.LogError($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
-                        }
+                    if (!SteamWorkshopService.Unsubscribe(workshopId))
+                    {
+                        failureBag.Add($"Failed to unsubscribe workshop item {steamItemId}.");
                     }
                     else
                     {
-                        SteamConnectionLogger.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.path}");
+                        successBag.Add(workshopId);
+                        SteamConnectionLogger.LogInfo($"Requested Steam API unsubscribe for workshop item {steamItemId}.");
+
+                        // Attempt to delete the mod folder
+                        if (!string.IsNullOrWhiteSpace(modrefToDelete.path) && Directory.Exists(modrefToDelete.path))
+                        {
+                            try
+                            {
+                                Directory.Delete(modrefToDelete.path, true);
+                                string sourceFolder = Path.GetDirectoryName(modrefToDelete.path) ?? string.Empty;
+                                ModDeletionNotifier.NotifyDeleted((msg, icon) => ShowNotification(msg, icon), modrefToDelete.path, sourceFolder);
+                                SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.path}");
+
+                                if (!string.IsNullOrWhiteSpace(modrefToDelete.ID))
+                                {
+                                    lock (installedCacheGate)
+                                    {
+                                        _ = (installedCacheModIds?.Remove(modrefToDelete.ID));
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                failureBag.Add($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
+                                SteamConnectionLogger.LogError($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
+                            }
+                        }
+                        else
+                        {
+                            SteamConnectionLogger.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.path}");
+                        }
                     }
-                }
-            });
+                });
 
-            failures.AddRange(failureBag);
-            List<ulong> successfullyUnsubscribedIds = successBag.ToList();
+                failures.AddRange(failureBag);
+                List<ulong> successfullyUnsubscribedIds = [.. successBag];
 
-            SteamConnectionLogger.LogInfo($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+                SteamConnectionLogger.LogInfo($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
 
-            if (successfullyUnsubscribedIds.Count > 0)
-            {
-                SteamManifestAuditor.MarkAsUnsubscribed(successfullyUnsubscribedIds);
-
-                List<ModReference> successfullyUnsubscribedMods = [];
-                foreach (ulong workshopId in successfullyUnsubscribedIds)
+                if (successfullyUnsubscribedIds.Count > 0)
                 {
-                    if (steamModRefs.TryGetValue(workshopId.ToString(), out ModReference? modref))
+                    SteamManifestAuditor.MarkAsUnsubscribed(successfullyUnsubscribedIds);
+
+                    List<ModReference> successfullyUnsubscribedMods = [];
+                    foreach (ulong workshopId in successfullyUnsubscribedIds)
                     {
-                        successfullyUnsubscribedMods.Add(modref);
+                        if (steamModRefs.TryGetValue(workshopId.ToString(), out ModReference? modref))
+                        {
+                            successfullyUnsubscribedMods.Add(modref);
+                        }
+                    }
+
+                    if (successfullyUnsubscribedMods.Count > 0)
+                    {
+                        HashSet<string> activeIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+                        ModUpdateLogger.LogUnsubscribe(successfullyUnsubscribedMods, activeIds);
                     }
                 }
 
-                if (successfullyUnsubscribedMods.Count > 0)
+                if (failures.Count == 0)
                 {
-                    HashSet<string> activeIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
-                    ModUpdateLogger.LogUnsubscribe(successfullyUnsubscribedMods, activeIds);
+                    // Reload mod manager if all unsubscriptions and deletions were successful
+                    _ = TryRequestModManagerReload(out _, out _);
+                    TriggerUIReload();
                 }
-            }
 
-            if (failures.Count == 0)
-            {
-                // Reload mod manager if all unsubscriptions and deletions were successful
-                _ = TryRequestModManagerReload(out _, out _);
-                TriggerUIReload();
+                ShowNotification($"Unsubscribed {steamItemIds.Count} workshop items. {failures.Count} failure(s).", "steamRemoveIcon.svg");
+                return failures;
             }
-
-            ShowNotification($"Unsubscribed {steamItemIds.Count} workshop items. {failures.Count} failure(s).", "steamRemoveIcon.svg");
-            return failures;
         }
 
         public List<string> RedownloadSteamMods(IEnumerable<ModReference>? mods)
@@ -235,7 +239,7 @@ namespace ModHearth
             List<string> failures = [];
             Dictionary<string, ModReference> steamModRefs = ResolveUniqueSteamWorkshopItemIds(mods, failures);
 
-            List<string> steamItemIds = steamModRefs.Keys.ToList();
+            List<string> steamItemIds = [.. steamModRefs.Keys];
             if (steamItemIds.Count == 0)
                 return failures;
 
@@ -301,7 +305,7 @@ namespace ModHearth
 
             if (failures.Count == 0)
             {
-                List<ModReference> successfullyRedownloadedMods = steamModRefs.Values.ToList();
+                List<ModReference> successfullyRedownloadedMods = [.. steamModRefs.Values];
                 if (successfullyRedownloadedMods.Count > 0)
                 {
                     HashSet<string> activeIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
@@ -362,10 +366,7 @@ namespace ModHearth
             return false;
         }
 
-        private static bool TryDetectSteamProcess(out List<string> processNames)
-        {
-            return SteamProcessHelper.TryDetectSteamProcess(out processNames);
-        }
+        private static bool TryDetectSteamProcess(out List<string> processNames) => SteamProcessHelper.TryDetectSteamProcess(out processNames);
 
         private static bool TryAddLocalActionableMod(
             ModReference modref,
@@ -416,12 +417,9 @@ namespace ModHearth
             return modref.ID?.Trim() ?? string.Empty;
         }
 
-        public void ShowNotification(string message, string icon)
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                TriggerNotification(message, icon);
-            });
-        }
+        public void ShowNotification(string message, string icon) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                                                                              {
+                                                                                  TriggerNotification(message, icon);
+                                                                              });
     }
 }

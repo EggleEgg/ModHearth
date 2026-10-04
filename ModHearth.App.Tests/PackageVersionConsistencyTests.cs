@@ -15,7 +15,7 @@ public class PackageVersionConsistencyTests
         RegexOptions.Compiled);
 
     [Fact]
-    public void SkiaSharp_Native_Asset_Packages_Match_Managed_SkiaSharp_Version()
+    public void SkiaSharpNativeAssetPackagesMatchManagedSkiaSharpVersion()
     {
         string csprojPath = FindMainCsprojPath();
         string content = File.ReadAllText(csprojPath);

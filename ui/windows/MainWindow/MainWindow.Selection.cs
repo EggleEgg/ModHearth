@@ -131,7 +131,7 @@ public partial class MainWindow
 
         ListBox targetList = useLeft ? leftModlist : rightModlist;
         if (HasActiveHideFilter(targetList))
-            restored = restored.Where(vm => vm.IsVisible).ToList();
+            restored = [.. restored.Where(vm => vm.IsVisible)];
 
         if (restored.Count == 0)
         {

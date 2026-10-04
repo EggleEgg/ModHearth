@@ -36,7 +36,7 @@ public sealed class SteamWorkshopService
     // Sends wake-up calls for multiple workshop items concurrently.
     public static int DownloadMany(IEnumerable<ulong> workshopIds)
     {
-        List<ulong> ids = workshopIds.Distinct().ToList();
+        List<ulong> ids = [.. workshopIds.Distinct()];
         if (ids.Count == 0)
             return 0;
 
@@ -62,7 +62,7 @@ public sealed class SteamWorkshopService
 
     public static int UnsubscribeMany(IEnumerable<ulong> workshopIds)
     {
-        List<ulong> ids = workshopIds.Distinct().ToList();
+        List<ulong> ids = [.. workshopIds.Distinct()];
         if (ids.Count == 0)
             return 0;
 
@@ -88,7 +88,7 @@ public sealed class SteamWorkshopService
 
     public static int SubscribeMany(IEnumerable<ulong> workshopIds)
     {
-        List<ulong> ids = workshopIds.Distinct().ToList();
+        List<ulong> ids = [.. workshopIds.Distinct()];
         if (ids.Count == 0)
             return 0;
 

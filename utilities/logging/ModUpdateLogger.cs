@@ -288,7 +288,7 @@ public static class ModUpdateLogger
                     activeMods.Select(m => m.id),
                     StringComparer.OrdinalIgnoreCase);
 
-                List<ModUpdateSnapshotEntry> currentList = current.Values.ToList();
+                List<ModUpdateSnapshotEntry> currentList = [.. current.Values];
 
                 // Parallelize TryDetectLocalUpdate and EnsureLocalDeepStamp passes per mod.
                 // Computed into an index-aligned array to preserve stable entry ordering.
@@ -351,7 +351,7 @@ public static class ModUpdateLogger
 
     private static Dictionary<string, ModUpdateSnapshotEntry> BuildSnapshot(IEnumerable<ModReference> mods)
     {
-        List<ModReference> modList = mods as List<ModReference> ?? mods.ToList();
+        List<ModReference> modList = mods as List<ModReference> ?? [.. mods];
 
         ModUpdateSnapshotEntry?[] results = new ModUpdateSnapshotEntry?[modList.Count];
         _ = Parallel.For(0, modList.Count, new ParallelOptions
@@ -395,18 +395,13 @@ public static class ModUpdateLogger
         return snapshot;
     }
 
-    private static ModUpdateLogEntry BuildEntry(ModUpdateSnapshotEntry entry, bool active, ModUpdateChangeType changeType)
-    {
-        return BuildEntry(entry, active, changeType, null);
-    }
+    private static ModUpdateLogEntry BuildEntry(ModUpdateSnapshotEntry entry, bool active, ModUpdateChangeType changeType) => BuildEntry(entry, active, changeType, null);
 
     private static ModUpdateLogEntry BuildEntry(
         ModUpdateSnapshotEntry entry,
         bool active,
         ModUpdateChangeType changeType,
-        DateTime? timestampUtc)
-    {
-        return new ModUpdateLogEntry
+        DateTime? timestampUtc) => new ModUpdateLogEntry
         {
             TimestampUtc = timestampUtc ?? DateTime.UtcNow,
             ModId = entry.ModId,
@@ -417,7 +412,6 @@ public static class ModUpdateLogger
             SteamId = entry.SteamId,
             ChangeType = changeType
         };
-    }
 
     private static ModUpdateLogEntry BuildEntryFromModReference(
         ModReference modref,
@@ -537,10 +531,7 @@ public static class ModUpdateLogger
             EnsureLocalDeepStamp);
     }
 
-    private static bool IsLocalSource(string? sourceType)
-    {
-        return string.Equals(sourceType?.Trim(), "Local", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsLocalSource(string? sourceType) => string.Equals(sourceType?.Trim(), "Local", StringComparison.OrdinalIgnoreCase);
 
     internal static string BuildLocalQuickStamp(string? modPath)
     {
@@ -651,7 +642,7 @@ public static class ModUpdateLogger
     {
         try
         {
-            List<ModUpdateSnapshotEntry> entries = snapshot.Values.ToList();
+            List<ModUpdateSnapshotEntry> entries = [.. snapshot.Values];
             string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(SnapshotPath, json);
         }
@@ -663,7 +654,7 @@ public static class ModUpdateLogger
 
     private static void AppendEntries(IEnumerable<ModUpdateLogEntry> newEntries)
     {
-        List<ModUpdateLogEntry> existing = LoadEntries().ToList();
+        List<ModUpdateLogEntry> existing = [.. LoadEntries()];
         existing.AddRange(newEntries);
 
         string json = SerializeEntries(existing);
@@ -704,10 +695,7 @@ public static class ModUpdateLogger
         return removedCount;
     }
 
-    private static string SerializeEntries(List<ModUpdateLogEntry> entries)
-    {
-        return JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
-    }
+    private static string SerializeEntries(List<ModUpdateLogEntry> entries) => JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
 
     private static int CountLines(string text)
     {
@@ -913,9 +901,7 @@ public static class ModUpdateLogger
     {
         try
         {
-            List<SteamWorkshopSnapshotEntry> entries = snapshot
-                .Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value })
-                .ToList();
+            List<SteamWorkshopSnapshotEntry> entries = [.. snapshot.Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value })];
             string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(WorkshopSnapshotPath, json);
         }

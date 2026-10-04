@@ -141,11 +141,16 @@
                       HorizontalAlignment="Stretch" Margin="2,2,0,0" />
               <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,6,0"
                           VerticalAlignment="Center">
-                <Button x:Name="updateButton" Width="23" Height="23" Padding="0" Tag="Themed"
-                        ToolTip.Tip="Check for updates">
-                  <Image Source="{ui:AssetImage updateIcon}"
-                         Stretch="Uniform" />
-                </Button>
+                <Grid>
+                  <Button x:Name="updateButton" Width="23" Height="23" Padding="0" Tag="Themed"
+                          ToolTip.Tip="Check for updates. Right click for update options">
+                    <Image Source="{ui:AssetImage updateIcon}"
+                           Stretch="Uniform" />
+                  </Button>
+                  <Ellipse x:Name="updateIndicatorEllipse" Width="12" Height="12" Fill="{DynamicResource ModRefHighlightBrush}" HorizontalAlignment="Left" StrokeThickness="0.5"
+                          Stroke="{DynamicResource ButtonBorderBrush}" VerticalAlignment="Bottom" Margin="-2,0,0,-2" IsVisible="{Binding IsUpdateAvailable, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}" 
+                          IsHitTestVisible="False" />
+                </Grid>
                 <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
               </StackPanel>
               <ScrollViewer x:Name="dfhackStatusScrollViewer" Grid.Row="1" Grid.Column="1"
@@ -438,8 +443,8 @@
                                  TextDecorations="{Binding TextDecorations}" />
                     </Grid>
                     <Border Background="{DynamicResource PanelDarkBrush}" CornerRadius="12" Margin="22,0,0,0" Padding="4,2" HorizontalAlignment="Stretch">
-                        <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{Binding MessageForeground}" Opacity="0.8"
-                                   TextDecorations="{Binding TextDecorations}" HorizontalAlignment="Center" />
+                      <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{Binding MessageForeground}" Opacity="0.8"
+                                 TextDecorations="{Binding TextDecorations}" HorizontalAlignment="Center" />
                     </Border>
                   </StackPanel>
                 </Border>

@@ -1,10 +1,13 @@
-using Avalonia.Media;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia.Media;
 using ModHearth.UI;
 
 namespace ModHearth.Models;
 
+/// <summary>
+/// Represents a color option in the mod color picker
+/// </summary>
 public class ModColorInfo : INotifyPropertyChanged
 {
     private ModColor _modColor;
@@ -69,8 +72,5 @@ public class ModColorInfo : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

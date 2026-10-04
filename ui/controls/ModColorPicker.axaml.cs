@@ -1,12 +1,12 @@
+using System.Collections.ObjectModel;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using ModHearth.Models;
-using System.Collections.ObjectModel;
-using System.Windows.Input;
 using Avalonia.Markup.Xaml;
-using ReactiveUI;
 using Avalonia.Media;
+using ModHearth.Models;
+using ReactiveUI;
 
 namespace ModHearth.UI;
 
@@ -27,7 +27,7 @@ public partial class ModColorPicker : UserControl
     public event EventHandler? SelectionChanged;
     public event EventHandler? PickerClicked;
 
-    public ICommand ClearSelectionCommand { get; }
+    public ICommand OpenColorPickerCommand { get; }
 
     public ObservableCollection<ModColorInfo> AvailableColors
     {
@@ -55,7 +55,7 @@ public partial class ModColorPicker : UserControl
 
         InitializeComponent();
 
-        ClearSelectionCommand = ReactiveCommand.Create(ClearSelection);
+        OpenColorPickerCommand = ReactiveCommand.Create(OpenColorPicker);
 
         SelectedColors.CollectionChanged += (s, e) =>
         {
@@ -70,17 +70,14 @@ public partial class ModColorPicker : UserControl
             HorizontalScrollHelper.EnableSidewaysScrolling(scrollViewer);
         }
 
-        var clearSelectionButton = this.FindControl<Button>("ClearSelectionButton");
-        if (clearSelectionButton != null)
+        var openColorPickerButton = this.FindControl<Button>("OpenColorPickerButton");
+        if (openColorPickerButton != null)
         {
-            SearchButtonBehavior.GetOrCreate(clearSelectionButton);
+            SearchButtonBehavior.GetOrCreate(openColorPickerButton);
         }
     }
 
-    private void InitializeComponent()
-    {
-        AvaloniaXamlLoader.Load(this);
-    }
+    private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
     private void Color_Tapped(object? sender, TappedEventArgs e)
     {
@@ -104,10 +101,10 @@ public partial class ModColorPicker : UserControl
     {
         // Only trigger if we didn't tap a specific color
         if (!e.Handled)
-        {
             PickerClicked?.Invoke(this, EventArgs.Empty);
-        }
     }
+
+    public void OpenColorPicker() => PickerClicked?.Invoke(this, EventArgs.Empty);
 
     public void ClearSelection()
     {
@@ -120,13 +117,13 @@ public partial class ModColorPicker : UserControl
 
     public void ApplyStyle(IBrush normalBrush, IBrush hoverBrush, IBrush pressedBrush, IBrush textBrush)
     {
-        var clearSelectionButton = this.FindControl<Button>("ClearSelectionButton");
-        if (clearSelectionButton != null)
+        var openColorPickerButton = this.FindControl<Button>("OpenColorPickerButton");
+        if (openColorPickerButton != null)
         {
-            SearchButtonBehavior.GetOrCreate(clearSelectionButton).ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
-            clearSelectionButton.Foreground = textBrush;
-            clearSelectionButton.BorderBrush = Brushes.Transparent;
-            clearSelectionButton.BorderThickness = new Thickness(0);
+            SearchButtonBehavior.GetOrCreate(openColorPickerButton).ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
+            openColorPickerButton.Foreground = textBrush;
+            openColorPickerButton.BorderBrush = Brushes.Transparent;
+            openColorPickerButton.BorderThickness = new Thickness(0);
         }
     }
 }

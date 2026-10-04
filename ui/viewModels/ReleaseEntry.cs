@@ -17,8 +17,7 @@ public sealed class ReleaseEntry
         string title = UpdateHelpers.GetReleaseTitle(release, index);
         string subtitle = UpdateHelpers.GetReleaseSubtitle(release, currentBuild);
         string? buildNumber = UpdateHelpers.TryGetBuildNumber(release);
-        bool isCurrent = !string.IsNullOrWhiteSpace(buildNumber) &&
-                         string.Equals(buildNumber, currentBuild, StringComparison.OrdinalIgnoreCase);
+        bool isCurrent = !string.IsNullOrWhiteSpace(buildNumber) && UpdateHelpers.IsCurrentVersion(buildNumber, currentBuild);
 
         return new ReleaseEntry
         {

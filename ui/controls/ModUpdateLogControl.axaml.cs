@@ -1,10 +1,11 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Media;
 using Avalonia.Threading;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace ModHearth.UI;
 
@@ -113,10 +114,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         }
     }
 
-    public void LoadEntries()
-    {
-        _ = LoadEntriesAsync();
-    }
+    public void LoadEntries() => _ = LoadEntriesAsync();
 
     public async Task LoadEntriesAsync()
     {
@@ -158,14 +156,14 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         Console.WriteLine($"[ModUpdateLog] Total number of entries: {rawEntries.Count}");
         bool needsFullRebuild = wasEmpty || rawEntries.Count < knownCount;
 
-        List<ModUpdateLogEntry> toMaterialize = (needsFullRebuild ? rawEntries : rawEntries.Skip(knownCount)).ToList();
+        List<ModUpdateLogEntry> toMaterialize = [.. (needsFullRebuild ? rawEntries : rawEntries.Skip(knownCount))];
 
         IBrush defaultBrush = GetDefaultTextBrush();
         IBrush selectedBrush = GetSelectedBackgroundBrush();
 
         List<ModUpdateLogItemViewModel> viewModels = BuildViewModels(toMaterialize, activeIds, defaultBrush, selectedBrush);
         if (needsFullRebuild)
-            viewModels = viewModels.OrderByDescending(vm => vm.Entry.TimestampUtc).ToList();
+            viewModels = [.. viewModels.OrderByDescending(vm => vm.Entry.TimestampUtc)];
 
         return (viewModels, rawEntries.Count, needsFullRebuild);
     }
@@ -203,7 +201,7 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
         }
 
-        return results.ToList();
+        return [.. results];
     }
 
     private void ApplyViewModels(List<ModUpdateLogItemViewModel> viewModels, int rawCount, bool needsFullRebuild)
@@ -233,13 +231,13 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         bool hideFiltered = modSearchBar?.HideFiltered ?? false;
         bool hasFilter = !string.IsNullOrWhiteSpace(filter);
 
-        List<ModUpdateLogItemViewModel> filtered = allEntries.Where(vm =>
+        List<ModUpdateLogItemViewModel> filtered = [.. allEntries.Where(vm =>
         {
             bool match = !hasFilter || vm.MatchesFilter(filter, searchMode);
             vm.IsFilteredOut = hasFilter && !match;
             vm.IsVisible = !hideFiltered || match;
             return vm.IsVisible;
-        }).ToList();
+        })];
 
         entries.Clear();
         foreach (var vm in filtered)
@@ -252,10 +250,37 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     private void ApplyDefaultSort()
     {
-        _ = Dispatcher.UIThread.InvokeAsync(() =>
+        void DoSort()
         {
             if (logList.Columns.Count > 0)
-                logList.Columns[0].Sort(ListSortDirection.Descending);
+            {
+                try
+                {
+                    logList.Columns[0].Sort(ListSortDirection.Descending);
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("Failed to apply default sort on log list", ex);
+                }
+            }
+        }
+
+        _ = Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (TopLevel.GetTopLevel(logList) != null)
+            {
+                DoSort();
+            }
+            else
+            {
+                EventHandler<VisualTreeAttachmentEventArgs>? handler = null;
+                handler = (s, e) =>
+                {
+                    logList.AttachedToVisualTree -= handler;
+                    DoSort();
+                };
+                logList.AttachedToVisualTree += handler;
+            }
         });
     }
 
@@ -311,11 +336,8 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
 
     public ModHearthManager? GetManager() => manager;
 
-    public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm)
-    {
-        return logList.SelectedItems?.Cast<ModUpdateLogItemViewModel>().Select(item => item.ModReference)
+    public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => logList.SelectedItems?.Cast<ModUpdateLogItemViewModel>().Select(item => item.ModReference)
             ?? Enumerable.Empty<ModReference>();
-    }
 
     public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
     {
@@ -371,8 +393,5 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         }
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
+    private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

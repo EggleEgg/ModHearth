@@ -36,9 +36,9 @@ namespace ModHearth
         {
             if (modref == null || other == null)
                 return false;
-            return ContainsModId(modref.require_before_me, other.ID) ||
-                   ContainsModId(modref.require_after_me, other.ID) ||
-                   ContainsModId(modref.require_ids, other.ID);
+            return ContainsModId(modref.requireBeforeMe, other.ID) ||
+                   ContainsModId(modref.requireAfterMe, other.ID) ||
+                   ContainsModId(modref.requireIds, other.ID);
         }
 
         // True if adding fromId -> toId would create a cycle given the edges already in the graph (i.e. toId can already reach fromId). This is
@@ -249,9 +249,9 @@ namespace ModHearth
             while (queue.Count > 0)
             {
                 ModReference current = queue.Dequeue();
-                IEnumerable<string> declaredDependencies = current.require_before_me
-                    .Concat(current.require_after_me)
-                    .Concat(current.require_ids);
+                IEnumerable<string> declaredDependencies = current.requireBeforeMe
+                    .Concat(current.requireAfterMe)
+                    .Concat(current.requireIds);
 
                 IEnumerable<string> customRequiredIds = relationshipRulesSnapshot.TryGetValue(current.ID, out ModRelationshipRule? customRule)
                     ? customRule.RequiredIds
@@ -288,11 +288,10 @@ namespace ModHearth
 
             // Used as: the final "everything failed" fallback, the tie-break for Kahn's algorithm's frontier selection, and the signal
             // best-effort edges are derived from.
-            List<ModReference> baseOrder = allEnabled
+            List<ModReference> baseOrder = [.. allEnabled
                 .OrderBy(GetModSortGroup)
                 .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
-                .ThenBy(m => m.name ?? m.ID)
-                .ToList();
+                .ThenBy(m => m.name ?? m.ID)];
 
             Dictionary<string, int> baseIndex = new(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < baseOrder.Count; i++)
@@ -371,21 +370,21 @@ namespace ModHearth
             // --- Tier 2: declared dependencies (info.txt require_before_me / require_after_me / require_ids) ---
             foreach (ModReference modref in allEnabled)
             {
-                foreach (string dep in modref.require_before_me)
+                foreach (string dep in modref.requireBeforeMe)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
                         continue;
                     _ = TryAddEdge(edges, indegree, depId, modref.ID);
                 }
-                foreach (string dep in modref.require_after_me)
+                foreach (string dep in modref.requireAfterMe)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
                         continue;
                     _ = TryAddEdge(edges, indegree, modref.ID, depId);
                 }
-                foreach (string dep in modref.require_ids)
+                foreach (string dep in modref.requireIds)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
@@ -465,7 +464,7 @@ namespace ModHearth
                 }
             }
 
-            List<string> enabledIdsList = enabledIds.ToList();
+            List<string> enabledIdsList = [.. enabledIds];
 
             _ = Parallel.ForEach(enabledIdsList, cutterId =>
             {
@@ -543,9 +542,9 @@ namespace ModHearth
             // --- Tier 5: Mod-vs-mod duplicate warnings ---
             foreach (HashSet<string> group in duplicateWarningGroupsSnapshot)
             {
-                List<string> modIds = group.Where(id =>
+                List<string> modIds = [.. group.Where(id =>
                     enabledIds.Contains(id) &&
-                    idMap.TryGetValue(id, out ModReference? m) && m != null && !IsVanillaBaseMod(m)).ToList();
+                    idMap.TryGetValue(id, out ModReference? m) && m != null && !IsVanillaBaseMod(m))];
 
                 if (modIds.Count <= 1)
                     continue;
@@ -606,14 +605,13 @@ namespace ModHearth
                 if (kvp.Value.Count(activeModIds.Contains) > 1)
                     conflictingKeys.Add(kvp.Key);
 
-                List<ModReference> definers = kvp.Value
+                List<ModReference> definers = [.. kvp.Value
                     .Select(id => idMap.TryGetValue(id, out ModReference? m) ? m : null)
                     .Where(m => m != null)
                     .Cast<ModReference>()
                     .OrderBy(GetModSortGroup)
                     .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
-                    .ThenBy(m => m.name ?? m.ID, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                    .ThenBy(m => m.name ?? m.ID, StringComparer.OrdinalIgnoreCase)];
 
                 for (int i = 0; i < definers.Count - 1; i++)
                 {
@@ -649,7 +647,7 @@ namespace ModHearth
             }
 
             if (sortedIds.Count != enabledIds.Count)
-                sortedIds = baseOrder.Select(m => m.ID).ToList();
+                sortedIds = [.. baseOrder.Select(m => m.ID)];
 
             List<DFHMod> sortedMods = [];
             foreach (string id in sortedIds)

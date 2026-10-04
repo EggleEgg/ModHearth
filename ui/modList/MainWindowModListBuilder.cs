@@ -8,7 +8,7 @@ internal static class MainWindowModListBuilder
         string modsFolderPath = ConfigManager.GetModsPath();
         string vanillaFolderPath = ConfigManager.GetVanillaModsPath();
 
-        List<DFHMod> modList = manager.modPool.ToList();
+        List<DFHMod> modList = [.. manager.modPool];
 
         // ModRefViewModel construction, source classification, and RefreshStyle() are
         // independent per mod. Computed into an indexed array and merged into modViewMap
@@ -74,7 +74,7 @@ internal static class MainWindowModListBuilder
                 best[id] = vm;
         }
 
-        return best.Values.ToList();
+        return [.. best.Values];
     }
 
     private static bool IsPreferredForCollapsing(ModRefViewModel candidate, ModRefViewModel current)

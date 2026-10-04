@@ -9,14 +9,14 @@ namespace ModHearth.App.Tests;
 public class SkiaNativeSmokeTests
 {
     [Fact]
-    public void SkFontManager_Default_Initializes_Without_Native_Mismatch()
+    public void SkFontManagerDefaultInitializesWithoutNativeMismatch()
     {
         SKFontManager manager = SKFontManager.Default;
         Assert.NotNull(manager);
     }
 
     [Fact]
-    public void Can_Create_And_Draw_On_A_Bitmap()
+    public void CanCreateAndDrawOnABitmap()
     {
         using SKBitmap bitmap = new(4, 4);
         using SKCanvas canvas = new(bitmap);

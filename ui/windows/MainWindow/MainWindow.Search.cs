@@ -1,6 +1,6 @@
+using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
-using System.Collections.ObjectModel;
 using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
 
@@ -157,9 +157,7 @@ public partial class MainWindow
         bool hideFiltered,
         bool sortDescending,
         ListBox list,
-        bool isSortingEnabled = true)
-    {
-        SearchFilterHelper.ApplyFilterFlags(
+        bool isSortingEnabled = true) => SearchFilterHelper.ApplyFilterFlags(
             targetCollection,
             sourceMods
                 .Select(m => modViewMap.TryGetValue(m.ToString(), out ModRefViewModel? vm) ? vm : null)
@@ -174,7 +172,6 @@ public partial class MainWindow
             isSortingEnabled,
             msg => SearchLogging.Log($"ApplyFilterFlags list={DescribeList(list)} " + msg)
         );
-    }
 
     private void ScheduleSearchFilter()
     {
@@ -215,22 +212,16 @@ public partial class MainWindow
         return list.Name ?? "<unnamedList>";
     }
 
-    private static string TrimForLog(string? value)
+    private static string TrimForLog(string? value) => StringFormatter.TrimForLog(value);
+    private static string DescribeSearchMode(SearchFilterMode mode) => mode switch
     {
-        return StringFormatter.TrimForLog(value);
-    }
-    private static string DescribeSearchMode(SearchFilterMode mode)
-    {
-        return mode switch
-        {
-            SearchFilterMode.Name => "name",
-            SearchFilterMode.Regex => "regex",
-            SearchFilterMode.ModifiedTime => "modified_time",
-            SearchFilterMode.Id => "id",
-            SearchFilterMode.SteamFileId => "steam_file_id",
-            _ => "name"
-        };
-    }
+        SearchFilterMode.Name => "name",
+        SearchFilterMode.Regex => "regex",
+        SearchFilterMode.ModifiedTime => "modified_time",
+        SearchFilterMode.Id => "id",
+        SearchFilterMode.SteamFileId => "steam_file_id",
+        _ => "name"
+    };
 
     private void EnsureFirstVisibleSearchResultInView(
         ListBox list,
@@ -276,7 +267,7 @@ public partial class MainWindow
                 vmVisible++;
         }
 
-        List<ListBoxItem> realizedItems = list.GetVisualDescendants().OfType<ListBoxItem>().ToList();
+        List<ListBoxItem> realizedItems = [.. list.GetVisualDescendants().OfType<ListBoxItem>()];
         int realizedTotal = realizedItems.Count;
         int realizedVisible = realizedItems.Count(item => item.IsVisible);
         int realizedHidden = realizedTotal - realizedVisible;

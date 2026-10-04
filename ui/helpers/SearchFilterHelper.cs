@@ -17,7 +17,7 @@ public static class SearchFilterHelper
         bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
 
         // Visit every item once to set IsFilteredOut and IsVisible
-        List<ModRefViewModel> items = source is List<ModRefViewModel> list ? list : source.ToList();
+        List<ModRefViewModel> items = source is List<ModRefViewModel> list ? list : [.. source];
         foreach (var vm in items)
         {
             bool match = !hasFilter || vm.MatchesFilter(trimmed, searchMode);
@@ -30,13 +30,13 @@ public static class SearchFilterHelper
 
         // Sort only the surviving subset
         return (!isSortingEnabled)
-            ? visibleItems.ToList()
+            ? [.. visibleItems]
             : (searchMode, sortDescending) switch
             {
-                (SearchFilterMode.ModifiedTime, true) => visibleItems.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue).ToList(),
-                (SearchFilterMode.ModifiedTime, false) => visibleItems.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue).ToList(),
-                (_, true) => visibleItems.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase).ToList(),
-                (_, false) => visibleItems.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase).ToList()
+                (SearchFilterMode.ModifiedTime, true) => [.. visibleItems.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue)],
+                (SearchFilterMode.ModifiedTime, false) => [.. visibleItems.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue)],
+                (_, true) => [.. visibleItems.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)],
+                (_, false) => [.. visibleItems.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)]
             };
     }
 
@@ -72,10 +72,9 @@ public static class SearchFilterHelper
             return;
 
         HashSet<ModRefViewModel> visibleSet = [.. displayItems];
-        List<ModRefViewModel> retained = list.SelectedItems
+        List<ModRefViewModel> retained = [.. list.SelectedItems
             .OfType<ModRefViewModel>()
-            .Where(visibleSet.Contains)
-            .ToList();
+            .Where(visibleSet.Contains)];
 
         if (retained.Count == list.SelectedItems.Count)
             return;

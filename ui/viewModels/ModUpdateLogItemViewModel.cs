@@ -1,6 +1,6 @@
-using Avalonia.Media;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia.Media;
 
 namespace ModHearth.UI;
 
@@ -203,8 +203,5 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
+    private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

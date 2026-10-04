@@ -41,10 +41,7 @@ namespace ModHearth.Utilities.Workshop
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        protected void OnPropertyChanged(string name)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-        }
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
         public ulong PublishedFileId { get; set; }
         public string Title { get; set; } = string.Empty;
@@ -162,8 +159,7 @@ namespace ModHearth.Utilities.Workshop
         // Timer for debouncing UI reloads
         private DispatcherTimer? _reloadTimer;
 
-        private void TriggerDebouncedUIReload()
-        {
+        private void TriggerDebouncedUIReload() =>
             // Marshal timer reset to the UI Thread
             Dispatcher.UIThread.Post(() =>
             {
@@ -181,7 +177,6 @@ namespace ModHearth.Utilities.Workshop
                 _reloadTimer.Stop();
                 _reloadTimer.Start();
             });
-        }
 
         public ObservableCollection<WorkshopDownloadItem> Queue { get; } = [];
         public List<IWorkshopDownloadProvider> Providers { get; } = [];
@@ -630,7 +625,7 @@ namespace ModHearth.Utilities.Workshop
                                 batchItems.Add(new BatchDownloadItem(batchItem.PublishedFileId, targetDir, prog, batchItem.Cts!.Token));
                             }
 
-                            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ctsList.Select(c => c.Token).ToArray());
+                            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource([.. ctsList.Select(c => c.Token)]);
                             var results = await steamCmdProvider.DownloadBatchAsync(batchItems, linkedCts.Token);
 
                             bool anySuccess = false;
@@ -749,16 +744,18 @@ namespace ModHearth.Utilities.Workshop
                      (ModHearthManager.TryGetSteamWorkshopItemId(m, out string sId) && string.Equals(sId, idStr, StringComparison.OrdinalIgnoreCase))
                 ).ToList();
 
-                foreach (var oldMod in existingMods)
+                using (_manager.BeginDeletionBatch())
                 {
-                    if (!string.IsNullOrWhiteSpace(oldMod.path))
+                    foreach (var oldMod in existingMods)
                     {
-                        string canonicalOldPath = ConfigManager.ResolveCanonicalPath(oldMod.path);
-                        if (!string.Equals(canonicalOldPath, canonicalTargetDir, StringComparison.OrdinalIgnoreCase)
-                        && ModHearthManager.CanDeleteModFromModsFolder(oldMod) && _manager.DeleteModFromModsFolder(oldMod, out string _))
+                        if (!string.IsNullOrWhiteSpace(oldMod.path))
                         {
-                            _manager.ShowNotification($"Deleted old mod folder: {Path.GetFileName(oldMod.path)}", "trashIcon.svg");
-                            InfoLogger.LogRunDf($"WorkshopQueueManager: Deleted old mod folder '{oldMod.path}' for workshop item {publishedFileId}.");
+                            string canonicalOldPath = ConfigManager.ResolveCanonicalPath(oldMod.path);
+                            if (!string.Equals(canonicalOldPath, canonicalTargetDir, StringComparison.OrdinalIgnoreCase)
+                            && ModHearthManager.CanDeleteModFromModsFolder(oldMod) && _manager.DeleteModFromModsFolder(oldMod, out string _))
+                            {
+                                InfoLogger.LogRunDf($"WorkshopQueueManager: Deleted old mod folder '{oldMod.path}' for workshop item {publishedFileId}.");
+                            }
                         }
                     }
                 }

@@ -4,10 +4,7 @@ namespace ModHearth.UI;
 
 public partial class MainWindow
 {
-    private void UpdateCachedIndicators()
-    {
-        ModListIndicatorUpdater.UpdateCachedIndicators(modViewMap.Values, manager.GetInstalledCacheModIds());
-    }
+    private void UpdateCachedIndicators() => ModListIndicatorUpdater.UpdateCachedIndicators(modViewMap.Values, manager.GetInstalledCacheModIds());
 
     private int lastRelationshipRulesVersion = -1;
     private string? lastWarningTooltip;
@@ -108,10 +105,7 @@ public partial class MainWindow
         ShowModInfo(vm.ModReference);
     }
 
-    private bool HasJumpHighlights()
-    {
-        return currentJumpHighlighted != null;
-    }
+    private bool HasJumpHighlights() => currentJumpHighlighted != null;
 
     private void ClearJumpHighlights()
     {

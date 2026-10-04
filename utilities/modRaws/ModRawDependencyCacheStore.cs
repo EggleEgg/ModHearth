@@ -54,7 +54,7 @@ namespace ModHearth.Utilities
                     if (!string.IsNullOrWhiteSpace(directory))
                         _ = Directory.CreateDirectory(directory);
 
-                    CacheFile file = new() { SchemaVersion = CurrentSchemaVersion, Entries = entries.ToList() };
+                    CacheFile file = new() { SchemaVersion = CurrentSchemaVersion, Entries = [.. entries] };
                     string json = JsonSerializer.Serialize(file, new JsonSerializerOptions { WriteIndented = true });
                     File.WriteAllText(CachePath, json);
                 }

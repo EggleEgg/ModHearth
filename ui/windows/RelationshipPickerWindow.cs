@@ -31,11 +31,10 @@ internal sealed class RelationshipPickerWindow : Window
         this.ownerId = ownerId.Trim();
         this.alreadyAdded = new HashSet<string>(alreadyAdded, StringComparer.OrdinalIgnoreCase);
 
-        allMods = candidates
+        allMods = [.. candidates
             .Where(vm => !string.Equals(vm.ModReference.ID, this.ownerId, StringComparison.OrdinalIgnoreCase))
             .OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .ThenBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)];
 
         Title = $"Add {LabelFor(kind)}";
         Width = 460;
@@ -145,10 +144,7 @@ internal sealed class RelationshipPickerWindow : Window
         WindowThemeManager.Register(this);
     }
 
-    private void ApplyFilter()
-    {
-        searchController.ApplyFilterImmediately();
-    }
+    private void ApplyFilter() => searchController.ApplyFilterImmediately();
 
     // Handles quick keyboard actions
     private void PickerKeyDown(object? sender, KeyEventArgs e)
@@ -199,15 +195,12 @@ internal sealed class RelationshipPickerWindow : Window
 
 
 
-    private static string LabelFor(ModRelationshipKind kind)
+    private static string LabelFor(ModRelationshipKind kind) => kind switch
     {
-        return kind switch
-        {
-            ModRelationshipKind.Before => "Before",
-            ModRelationshipKind.After => "After",
-            ModRelationshipKind.Required => "Required",
-            ModRelationshipKind.Incompatible => "Incompatible",
-            _ => "Relationship"
-        };
-    }
+        ModRelationshipKind.Before => "Before",
+        ModRelationshipKind.After => "After",
+        ModRelationshipKind.Required => "Required",
+        ModRelationshipKind.Incompatible => "Incompatible",
+        _ => "Relationship"
+    };
 }

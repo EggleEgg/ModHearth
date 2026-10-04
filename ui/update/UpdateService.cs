@@ -1,11 +1,12 @@
-using Avalonia.Controls;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Avalonia.Controls;
 
 namespace ModHearth.UI;
 
@@ -26,6 +27,8 @@ internal static class UpdateService
     private const int RecentBuildCount = 5;
     private const string UpdateRepoOwner = "EggleEgg";
     private const string UpdateRepoName = "ModHearth";
+    private const string BleedingEdgeRepoOwner = "EggleEgg";
+    private const string BleedingEdgeRepoName = "ModHearth-Builds";
     private const string Title = "Update failed";
 
     private static readonly HttpClient UpdateHttpClient = CreateUpdateHttpClient();
@@ -119,9 +122,13 @@ internal static class UpdateService
         }
     }
 
-    private static async Task<List<GitHubRelease>> FetchRecentBuildsAsync(int count)
+    internal static async Task<List<GitHubRelease>> FetchRecentBuildsAsync(int count, bool? isBleedingEdge = null)
     {
-        string url = $"https://api.github.com/repos/{UpdateRepoOwner}/{UpdateRepoName}/releases?per_page={count}";
+        bool bleeding = isBleedingEdge ?? DevMode.IsEnabled;
+        string owner = bleeding ? BleedingEdgeRepoOwner : UpdateRepoOwner;
+        string repo = bleeding ? BleedingEdgeRepoName : UpdateRepoName;
+
+        string url = $"https://api.github.com/repos/{owner}/{repo}/releases?per_page={count}";
         using HttpRequestMessage request = new(HttpMethod.Get, url);
         using HttpResponseMessage response = await UpdateHttpClient.SendAsync(request);
         if (!response.IsSuccessStatusCode)
@@ -185,6 +192,27 @@ internal static class UpdateService
         string fileName = asset.Name ?? "ModHearth-update";
         string assetPath = Path.Combine(tempRoot, fileName);
         UpdateLogger.Log($"Downloaded update asset: {assetPath}");
+
+        // SHA256 Verification Step
+        string? expectedDigest = asset.Digest;
+        if (string.IsNullOrWhiteSpace(expectedDigest) && !string.IsNullOrWhiteSpace(asset.Name))
+            expectedDigest = ExtractHashFromReleaseBody(release.Body, asset.Name);
+
+        if (!string.IsNullOrWhiteSpace(expectedDigest))
+        {
+            UpdateLogger.Log("Verifying update payload SHA256 integrity...");
+            bool isValid = await VerifyFileHashAsync(assetPath, expectedDigest);
+            
+            if (!isValid)
+            {
+                UpdateLogger.LogError("Update failed: SHA256 checksum mismatch.");
+                await DialogService.ShowMessageAsync(owner, "Security check failed: Downloaded file hash does not match expected release checksum.", Title);
+                return false;
+            }
+
+            UpdateLogger.Log("SHA256 checksum verified successfully.");
+        }
+
         string extractDir = Path.Combine(tempRoot, "extract");
         _ = Directory.CreateDirectory(extractDir);
 
@@ -405,6 +433,34 @@ internal static class UpdateService
         using FileStream fileStream = File.OpenRead(archivePath);
         using GZipStream gzip = new(fileStream, CompressionMode.Decompress);
         TarFile.ExtractToDirectory(gzip, destinationDirectory, true);
+    }
+
+    private static async Task<bool> VerifyFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(expectedHash))
+            return true; // Skip if no hash was provided
+
+        // Clean up formatting (e.g., strip "sha256:" prefix if coming from GitHub API)
+        string cleanExpected = expectedHash.Replace("sha256:", "", StringComparison.OrdinalIgnoreCase).Trim();
+
+        using SHA256 sha256 = SHA256.Create();
+        await using FileStream stream = File.OpenRead(filePath);
+        byte[] hashBytes = await sha256.ComputeHashAsync(stream, cancellationToken);
+        string actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+        return string.Equals(actualHash, cleanExpected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? ExtractHashFromReleaseBody(string? body, string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+
+        // Matches 64-character hexadecimal hashes near the asset filename
+        var match = System.Text.RegularExpressions.Regex.Match(
+            body, 
+            $@"{System.Text.RegularExpressions.Regex.Escape(fileName)}[\s\S]*?([a-fA-F0-9]{{64}})");
+
+        return match.Success ? match.Groups[1].Value : null;
     }
 
     private static string? BackupConfig(string baseDir, string tempRoot)

@@ -17,24 +17,15 @@
     /// </summary>
     internal static class InfoLogger
     {
-        public static void Log(string message)
-        {
-            Console.WriteLine($"[DIAG] {message}");
-        }
+        public static void Log(string message) => Console.WriteLine($"[DIAG] {message}");
 
-        public static void LogRunDf(string message)
-        {
-            Console.WriteLine($"[DfRunner] {message}");
-        }
+        public static void LogRunDf(string message) => Console.WriteLine($"[DfRunner] {message}");
 
 
     }
     public static class ReloadLogging
     {
-        public static void Log(string message)
-        {
-            Console.WriteLine($"[ReloadManager] {message}");
-        }
+        public static void Log(string message) => Console.WriteLine($"[ReloadManager] {message}");
     }
 
 }

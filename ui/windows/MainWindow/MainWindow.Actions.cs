@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
-using System.Diagnostics;
 
 namespace ModHearth.UI;
 
@@ -49,45 +49,42 @@ public partial class MainWindow
         }
     }
 
-    private IReadOnlyDictionary<DockSide, DockingTarget> CreateDockSideTargets()
+    private IReadOnlyDictionary<DockSide, DockingTarget> CreateDockSideTargets() => new Dictionary<DockSide, DockingTarget>
     {
-        return new Dictionary<DockSide, DockingTarget>
+        [DockSide.Left] = new DockingTarget
         {
-            [DockSide.Left] = new DockingTarget
-            {
-                MainGrid = mainGrid,
-                Side = DockSide.Left,
-                SplitterIndex = 1,
-                ContentIndex = 0,
-                SplitterControl = leftDockSplitter,
-                DockHostControl = leftDockHost,
-                DockHostBorder = leftDockHostLine,
-                PreviewBorder = leftDockPreviewBorder
-            },
-            [DockSide.Right] = new DockingTarget
-            {
-                MainGrid = mainGrid,
-                Side = DockSide.Right,
-                SplitterIndex = 6,
-                ContentIndex = 7,
-                SplitterControl = rightDockSplitter,
-                DockHostControl = rightDockHost,
-                DockHostBorder = rightDockHostLine,
-                PreviewBorder = rightDockPreviewBorder
-            },
-            [DockSide.Bottom] = new DockingTarget
-            {
-                MainGrid = mainGrid,
-                Side = DockSide.Bottom,
-                SplitterIndex = 1,
-                ContentIndex = 2,
-                SplitterControl = bottomDockSplitter,
-                DockHostControl = bottomDockHost,
-                DockHostBorder = bottomDockHostLine,
-                PreviewBorder = bottomDockPreviewBorder
-            }
-        };
-    }
+            MainGrid = mainGrid,
+            Side = DockSide.Left,
+            SplitterIndex = 1,
+            ContentIndex = 0,
+            SplitterControl = leftDockSplitter,
+            DockHostControl = leftDockHost,
+            DockHostBorder = leftDockHostLine,
+            PreviewBorder = leftDockPreviewBorder
+        },
+        [DockSide.Right] = new DockingTarget
+        {
+            MainGrid = mainGrid,
+            Side = DockSide.Right,
+            SplitterIndex = 6,
+            ContentIndex = 7,
+            SplitterControl = rightDockSplitter,
+            DockHostControl = rightDockHost,
+            DockHostBorder = rightDockHostLine,
+            PreviewBorder = rightDockPreviewBorder
+        },
+        [DockSide.Bottom] = new DockingTarget
+        {
+            MainGrid = mainGrid,
+            Side = DockSide.Bottom,
+            SplitterIndex = 1,
+            ContentIndex = 2,
+            SplitterControl = bottomDockSplitter,
+            DockHostControl = bottomDockHost,
+            DockHostBorder = bottomDockHostLine,
+            PreviewBorder = bottomDockPreviewBorder
+        }
+    };
 
 
 
@@ -206,10 +203,9 @@ public partial class MainWindow
             ConfigManager.GetIsSortRulesDocked(),
             () =>
             {
-                List<ModReference> modRefs = manager.modPool
+                List<ModReference> modRefs = [.. manager.modPool
                     .Select(mod => manager.GetRefFromDFHMod(mod))
-                    .Where(modref => modref != null && !string.IsNullOrWhiteSpace(modref.ID))
-                    .ToList();
+                    .Where(modref => modref != null && !string.IsNullOrWhiteSpace(modref.ID))];
 
                 var ctrl = new SortRulesControl(
                     manager.GetModRelationshipRules(),

@@ -66,6 +66,8 @@ namespace ModHearth.UI
         private DockSide? _hoverSide;
         private double _expandedSize;
         private double _preExpandParentPrimary;
+        private double _preExpandMinWidth;
+        private double _preExpandMinHeight;
 
         private bool _isDraggingSplitter;
         private Point _splitterStartPoint;
@@ -165,17 +167,14 @@ namespace ModHearth.UI
         private double GetParentMinPrimary(DockSide side) =>
             IsHorizontal(side) ? _parentWindow.MinWidth : _parentWindow.MinHeight;
 
-        private double GetAvailablePrimary(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale)
+        private double GetAvailablePrimary(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale) => side switch
         {
-            return side switch
-            {
-                DockSide.Right or DockSide.Left =>
-                    (workingArea.X + workingArea.Width - parentScreenPos.X) / scale,
-                DockSide.Bottom or DockSide.Top =>
-                    (workingArea.Y + workingArea.Height - parentScreenPos.Y) / scale,
-                _ => double.MaxValue
-            };
-        }
+            DockSide.Right or DockSide.Left =>
+                (workingArea.X + workingArea.Width - parentScreenPos.X) / scale,
+            DockSide.Bottom or DockSide.Top =>
+                (workingArea.Y + workingArea.Height - parentScreenPos.Y) / scale,
+            _ => double.MaxValue
+        };
 
         private bool FitsCrossAxis(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale)
         {
@@ -308,10 +307,7 @@ namespace ModHearth.UI
             Closed?.Invoke(this, EventArgs.Empty);
         }
 
-        public void ToggleDock()
-        {
-            SetDocked(!_isDocked);
-        }
+        public void ToggleDock() => SetDocked(!_isDocked);
 
         public void SetDocked(bool docked)
         {
@@ -518,9 +514,7 @@ namespace ModHearth.UI
             PixelPoint parentTopLeft,
             double parentWidthPx,
             double parentHeightPx,
-            int snapThreshold)
-        {
-            return side switch
+            int snapThreshold) => side switch
             {
                 DockSide.Right =>
                     floatingCenter.X >= parentTopLeft.X + (int)parentWidthPx - snapThreshold &&
@@ -544,7 +538,6 @@ namespace ModHearth.UI
                     floatingCenter.Y <= parentTopLeft.Y + snapThreshold,
                 _ => false
             };
-        }
 
         // Vacates this manager's docked side without immediately creating a floating window. Used when another DockingManager is claiming the same side.
         internal void ForceUndockForSideHandoff()
@@ -562,9 +555,7 @@ namespace ModHearth.UI
             PixelPoint floatingCenter,
             PixelPoint parentTopLeft,
             double parentWidthPx,
-            double parentHeightPx)
-        {
-            return side switch
+            double parentHeightPx) => side switch
             {
                 DockSide.Right => Math.Abs(floatingCenter.X - (parentTopLeft.X + parentWidthPx)),
                 DockSide.Left => Math.Abs(floatingCenter.X - parentTopLeft.X),
@@ -572,7 +563,6 @@ namespace ModHearth.UI
                 DockSide.Top => Math.Abs(floatingCenter.Y - parentTopLeft.Y),
                 _ => double.MaxValue
             };
-        }
 
         private void UpdatePreviewVisibility(DockSide? side)
         {
@@ -677,11 +667,13 @@ namespace ModHearth.UI
             _expandedSize = childSize;
             double minIncrease = childSize + _splitterSize;
             _preExpandParentPrimary = IsHorizontal(_activeSide) ? _parentWindow.Width : _parentWindow.Height;
+            _preExpandMinWidth = _parentWindow.MinWidth;
+            _preExpandMinHeight = _parentWindow.MinHeight;
 
             if (IsHorizontal(_activeSide))
             {
-                _parentWindow.MinWidth += minIncrease;
-                _parentWindow.Width = newParentPrimary;
+                SetSafeMinWidth(_preExpandMinWidth + minIncrease);
+                SetSafeWidth(newParentPrimary);
 
                 if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
                 {
@@ -691,8 +683,8 @@ namespace ModHearth.UI
             }
             else
             {
-                _parentWindow.MinHeight += minIncrease;
-                _parentWindow.Height = newParentPrimary;
+                SetSafeMinHeight(_preExpandMinHeight + minIncrease);
+                SetSafeHeight(newParentPrimary);
 
                 if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
                 {
@@ -714,8 +706,13 @@ namespace ModHearth.UI
 
             if (IsHorizontal(_activeSide))
             {
-                _parentWindow.MinWidth -= collapseAmount;
-                _parentWindow.Width = _preExpandParentPrimary;
+                double newMinWidth = Math.Max(0, _parentWindow.MinWidth - collapseAmount);
+                if (_preExpandMinWidth > 0 && newMinWidth < _preExpandMinWidth)
+                {
+                    newMinWidth = _preExpandMinWidth;
+                }
+                SetSafeMinWidth(newMinWidth);
+                SetSafeWidth(_preExpandParentPrimary);
 
                 if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
                 {
@@ -725,8 +722,13 @@ namespace ModHearth.UI
             }
             else
             {
-                _parentWindow.MinHeight -= collapseAmount;
-                _parentWindow.Height = _preExpandParentPrimary;
+                double newMinHeight = Math.Max(0, _parentWindow.MinHeight - collapseAmount);
+                if (_preExpandMinHeight > 0 && newMinHeight < _preExpandMinHeight)
+                {
+                    newMinHeight = _preExpandMinHeight;
+                }
+                SetSafeMinHeight(newMinHeight);
+                SetSafeHeight(_preExpandParentPrimary);
 
                 if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
                 {
@@ -738,6 +740,54 @@ namespace ModHearth.UI
             target.SplitterControl.IsVisible = false;
             _isExpanded = false;
             _expandedSize = 0;
+        }
+
+        private void SetSafeMinWidth(double value)
+        {
+            try
+            {
+                _parentWindow.MinWidth = Math.Max(0, value);
+            }
+            catch
+            {
+                // Safeguard against invalid MinWidth values
+            }
+        }
+
+        private void SetSafeMinHeight(double value)
+        {
+            try
+            {
+                _parentWindow.MinHeight = Math.Max(0, value);
+            }
+            catch
+            {
+                // Safeguard against invalid MinHeight values
+            }
+        }
+
+        private void SetSafeWidth(double value)
+        {
+            try
+            {
+                _parentWindow.Width = Math.Max(_parentWindow.MinWidth, value);
+            }
+            catch
+            {
+                // Safeguard against invalid Width values
+            }
+        }
+
+        private void SetSafeHeight(double value)
+        {
+            try
+            {
+                _parentWindow.Height = Math.Max(_parentWindow.MinHeight, value);
+            }
+            catch
+            {
+                // Safeguard against invalid Height values
+            }
         }
 
         private void ShowDockedContent()
@@ -929,7 +979,7 @@ namespace ModHearth.UI
                     {
                         if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
                             target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
-                        _parentWindow.Width = _initialParentSize + (newSize - _initialContentSize);
+                        SetSafeWidth(_initialParentSize + (newSize - _initialContentSize));
                         _expandedSize = newSize;
                         break;
                     }
@@ -938,7 +988,7 @@ namespace ModHearth.UI
                     {
                         if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
                             target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(newSize, GridUnitType.Pixel);
-                        _parentWindow.Height = _initialParentSize + (newSize - _initialContentSize);
+                        SetSafeHeight(_initialParentSize + (newSize - _initialContentSize));
                         _expandedSize = newSize;
                         break;
                     }

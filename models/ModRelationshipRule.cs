@@ -23,16 +23,13 @@ public sealed class ModRelationshipRule
         RequiredIds.Count == 0 &&
         IncompatibleIds.Count == 0;
 
-    public ModRelationshipRule Clone()
+    public ModRelationshipRule Clone() => new ModRelationshipRule
     {
-        return new ModRelationshipRule
-        {
-            BeforeIds = [.. BeforeIds],
-            AfterIds = [.. AfterIds],
-            RequiredIds = [.. RequiredIds],
-            IncompatibleIds = [.. IncompatibleIds]
-        };
-    }
+        BeforeIds = [.. BeforeIds],
+        AfterIds = [.. AfterIds],
+        RequiredIds = [.. RequiredIds],
+        IncompatibleIds = [.. IncompatibleIds]
+    };
 }
 
 public enum ModRelationshipKind

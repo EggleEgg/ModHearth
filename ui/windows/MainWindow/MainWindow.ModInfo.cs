@@ -1,13 +1,9 @@
+using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace ModHearth.UI;
 
@@ -46,7 +42,7 @@ public partial class MainWindow
             if (previewCache.TryGetValue(path, out var existing))
             {
                 previewCacheOrder.Remove(existing.Node);
-                if (existing.Image != image && existing.Image is IDisposable dispOld)
+                if (existing.Image != image && existing.Image != currentPreview && existing.Image is IDisposable dispOld)
                 {
                     dispOld.Dispose();
                 }
@@ -59,8 +55,11 @@ public partial class MainWindow
                 previewCacheOrder.RemoveLast();
                 if (previewCache.TryGetValue(last.Value, out var evicted))
                 {
-                    if (evicted.Image is IDisposable dispEvicted)
-                        dispEvicted.Dispose();
+                    if (evicted.Image != currentPreview && evicted.Image is IDisposable dispEvicted)
+                    {
+                        try { dispEvicted.Dispose(); }
+                        catch (Exception ex) { AppLogging.LogException("Failed to dispose evicted preview image", ex); }
+                    }
                     previewCache.Remove(last.Value);
                 }
             }
@@ -73,7 +72,7 @@ public partial class MainWindow
         {
             foreach (var entry in previewCache.Values)
             {
-                if (entry.Image is IDisposable disp)
+                if (entry.Image != currentPreview && entry.Image is IDisposable disp)
                 {
                     try { disp.Dispose(); }
                     catch (Exception ex) { AppLogging.LogException("Failed to dispose cached preview image", ex); }

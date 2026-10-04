@@ -19,10 +19,7 @@ public sealed class VanillaRawBaseline
         _baseline = [.. keys];
     }
 
-    public bool Contains(ObjectKey? key)
-    {
-        return key != null && _baseline.Contains(key);
-    }
+    public bool Contains(ObjectKey? key) => key != null && _baseline.Contains(key);
 
     public bool Contains(string objectType, string id)
     {
@@ -44,7 +41,7 @@ public sealed class VanillaRawBaseline
 
         try
         {
-            List<string> modDirs = Directory.EnumerateDirectories(vanillaModsPath).ToList();
+            List<string> modDirs = [.. Directory.EnumerateDirectories(vanillaModsPath)];
             ConcurrentBag<ObjectKey> keys = [];
 
             _ = Parallel.ForEach(modDirs, new ParallelOptions

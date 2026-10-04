@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using ModHearth.Utilities;
 using Xunit;
 
 namespace ModHearth.App.Tests;
@@ -8,7 +10,7 @@ namespace ModHearth.App.Tests;
 public class ManagerConcurrencyTests
 {
     [Fact(Timeout = 60000)]
-    public async Task ConcurrentManagerOperations_DoNotThrow()
+    public async Task ConcurrentManagerOperationsDoNotThrow()
     {
         ModHearthManager manager = new();
         _ = manager.Initialize(); // one real baseline call, not inside the hammer loop
@@ -49,5 +51,24 @@ public class ManagerConcurrencyTests
         ));
 
         Assert.Null(captured);
+    }
+
+    [Fact]
+    public void BatchDeletionNotificationBatchesBySourceFolderConcurrently()
+    {
+        ConcurrentBag<string> notifications = [];
+        using (var scope = new ModDeletionBatchScope((msg, icon) => notifications.Add(msg)))
+        {
+            Parallel.For(0, 100, i =>
+            {
+                string sourceFolder = i < 50 ? "C:/mods/folderA" : "C:/mods/folderB";
+                string itemPath = $"C:/mods/folderA/mod{i}";
+                ModDeletionNotifier.NotifyDeleted((m, ic) => notifications.Add(m), itemPath, sourceFolder);
+            });
+        }
+
+        Assert.Equal(2, notifications.Count);
+        Assert.Contains(notifications, n => n.Contains("Deleted 50 mod folders from folderA") || n.Contains("Deleted 50 mod folders"));
+        Assert.Contains(notifications, n => n.Contains("Deleted 50 mod folders from folderB") || n.Contains("Deleted 50 mod folders"));
     }
 }

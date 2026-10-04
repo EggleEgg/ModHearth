@@ -1,6 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
-using Avalonia.Threading;
 using ModHearth.Utilities.Steam;
 
 namespace ModHearth.UI

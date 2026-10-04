@@ -134,5 +134,11 @@ namespace ModHearth
 
         // Dock side (DockSide enum int) mapped by key.
         public Dictionary<string, int> DockSides { get; set; } = [];
+
+        // Ignored update version.
+        public string IgnoredUpdateVersion { get; set; } = string.Empty;
+
+        // Whether to automatically check for releases on program startup.
+        public bool AutoCheckForReleasesOnStartup { get; set; } = true;
     }
 }

@@ -1,14 +1,14 @@
-using Avalonia.Controls;
-using Dock.Avalonia.Controls;
-using Dock.Model.Controls;
-using Dock.Model.Mvvm;
-using Dock.Model.Mvvm.Controls;
-using Dock.Model.Core;
-using DockOrientation = Dock.Model.Core.Orientation;
 using System.Collections.Specialized;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Dock.Avalonia.Controls;
 using Dock.Controls.ProportionalStackPanel;
+using Dock.Model.Controls;
+using Dock.Model.Core;
+using Dock.Model.Mvvm;
+using Dock.Model.Mvvm.Controls;
+using DockOrientation = Dock.Model.Core.Orientation;
 
 namespace ModHearth.UI;
 
@@ -330,10 +330,9 @@ public partial class MainWindow
             return;
         }
 
-        List<IDock> siblings = parent.VisibleDockables
+        List<IDock> siblings = [.. parent.VisibleDockables
             .Where(d => !ReferenceEquals(d, dock) && d is IDock && !knownSplitters.Contains(d))
-            .Cast<IDock>()
-            .ToList();
+            .Cast<IDock>()];
         if (DevMode.IsEnabled)
             Console.WriteLine($"[DockRebalance] '{dock.Id}' siblings=[{string.Join(", ", siblings.Select(s => $"{s.Id}:{s.Proportion:F3}"))}]");
         if (siblings.Count == 0)
@@ -456,10 +455,10 @@ public partial class MainWindow
             ("steamID", modref.steamID),
             ("source", modref.Source.ToString()),
             ("path", modref.path),
-            ("requiresIds", JoinList(modref.require_ids)),
-            ("requireBeforeMe", JoinList(modref.require_before_me)),
-            ("requireAfterMe", JoinList(modref.require_after_me)),
-            ("conflictsWith", JoinList(modref.conflicts_with)),
+            ("requiresIds", JoinList(modref.requireIds)),
+            ("requireBeforeMe", JoinList(modref.requireBeforeMe)),
+            ("requireAfterMe", JoinList(modref.requireAfterMe)),
+            ("conflictsWith", JoinList(modref.conflictsWith)),
         ];
 
         foreach ((string label, string? value) in entries)
@@ -472,8 +471,5 @@ public partial class MainWindow
     private static string? JoinList(List<string>? values)
         => values == null || values.Count == 0 ? null : string.Join(", ", values);
 
-    private void RefreshModDataViewer()
-    {
-        PopulateModDataViewer(currentModDataModRef);
-    }
+    private void RefreshModDataViewer() => PopulateModDataViewer(currentModDataModRef);
 }

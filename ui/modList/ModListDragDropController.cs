@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -5,7 +6,6 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using System.Text.Json;
 
 namespace ModHearth.UI;
 
@@ -46,6 +46,8 @@ public sealed class ModListDragDropController
     private Point? currentDragOverPosition;
     private DateTime lastDragOverTime = DateTime.MinValue;
     private Point lastDragOverPos;
+    private ListBox? cachedScrollViewerOwner;
+    private ScrollViewer? cachedScrollViewer;
 
     public event Action<ModListDropContext>? Dropped;
 
@@ -92,25 +94,13 @@ public sealed class ModListDragDropController
         }
     }
 
-    public bool HandleSelectionChanged(ListBox list)
-    {
-        return selectionController.HandleSelectionChanged(list);
-    }
+    public bool HandleSelectionChanged(ListBox list) => selectionController.HandleSelectionChanged(list);
 
-    public void UpdateSelectionState(ListBox list)
-    {
-        selectionController.UpdateSelectionState(list);
-    }
+    public void UpdateSelectionState(ListBox list) => selectionController.UpdateSelectionState(list);
 
-    public void RestoreListSelection(ListBox list, IEnumerable<ModRefViewModel> selection)
-    {
-        selectionController.RestoreListSelection(list, selection);
-    }
+    public void RestoreListSelection(ListBox list, IEnumerable<ModRefViewModel> selection) => selectionController.RestoreListSelection(list, selection);
 
-    public bool TryRestoreContextSelection(ListBox list, ModRefViewModel vm)
-    {
-        return selectionController.TryRestoreContextSelection(list, vm);
-    }
+    public bool TryRestoreContextSelection(ListBox list, ModRefViewModel vm) => selectionController.TryRestoreContextSelection(list, vm);
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -142,7 +132,7 @@ public sealed class ModListDragDropController
         if (!hasModifier && dragHitItem != null && list.SelectedItems?.Count > 1 && list.SelectedItems.Contains(dragHitItem))
         {
             dragPreserveSelection = true;
-            dragSelectionSnapshot = list.SelectedItems.Cast<ModRefViewModel>().ToList();
+            dragSelectionSnapshot = [.. list.SelectedItems.Cast<ModRefViewModel>()];
         }
 
         dragDelayTimer.Start();
@@ -291,14 +281,11 @@ public sealed class ModListDragDropController
         ResetDragState();
     }
 
-    private bool IsSortable(ListBox list)
-    {
-        return sortableLists.TryGetValue(list, out bool sortable) && sortable;
-    }
+    private bool IsSortable(ListBox list) => sortableLists.TryGetValue(list, out bool sortable) && sortable;
 
     private string SerializeDragData(IEnumerable<ModRefViewModel> mods)
     {
-        List<string> keys = mods.Select(getItemKey).ToList();
+        List<string> keys = [.. mods.Select(getItemKey)];
         return JsonSerializer.Serialize(keys);
     }
 
@@ -462,49 +449,46 @@ public sealed class ModListDragDropController
         switch (list.ItemsSource)
         {
             case IEnumerable<ModRefViewModel> items:
-                return items.Where(selectedSet.Contains).ToList();
+                return [.. items.Where(selectedSet.Contains)];
             default:
-                return selection.ToList();
+                return [.. selection];
         }
     }
 
     private static (int index, bool after, bool gapDrop) GetDropTarget(ListBox list, Point point)
     {
-        Control? lastContainer = null;
-        double lastTop = 0;
-        double lastBottom = 0;
-        double lastHeight = 0;
-
-        for (int i = 0; i < list.ItemCount; i++)
+        List<(int Index, double Top, double Height)> realized = [];
+        foreach (ListBoxItem item in list.GetVisualDescendants().OfType<ListBoxItem>())
         {
-            if (list.ContainerFromIndex(i) is not Control container)
+            int index = list.IndexFromContainer(item);
+            if (index < 0)
                 continue;
 
-            Point? topLeft = container.TranslatePoint(new Point(0, 0), list);
+            Point? topLeft = item.TranslatePoint(new Point(0, 0), list);
             if (topLeft == null)
                 continue;
 
-            double top = topLeft.Value.Y;
-            double height = container.Bounds.Height;
-            double bottom = top + height;
-
-            lastContainer = container;
-            lastTop = top;
-            lastBottom = bottom;
-            lastHeight = height;
-
-            double mid = top + height / 2;
-            if (point.Y <= mid)
-                return (i, false, IsGapDrop(point.Y, top, bottom, height, after: false));
-
-            if (point.Y <= bottom)
-                return (i, true, IsGapDrop(point.Y, top, bottom, height, after: true));
+            realized.Add((index, topLeft.Value.Y, item.Bounds.Height));
         }
 
-        if (lastContainer != null)
-            return (list.ItemCount, true, IsGapDrop(point.Y, lastTop, lastBottom, lastHeight, after: true));
+        if (realized.Count == 0)
+            return (list.ItemCount, true, false);
 
-        return (list.ItemCount, true, false);
+        realized.Sort((a, b) => a.Index.CompareTo(b.Index));
+
+        foreach (var (index, top, height) in realized)
+        {
+            double bottom = top + height;
+            double mid = top + height / 2;
+            if (point.Y <= mid)
+                return (index, false, IsGapDrop(point.Y, top, bottom, height, after: false));
+            if (point.Y <= bottom)
+                return (index, true, IsGapDrop(point.Y, top, bottom, height, after: true));
+        }
+
+        var (lastIndex, lastTop, lastHeight) = realized[^1];
+        double finalBottom = lastTop + lastHeight;
+        return (list.ItemCount, true, IsGapDrop(point.Y, lastTop, finalBottom, lastHeight, after: true));
     }
 
     private static bool IsGapDrop(double y, double top, double bottom, double height, bool after)
@@ -529,6 +513,17 @@ public sealed class ModListDragDropController
         dragPreserveSelection = false;
     }
 
+    private ScrollViewer? GetScrollViewerFor(ListBox list)
+    {
+        if (!ReferenceEquals(cachedScrollViewerOwner, list))
+        {
+            cachedScrollViewerOwner = list;
+            cachedScrollViewer = list.FindDescendantOfType<ScrollViewer>()
+                ?? list.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        }
+        return cachedScrollViewer;
+    }
+
     private async Task StartBackgroundScrollLoop()
     {
         while (isDragging)
@@ -550,9 +545,7 @@ public sealed class ModListDragDropController
                 if (!isDragging || currentDragOverList != list || currentDragOverPosition == null)
                     return;
 
-                ScrollViewer? scrollViewer = list.FindDescendantOfType<ScrollViewer>()
-                    ?? list.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
-
+                ScrollViewer? scrollViewer = GetScrollViewerFor(list);
                 if (scrollViewer == null) return;
 
                 Point pos = currentDragOverPosition.Value;

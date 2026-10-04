@@ -112,6 +112,7 @@ public partial class MainWindow
         RefreshModlistPanels();
         clearInstalledModsButton.IsEnabled = Directory.Exists(ConfigManager.GetInstalledModsPath());
         buildVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
+        InitializeUpdateChecking();
         _ = UpdateDfHackStatusAsync();
         StartDfHackStatusTimer();
         SetChangesMade(false);

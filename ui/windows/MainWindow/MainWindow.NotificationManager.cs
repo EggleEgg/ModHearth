@@ -1,14 +1,14 @@
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Media;
-using Avalonia.Layout;
-using Avalonia.Threading;
-using Avalonia.Input;
-using Avalonia.Interactivity;
 using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
 
 namespace ModHearth.UI;
 
@@ -93,10 +93,7 @@ public class NotificationRecord : INotifyPropertyChanged, IThemedViewModel
         }
     }
 
-    public void RefreshStyle()
-    {
-        RefreshStyle(Style.instance);
-    }
+    public void RefreshStyle() => RefreshStyle(Style.instance);
 
     public void RefreshStyle(Style? style)
     {
@@ -120,10 +117,7 @@ public class NotificationRecord : INotifyPropertyChanged, IThemedViewModel
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 public partial class MainWindow

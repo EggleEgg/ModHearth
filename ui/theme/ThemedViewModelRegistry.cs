@@ -31,7 +31,7 @@ internal static class ThemedViewModelRegistry
         {
             registerCounter = 0;
             _ = instances.RemoveAll(w => !w.TryGetTarget(out _));
-            targets = instances.Select(w => { _ = w.TryGetTarget(out var t); return t!; }).ToList();
+            targets = [.. instances.Select(w => { _ = w.TryGetTarget(out var t); return t!; })];
         }
         foreach (IThemedViewModel vm in targets)
             vm.RefreshStyle(style);

@@ -1,15 +1,11 @@
-using Avalonia.Controls;
-using Avalonia.Input.Platform;
-using Avalonia;
-using Avalonia.Layout;
-using Avalonia.Media;
 using System.Collections;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using ModHearth.Utilities.Steam;
+using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input.Platform;
+using Avalonia.Media;
+using ModHearth.Utilities.Steam;
 
 namespace ModHearth.UI;
 
@@ -93,7 +89,7 @@ internal static class ModContextMenuSupport
         IEnumerable<T> targets = selected.Count > 0 && selected.Contains(contextItem)
             ? selected
             : new[] { contextItem };
-        modReferences = targets.Select(getModReference).ToList();
+        modReferences = [.. targets.Select(getModReference)];
         return true;
     }
 
@@ -220,31 +216,23 @@ internal static class ModContextMenuSupport
         return "Redownload from steam";
     }
 
-    public static string BuildDeletePrompt(IReadOnlyCollection<ModReference> localTargets)
-    {
-        return localTargets.Count == 1
+    public static string BuildDeletePrompt(IReadOnlyCollection<ModReference> localTargets) => localTargets.Count == 1
             ? $"Delete '{localTargets.First().name}' from the Mods folder?"
             : $"Delete {localTargets.Count} mods from the Mods folder?";
-    }
 
-    public static string BuildUnsubscribePrompt(IReadOnlyCollection<ModReference> steamTargets)
-    {
-        return steamTargets.Count == 1
+    public static string BuildUnsubscribePrompt(IReadOnlyCollection<ModReference> steamTargets) => steamTargets.Count == 1
             ? $"Unsubscribe from '{steamTargets.First().name}' on Steam Workshop?"
             : $"Unsubscribe from {steamTargets.Count} Steam mods?";
-    }
 
-    public static string BuildRedownloadPrompt(IReadOnlyCollection<ModReference> steamTargets)
-    {
-        return steamTargets.Count == 1
+    public static string BuildRedownloadPrompt(IReadOnlyCollection<ModReference> steamTargets) => steamTargets.Count == 1
             ? $"Redownload '{steamTargets.First().name}' from Steam Workshop?"
             : $"Redownload {steamTargets.Count} Steam mods?";
-    }
 
     public static async Task<bool> DeleteLocalModsWithConfirmAsync(
         Window owner,
         ModHearthManager manager,
-        IEnumerable<ModReference> modReferences)
+        IEnumerable<ModReference> modReferences,
+        bool requestUIReload = true)
     {
         manager.SplitActionableMods(
             modReferences,
@@ -258,7 +246,7 @@ internal static class ModContextMenuSupport
         }
 
         string prompt = BuildDeletePrompt(localTargets);
-        return await DialogService.RunConfirmedActionAsync(owner, prompt, "Delete Mod", () => DeleteLocalMods(manager, localTargets));
+        return await DialogService.RunConfirmedActionAsync(owner, prompt, "Delete Mod", () => DeleteLocalMods(manager, localTargets, requestUIReload));
     }
 
     public static async Task UnsubscribeSteamWithConfirmAsync(
@@ -337,27 +325,24 @@ internal static class ModContextMenuSupport
         await OpenSteamPageAsync(owner, modReferences[0]);
     }
 
-    public static List<string> DeleteLocalMods(ModHearthManager manager, IEnumerable<ModReference> localTargets)
+    public static List<string> DeleteLocalMods(ModHearthManager manager, IEnumerable<ModReference> localTargets, bool requestUIReload = true)
     {
-        List<string> failures = [];
-        foreach (ModReference modref in localTargets)
+        using (manager.BeginDeletionBatch())
         {
-            if (!manager.DeleteModFromModsFolder(modref, out string message))
-                failures.Add(message);
+            List<string> failures = [];
+            foreach (ModReference modref in localTargets)
+            {
+                if (!manager.DeleteModFromModsFolder(modref, out string message, requestUIReload))
+                    failures.Add(message);
+            }
+
+            return failures;
         }
-
-        return failures;
     }
 
-    public static List<string> UnsubscribeSteamMods(ModHearthManager manager, IEnumerable<ModReference> steamTargets)
-    {
-        return manager.UnsubscribeSteamMods(steamTargets);
-    }
+    public static List<string> UnsubscribeSteamMods(ModHearthManager manager, IEnumerable<ModReference> steamTargets) => manager.UnsubscribeSteamMods(steamTargets);
 
-    public static List<string> RedownloadSteamMods(ModHearthManager manager, IEnumerable<ModReference> steamTargets)
-    {
-        return manager.RedownloadSteamMods(steamTargets);
-    }
+    public static List<string> RedownloadSteamMods(ModHearthManager manager, IEnumerable<ModReference> steamTargets) => manager.RedownloadSteamMods(steamTargets);
 
     public static async Task OpenFolderAsync(Window owner, ModReference modref)
     {

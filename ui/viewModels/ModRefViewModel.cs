@@ -512,10 +512,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
         }
     }
 
-    public void RefreshStyle()
-    {
-        RefreshStyle(Style.instance ?? throw new InvalidOperationException("Style not loaded."));
-    }
+    public void RefreshStyle() => RefreshStyle(Style.instance ?? throw new InvalidOperationException("Style not loaded."));
 
     public void RefreshStyle(Style style)
     {
@@ -723,10 +720,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
         return Color.FromArgb(255, r, g, b);
     }
 
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-    }
+    private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
     public enum ReferenceOverlayKind
     {

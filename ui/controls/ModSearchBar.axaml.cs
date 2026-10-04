@@ -1,13 +1,13 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Reactive;
-using Avalonia.Layout;
-using System.Diagnostics;
-using ModHearth.Utilities.Logging;
 using ModHearth.Models;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI;
 
@@ -347,19 +347,16 @@ public partial class ModSearchBar : UserControl
         set => SetValue(DefaultSearchModeProperty, value);
     }
 
-    private bool IsSearchModeAllowed(SearchFilterMode mode)
+    private bool IsSearchModeAllowed(SearchFilterMode mode) => mode switch
     {
-        return mode switch
-        {
-            SearchFilterMode.Name => IsNameSearchEnabled,
-            SearchFilterMode.Regex => IsRegexSearchEnabled,
-            SearchFilterMode.Color => IsColorSearchEnabled,
-            SearchFilterMode.ModifiedTime => IsSortingEnabled && IsModifiedTimeSearchEnabled,
-            SearchFilterMode.Id => IsIdSearchEnabled,
-            SearchFilterMode.SteamFileId => IsSteamFileIdSearchEnabled,
-            _ => true
-        };
-    }
+        SearchFilterMode.Name => IsNameSearchEnabled,
+        SearchFilterMode.Regex => IsRegexSearchEnabled,
+        SearchFilterMode.Color => IsColorSearchEnabled,
+        SearchFilterMode.ModifiedTime => IsSortingEnabled && IsModifiedTimeSearchEnabled,
+        SearchFilterMode.Id => IsIdSearchEnabled,
+        SearchFilterMode.SteamFileId => IsSteamFileIdSearchEnabled,
+        _ => true
+    };
 
     private SearchFilterMode GetFirstAllowedSearchMode()
     {
@@ -627,19 +624,16 @@ public partial class ModSearchBar : UserControl
         SearchModeTextBlock.Text = GetSearchModeLabel(SearchMode, includePrefix: false);
     }
 
-    private static string GetSearchModeIconName(SearchFilterMode mode)
+    private static string GetSearchModeIconName(SearchFilterMode mode) => mode switch
     {
-        return mode switch
-        {
-            SearchFilterMode.Name => "alphabetIcon.svg",
-            SearchFilterMode.Regex => "regexIcon.svg",
-            SearchFilterMode.Color => "paintBrushIcon.svg",
-            SearchFilterMode.ModifiedTime => "modifiedClockIcon.svg",
-            SearchFilterMode.Id => "idButtonIcon.svg",
-            SearchFilterMode.SteamFileId => "steamIdIcon.svg",
-            _ => "alphabetIcon.svg"
-        };
-    }
+        SearchFilterMode.Name => "alphabetIcon.svg",
+        SearchFilterMode.Regex => "regexIcon.svg",
+        SearchFilterMode.Color => "paintBrushIcon.svg",
+        SearchFilterMode.ModifiedTime => "modifiedClockIcon.svg",
+        SearchFilterMode.Id => "idButtonIcon.svg",
+        SearchFilterMode.SteamFileId => "steamIdIcon.svg",
+        _ => "alphabetIcon.svg"
+    };
 
     private string GetSearchModeLabel(SearchFilterMode mode, bool includePrefix = true)
     {
@@ -670,10 +664,7 @@ public partial class ModSearchBar : UserControl
     }
 
 
-    public string GetStringState()
-    {
-        return $"{Text}|{HideFiltered}|{SearchMode}|{SortDescending}";
-    }
+    public string GetStringState() => $"{Text}|{HideFiltered}|{SearchMode}|{SortDescending}";
 
     public void SetStringState(string state)
     {

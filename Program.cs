@@ -66,12 +66,9 @@ internal static class Program
         }
     }
 
-    public static AppBuilder BuildAvaloniaApp()
-    {
-        return AppBuilder.Configure<UI.App>()
+    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<UI.App>()
             .UsePlatformDetect()
             .LogToTrace();
-    }
 
     private static bool HasArg(string[] args, string value)
         => args.Any(arg => string.Equals(arg, value, StringComparison.OrdinalIgnoreCase));
@@ -81,6 +78,5 @@ internal static class Program
            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
     private static string[] StripArgs(string[] args, params string[] toRemove)
-        => args.Where(arg => !toRemove.Any(remove => string.Equals(arg, remove, StringComparison.OrdinalIgnoreCase)))
-            .ToArray();
+        => [.. args.Where(arg => !toRemove.Any(remove => string.Equals(arg, remove, StringComparison.OrdinalIgnoreCase)))];
 }

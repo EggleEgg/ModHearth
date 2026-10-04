@@ -11,10 +11,7 @@ public static class BrushCache
     /// <summary>
     /// Gets a cached, high-performance ImmutableSolidColorBrush for the given color.
     /// </summary>
-    public static IBrush GetBrush(Color color)
-    {
-        return _cache.GetOrAdd(color, static c => new ImmutableSolidColorBrush(c));
-    }
+    public static IBrush GetBrush(Color color) => _cache.GetOrAdd(color, static c => new ImmutableSolidColorBrush(c));
 
     /// <summary>
     /// Gets a cached brush with RGB values adjusted by the specified delta, clamped to valid byte range [0, 255] to avoid overflow/underflow.
@@ -28,10 +25,7 @@ public static class BrushCache
     }
 
     /// <inheritdoc cref="EditBrushDelta(Color, int)"/>
-    public static IBrush EditBrushDelta(SimpleColor color, int delta)
-    {
-        return EditBrushDelta(color.ToAvaloniaColor(), delta);
-    }
+    public static IBrush EditBrushDelta(SimpleColor color, int delta) => EditBrushDelta(color.ToAvaloniaColor(), delta);
 
     /// <inheritdoc cref="EditBrushDelta(Color, int)"/>
     public static IBrush EditBrushDelta(IBrush brush, int delta)
@@ -48,16 +42,10 @@ public static class BrushCache
     /// <summary>
     /// Gets a cached brush for the given color with a specified alpha channel.
     /// </summary>
-    public static IBrush EditBrushAlpha(Color color, byte alpha)
-    {
-        return GetBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
-    }
+    public static IBrush EditBrushAlpha(Color color, byte alpha) => GetBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
 
     /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
-    public static IBrush EditBrushAlpha(SimpleColor color, byte alpha)
-    {
-        return EditBrushAlpha(color.ToAvaloniaColor(), alpha);
-    }
+    public static IBrush EditBrushAlpha(SimpleColor color, byte alpha) => EditBrushAlpha(color.ToAvaloniaColor(), alpha);
 
     /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
     public static IBrush EditBrushAlpha(IBrush brush, byte alpha)
@@ -72,8 +60,5 @@ public static class BrushCache
     }
 
     // Call this whenever the theme is changed
-    public static void Clear()
-    {
-        _cache.Clear();
-    }
+    public static void Clear() => _cache.Clear();
 }

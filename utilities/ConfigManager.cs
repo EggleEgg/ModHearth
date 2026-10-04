@@ -8,7 +8,7 @@ using ModHearth.Utilities;
 /// </summary>
 namespace ModHearth
 {
-    public static class ConfigManager
+    public static partial class ConfigManager
     {
         public static ModHearthConfig Config { get; private set; } = new();
 
@@ -19,7 +19,7 @@ namespace ModHearth
         // Guards every read/write of config.json so concurrent callers can't interleave and corrupt the file or clobber each other's writes.
         private static readonly object configGate = new();
 
-        private static readonly Regex SteamLibraryPathRegex = new("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex SteamLibraryPathRegex = MyRegex();
         private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
         private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex SteamShadowCopyFolderNameRegex = new(@"^(?<id>\d+)(?:\s*\(\d+\))?$", RegexOptions.Compiled);
@@ -142,10 +142,7 @@ namespace ModHearth
             return style;
         }
 
-        public static string GetStylePathForTheme(int theme)
-        {
-            return theme == 0 ? styleLightPath : styleDarkPath;
-        }
+        public static string GetStylePathForTheme(int theme) => theme == 0 ? styleLightPath : styleDarkPath;
 
         private static bool TryLoadStyleFromPath(string stylePath, out Style style)
         {
@@ -609,9 +606,7 @@ namespace ModHearth
 
                 HashSet<string> libraries = new(
                     OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-                List<string> candidateRoots = GetSteamRootCandidates()
-                    .Where(root => !string.IsNullOrWhiteSpace(root))
-                    .ToList();
+                List<string> candidateRoots = [.. GetSteamRootCandidates().Where(root => !string.IsNullOrWhiteSpace(root))];
 
                 LogInfo($"Steam root candidates ({candidateRoots.Count}): {FormatPathListForLog(candidateRoots)}");
 
@@ -651,7 +646,7 @@ namespace ModHearth
                 }
 
                 LogInfo($"Steam library roots discovered ({libraries.Count}): {FormatPathListForLog(libraries)}");
-                _cachedSteamLibraryRoots = libraries.ToList(); // Cache the result
+                _cachedSteamLibraryRoots = [.. libraries]; // Cache the result
                 return _cachedSteamLibraryRoots;
             }
         }
@@ -894,7 +889,7 @@ namespace ModHearth
 
             string remainder = fullPath.Substring(root.Length);
             string[] segments = remainder.Split(
-                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
                 StringSplitOptions.RemoveEmptyEntries);
             if (segments.Length == 0)
             {
@@ -976,12 +971,11 @@ namespace ModHearth
             if (paths == null)
                 return "(none)";
 
-            List<string> list = paths
+            List<string> list = [.. paths
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Select(NormalizeFileSystemPath)
                 .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
-                .ToList();
+                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)];
 
             return StringFormatter.FormatListWithMoreIndicator(list, maxItems);
         }
@@ -1116,7 +1110,7 @@ namespace ModHearth
                 }
 
                 LogInfo($"SteamApps roots ({steamAppsRoots.Count}): {FormatPathListForLog(steamAppsRoots)}");
-                _cachedSteamAppsRoots = steamAppsRoots.ToList();
+                _cachedSteamAppsRoots = [.. steamAppsRoots];
                 return _cachedSteamAppsRoots;
             }
         }
@@ -1132,7 +1126,7 @@ namespace ModHearth
 
                 StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
                 HashSet<string> paths = new(comparer);
-                List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
+                List<string> steamAppsRoots = [.. EnumerateSteamAppsRoots()];
                 LogInfo($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
                 foreach (string steamAppsRoot in steamAppsRoots)
                 {
@@ -1153,7 +1147,7 @@ namespace ModHearth
                 }
 
                 LogInfo($"Workshop content paths discovered ({paths.Count}): {FormatPathListForLog(paths)}");
-                _cachedWorkshopContentPaths = paths.ToList();
+                _cachedWorkshopContentPaths = [.. paths];
                 return _cachedWorkshopContentPaths;
             }
         }
@@ -1162,7 +1156,7 @@ namespace ModHearth
         {
             StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
             HashSet<string> paths = new(comparer);
-            List<string> steamAppsRoots = EnumerateSteamAppsRoots().ToList();
+            List<string> steamAppsRoots = [.. EnumerateSteamAppsRoots()];
 
             LogInfo($"Steam workshop scan started for app {DwarfFortressSteamAppId}. Library roots discovered: {steamAppsRoots.Count}.");
 
@@ -1512,5 +1506,23 @@ namespace ModHearth
             Config.DockSides[key] = side;
             SaveConfigFile($"Dock side for {key}");
         }
+
+        public static string GetIgnoredUpdateVersion() => Config.IgnoredUpdateVersion;
+        public static void SetIgnoredUpdateVersion(string version)
+        {
+            Config.IgnoredUpdateVersion = version ?? string.Empty;
+            SaveConfigFile("Ignored update version");
+        }
+
+        public static bool GetAutoCheckForReleasesOnStartup() => Config.AutoCheckForReleasesOnStartup;
+        public static void SetAutoCheckForReleasesOnStartup(bool autoCheck)
+        {
+            Config.AutoCheckForReleasesOnStartup = autoCheck;
+            SaveConfigFile("Auto check for releases on startup");
+        }
+
+        [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled, "es-ES")]
+        private static partial Regex MyRegex();
+
     }
 }

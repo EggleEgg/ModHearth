@@ -16,10 +16,7 @@ namespace ModHearth.UI
     {
         public new event PropertyChangedEventHandler? PropertyChanged;
 
-        protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+        protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
         public bool IsAutoResolveAndQueueEnabled
         {

@@ -52,7 +52,7 @@ public class AvaloniaUiSmokeTests : IClassFixture<AvaloniaAppFixture>
     }
 
     [Fact(Timeout = 20000)]
-    public async Task Can_Instantiate_All_UI_Components_And_Pump_Events_Without_Crash()
+    public async Task CanInstantiateAllUIComponentsAndPumpEventsWithoutCrash()
     {
         try
         {

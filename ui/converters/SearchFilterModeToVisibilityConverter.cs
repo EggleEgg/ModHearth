@@ -1,6 +1,6 @@
-using Avalonia.Markup.Xaml;
-using Avalonia.Data.Converters;
 using System.Globalization;
+using Avalonia.Data.Converters;
+using Avalonia.Markup.Xaml;
 
 namespace ModHearth.UI
 {
@@ -8,10 +8,7 @@ namespace ModHearth.UI
     {
         public static SearchFilterModeToVisibilityConverter Instance { get; } = new SearchFilterModeToVisibilityConverter();
 
-        public override object ProvideValue(IServiceProvider serviceProvider)
-        {
-            return this;
-        }
+        public override object ProvideValue(IServiceProvider serviceProvider) => this;
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
@@ -52,9 +49,6 @@ namespace ModHearth.UI
             } // Default to true if conversion fails or no parameter provided
         }
 
-        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
     }
 }

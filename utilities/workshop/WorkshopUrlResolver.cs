@@ -3,7 +3,7 @@ using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities.Workshop
 {
-    public static class WorkshopUrlResolver
+    public static partial class WorkshopUrlResolver
     {
         // Improved regex to handle various Steam Workshop URL formats:
         // - https://steamcommunity.com/sharedfiles/filedetails/?id=3445635304
@@ -12,12 +12,7 @@ namespace ModHearth.Utilities.Workshop
         // - https://steamcommunity.com/sharedfiles/filedetails/changelog/3445635304
 
         // Rigid regex requiring valid Steam domains, exact path structures, and realistic 64-bit Steam ID digit counts (7-20 digits)
-        private static readonly Regex WorkshopIdRegex = new(
-            @"^(?:https?://)?(?:www\.)?(?:" +
-            @"steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/(?:changelog/)?(?:\?(?:[^&\s]+&)*id=|/)?|" +
-            @"steam://url/CommunityFilePage/" +
-            @")(\d{7,20})\b",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex WorkshopIdRegex = MyRegex();
 
         // Ensures standalone numeric inputs strictly match valid Steam PublishedFileId length bounds
         private static readonly Regex PlainIdRegex = new(@"^\d{7,20}$", RegexOptions.Compiled);
@@ -27,7 +22,7 @@ namespace ModHearth.Utilities.Workshop
             if (string.IsNullOrWhiteSpace(input))
                 yield break;
 
-            var lines = input.Split(['\r', '\n', ' ', '\t', ',', '|', ';'], StringSplitOptions.RemoveEmptyEntries);
+            var lines = input.Split(new char[] { '\r', '\n', ' ', '\t', ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var line in lines)
             {
@@ -86,5 +81,9 @@ namespace ModHearth.Utilities.Workshop
 
             return string.Join(Environment.NewLine, results);
         }
+
+        [GeneratedRegex(@"^(?:https?://)?(?:www\.)?(?:steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/(?:changelog/)?(?:\?(?:[^&\s]+&)*id=|/)?|steam://url/CommunityFilePage/)(\d{7,20})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "es-ES")]
+        private static partial Regex MyRegex();
+
     }
 }

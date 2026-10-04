@@ -1,6 +1,6 @@
+using System.Collections.Concurrent;
 using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
-using System.Collections.Concurrent;
 
 namespace ModHearth;
 
@@ -18,7 +18,7 @@ public partial class ModHearthManager
 
     public async Task EnsureModRawDependencyCacheAsync()
     {
-        List<ModReference> modsSnapshot = modrefMap.Values.ToList();
+        List<ModReference> modsSnapshot = [.. modrefMap.Values];
         Dictionary<string, ModRawDependencyInfo> cache = ModRawDependencyCacheStore.Load();
 
         VanillaRawBaseline vanillaBaseline = GetVanillaBaseline();
@@ -106,8 +106,5 @@ public partial class ModHearthManager
         }
     }
 
-    private static long GetFolderStampTicks(string folderPath)
-    {
-        return FolderTimestampHelper.GetLatestModifiedTimeUtc(folderPath)?.Ticks ?? 0;
-    }
+    private static long GetFolderStampTicks(string folderPath) => FolderTimestampHelper.GetLatestModifiedTimeUtc(folderPath)?.Ticks ?? 0;
 }

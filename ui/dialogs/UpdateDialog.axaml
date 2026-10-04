@@ -3,12 +3,18 @@
         xmlns:viewmodels="using:ModHearth.UI.ViewModels"
         x:Class="ModHearth.UI.UpdateDialog"
         SizeToContent="WidthAndHeight"
+        MaxWidth="520" MaxHeight="700"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         Title="Update ModHearth">
-  <StackPanel Margin="16" Spacing="12" Width="480">
-    <TextBlock x:Name="HeaderText" TextWrapping="Wrap" />
-    <ItemsControl x:Name="ReleaseList">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="16" Spacing="12">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="HeaderText" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button x:Name="ChannelSwitchButton" Grid.Column="1" Content="Bleeding Edge" 
+                Click="ChannelSwitchClicked" IsVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" />
+      </Grid>
+      <ItemsControl x:Name="ReleaseList">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="viewmodels:ReleaseEntry">
           <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,*" Margin="0,4">
@@ -29,5 +35,6 @@
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>
-  </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
 </Window>

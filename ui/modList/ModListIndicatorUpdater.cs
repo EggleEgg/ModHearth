@@ -16,7 +16,7 @@ internal static class ModListIndicatorUpdater
         IEnumerable<ModRefViewModel> viewModels,
         IReadOnlyDictionary<string, ModRelationshipRule> rules)
     {
-        List<ModRefViewModel> mods = viewModels.ToList();
+        List<ModRefViewModel> mods = [.. viewModels];
         Dictionary<string, ModRefViewModel> byId = mods
             .Where(vm => !string.IsNullOrWhiteSpace(vm.ModReference.ID))
             .GroupBy(vm => vm.ModReference.ID.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -89,9 +89,7 @@ internal static class ModListIndicatorUpdater
             list.Add(problem);
         }
 
-        List<DFHMod> problemMods = manager.enabledMods
-            .Where(m => problemMap.ContainsKey(m.id))
-            .ToList();
+        List<DFHMod> problemMods = [.. manager.enabledMods.Where(m => problemMap.ContainsKey(m.id))];
 
         foreach (ModRefViewModel vm in viewModels)
         {
@@ -116,9 +114,7 @@ internal static class ModListIndicatorUpdater
     {
         IReadOnlyDictionary<string, List<string>> duplicateMap = manager.GetDuplicateWarningMap();
 
-        List<DFHMod> duplicateWarningMods = manager.enabledMods
-            .Where(m => duplicateMap.ContainsKey(m.id))
-            .ToList();
+        List<DFHMod> duplicateWarningMods = [.. manager.enabledMods.Where(m => duplicateMap.ContainsKey(m.id))];
 
         foreach (ModRefViewModel vm in viewModels)
         {
@@ -267,15 +263,12 @@ internal static class ModListIndicatorUpdater
 
         return $"{problemText}{Environment.NewLine}{duplicateText}";
     }
-    public static IBrush RelationshipBrush(ModRelationshipKind kind)
+    public static IBrush RelationshipBrush(ModRelationshipKind kind) => kind switch
     {
-        return kind switch
-        {
-            ModRelationshipKind.Before => BrushCache.GetBrush(Color.Parse("#3B82F6")),
-            ModRelationshipKind.After => BrushCache.GetBrush(Color.Parse("#22C55E")),
-            ModRelationshipKind.Required => BrushCache.GetBrush(Color.Parse("#EAB308")),
-            ModRelationshipKind.Incompatible => BrushCache.GetBrush(Color.Parse("#EF4444")),
-            _ => Brushes.Gray
-        };
-    }
+        ModRelationshipKind.Before => BrushCache.GetBrush(Color.Parse("#3B82F6")),
+        ModRelationshipKind.After => BrushCache.GetBrush(Color.Parse("#22C55E")),
+        ModRelationshipKind.Required => BrushCache.GetBrush(Color.Parse("#EAB308")),
+        ModRelationshipKind.Incompatible => BrushCache.GetBrush(Color.Parse("#EF4444")),
+        _ => Brushes.Gray
+    };
 }

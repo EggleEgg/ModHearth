@@ -144,7 +144,7 @@ internal static class ImageSourceLoader
         if (val.StartsWith("rgb", StringComparison.Ordinal))
         {
             string cleaned = val.Replace("rgba(", "").Replace("rgb(", "").Replace(")", "").Trim();
-            string[] parts = cleaned.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
+            string[] parts = cleaned.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length >= 3 && parts[0] == "0" && parts[1] == "0" && parts[2] == "0")
             {
                 // If alpha channel is specified, ensure it's fully opaque
@@ -470,10 +470,8 @@ internal static class ImageSourceLoader
             return null;
         }
     }
-    public static void ClearCache()
-    {
-        imageCache.Clear();
-    }
+
+    public static void ClearCache() => imageCache.Clear();
 }
 public sealed class TintedAssetConverter : IValueConverter
 {
@@ -497,8 +495,5 @@ public sealed class TintedAssetConverter : IValueConverter
         return ImageSourceLoader.LoadFromAssetUri(assetName, tint);
     }
 
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        throw new NotSupportedException();
-    }
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }

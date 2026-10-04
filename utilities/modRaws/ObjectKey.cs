@@ -31,12 +31,9 @@ public sealed class ObjectKey : IEquatable<ObjectKey>
     public override bool Equals(object? obj)
         => obj is ObjectKey other && Equals(other);
 
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(
+    public override int GetHashCode() => HashCode.Combine(
             StringComparer.OrdinalIgnoreCase.GetHashCode(ObjectType),
             StringComparer.OrdinalIgnoreCase.GetHashCode(Id));
-    }
 
     public override string ToString()
         => $"{ObjectType}:{Id}";

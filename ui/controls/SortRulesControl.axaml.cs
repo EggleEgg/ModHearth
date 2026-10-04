@@ -1,9 +1,9 @@
+using System.Collections.ObjectModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
-using System.Collections.ObjectModel;
 
 namespace ModHearth.UI;
 
@@ -30,12 +30,12 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         if (pickerModsCache != null && pickerModsCacheVersion == rulesVersion)
             return pickerModsCache;
 
-        List<ModRefViewModel> copies = allMods.Select(vm =>
+        List<ModRefViewModel> copies = [.. allMods.Select(vm =>
         {
             ModRefViewModel copy = new(vm.ModReference);
             MainWindowModListBuilder.CopyClassification(copy, vm);
             return copy;
-        }).ToList();
+        })];
         ModListIndicatorUpdater.UpdateRelationshipBadges(copies, rules);
 
         pickerModsCache = copies;
@@ -152,10 +152,9 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         string modsFolderPath = ConfigManager.GetModsPath();
         string vanillaFolderPath = ConfigManager.GetVanillaModsPath();
 
-        List<ModRefViewModel> classified = modRefs
+        List<ModRefViewModel> classified = [.. modRefs
             .Where(m => !string.IsNullOrWhiteSpace(m.ID))
-            .Select(m => MainWindowModListBuilder.CreateViewModel(m, modsFolderPath, vanillaFolderPath))
-            .ToList();
+            .Select(m => MainWindowModListBuilder.CreateViewModel(m, modsFolderPath, vanillaFolderPath))];
 
         foreach (ModRefViewModel vm in MainWindowModListBuilder.CollapseByModId(classified)
                      .OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase))
@@ -189,11 +188,8 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     public ModHearthManager? GetManager() => null;
 
-    public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm)
-    {
-        return modTreeList.SelectedItems?.Cast<ModRefViewModel>().Select(vm => vm.ModReference)
+    public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => modTreeList.SelectedItems?.Cast<ModRefViewModel>().Select(vm => vm.ModReference)
             ?? Enumerable.Empty<ModReference>();
-    }
 
     public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
     {
@@ -660,10 +656,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         }
     }
 
-    private void SetSummary(int beforeCount, int afterCount, int requiredCount, int incompatibleCount)
-    {
-        summaryText.Text = $"Before: {beforeCount}   After: {afterCount}   Required: {requiredCount}   Incompatible: {incompatibleCount}";
-    }
+    private void SetSummary(int beforeCount, int afterCount, int requiredCount, int incompatibleCount) => summaryText.Text = $"Before: {beforeCount}   After: {afterCount}   Required: {requiredCount}   Incompatible: {incompatibleCount}";
 
     private static string BuildCountedButtonLabel(string verb, string singularNoun, int count, string zeroLabel)
     {
@@ -711,12 +704,9 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         return normalized;
     }
 
-    private ModRelationshipRule GetRule(string id)
-    {
-        return rules.TryGetValue(id.Trim(), out ModRelationshipRule? rule)
+    private ModRelationshipRule GetRule(string id) => rules.TryGetValue(id.Trim(), out ModRelationshipRule? rule)
             ? rule
             : new ModRelationshipRule();
-    }
 
     private ModRelationshipRule GetOrCreateRule(string id)
     {
@@ -729,24 +719,18 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         return rule;
     }
 
-    private static List<string> GetList(ModRelationshipRule rule, ModRelationshipKind kind)
+    private static List<string> GetList(ModRelationshipRule rule, ModRelationshipKind kind) => kind switch
     {
-        return kind switch
-        {
-            ModRelationshipKind.Before => rule.BeforeIds,
-            ModRelationshipKind.After => rule.AfterIds,
-            ModRelationshipKind.Required => rule.RequiredIds,
-            ModRelationshipKind.Incompatible => rule.IncompatibleIds,
-            _ => rule.BeforeIds
-        };
-    }
+        ModRelationshipKind.Before => rule.BeforeIds,
+        ModRelationshipKind.After => rule.AfterIds,
+        ModRelationshipKind.Required => rule.RequiredIds,
+        ModRelationshipKind.Incompatible => rule.IncompatibleIds,
+        _ => rule.BeforeIds
+    };
 
-    private IEnumerable<string> SortIdsForDisplay(IEnumerable<string> ids)
-    {
-        return ids
+    private IEnumerable<string> SortIdsForDisplay(IEnumerable<string> ids) => ids
             .OrderBy(id => modIdMap.TryGetValue(id, out ModRefViewModel? vm) ? vm.DisplayName : id, StringComparer.OrdinalIgnoreCase)
             .ThenBy(id => id, StringComparer.OrdinalIgnoreCase);
-    }
 
     private ValidationResult ValidateRules(string? filterModId = null)
     {
@@ -823,7 +807,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
             {
                 bool hasModError = modIssues.Any(errors.Contains);
                 bool hasModWarning = modIssues.Any(warnings.Contains);
-                return new ValidationResult(hasModError, hasModWarning, string.Empty, modIssues.Distinct().ToList());
+                return new ValidationResult(hasModError, hasModWarning, string.Empty, [.. modIssues.Distinct()]);
             }
             return new ValidationResult(false, false, "No conflicts detected for this mod.");
         }
@@ -877,7 +861,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private static ValidationResult BuildValidationResult(List<Control> errors, List<Control> warnings)
     {
-        List<Control> allIssues = errors.Concat(warnings).Distinct().ToList();
+        List<Control> allIssues = [.. errors.Concat(warnings).Distinct()];
         if (errors.Count > 0)
             return new ValidationResult(true, warnings.Count > 0, string.Empty, allIssues);
         switch (warnings.Count)
@@ -889,10 +873,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         }
     }
 
-    private static bool WouldCreateCycle(Dictionary<string, HashSet<string>> graph, string fromId, string toId)
-    {
-        return ModHearthManager.WouldCreateCycle(graph, fromId, toId);
-    }
+    private static bool WouldCreateCycle(Dictionary<string, HashSet<string>> graph, string fromId, string toId) => ModHearthManager.WouldCreateCycle(graph, fromId, toId);
 
     private TextBlock DisplayLabel(string id)
     {
@@ -943,29 +924,23 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
         return clone;
     }
 
-    private static Image? IconFor(ModRelationshipKind kind)
+    private static Image? IconFor(ModRelationshipKind kind) => kind switch
     {
-        return kind switch
-        {
-            ModRelationshipKind.Before => ImageSourceLoader.CreateAvaloniaImage("arrowUpIcon.svg"),
-            ModRelationshipKind.After => ImageSourceLoader.CreateAvaloniaImage("arrowDownIcon.svg"),
-            ModRelationshipKind.Required => ImageSourceLoader.CreateAvaloniaImage("linkIcon.svg"),
-            ModRelationshipKind.Incompatible => ImageSourceLoader.CreateAvaloniaImage("cancelCircleIcon.svg"),
-            _ => null
-        };
-    }
+        ModRelationshipKind.Before => ImageSourceLoader.CreateAvaloniaImage("arrowUpIcon.svg"),
+        ModRelationshipKind.After => ImageSourceLoader.CreateAvaloniaImage("arrowDownIcon.svg"),
+        ModRelationshipKind.Required => ImageSourceLoader.CreateAvaloniaImage("linkIcon.svg"),
+        ModRelationshipKind.Incompatible => ImageSourceLoader.CreateAvaloniaImage("cancelCircleIcon.svg"),
+        _ => null
+    };
 
-    private static ModRelationshipKind? RelationshipKindFromTag(string? tag)
+    private static ModRelationshipKind? RelationshipKindFromTag(string? tag) => tag switch
     {
-        return tag switch
-        {
-            "relation-before" => ModRelationshipKind.Before,
-            "relation-after" => ModRelationshipKind.After,
-            "relation-required" => ModRelationshipKind.Required,
-            "relation-incompatible" => ModRelationshipKind.Incompatible,
-            _ => null
-        };
-    }
+        "relation-before" => ModRelationshipKind.Before,
+        "relation-after" => ModRelationshipKind.After,
+        "relation-required" => ModRelationshipKind.Required,
+        "relation-incompatible" => ModRelationshipKind.Incompatible,
+        _ => null
+    };
 
     private readonly record struct ValidationResult(bool HasError, bool HasWarning, string Message, List<Control>? Issues = null);
 
@@ -1028,7 +1003,7 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
         PushUndo();
 
-        List<string> ownerIds = isGlobal ? rules.Keys.ToList() : [ownerId!];
+        List<string> ownerIds = isGlobal ? [.. rules.Keys] : [ownerId!];
         Dictionary<string, ModRelationshipRule> targetRules = ownerIds.ToDictionary(
             id => id, GetOrCreateRule, StringComparer.OrdinalIgnoreCase);
 

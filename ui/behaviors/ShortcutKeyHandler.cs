@@ -102,8 +102,5 @@ public sealed class ShortcutKeyHandler
         }
     }
 
-    private static bool IsTextInputFocused(object? source)
-    {
-        return source is TextBox || source is ComboBox;
-    }
+    private static bool IsTextInputFocused(object? source) => source is TextBox || source is ComboBox;
 }
