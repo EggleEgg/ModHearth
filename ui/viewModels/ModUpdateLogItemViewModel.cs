@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Avalonia.Media;
 
 namespace ModHearth.UI;
@@ -143,7 +144,7 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
                     try
                     {
                         string fullTarget = $"{ModName} {Entry.ModId} {Entry.SteamId} {Entry.Path} {SourceType} {StateText} {DateText}";
-                        return System.Text.RegularExpressions.Regex.IsMatch(fullTarget, filter, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                        return Regex.IsMatch(fullTarget, filter, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
                     }
                     catch
                     {

@@ -167,8 +167,7 @@
                     <Setter Property="ClipToBounds" Value="True"/>
                   </Style>
                 </ScrollViewer.Styles>
-                <TextBlock x:Name="dfhackStatusLabel" FontSize="11"
-                           VerticalAlignment="Center" />
+                <TextBlock x:Name="dfhackStatusLabel" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource MainTextBrush}"  />
               </ScrollViewer>
             </Grid>
           </Grid>

@@ -6,6 +6,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Avalonia.Controls;
 
 namespace ModHearth.UI;
@@ -456,9 +457,9 @@ internal static class UpdateService
         if (string.IsNullOrWhiteSpace(body)) return null;
 
         // Matches 64-character hexadecimal hashes near the asset filename
-        var match = System.Text.RegularExpressions.Regex.Match(
+        var match = Regex.Match(
             body, 
-            $@"{System.Text.RegularExpressions.Regex.Escape(fileName)}[\s\S]*?([a-fA-F0-9]{{64}})");
+            $@"{Regex.Escape(fileName)}[\s\S]*?([a-fA-F0-9]{{64}})");
 
         return match.Success ? match.Groups[1].Value : null;
     }

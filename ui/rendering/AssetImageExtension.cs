@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -202,7 +203,7 @@ internal static class ImageSourceLoader
                     if (styleAttr != null)
                     {
                         string val = styleAttr.Value;
-                        val = System.Text.RegularExpressions.Regex.Replace(
+                        val = Regex.Replace(
                             val,
                             @"(?<prefix>fill|stroke)\s*:\s*(?<color>[^;]+)",
                             match =>
@@ -211,7 +212,7 @@ internal static class ImageSourceLoader
                                 string rawColor = match.Groups["color"].Value;
                                 return IsPureBlack(rawColor) ? $"{prefix}:{hexColor}" : match.Value;
                             },
-                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                            RegexOptions.IgnoreCase);
 
                         styleAttr.Value = val;
                     }

@@ -35,11 +35,7 @@ public static class WindowThemeManager
 
         window.Opened += OnWindowOpened;
         window.Closed += OnWindowClosed;
-
-        if (Style.instance != null)
-        {
-            ApplyToWindow(window, Style.instance);
-        }
+        ApplyToWindow(window, Style.instance);
     }
 
     public static void ApplyToOpenWindows() => ApplyToOpenWindows(Style.instance);
@@ -82,7 +78,7 @@ public static class WindowThemeManager
 
     private static void Cleanup() => _ = registered.RemoveAll(weak => !weak.TryGetTarget(out _));
 
-    public static void ApplyToWindow(Window window, Style style)
+    public static void ApplyToWindow(Window? window, Style? style)
     {
         if (window == null || style == null || isApplying)
             return;

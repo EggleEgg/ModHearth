@@ -11,11 +11,16 @@
     <StackPanel Margin="16" Spacing="12">
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock x:Name="HeaderText" TextWrapping="Wrap" VerticalAlignment="Center" />
-        <Button x:Name="ChannelSwitchButton" Grid.Column="1" Content="Bleeding Edge" 
-                Click="ChannelSwitchClicked" IsVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" />
+        <Button x:Name="ChannelSwitchButton" Grid.Column="1" Content="Bleeding Edge" Tag="Themed" Padding="20,4"
+                Click="ChannelSwitchClicked" IsVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" HorizontalContentAlignment="Center" />
       </Grid>
       <ItemsControl x:Name="ReleaseList">
-      <ItemsControl.ItemTemplate>
+        <ItemsControl.Styles>
+          <Style Selector="TextBlock" x:DataType="viewmodels:ReleaseEntry">
+            <Setter Property="Foreground" Value="{DynamicResource MainTextBrush}" />
+          </Style>
+        </ItemsControl.Styles>
+        <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="viewmodels:ReleaseEntry">
           <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,*" Margin="0,4">
             <Border Grid.Row="0" Grid.ColumnSpan="2" Height="2" HorizontalAlignment="Stretch" Margin="0,0,0,8"

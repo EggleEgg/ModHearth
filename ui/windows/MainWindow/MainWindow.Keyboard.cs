@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -44,8 +45,8 @@ public partial class MainWindow
     {
         ListBox sourceList;
         ListBox targetList;
-        System.Collections.ObjectModel.ObservableCollection<ModRefViewModel> sourceCol;
-        System.Collections.ObjectModel.ObservableCollection<ModRefViewModel> targetCol;
+        ObservableCollection<ModRefViewModel> sourceCol;
+        ObservableCollection<ModRefViewModel> targetCol;
 
         bool rightActive = rightModlist.IsKeyboardFocusWithin ||
                            (rightModlist.SelectedItems?.Count > 0 && leftModlist.SelectedItems?.Count == 0) ||
