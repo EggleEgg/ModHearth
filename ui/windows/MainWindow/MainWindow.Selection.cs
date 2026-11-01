@@ -69,17 +69,19 @@ public partial class MainWindow
             rightSearchBar.Text ?? string.Empty,
             rightSearchBar.HideFiltered,
             rightSearchBar.SearchMode);
-        SearchLogging.Log(
-            $"CaptureSearchFilterStateSnapshot left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
-            $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log(
+                $"CaptureSearchFilterStateSnapshot left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
+                $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
         return snapshot;
     }
 
     private void RestoreSearchFilterStateSnapshot(SearchFilterStateSnapshot snapshot)
     {
-        SearchLogging.Log(
-            $"RestoreSearchFilterStateSnapshot begin left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
-            $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log(
+                $"RestoreSearchFilterStateSnapshot begin left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
+                $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
         suppressSearchInputEvents = true;
         searchDebounceTimer?.Stop();
         try
@@ -102,9 +104,10 @@ public partial class MainWindow
         {
             suppressSearchInputEvents = false;
         }
-        SearchLogging.Log(
-            $"RestoreSearchFilterStateSnapshot end left='{TrimForLog(leftSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
-            $"right='{TrimForLog(rightSearchBar.Text)}' rightHide={rightSearchBar.HideFiltered} rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log(
+                $"RestoreSearchFilterStateSnapshot end left='{TrimForLog(leftSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
+                $"right='{TrimForLog(rightSearchBar.Text)}' rightHide={rightSearchBar.HideFiltered} rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
     }
 
     private void RestoreSelectionSnapshot(ModSelectionSnapshot snapshot)

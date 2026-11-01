@@ -1,16 +1,10 @@
 namespace ModHearth;
 
-internal sealed class Logger
+internal sealed class Logger(string tag, Action<string> sink)
 {
     private readonly object gate = new();
-    private readonly string tag;
-    private readonly Action<string> sink;
-
-    public Logger(string tag, Action<string> sink)
-    {
-        this.tag = tag;
-        this.sink = sink;
-    }
+    private readonly string tag = tag;
+    private readonly Action<string> sink = sink;
 
     public void Log(string message) => Write("INFO", message);
     public void LogWarning(string message) => Write("WARNING", message);

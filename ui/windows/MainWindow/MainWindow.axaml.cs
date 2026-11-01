@@ -62,6 +62,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private readonly ModListDragDropController modListController;
     private readonly ShortcutKeyHandler shortcutKeyHandler;
     private readonly SemaphoreSlim autoActionGate = new(1, 1); // lives with SetAndMarkChangesAsync's other state
+    private readonly SemaphoreSlim dropProcessingGate = new(1, 1); // serializes drop tails so a later drop's scan can't be overwritten by an earlier one
     private bool autoActionRerunRequested;
 
     private DockingManager<WorkshopDownloaderControl, WorkshopDownloaderWindow>? _workshopDockManager;
@@ -101,7 +102,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     private const int MinimumAutoReloadSeconds = 3;
     private static readonly TimeSpan DfHackStatusRefreshInterval = TimeSpan.FromSeconds(3);
 
-    private static IImage? currentPreview;
+    private IImage? currentPreview;
     private bool updateInProgress;
     private bool pendingReloadQueued;
     private string? currentSelectedModId;
@@ -112,6 +113,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
     public MainWindow()
     {
         InitializeComponent();
+        NotificationItemsControl.ItemsSource = notificationRecords;
         WindowThemeManager.Register(this);
         InitializeModInfoDock();
         InitializeDockingManagers();
@@ -129,8 +131,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         modListController = new ModListDragDropController(
             this,
             () => modViewMap.Values,
-            key => modViewMap.TryGetValue(key, out ModRefViewModel? vm) ? vm : null,
-            vm => vm.DfMod.ToString());
+            key => modViewMap.TryGetValue(key, out ModRefViewModel? vm) ? vm : null);
         modListController.Dropped += ModlistDropped;
 
         shortcutKeyHandler = new ShortcutKeyHandler(
@@ -170,7 +171,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
         searchDebounceTimer.Tick += (_, _) =>
         {
             searchDebounceTimer?.Stop();
-            SearchLogging.Log($"DebounceTick left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log($"DebounceTick left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
             ApplySearchFilter();
         };
 
@@ -270,7 +272,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged, IStyleAwareWin
             autoReloadTimer?.Stop();
             searchDebounceTimer?.Stop();
             searchStateSaveTimer?.Stop();
-            DisposePreviewImage(currentPreview);
+            SetPreviewImage(null);
+            ClearPreviewCache();
         };
 
         InitializeDfHackStatusTimer();

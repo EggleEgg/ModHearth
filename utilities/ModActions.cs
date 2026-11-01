@@ -417,9 +417,6 @@ namespace ModHearth
             return modref.ID?.Trim() ?? string.Empty;
         }
 
-        public void ShowNotification(string message, string icon) => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                                                                              {
-                                                                                  TriggerNotification(message, icon);
-                                                                              });
+        public void ShowNotification(string message, string icon) => Avalonia.Threading.Dispatcher.UIThread.Post(() => {TriggerNotification(message, icon);});
     }
 }

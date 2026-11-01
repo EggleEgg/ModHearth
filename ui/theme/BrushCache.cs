@@ -1,12 +1,14 @@
-using System.Collections.Concurrent;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI;
 
 public static class BrushCache
 {
-    private static readonly ConcurrentDictionary<Color, IBrush> _cache = new();
+    // Theme switches and blended overlay colors are finite, but bounding the cache keeps it from
+    // growing indefinitely if callers pass computed colors.
+    private static readonly BoundedLruCache<Color, IBrush> _cache = new(512);
 
     /// <summary>
     /// Gets a cached, high-performance ImmutableSolidColorBrush for the given color.

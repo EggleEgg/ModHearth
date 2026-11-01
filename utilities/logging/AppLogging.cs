@@ -121,17 +121,11 @@ internal static class AppLogging
         }
     }
 
-    private sealed class TeeTextWriter : TextWriter
+    private sealed class TeeTextWriter(TextWriter primary, TextWriter secondary) : TextWriter
     {
         private readonly object gateTee = new();
-        private readonly TextWriter primary;
-        private readonly TextWriter secondary;
-
-        public TeeTextWriter(TextWriter primary, TextWriter secondary)
-        {
-            this.primary = primary;
-            this.secondary = secondary;
-        }
+        private readonly TextWriter primary = primary;
+        private readonly TextWriter secondary = secondary;
 
         public override Encoding Encoding => primary.Encoding;
 

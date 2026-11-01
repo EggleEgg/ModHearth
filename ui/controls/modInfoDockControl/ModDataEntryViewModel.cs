@@ -4,18 +4,12 @@ using Avalonia.Media;
 
 namespace ModHearth.UI;
 
-public sealed class ModDataEntryViewModel : INotifyPropertyChanged
+public sealed class ModDataEntryViewModel(string label, string value) : INotifyPropertyChanged
 {
     private IBrush background = Brushes.Transparent;
 
-    public ModDataEntryViewModel(string label, string value)
-    {
-        Label = label;
-        Value = value;
-    }
-
-    public string Label { get; }
-    public string Value { get; }
+    public string Label { get; } = label;
+    public string Value { get; } = value;
 
     public IBrush Background
     {

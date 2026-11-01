@@ -5,16 +5,10 @@ namespace ModHearth.Utilities;
 /// Equality is case-insensitive so that ENTITY:MOUNTAIN and entity:mountain
 /// resolve to the same object.
 /// </summary>
-public sealed class ObjectKey : IEquatable<ObjectKey>
+public sealed class ObjectKey(string objectType, string id) : IEquatable<ObjectKey>
 {
-    public string ObjectType { get; }
-    public string Id { get; }
-
-    public ObjectKey(string objectType, string id)
-    {
-        ObjectType = objectType;
-        Id = id;
-    }
+    public string ObjectType { get; } = objectType;
+    public string Id { get; } = id;
 
     public bool Equals(ObjectKey? other)
     {

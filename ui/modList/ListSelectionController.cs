@@ -126,12 +126,23 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
         if (SelectionAlreadyMatches(list.SelectedItems, target))
             return;
 
+        HashSet<T> previous = [.. list.SelectedItems.Cast<T>()];
+        HashSet<T> targetSet = [.. target];
         suppressSelectionHandling = true;
-        list.SelectedItems.Clear();
-        foreach (T item in target)
-            _ = list.SelectedItems.Add(item);
-        UpdateSelectionState(list);
-        suppressSelectionHandling = false;
+        try
+        {
+            list.SelectedItems.Clear();
+            foreach (T item in target)
+                _ = list.SelectedItems.Add(item);
+
+            // Restoring a drag selection used to rescan the full list. Only items that were
+            // selected before or after the restore can have changed selection state.
+            UpdateSelectionState(previous, targetSet);
+        }
+        finally
+        {
+            suppressSelectionHandling = false;
+        }
     }
 
     public void RestoreListSelection(DataGrid grid, IEnumerable<T> selection)
@@ -162,6 +173,15 @@ public sealed class ListSelectionController<T> where T : class, ISelectableItem
                 return false;
         }
         return true;
+    }
+
+    private static void UpdateSelectionState(IEnumerable<T> previous, HashSet<T> selected)
+    {
+        HashSet<T> changedItems = [.. previous];
+        changedItems.UnionWith(selected);
+
+        foreach (T item in changedItems)
+            item.IsSelected = selected.Contains(item);
     }
 
     public void UpdateSelectionState(DataGrid list)

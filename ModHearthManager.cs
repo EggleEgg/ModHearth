@@ -11,10 +11,10 @@ using ModHearth.Utilities.Logging;
 namespace ModHearth
 {
     [Serializable]
-    public struct ModProblem
+    public struct ModProblem(string problemThrowerID, string problemID, ModProblem.ProblemType problemType)
     {
-        public string problemThrowerID;
-        public string problemID;
+        public string problemThrowerID = problemThrowerID;
+        public string problemID = problemID;
 
         public enum ProblemType
         {
@@ -25,16 +25,9 @@ namespace ModHearth
             MissingRequired
         };
 
-        public ProblemType problemType;
+        public ProblemType problemType = problemType;
 
-        public ModProblem(string problemThrowerID, string problemID, ProblemType problemType)
-        {
-            this.problemThrowerID = problemThrowerID;
-            this.problemID = problemID;
-            this.problemType = problemType;
-        }
-
-        public override string ToString()
+        public override readonly string ToString()
         {
             switch (problemType)
             {
@@ -58,15 +51,9 @@ namespace ModHearth
         OpenWorldCreationScreen
     }
 
-    public sealed class UserActionRequiredException : Exception
+    public sealed class UserActionRequiredException(UserActionRequired actionRequired, string message) : Exception(message)
     {
-        public UserActionRequired ActionRequired { get; }
-
-        public UserActionRequiredException(UserActionRequired actionRequired, string message)
-            : base(message)
-        {
-            ActionRequired = actionRequired;
-        }
+        public UserActionRequired ActionRequired { get; } = actionRequired;
     }
 
     public partial class ModHearthManager
@@ -207,7 +194,6 @@ namespace ModHearth
         private readonly object modManagerReloadGate = new();
         private readonly object stateGate = new();
         private int reloadInProgress;
-        public bool IsReloadingMods => reloadInProgress != 0;
         private CancellationTokenSource? deferredModManagerReloadCts;
         private volatile ModpackStorageBackend activeModpackBackend = ModpackStorageBackend.LocalFallback;
         private volatile string activeModpackPath = localFallbackModpacksPath;
@@ -2015,7 +2001,7 @@ namespace ModHearth
             if (reloaded)
             {
                 Console.WriteLine("[ModHearth] Mod manager reload applied after 1 check.");
-                ShowNotification("DFHack screen reload applied", "saveDfHackIcon.svg");
+                ShowNotification("DFHack screen reload applied", "dfHack.png");
                 CancelDeferredModManagerReload();
                 message = "Modpack saved and applied to the DFHack mod manager.";
                 return true;
@@ -2188,7 +2174,7 @@ namespace ModHearth
                 else if (!cts.IsCancellationRequested && DateTime.UtcNow >= deadline)
                 {
                     Console.WriteLine($"[ModHearth] Deferred mod manager reload timed out after {checksPerformed} checks.");
-                    ShowNotification("DFHack screen reload failed", "saveDfHackIcon.svg");
+                    ShowNotification("DFHack screen reload failed", "dfHack.png");
                 }
 
                 lock (modManagerReloadGate)
@@ -2236,7 +2222,7 @@ namespace ModHearth
             FindModlistProblems();
         }
 
-        public void MoveMods(List<DFHMod> mods, int newIndex, bool sourceLeft, bool destinationLeft)
+        public void MoveMods(List<DFHMod> mods, int newIndex, bool sourceLeft, bool destinationLeft, bool refreshProblems = true)
         {
             if (mods == null || mods.Count == 0)
                 return;
@@ -2320,7 +2306,7 @@ namespace ModHearth
                 changed = true;
             }
 
-            if (changed)
+            if (changed && refreshProblems)
                 FindModlistProblems();
         }
         // Go through modlist and scan for problems.

@@ -153,7 +153,8 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         HashSet<string> activeIds, int knownCount, bool wasEmpty)
     {
         IReadOnlyList<ModUpdateLogEntry> rawEntries = ModUpdateLogger.LoadEntries();
-        Console.WriteLine($"[ModUpdateLog] Total number of entries: {rawEntries.Count}");
+        if (DevMode.IsEnabled)
+            Console.WriteLine($"[ModUpdateLog] Total number of entries: {rawEntries.Count}");
         bool needsFullRebuild = wasEmpty || rawEntries.Count < knownCount;
 
         List<ModUpdateLogEntry> toMaterialize = [.. (needsFullRebuild ? rawEntries : rawEntries.Skip(knownCount))];
@@ -229,22 +230,21 @@ public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, 
         string filter = modSearchBar?.Text?.Trim() ?? string.Empty;
         SearchFilterMode searchMode = modSearchBar?.SearchMode ?? SearchFilterMode.Name;
         bool hideFiltered = modSearchBar?.HideFiltered ?? false;
-        bool hasFilter = !string.IsNullOrWhiteSpace(filter);
 
-        List<ModUpdateLogItemViewModel> filtered = [.. allEntries.Where(vm =>
+        // Build the filter once, then visit every entry exactly once.
+        SearchFilterContext context = new(filter, searchMode);
+        List<ModUpdateLogItemViewModel> filtered = new(allEntries.Count);
+
+        foreach (ModUpdateLogItemViewModel vm in allEntries)
         {
-            bool match = !hasFilter || vm.MatchesFilter(filter, searchMode);
-            vm.IsFilteredOut = hasFilter && !match;
+            bool match = !context.HasFilter || vm.MatchesFilter(context);
+            vm.IsFilteredOut = context.HasFilter && !match;
             vm.IsVisible = !hideFiltered || match;
-            return vm.IsVisible;
-        })];
-
-        entries.Clear();
-        foreach (var vm in filtered)
-        {
-            entries.Add(vm);
+            if (vm.IsVisible)
+                filtered.Add(vm);
         }
 
+        entries.ReplaceAll(filtered);
         selectionController.UpdateSelectionState(logList);
     }
 

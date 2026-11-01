@@ -8,16 +8,11 @@ namespace ModHearth.Utilities;
 /// to determine whether an asset originates from vanilla by set containment
 /// rather than by string matching a hardcoded list.
 /// </summary>
-public sealed class VanillaRawBaseline
+public sealed class VanillaRawBaseline(IEnumerable<ObjectKey> keys)
 {
     public static VanillaRawBaseline Empty { get; } = new VanillaRawBaseline(Enumerable.Empty<ObjectKey>());
 
-    private readonly HashSet<ObjectKey> _baseline;
-
-    public VanillaRawBaseline(IEnumerable<ObjectKey> keys)
-    {
-        _baseline = [.. keys];
-    }
+    private readonly HashSet<ObjectKey> _baseline = [.. keys];
 
     public bool Contains(ObjectKey? key) => key != null && _baseline.Contains(key);
 

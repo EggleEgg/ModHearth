@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -11,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Svg.Skia;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI;
 
@@ -66,8 +66,10 @@ internal static class ImageSourceLoader
         return image;
     }
 
-    // Using Lazy<IImage?> guarantees the factory logic runs exactly once per unique key
-    private static readonly ConcurrentDictionary<string, Lazy<IImage?>> imageCache = new();
+    // Bounded so tinted variants and one-off assets cannot grow the cache without limit.
+    // Evicted images are not disposed: they may still be bound to live controls.
+    private const int MaxCachedImages = 256;
+    private static readonly BoundedLruCache<string, IImage?> imageCache = new(MaxCachedImages, StringComparer.Ordinal);
 
     private static readonly Lazy<IImage?> missingTextureImage = new(() =>
     {
@@ -100,13 +102,11 @@ internal static class ImageSourceLoader
         else
             key = normalized;
 
-        // GetOrAdd is fast because creating Lazy is cheap.
-        // The heavy loading inside Lazy only happens when .Value is accessed.
-        return imageCache.GetOrAdd(key, k => new Lazy<IImage?>(() =>
+        return imageCache.GetOrAdd(key, _ =>
         {
             if ((tint.HasValue || opacity.HasValue) && IsSvgPath(normalized))
             {
-                var tinted = LoadTintedSvg(normalized, tint, opacity);
+                IImage? tinted = LoadTintedSvg(normalized, tint, opacity);
                 if (tinted != null)
                     return tinted;
             }
@@ -126,7 +126,7 @@ internal static class ImageSourceLoader
             }
 
             return GetMissingTextureImage();
-        })).Value;
+        });
     }
 
     /// <summary>

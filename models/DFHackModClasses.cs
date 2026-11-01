@@ -5,10 +5,10 @@
     /// Only stores ID and Version. 
     /// Acts like a value type.
     /// </summary>
-    public class DFHMod
+    public class DFHMod(string id, int version)
     {
-        public string id { get; set; }
-        public int version { get; set; }
+        public string id { get; set; } = id;
+        public int version { get; set; } = version;
         private static readonly StringComparer IdComparer = StringComparer.OrdinalIgnoreCase;
 
         // For display and hash function.
@@ -42,13 +42,6 @@
                     return false;
             }
         }
-
-        public DFHMod(string id, int version)
-        {
-            this.id = id;
-            this.version = version;
-        }
-
     }
 
     /// <summary>
@@ -56,17 +49,10 @@
     /// Only stores if it's the default modpack, a list of mods, and a name.
     /// Ordering is strange but matches the dfhack json file.
     /// </summary>
-    public class DFHModpack
+    public class DFHModpack(bool @default, List<DFHMod> modlist, string name)
     {
-        public bool @default { get; set; }
-        public List<DFHMod> modlist { get; set; }
-        public string name { get; set; }
-
-        public DFHModpack(bool @default, List<DFHMod> modlist, string name)
-        {
-            this.@default = @default;
-            this.modlist = modlist;
-            this.name = name;
-        }
+        public bool @default { get; set; } = @default;
+        public List<DFHMod> modlist { get; set; } = modlist;
+        public string name { get; set; } = name;
     }
 }

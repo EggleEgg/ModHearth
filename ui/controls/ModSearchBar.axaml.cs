@@ -120,7 +120,8 @@ public partial class ModSearchBar : UserControl
             if (clearClickCount >= neededClicks)
             {
                 clearClickCount = 0;
-                SearchLogging.Log($"ModSearchBar ClearButton clicked {neededClicks} consecutive times - resetting to default search filter");
+                if (DevMode.IsEnabled)
+                    SearchLogging.Log($"ModSearchBar ClearButton clicked {neededClicks} consecutive times - resetting to default search filter");
                 SearchMode = IsSearchModeAllowed(DefaultSearchMode) ? DefaultSearchMode : GetFirstAllowedSearchMode();
                 ColorPicker.ClearSelection();
                 SearchBox.Text = string.Empty;
@@ -153,7 +154,8 @@ public partial class ModSearchBar : UserControl
                 UpdateSearchModeIcon();
                 UpdateSearchModeButtonTooltip();
 
-                SearchLogging.Log($"SearchModeChanged = {GetSearchModeLabel(SearchMode)}");
+                if (DevMode.IsEnabled)
+                    SearchLogging.Log($"SearchModeChanged = {GetSearchModeLabel(SearchMode)}");
                 SearchModeChanged?.Invoke(this, EventArgs.Empty);
             }
             else if (args.Property == SortDescendingProperty)

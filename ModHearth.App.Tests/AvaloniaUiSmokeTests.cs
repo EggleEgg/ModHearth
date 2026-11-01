@@ -42,14 +42,9 @@ public class AvaloniaAppFixture
 /// Smoke tests to verify that all Avalonia windows, dialogs, and custom controls can be instantiated
 /// and initialized without crashing due to styling, theme, resource, binding, or real mod data mismatches.
 /// </summary>
-public class AvaloniaUiSmokeTests : IClassFixture<AvaloniaAppFixture>
+public class AvaloniaUiSmokeTests(ITestOutputHelper output) : IClassFixture<AvaloniaAppFixture>
 {
-    private readonly ITestOutputHelper _output;
-
-    public AvaloniaUiSmokeTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
+    private readonly ITestOutputHelper _output = output;
 
     [Fact(Timeout = 20000)]
     public async Task CanInstantiateAllUIComponentsAndPumpEventsWithoutCrash()

@@ -4,20 +4,26 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI;
 
 public partial class MainWindow
 {
-    private static readonly object previewCacheGate = new();
-    private static readonly LinkedList<string> previewCacheOrder = new();
-    private static readonly Dictionary<string, (DateTime StampUtc, IImage Image, LinkedListNode<string> Node)> previewCache
+    // Preview state belongs to the window: sharing it statically leaked images across window lifetimes.
+    private readonly object previewCacheGate = new();
+    private readonly LinkedList<string> previewCacheOrder = new();
+    private readonly Dictionary<string, (DateTime StampUtc, IImage Image, LinkedListNode<string> Node)> previewCache
         = new(StringComparer.OrdinalIgnoreCase);
 
     // Limits to cached previews are important to not hog memory on large modlists
     private const int MaxCachedPreviews = 24;
 
-    private static bool TryGetCachedPreview(string path, out IImage? image)
+    // Fallback previews are shared, so they must never be disposed while a window can still show them.
+    private static readonly BoundedLruCache<string, IImage> fallbackPreviewCache = new(4, StringComparer.OrdinalIgnoreCase);
+    private static readonly IEqualityComparer<IImage> previewReferenceComparer = ReferenceEqualityComparer.Instance;
+
+    private bool TryGetCachedPreview(string path, out IImage? image)
     {
         lock (previewCacheGate)
         {
@@ -34,7 +40,7 @@ public partial class MainWindow
         return false;
     }
 
-    private static void CachePreview(string path, IImage image)
+    private void CachePreview(string path, IImage image)
     {
         DateTime stamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
         lock (previewCacheGate)
@@ -42,42 +48,48 @@ public partial class MainWindow
             if (previewCache.TryGetValue(path, out var existing))
             {
                 previewCacheOrder.Remove(existing.Node);
-                if (existing.Image != image && existing.Image != currentPreview && existing.Image is IDisposable dispOld)
-                {
-                    dispOld.Dispose();
-                }
+                if (!ReferenceEquals(existing.Image, image))
+                    DisposeCachedPreview(existing.Image, "Failed to dispose replaced preview image");
             }
-            var node = previewCacheOrder.AddFirst(path);
+
+            LinkedListNode<string> node = previewCacheOrder.AddFirst(path);
             previewCache[path] = (stamp, image, node);
-            while (previewCache.Count > MaxCachedPreviews)
+
+            while (previewCache.Count > MaxCachedPreviews && previewCacheOrder.Last is LinkedListNode<string> last)
             {
-                var last = previewCacheOrder.Last!;
                 previewCacheOrder.RemoveLast();
                 if (previewCache.TryGetValue(last.Value, out var evicted))
                 {
-                    if (evicted.Image != currentPreview && evicted.Image is IDisposable dispEvicted)
-                    {
-                        try { dispEvicted.Dispose(); }
-                        catch (Exception ex) { AppLogging.LogException("Failed to dispose evicted preview image", ex); }
-                    }
+                    DisposeCachedPreview(evicted.Image, "Failed to dispose evicted preview image");
                     previewCache.Remove(last.Value);
                 }
             }
         }
     }
 
-    public static void ClearPreviewCache()
+    /// <summary>
+    /// Disposes a cache-owned preview unless it is still displayed or shared as a fallback.
+    /// </summary>
+    private void DisposeCachedPreview(IImage image, string failureMessage)
+    {
+        if (ReferenceEquals(image, currentPreview) ||
+            fallbackPreviewCache.ContainsValue(image, previewReferenceComparer) ||
+            image is not IDisposable disposable)
+        {
+            return;
+        }
+
+        try { disposable.Dispose(); }
+        catch (Exception ex) { AppLogging.LogException(failureMessage, ex); }
+    }
+
+    public void ClearPreviewCache()
     {
         lock (previewCacheGate)
         {
             foreach (var entry in previewCache.Values)
-            {
-                if (entry.Image != currentPreview && entry.Image is IDisposable disp)
-                {
-                    try { disp.Dispose(); }
-                    catch (Exception ex) { AppLogging.LogException("Failed to dispose cached preview image", ex); }
-                }
-            }
+                DisposeCachedPreview(entry.Image, "Failed to dispose cached preview image");
+
             previewCache.Clear();
             previewCacheOrder.Clear();
         }
@@ -181,6 +193,9 @@ public partial class MainWindow
     }
 
     private static IImage LoadFallbackPreview(string file = "43G6tag.png")
+        => fallbackPreviewCache.GetOrAdd(file, static f => LoadFallbackPreviewCore(f));
+
+    private static IImage LoadFallbackPreviewCore(string file)
     {
         IImage? fallback = ImageSourceLoader.LoadFromAssetUriUncached(file);
         if (fallback != null)
@@ -213,27 +228,35 @@ public partial class MainWindow
 
     private void SetPreviewImage(IImage? image)
     {
-        if (currentPreview != null && currentPreview != image)
-        {
-            bool isCached = false;
-            lock (previewCacheGate)
-            {
-                foreach (var entry in previewCache.Values)
-                {
-                    if (entry.Image == currentPreview)
-                    {
-                        isCached = true;
-                        break;
-                    }
-                }
-            }
-            if (!isCached)
-            {
-                DisposePreviewImage(currentPreview);
-            }
-        }
+        IImage? previous = currentPreview;
         currentPreview = image;
         modPreviewPanelViewModel.PreviewImage = image;
+
+        if (previous == null || ReferenceEquals(previous, image))
+            return;
+
+        // Images owned by the preview cache survive for reuse; everything else is ours to release.
+        if (IsPreviewCached(previous) ||
+            fallbackPreviewCache.ContainsValue(previous, previewReferenceComparer))
+        {
+            return;
+        }
+
+        DisposePreviewImage(previous);
+    }
+
+    private bool IsPreviewCached(IImage image)
+    {
+        lock (previewCacheGate)
+        {
+            foreach (var entry in previewCache.Values)
+            {
+                if (ReferenceEquals(entry.Image, image))
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     private static void DisposePreviewImage(IImage? image)

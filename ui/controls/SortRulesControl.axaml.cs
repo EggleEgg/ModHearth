@@ -13,7 +13,9 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
     private readonly List<ModRefViewModel> allMods = [];
     private readonly Dictionary<string, ModRefViewModel> modIdMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ModRelationshipRule> rules = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Stack<Dictionary<string, ModRelationshipRule>> undoStack = new();
+    // Undo history is capped so long editing sessions cannot retain an unbounded number of rule snapshots.
+    private const int MaxUndoDepth = 100;
+    private readonly LinkedList<Dictionary<string, ModRelationshipRule>> undoStack = new();
     //TODO Finish up implementing github community sort rules fetching
     private readonly string rulesFilePath;
     private readonly Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged;
@@ -631,20 +633,25 @@ public partial class SortRulesControl : UserControl, IModRefContextMenuProvider,
 
     private void PushUndo()
     {
-        if (!applyingUndo)
-            undoStack.Push(CloneRules(rules));
+        if (applyingUndo)
+            return;
+
+        undoStack.AddFirst(CloneRules(rules));
+        while (undoStack.Count > MaxUndoDepth)
+            undoStack.RemoveLast();
     }
 
     public void Undo()
     {
-        if (undoStack.Count == 0)
+        if (undoStack.First is not LinkedListNode<Dictionary<string, ModRelationshipRule>> snapshot)
             return;
 
         applyingUndo = true;
         try
         {
+            undoStack.RemoveFirst();
             rules.Clear();
-            foreach (KeyValuePair<string, ModRelationshipRule> kvp in undoStack.Pop())
+            foreach (KeyValuePair<string, ModRelationshipRule> kvp in snapshot.Value)
                 rules[kvp.Key] = kvp.Value.Clone();
             rulesVersion++;
             onRulesChanged?.Invoke(CloneRules(rules));

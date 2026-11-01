@@ -14,9 +14,10 @@ public partial class MainWindow
         string rightFilter = rightSearchBar.Text.Trim();
         SearchFilterMode leftMode = leftSearchBar.SearchMode;
         SearchFilterMode rightMode = rightSearchBar.SearchMode;
-        SearchLogging.Log(
-            $"ApplySearchFilter start left='{TrimForLog(leftFilter)}' leftMode={DescribeSearchMode(leftMode)} " +
-            $"right='{TrimForLog(rightFilter)}' rightMode={DescribeSearchMode(rightMode)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log(
+                $"ApplySearchFilter start left='{TrimForLog(leftFilter)}' leftMode={DescribeSearchMode(leftMode)} " +
+                $"right='{TrimForLog(rightFilter)}' rightMode={DescribeSearchMode(rightMode)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
         bool ensureVisible = ensureSearchResultVisibleOnNextFilter;
 
         isApplyingSearchFilter = true;
@@ -50,10 +51,12 @@ public partial class MainWindow
             EnsureFirstVisibleSearchResultInView(leftModlist, inactiveMods, leftFilter, leftSearchBar.HideFiltered);
             EnsureFirstVisibleSearchResultInView(rightModlist, activeMods, rightFilter, rightSearchBar.HideFiltered);
             ensureSearchResultVisibleOnNextFilter = false;
-            SearchLogging.Log("ApplySearchFilter ensureSearchResultVisibleOnNextFilter consumed");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log("ApplySearchFilter ensureSearchResultVisibleOnNextFilter consumed");
         }
 
-        SearchLogging.Log("ApplySearchFilter end");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log("ApplySearchFilter end");
         LogVisualFilterState("ApplySearchFilter");
     }
 
@@ -95,11 +98,13 @@ public partial class MainWindow
     {
         if (suppressSearchInputEvents)
         {
-            SearchLogging.Log($"OnSearchInputChanged suppressed source={DescribeSearchSender(sender)}");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log($"OnSearchInputChanged suppressed source={DescribeSearchSender(sender)}");
             return;
         }
 
-        SearchLogging.Log($"OnSearchInputChanged source={DescribeSearchSender(sender)} left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}'");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log($"OnSearchInputChanged source={DescribeSearchSender(sender)} left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}'");
         ScheduleSearchFilter();
     }
 
@@ -107,18 +112,21 @@ public partial class MainWindow
     {
         if (suppressSearchInputEvents)
         {
-            SearchLogging.Log($"OnHideFilteredChanged suppressed source={DescribeSearchSender(sender)}");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log($"OnHideFilteredChanged suppressed source={DescribeSearchSender(sender)}");
             return;
         }
 
-        SearchLogging.Log($"OnHideFilteredChanged source={DescribeSearchSender(sender)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log($"OnHideFilteredChanged source={DescribeSearchSender(sender)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
 
         if (sender is ModSearchBar searchBar &&
             searchBar.HideFiltered &&
             !string.IsNullOrWhiteSpace(searchBar.Text))
         {
             ensureSearchResultVisibleOnNextFilter = true;
-            SearchLogging.Log($"OnHideFilteredChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log($"OnHideFilteredChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
         }
 
         ApplySearchFilterImmediately();
@@ -128,20 +136,23 @@ public partial class MainWindow
     {
         if (suppressSearchInputEvents)
         {
-            SearchLogging.Log($"OnSearchModeChanged suppressed source={DescribeSearchSender(sender)}");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log($"OnSearchModeChanged suppressed source={DescribeSearchSender(sender)}");
             return;
         }
 
-        SearchLogging.Log(
-            $"OnSearchModeChanged source={DescribeSearchSender(sender)} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
-            $"rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log(
+                $"OnSearchModeChanged source={DescribeSearchSender(sender)} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
+                $"rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
 
         if (sender is ModSearchBar searchBar &&
             searchBar.HideFiltered &&
             !string.IsNullOrWhiteSpace(searchBar.Text))
         {
             ensureSearchResultVisibleOnNextFilter = true;
-            SearchLogging.Log($"OnSearchModeChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log($"OnSearchModeChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
         }
 
         ApplySearchFilterImmediately();
@@ -170,26 +181,33 @@ public partial class MainWindow
             list,
             modListController,
             isSortingEnabled,
-            msg => SearchLogging.Log($"ApplyFilterFlags list={DescribeList(list)} " + msg)
+            msg =>
+            {
+                if (DevMode.IsEnabled)
+                    SearchLogging.Log($"ApplyFilterFlags list={DescribeList(list)} " + msg);
+            }
         );
 
     private void ScheduleSearchFilter()
     {
         if (searchDebounceTimer == null)
         {
-            SearchLogging.Log("ScheduleSearchFilter no-debounce -> immediate");
+            if (DevMode.IsEnabled)
+                SearchLogging.Log("ScheduleSearchFilter no-debounce -> immediate");
             ApplySearchFilter();
             return;
         }
 
-        SearchLogging.Log("ScheduleSearchFilter restart timer");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log("ScheduleSearchFilter restart timer");
         searchDebounceTimer.Stop();
         searchDebounceTimer.Start();
     }
 
     private void ApplySearchFilterImmediately()
     {
-        SearchLogging.Log("ApplySearchFilterImmediately");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log("ApplySearchFilterImmediately");
         searchDebounceTimer?.Stop();
         ApplySearchFilter();
     }
@@ -237,8 +255,9 @@ public partial class MainWindow
             return;
 
         list.ScrollIntoView(firstVisible);
-        SearchLogging.Log(
-            $"EnsureFirstVisibleSearchResultInView list={DescribeList(list)} targetId='{TrimForLog(firstVisible.ModReference.ID)}'");
+        if (DevMode.IsEnabled)
+            SearchLogging.Log(
+                $"EnsureFirstVisibleSearchResultInView list={DescribeList(list)} targetId='{TrimForLog(firstVisible.ModReference.ID)}'");
     }
 
     private void LogVisualFilterState(string phase)

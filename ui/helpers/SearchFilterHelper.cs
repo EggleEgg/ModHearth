@@ -11,33 +11,77 @@ public static class SearchFilterHelper
         SearchFilterMode searchMode,
         bool hideFiltered,
         bool sortDescending,
-        bool isSortingEnabled = true)
+        bool isSortingEnabled,
+        out int totalCount)
     {
-        string trimmed = filter?.Trim() ?? string.Empty;
-        bool hasFilter = !string.IsNullOrWhiteSpace(trimmed);
+        // Build the filter once instead of re-compiling regexes and re-splitting color lists per item.
+        SearchFilterContext context = new(filter, searchMode);
 
-        // Visit every item once to set IsFilteredOut and IsVisible
         List<ModRefViewModel> items = source is List<ModRefViewModel> list ? list : [.. source];
-        foreach (var vm in items)
+        totalCount = items.Count;
+
+        // Single pass: update flags and collect survivors in the same loop.
+        List<ModRefViewModel> visibleItems = new(items.Count);
+        foreach (ModRefViewModel vm in items)
         {
-            bool match = !hasFilter || vm.MatchesFilter(trimmed, searchMode);
-            vm.IsFilteredOut = hasFilter && !match;
+            bool match = !context.HasFilter || vm.MatchesFilter(context);
+            vm.IsFilteredOut = context.HasFilter && !match;
             vm.IsVisible = !hideFiltered || match;
+            if (vm.IsVisible)
+                visibleItems.Add(vm);
         }
 
-        // Get the surviving subset (visible items)
-        IEnumerable<ModRefViewModel> visibleItems = items.Where(vm => vm.IsVisible);
+        // Sort the surviving subset in place to avoid the intermediate buffers that LINQ's OrderBy allocates.
+        if (isSortingEnabled)
+        {
+            IComparer<ModRefViewModel> comparer = new ModRefComparer(searchMode, sortDescending);
+            visibleItems.Sort(comparer);
+        }
 
-        // Sort only the surviving subset
-        return (!isSortingEnabled)
-            ? [.. visibleItems]
-            : (searchMode, sortDescending) switch
+        return visibleItems;
+    }
+
+    public static List<ModRefViewModel> ApplyFilterAndSort(
+        IEnumerable<ModRefViewModel> source,
+        string filter,
+        SearchFilterMode searchMode,
+        bool hideFiltered,
+        bool sortDescending,
+        bool isSortingEnabled = true)
+        => ApplyFilterAndSort(source, filter, searchMode, hideFiltered, sortDescending, isSortingEnabled, out _);
+
+    /// <summary>
+    /// Orders visible mods. The tie-breakers keep the order deterministic even though
+    /// <see cref="List{T}.Sort(IComparer{T})"/> is not stable.
+    /// </summary>
+    private sealed class ModRefComparer(SearchFilterMode mode, bool sortDescending) : IComparer<ModRefViewModel>
+    {
+        private static readonly StringComparer NameComparer = StringComparer.OrdinalIgnoreCase;
+
+        public int Compare(ModRefViewModel? x, ModRefViewModel? y)
+        {
+            if (mode == SearchFilterMode.ModifiedTime)
             {
-                (SearchFilterMode.ModifiedTime, true) => [.. visibleItems.OrderBy(vm => vm.LastModifiedTime ?? DateTime.MinValue)],
-                (SearchFilterMode.ModifiedTime, false) => [.. visibleItems.OrderByDescending(vm => vm.LastModifiedTime ?? DateTime.MinValue)],
-                (_, true) => [.. visibleItems.OrderByDescending(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)],
-                (_, false) => [.. visibleItems.OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)]
-            };
+                DateTime left = x?.LastModifiedTime ?? DateTime.MinValue;
+                DateTime right = y?.LastModifiedTime ?? DateTime.MinValue;
+
+                // Preserve the historical (inverted) semantics: descending=true sorts oldest first.
+                int timeResult = sortDescending ? left.CompareTo(right) : right.CompareTo(left);
+                if (timeResult != 0)
+                    return timeResult;
+            }
+            else
+            {
+                int nameResult = NameComparer.Compare(x?.DisplayName, y?.DisplayName);
+                if (nameResult != 0)
+                    return sortDescending ? -nameResult : nameResult;
+            }
+
+            int displayNameResult = NameComparer.Compare(x?.DisplayName, y?.DisplayName);
+            return displayNameResult != 0
+                ? displayNameResult
+                : NameComparer.Compare(x?.ModReference.ID, y?.ModReference.ID);
+        }
     }
 
     public static void ReplaceCollection<T>(ObservableCollection<T> target, List<T> items)
@@ -54,6 +98,13 @@ public static class SearchFilterHelper
                 }
             }
             if (same) return;
+        }
+
+        if (target is BulkObservableCollection<T> bulk)
+        {
+            // One Reset notification instead of Clear() + N Add() notifications.
+            bulk.ReplaceAll(items);
+            return;
         }
 
         target.Clear();
@@ -108,11 +159,12 @@ public static class SearchFilterHelper
             searchMode,
             hideFiltered,
             sortDescending,
-            isSortingEnabled);
+            isSortingEnabled,
+            out int totalCount);
 
         ReplaceCollection(targetCollection, displayItems);
 
-        logAction?.Invoke($"filter='{trimmed}' mode={searchMode} hideFiltered={hideFiltered} sortDescending={sortDescending} total={source.Count()} visible={displayItems.Count}");
+        logAction?.Invoke($"filter='{trimmed}' mode={searchMode} hideFiltered={hideFiltered} sortDescending={sortDescending} total={totalCount} visible={displayItems.Count}");
 
         DropNonDisplayedSelections(list, displayItems, modListController);
     }

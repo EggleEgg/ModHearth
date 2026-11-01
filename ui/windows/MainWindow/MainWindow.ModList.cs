@@ -141,12 +141,34 @@ public partial class MainWindow
             ? context.InsertIndex
             : MapFilteredToMasterIndex(activeMods, BuildEnabledOrderViewModels(), context.InsertIndex);
 
-        manager.MoveMods(mods, insertIndex, sourceLeft, destinationLeft);
+        // Keep the pointer/drop path short: update the displayed lists before the potentially
+        // expensive problem analysis, which runs below without occupying the UI thread.
+        manager.MoveMods(mods, insertIndex, sourceLeft, destinationLeft, refreshProblems: false);
+        RebuildPanelCollectionsFromManager();
+        ApplySearchFilter();
+
+        await RunPostDropProcessingAsync();
         bool sorted = await SetAndMarkChangesAsync(true);
         if (!sorted)
             RefreshModlistPanels(updateCache: false, updateColors: false);
         if (sourceLeft != destinationLeft)
             SelectModsInList(destinationLeft, mods);
+    }
+
+    // Problem analysis must see the latest manager state, but it should not run while the user
+    // is still in the drop gesture. Serializing the tail also prevents a scan started before a
+    // later drop from finishing last and publishing stale results.
+    private async Task RunPostDropProcessingAsync()
+    {
+        await dropProcessingGate.WaitAsync();
+        try
+        {
+            await Task.Run(manager.FindModlistProblems);
+        }
+        finally
+        {
+            _ = dropProcessingGate.Release();
+        }
     }
 
     // The real, order-defining sequence backing the active list. Built by
@@ -196,7 +218,11 @@ public partial class MainWindow
         List<ModRefViewModel> selected = [.. source.SelectedItems.Cast<ModRefViewModel>()];
         List<DFHMod> mods = [.. selected.Select(vm => vm.DfMod)];
         int index = manager.enabledMods.Count;
-        manager.MoveMods(mods, index, sourceLeft, !sourceLeft);
+        manager.MoveMods(mods, index, sourceLeft, !sourceLeft, refreshProblems: false);
+        RebuildPanelCollectionsFromManager();
+        ApplySearchFilter();
+
+        await RunPostDropProcessingAsync();
         bool sorted = await SetAndMarkChangesAsync(true);
         if (!sorted)
             RefreshModlistPanels(updateCache: false, updateColors: false);

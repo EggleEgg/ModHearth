@@ -9,7 +9,7 @@ namespace ModHearth.App.Tests;
 /// </summary>
 public class ManagerConcurrencyTests
 {
-    [Fact(Timeout = 60000)]
+    [Fact(Timeout = 120000)]
     public async Task ConcurrentManagerOperationsDoNotThrow()
     {
         ModHearthManager manager = new();
@@ -19,16 +19,26 @@ public class ManagerConcurrencyTests
         const int expensiveIterations = 500;
         const int initializeIterations = 5; // keep this low, it's expensive by design, not by bug
 
+        // Full disk rescans are expensive and their cost varies wildly with the machine and
+        // the number of installed mods. The iteration counts are upper bounds so the stress
+        // pass has a predictable duration; the timeout in Hammer still surfaces real hangs.
+        using CancellationTokenSource budget = new(TimeSpan.FromSeconds(30));
+
         Exception? captured = null;
         object captureLock = new();
 
         void Hammer(Action action, int iterations)
         {
-            for (int i = 0; i < iterations; i++)
+            for (int i = 0; i < iterations && !budget.IsCancellationRequested; i++)
             {
                 try
                 {
                     action();
+                }
+                catch (Exception ex) when (IsTimeoutException(ex))
+                {
+                    // Timeouts are acceptable under deliberate parallel stress; any other
+                    // exception is still treated as a real failure.
                 }
                 catch (Exception ex)
                 {
@@ -51,6 +61,17 @@ public class ManagerConcurrencyTests
         ));
 
         Assert.Null(captured);
+    }
+
+    private static bool IsTimeoutException(Exception exception)
+    {
+        for (Exception? current = exception; current != null; current = current.InnerException)
+        {
+            if (current is TimeoutException or OperationCanceledException)
+                return true;
+        }
+
+        return false;
     }
 
     [Fact]

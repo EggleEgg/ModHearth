@@ -7,36 +7,24 @@ namespace ModHearth.UI;
 /// <summary>
 /// Generic unified class for handling keyboard actions
 /// </summary>
-public sealed class ShortcutKeyHandler
+public sealed class ShortcutKeyHandler(
+    Func<bool> canUndo,
+    Func<Task> undoAsync,
+    Func<bool> canRedo,
+    Func<Task> redoAsync,
+    Func<bool>? canSave = null,
+    Func<Task>? saveAsync = null,
+    Func<Task>? moveLeftAsync = null,
+    Func<Task>? moveRightAsync = null)
 {
-    private readonly Func<bool> canUndo;
-    private readonly Func<Task> undoAsync;
-    private readonly Func<bool> canRedo;
-    private readonly Func<Task> redoAsync;
-    private readonly Func<bool>? canSave;
-    private readonly Func<Task>? saveAsync;
-    private readonly Func<Task>? moveLeftAsync;
-    private readonly Func<Task>? moveRightAsync;
-
-    public ShortcutKeyHandler(
-        Func<bool> canUndo,
-        Func<Task> undoAsync,
-        Func<bool> canRedo,
-        Func<Task> redoAsync,
-        Func<bool>? canSave = null,
-        Func<Task>? saveAsync = null,
-        Func<Task>? moveLeftAsync = null,
-        Func<Task>? moveRightAsync = null)
-    {
-        this.canUndo = canUndo ?? throw new ArgumentNullException(nameof(canUndo));
-        this.undoAsync = undoAsync ?? throw new ArgumentNullException(nameof(undoAsync));
-        this.canRedo = canRedo ?? throw new ArgumentNullException(nameof(canRedo));
-        this.redoAsync = redoAsync ?? throw new ArgumentNullException(nameof(redoAsync));
-        this.canSave = canSave;
-        this.saveAsync = saveAsync;
-        this.moveLeftAsync = moveLeftAsync;
-        this.moveRightAsync = moveRightAsync;
-    }
+    private readonly Func<bool> canUndo = canUndo ?? throw new ArgumentNullException(nameof(canUndo));
+    private readonly Func<Task> undoAsync = undoAsync ?? throw new ArgumentNullException(nameof(undoAsync));
+    private readonly Func<bool> canRedo = canRedo ?? throw new ArgumentNullException(nameof(canRedo));
+    private readonly Func<Task> redoAsync = redoAsync ?? throw new ArgumentNullException(nameof(redoAsync));
+    private readonly Func<bool>? canSave = canSave;
+    private readonly Func<Task>? saveAsync = saveAsync;
+    private readonly Func<Task>? moveLeftAsync = moveLeftAsync;
+    private readonly Func<Task>? moveRightAsync = moveRightAsync;
 
     public void Attach(InputElement element)
     {

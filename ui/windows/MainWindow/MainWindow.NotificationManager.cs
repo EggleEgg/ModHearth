@@ -1,7 +1,5 @@
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -122,10 +120,10 @@ public class NotificationRecord : INotifyPropertyChanged, IThemedViewModel
 
 public partial class MainWindow
 {
-    private const int MaxNotificationRecords = 2000;
+    private const int MaxNotificationRecords = 500;
     private const int MaxShownNotifications = 4;
     private readonly List<NotificationRecord> allNotificationRecords = [];
-    private readonly ObservableCollection<NotificationRecord> notificationRecords = [];
+    private readonly BulkObservableCollection<NotificationRecord> notificationRecords = [];
 
     public void ApplyNotificationFilterAndSort()
     {
@@ -133,15 +131,16 @@ public partial class MainWindow
         SearchFilterMode mode = notificationSearchBar?.SearchMode ?? SearchFilterMode.ModifiedTime;
         bool sortDescending = notificationSearchBar?.SortDescending ?? true;
         bool hideFiltered = notificationSearchBar?.HideFiltered ?? true;
-        bool hasFilter = !string.IsNullOrWhiteSpace(filter);
 
-        foreach (var r in allNotificationRecords)
+        SearchFilterContext context = new(filter, mode);
+
+        foreach (NotificationRecord r in allNotificationRecords)
         {
-            bool match = !hasFilter || (mode == SearchFilterMode.Regex
-                ? IsRegexMatch(r.Message, filter)
-                : r.Message.Contains(filter, StringComparison.OrdinalIgnoreCase));
+            bool match = !context.HasFilter || (mode == SearchFilterMode.Regex
+                ? context.MatchesRegex(r.Message)
+                : context.Contains(r.Message));
 
-            r.IsFilteredOut = hasFilter && !match;
+            r.IsFilteredOut = context.HasFilter && !match;
             r.IsVisible = !hideFiltered || match;
         }
 
@@ -151,28 +150,9 @@ public partial class MainWindow
             ? query.OrderByDescending(r => r.Timestamp)
             : query.OrderBy(r => r.Timestamp);
 
-        var filteredList = query.ToList();
+        List<NotificationRecord> filteredList = [.. query];
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            SearchFilterHelper.ReplaceCollection(notificationRecords, filteredList);
-            if (NotificationItemsControl != null && NotificationItemsControl.ItemsSource == null)
-            {
-                NotificationItemsControl.ItemsSource = notificationRecords;
-            }
-        });
-    }
-
-    private static bool IsRegexMatch(string input, string pattern)
-    {
-        try
-        {
-            return Regex.IsMatch(input, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        }
-        catch
-        {
-            return false;
-        }
+        Dispatcher.UIThread.Post(() => SearchFilterHelper.ReplaceCollection(notificationRecords, filteredList));
     }
 
     public void ShowNotification(string message, string iconResourceName, int notificationDelay)

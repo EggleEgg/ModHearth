@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -21,18 +22,22 @@ public sealed record ModListDropContext(
 public sealed class ModListDragDropController
 {
     private const string DragDataKey = "ModHearth.ModRefs";
+    private const string InternalDragPayload = "internal";
+    private const double DragStartDistance = 4;
+    private const double AutoScrollThreshold = 60;
+    private const double AutoScrollMinimumPixelsPerSecond = 120;
+    private const double AutoScrollMaximumPixelsPerSecond = 2000;
     private static readonly DataFormat<string> DragDataFormat = DataFormat.CreateStringApplicationFormat(DragDataKey);
     private readonly Window owner;
     private readonly Func<string, ModRefViewModel?> resolveItem;
-    private readonly Func<ModRefViewModel, string> getItemKey;
     private readonly Dictionary<ListBox, bool> sortableLists = [];
-    private readonly DispatcherTimer dragDelayTimer;
-    private bool canDrag;
+    private readonly DispatcherTimer autoScrollTimer;
 
     private Point? dragStartPoint;
     private PointerPressedEventArgs? dragTriggerEvent;
     private ListBox? dragSourceList;
     private List<ModRefViewModel>? dragSelectionSnapshot;
+    private List<ModRefViewModel>? activeDragItems;
     private ModRefViewModel? dragHitItem;
     private bool dragPreserveSelection;
     private List<ModRefViewModel>? dragHighlightedItems;
@@ -48,29 +53,25 @@ public sealed class ModListDragDropController
     private Point lastDragOverPos;
     private ListBox? cachedScrollViewerOwner;
     private ScrollViewer? cachedScrollViewer;
+    private DateTime lastAutoScrollTickUtc;
+    private long dragPointerPressedTimestamp;
 
     public event Action<ModListDropContext>? Dropped;
 
     public ModListDragDropController(
         Window owner,
         Func<IEnumerable<ModRefViewModel>> allItemsProvider,
-        Func<string, ModRefViewModel?> resolveItem,
-        Func<ModRefViewModel, string> getItemKey)
+        Func<string, ModRefViewModel?> resolveItem)
     {
         this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
         _ = allItemsProvider ?? throw new ArgumentNullException(nameof(allItemsProvider));
         this.resolveItem = resolveItem ?? throw new ArgumentNullException(nameof(resolveItem));
-        this.getItemKey = getItemKey ?? throw new ArgumentNullException(nameof(getItemKey));
 
-        dragDelayTimer = new DispatcherTimer
+        autoScrollTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(180)
+            Interval = TimeSpan.FromMilliseconds(16)
         };
-        dragDelayTimer.Tick += (_, _) =>
-        {
-            dragDelayTimer.Stop();
-            canDrag = true;
-        };
+        autoScrollTimer.Tick += (_, _) => AutoScrollTick();
     }
 
     public void RegisterList(ListBox list, bool allowReorder, bool allowDrop = true)
@@ -104,8 +105,7 @@ public sealed class ModListDragDropController
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        dragDelayTimer.Stop();
-        canDrag = false;
+        StopAutoScroll();
         dragTriggerEvent = e;
         dragStartPoint = e.GetPosition(sender as Control);
         ResetDragState();
@@ -135,19 +135,22 @@ public sealed class ModListDragDropController
             dragSelectionSnapshot = [.. list.SelectedItems.Cast<ModRefViewModel>()];
         }
 
-        dragDelayTimer.Start();
+        // Start as soon as the pointer crosses the normal drag distance. The old fixed hold
+        // timer delayed quick, deliberate multi-item drags even after the user had moved.
+        dragPointerPressedTimestamp = Stopwatch.GetTimestamp();
     }
 
     private async void OnPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (!canDrag || dragStartPoint == null || dragSourceList == null || dragTriggerEvent == null)
+        if (isDragging || dragStartPoint == null || dragSourceList == null || dragTriggerEvent == null)
             return;
 
         if (!e.GetCurrentPoint(dragSourceList).Properties.IsLeftButtonPressed)
             return;
 
         Point current = e.GetPosition(dragSourceList);
-        if (Math.Abs(current.X - dragStartPoint.Value.X) < 4 && Math.Abs(current.Y - dragStartPoint.Value.Y) < 4)
+        if (Math.Abs(current.X - dragStartPoint.Value.X) < DragStartDistance &&
+            Math.Abs(current.Y - dragStartPoint.Value.Y) < DragStartDistance)
             return;
 
         List<ModRefViewModel> selected = dragSourceList.SelectedItems?.Cast<ModRefViewModel>().ToList()
@@ -178,15 +181,22 @@ public sealed class ModListDragDropController
 
         selected = OrderSelectionByList(dragSourceList, selected);
 
-        SetDragHighlight(selected);
-        // Set the flag and spin up the background loop thread
+        activeDragItems = selected;
+        SetDragHighlight(dragSourceList, selected);
         isDragging = true;
-        _ = StartBackgroundScrollLoop();
+        StartAutoScroll();
         try
         {
-            string payload = SerializeDragData(selected);
             DataTransfer data = new();
-            data.Add(DataTransferItem.Create(DragDataFormat, payload));
+            // Retain the typed selection for this in-process drag. The transfer item merely
+            // identifies it as ours, avoiding JSON work proportional to the selection size.
+            data.Add(DataTransferItem.Create(DragDataFormat, InternalDragPayload));
+
+            if (DevMode.IsEnabled)
+            {
+                double elapsedMs = Stopwatch.GetElapsedTime(dragPointerPressedTimestamp).TotalMilliseconds;
+                Console.WriteLine($"[ModDragDrop] Started {selected.Count} item drag after {elapsedMs:F1} ms.");
+            }
 
             // The native OS blocking loop runs here
             _ = await DragDrop.DoDragDropAsync(dragTriggerEvent, data, DragDropEffects.Move);
@@ -196,14 +206,19 @@ public sealed class ModListDragDropController
             // Flipping this to false immediately halts the background thread loop
             dragTriggerEvent = null;
             isDragging = false;
+            StopAutoScroll();
             ClearDragHighlight();
             ResetDragState();
         }
     }
     private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        dragDelayTimer.Stop();
-        canDrag = false;
+        // During a native drag, release is part of the drop sequence. Keep the in-process
+        // selection alive until DoDragDropAsync completes and its finally block cleans up.
+        if (isDragging)
+            return;
+
+        StopAutoScroll();
         dragTriggerEvent = null;
         ResetDragState();
     }
@@ -264,7 +279,9 @@ public sealed class ModListDragDropController
             return;
         }
 
-        List<ModRefViewModel> selected = DeserializeDragData(payload);
+        List<ModRefViewModel> selected = activeDragItems is { Count: > 0 }
+            ? [.. activeDragItems]
+            : DeserializeDragData(payload);
         if (selected.Count == 0)
         {
             ResetDragState();
@@ -283,14 +300,11 @@ public sealed class ModListDragDropController
 
     private bool IsSortable(ListBox list) => sortableLists.TryGetValue(list, out bool sortable) && sortable;
 
-    private string SerializeDragData(IEnumerable<ModRefViewModel> mods)
-    {
-        List<string> keys = [.. mods.Select(getItemKey)];
-        return JsonSerializer.Serialize(keys);
-    }
-
     private List<ModRefViewModel> DeserializeDragData(string payload)
     {
+        if (string.Equals(payload, InternalDragPayload, StringComparison.Ordinal))
+            return [];
+
         List<string>? keys = JsonSerializer.Deserialize<List<string>>(payload);
         if (keys == null || keys.Count == 0)
             return [];
@@ -320,8 +334,7 @@ public sealed class ModListDragDropController
             return;
         }
 
-        IReadOnlyList<ModRefViewModel> itemList = items as IReadOnlyList<ModRefViewModel> ?? items.ToList();
-        if (itemList.Count == 0)
+        if (items is not IReadOnlyList<ModRefViewModel> itemList || itemList.Count == 0)
         {
             ClearDropHighlights();
             return;
@@ -385,13 +398,23 @@ public sealed class ModListDragDropController
         }
     }
 
-    private void SetDragHighlight(List<ModRefViewModel> items)
+    private void SetDragHighlight(ListBox sourceList, List<ModRefViewModel> items)
     {
         ClearDragHighlight();
-        dragHighlightedItems = items;
-        foreach (ModRefViewModel vm in items)
+        HashSet<ModRefViewModel> selected = [.. items];
+
+        // Only realized rows can be visible. Updating every selected item used to cause an
+        // expensive background refresh and property notification for off-screen rows.
+        dragHighlightedItems = [.. sourceList.GetVisualDescendants()
+            .OfType<ListBoxItem>()
+            .Select(item => item.DataContext as ModRefViewModel)
+            .Where(vm => vm != null && selected.Contains(vm))
+            .Cast<ModRefViewModel>()];
+
+        foreach (ModRefViewModel vm in dragHighlightedItems)
             vm.IsDragging = true;
-        SetDragCursor(true);
+        if (dragHighlightedItems.Count > 0)
+            SetDragCursor(true);
     }
 
     private void ClearDragHighlight()
@@ -422,10 +445,15 @@ public sealed class ModListDragDropController
 
     private static ModRefViewModel? GetItemAtPoint(ListBox list, Point point)
     {
-        IInputElement? element = list.InputHitTest(point) as IInputElement;
-        Control? control = element as Control;
-        ListBoxItem? item = control?.FindAncestorOfType<ListBoxItem>();
+        _ = TryGetContainerAtPoint(list, point, out ListBoxItem? item);
         return item?.DataContext as ModRefViewModel;
+    }
+
+    private static bool TryGetContainerAtPoint(ListBox list, Point point, out ListBoxItem? item)
+    {
+        IInputElement? element = list.InputHitTest(point) as IInputElement;
+        item = (element as Control)?.FindAncestorOfType<ListBoxItem>();
+        return item != null;
     }
 
     private static bool IsPointerOverScrollBar(ListBox list, Point point)
@@ -457,7 +485,26 @@ public sealed class ModListDragDropController
 
     private static (int index, bool after, bool gapDrop) GetDropTarget(ListBox list, Point point)
     {
-        List<(int Index, double Top, double Height)> realized = [];
+        if (TryGetContainerAtPoint(list, point, out ListBoxItem? hitItem) && hitItem != null)
+        {
+            int hitIndex = list.IndexFromContainer(hitItem);
+            Point? topLeft = hitItem.TranslatePoint(new Point(0, 0), list);
+            if (hitIndex >= 0 && topLeft != null)
+            {
+                double top = topLeft.Value.Y;
+                double height = hitItem.Bounds.Height;
+                double bottom = top + height;
+                bool after = point.Y > top + height / 2;
+                return (hitIndex, after, IsGapDrop(point.Y, top, bottom, height, after));
+            }
+        }
+
+        bool hasRealizedItems = false;
+        int nearestIndex = -1;
+        double nearestTop = 0;
+        double nearestHeight = 0;
+        double nearestDistance = double.PositiveInfinity;
+
         foreach (ListBoxItem item in list.GetVisualDescendants().OfType<ListBoxItem>())
         {
             int index = list.IndexFromContainer(item);
@@ -468,27 +515,26 @@ public sealed class ModListDragDropController
             if (topLeft == null)
                 continue;
 
-            realized.Add((index, topLeft.Value.Y, item.Bounds.Height));
+            hasRealizedItems = true;
+            double top = topLeft.Value.Y;
+            double height = item.Bounds.Height;
+            double bottom = top + height;
+            double distance = point.Y < top ? top - point.Y : point.Y > bottom ? point.Y - bottom : 0;
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearestIndex = index;
+                nearestTop = top;
+                nearestHeight = height;
+            }
         }
 
-        if (realized.Count == 0)
+        if (!hasRealizedItems || nearestIndex < 0)
             return (list.ItemCount, true, false);
 
-        realized.Sort((a, b) => a.Index.CompareTo(b.Index));
-
-        foreach (var (index, top, height) in realized)
-        {
-            double bottom = top + height;
-            double mid = top + height / 2;
-            if (point.Y <= mid)
-                return (index, false, IsGapDrop(point.Y, top, bottom, height, after: false));
-            if (point.Y <= bottom)
-                return (index, true, IsGapDrop(point.Y, top, bottom, height, after: true));
-        }
-
-        var (lastIndex, lastTop, lastHeight) = realized[^1];
-        double finalBottom = lastTop + lastHeight;
-        return (list.ItemCount, true, IsGapDrop(point.Y, lastTop, finalBottom, lastHeight, after: true));
+        double nearestBottom = nearestTop + nearestHeight;
+        bool nearestAfter = point.Y > nearestTop + nearestHeight / 2;
+        return (nearestIndex, nearestAfter, IsGapDrop(point.Y, nearestTop, nearestBottom, nearestHeight, nearestAfter));
     }
 
     private static bool IsGapDrop(double y, double top, double bottom, double height, bool after)
@@ -504,11 +550,10 @@ public sealed class ModListDragDropController
 
     private void ResetDragState()
     {
-        dragDelayTimer.Stop();
-        canDrag = false;
         dragStartPoint = null;
         dragSourceList = null;
         dragSelectionSnapshot = null;
+        activeDragItems = null;
         dragHitItem = null;
         dragPreserveSelection = false;
     }
@@ -524,78 +569,59 @@ public sealed class ModListDragDropController
         return cachedScrollViewer;
     }
 
-    private async Task StartBackgroundScrollLoop()
+    private void StartAutoScroll()
     {
-        while (isDragging)
-        {
-            // Poll every 50ms (matching your original timer resolution)
-            await Task.Delay(50);
-
-            // Early escape if the drag ended or the cursor left a valid target list
-            if (!isDragging || currentDragOverList == null || currentDragOverPosition == null)
-                continue;
-
-            // Capture references safely for the UI thread callback
-            var list = currentDragOverList;
-
-            // Post the work to the UI thread
-            Dispatcher.UIThread.Post(() =>
-            {
-                // Verify state hasn't drifted while waiting for the dispatch frame
-                if (!isDragging || currentDragOverList != list || currentDragOverPosition == null)
-                    return;
-
-                ScrollViewer? scrollViewer = GetScrollViewerFor(list);
-                if (scrollViewer == null) return;
-
-                Point pos = currentDragOverPosition.Value;
-
-                //TODO Make these configurable in the future
-                double scrollThreshold = 60.0; // Increased zone width to give users room to adjust speed
-                double minSpeed = 6.0;         // Minimum crawl speed right at the boundary edge
-                double maxSpeed = 100.0;       // Maximum cap when pulled far past the boundary
-
-                double listHeight = list.Bounds.Height;
-                double deltaY = 0;
-
-                if (pos.Y < scrollThreshold)
-                {
-                    // Distance past the top scroll trigger (larger = further into/above the zone)
-                    double distanceIntoZone = scrollThreshold - pos.Y;
-
-                    // Normalize ratio [0.0 to 2.0] (allows scaling up if cursor goes above list bounds)
-                    double intensity = Math.Clamp(distanceIntoZone / scrollThreshold, 0.0, 2.0);
-
-                    // Math.Pow(..., 1.5) provides a smooth, progressive acceleration curve
-                    double speed = minSpeed + (maxSpeed - minSpeed) * Math.Pow(intensity, 1.5);
-
-                    deltaY = -speed;
-                }
-                else if (pos.Y > (listHeight - scrollThreshold))
-                {
-                    // Distance past the bottom scroll trigger
-                    double distanceIntoZone = pos.Y - (listHeight - scrollThreshold);
-
-                    double intensity = Math.Clamp(distanceIntoZone / scrollThreshold, 0.0, 2.0);
-                    double speed = minSpeed + (maxSpeed - minSpeed) * Math.Pow(intensity, 1.5);
-
-                    deltaY = speed;
-                }
-
-                // Apply scroll delta if active
-                if (Math.Abs(deltaY) > 0.01)
-                {
-                    double oldOffset = scrollViewer.Offset.Y;
-                    double maxOffset = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
-                    double newOffset = Math.Clamp(oldOffset + deltaY, 0, maxOffset);
-
-                    if (Math.Abs(newOffset - oldOffset) > 0.01)
-                    {
-                        scrollViewer.Offset = scrollViewer.Offset.WithY(newOffset);
-                        UpdateDropHighlight(list, pos);
-                    }
-                }
-            }, DispatcherPriority.Input);
-        }
+        lastAutoScrollTickUtc = DateTime.UtcNow;
+        autoScrollTimer.Start();
     }
+
+    private void StopAutoScroll()
+    {
+        autoScrollTimer.Stop();
+        lastAutoScrollTickUtc = default;
+    }
+
+    private void AutoScrollTick()
+    {
+        if (!isDragging || currentDragOverList == null || currentDragOverPosition == null)
+            return;
+
+        DateTime now = DateTime.UtcNow;
+        double elapsedSeconds = Math.Max(0, (now - lastAutoScrollTickUtc).TotalSeconds);
+        lastAutoScrollTickUtc = now;
+
+        ListBox list = currentDragOverList;
+        ScrollViewer? scrollViewer = GetScrollViewerFor(list);
+        if (scrollViewer == null)
+            return;
+
+        Point position = currentDragOverPosition.Value;
+        double deltaY = 0;
+        if (position.Y < AutoScrollThreshold)
+        {
+            double intensity = Math.Clamp((AutoScrollThreshold - position.Y) / AutoScrollThreshold, 0, 2);
+            deltaY = -GetAutoScrollSpeed(intensity) * elapsedSeconds;
+        }
+        else if (position.Y > list.Bounds.Height - AutoScrollThreshold)
+        {
+            double intensity = Math.Clamp((position.Y - (list.Bounds.Height - AutoScrollThreshold)) / AutoScrollThreshold, 0, 2);
+            deltaY = GetAutoScrollSpeed(intensity) * elapsedSeconds;
+        }
+
+        if (Math.Abs(deltaY) <= 0.01)
+            return;
+
+        double oldOffset = scrollViewer.Offset.Y;
+        double maxOffset = Math.Max(0, scrollViewer.Extent.Height - scrollViewer.Viewport.Height);
+        double newOffset = Math.Clamp(oldOffset + deltaY, 0, maxOffset);
+        if (Math.Abs(newOffset - oldOffset) <= 0.01)
+            return;
+
+        scrollViewer.Offset = scrollViewer.Offset.WithY(newOffset);
+        UpdateDropHighlight(list, position);
+    }
+
+    private static double GetAutoScrollSpeed(double intensity)
+        => AutoScrollMinimumPixelsPerSecond +
+           (AutoScrollMaximumPixelsPerSecond - AutoScrollMinimumPixelsPerSecond) * Math.Pow(intensity, 1.5);
 }

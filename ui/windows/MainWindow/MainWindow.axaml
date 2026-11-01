@@ -428,29 +428,50 @@
                          IsRegexSearchEnabled="True" IsModifiedTimeSearchEnabled="True" SearchMode="ModifiedTime" SortDescending="True"
                          ModifiedTimeLabel="Time" />
 
-        <ScrollViewer Grid.Row="2" Margin="12,0,12,12" VerticalScrollBarVisibility="Auto">
-          <ItemsControl x:Name="NotificationItemsControl">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="ui:NotificationRecord">
-                <Border Margin="0,4" Padding="4,4,8,4" CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource ButtonOutlineBrush}" BorderThickness="1" Opacity="{Binding ItemOpacity}">
-                  <StackPanel Spacing="2">
-                    <Grid ColumnDefinitions="Auto,*">
-                      <Image Width="16" Height="16" VerticalAlignment="Bottom" Source="{Binding IconSource}" />
-                      <TextBlock Grid.Column="1" Text="{Binding Message}" FontSize="12" FontWeight="SemiBold"
-                                 VerticalAlignment="Center" TextWrapping="Wrap" Margin="6,0,0,0"
-                                 Foreground="{Binding MessageForeground}"
-                                 TextDecorations="{Binding TextDecorations}" />
-                    </Grid>
-                    <Border Background="{DynamicResource PanelDarkBrush}" CornerRadius="12" Margin="22,0,0,0" Padding="4,2" HorizontalAlignment="Stretch">
-                      <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{Binding MessageForeground}" Opacity="0.8"
-                                 TextDecorations="{Binding TextDecorations}" HorizontalAlignment="Center" />
-                    </Border>
-                  </StackPanel>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+        <!-- ListBox (instead of ScrollViewer + ItemsControl) so the notification history is virtualized. -->
+        <ListBox x:Name="NotificationItemsControl"
+                 Grid.Row="2" Margin="12,0,12,12"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 Padding="0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="Margin" Value="0" />
+              <Setter Property="Background" Value="Transparent" />
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            </Style>
+            <Style Selector="ListBoxItem /template/ ContentPresenter">
+              <Setter Property="Background" Value="Transparent" />
+            </Style>
+            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+              <Setter Property="Background" Value="Transparent" />
+            </Style>
+            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+              <Setter Property="Background" Value="Transparent" />
+            </Style>
+          </ListBox.Styles>
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="ui:NotificationRecord">
+              <Border Margin="0,4" Padding="4,4,8,4" CornerRadius="4" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource ButtonOutlineBrush}" BorderThickness="1" Opacity="{Binding ItemOpacity}">
+                <StackPanel Spacing="2">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Image Width="16" Height="16" VerticalAlignment="Bottom" Source="{Binding IconSource}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Message}" FontSize="12" FontWeight="SemiBold"
+                               VerticalAlignment="Center" TextWrapping="Wrap" Margin="6,0,0,0"
+                               Foreground="{Binding MessageForeground}"
+                               TextDecorations="{Binding TextDecorations}" />
+                  </Grid>
+                  <Border Background="{DynamicResource PanelDarkBrush}" CornerRadius="12" Margin="22,0,0,0" Padding="4,2" HorizontalAlignment="Stretch">
+                    <TextBlock Text="{Binding FormattedTime}" FontSize="10" FontStyle="Italic" Foreground="{Binding MessageForeground}" Opacity="0.8"
+                               TextDecorations="{Binding TextDecorations}" HorizontalAlignment="Center" />
+                  </Border>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
       </Grid>
     </Border>
   </Panel>

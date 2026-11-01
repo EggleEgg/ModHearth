@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using Avalonia.Media;
 
 namespace ModHearth.UI;
@@ -132,32 +131,29 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
         }
     }
 
-    public bool MatchesFilter(string filter, SearchFilterMode mode)
+    private string? searchTargetCache;
+
+    /// <summary>
+    /// Combined text used by regex searches. The view model is immutable, so this is built once.
+    /// </summary>
+    private string SearchTarget => searchTargetCache ??=
+        $"{ModName} {Entry.ModId} {Entry.SteamId} {Entry.Path} {SourceType} {StateText} {DateText}";
+
+    public bool MatchesFilter(SearchFilterContext context)
     {
-        if (string.IsNullOrWhiteSpace(filter))
+        if (context == null || !context.HasFilter)
             return true;
 
-        switch (mode)
+        switch (context.Mode)
         {
             case SearchFilterMode.Regex:
-                {
-                    try
-                    {
-                        string fullTarget = $"{ModName} {Entry.ModId} {Entry.SteamId} {Entry.Path} {SourceType} {StateText} {DateText}";
-                        return Regex.IsMatch(fullTarget, filter, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
+                return context.MatchesRegex(SearchTarget);
 
             case SearchFilterMode.Color:
                 return true;
-
         }
 
-        string? candidate = mode switch
+        string? candidate = context.Mode switch
         {
             SearchFilterMode.Name => ModName,
             SearchFilterMode.Id => Entry.ModId,
@@ -165,9 +161,9 @@ public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelecta
             _ => ModName
         };
 
-        return (!string.IsNullOrWhiteSpace(candidate) && candidate.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrWhiteSpace(Path) && Path.Contains(filter, StringComparison.OrdinalIgnoreCase)) ||
-               (!string.IsNullOrWhiteSpace(StateText) && StateText.Contains(filter, StringComparison.OrdinalIgnoreCase));
+        return context.Contains(candidate) ||
+               context.Contains(Path) ||
+               context.Contains(StateText);
     }
 
     public void RefreshStyle(Style style)

@@ -1,10 +1,9 @@
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Media;
+using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI;
@@ -264,7 +263,8 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
         }
     }
 
-    private static readonly ConcurrentDictionary<Color, IImage?> filterIconTintCache = new();
+    // Filter icons are tinted per text color; a handful of theme colors is all we should ever hold.
+    private static readonly BoundedLruCache<Color, IImage?> filterIconTintCache = new(32);
 
     private static IImage? GetTintedFilterIcon(Color tint)
         => filterIconTintCache.GetOrAdd(tint, static c => ImageSourceLoader.LoadFromAssetUri("filterIcon.svg", c));
@@ -611,48 +611,54 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
             DropHighlightBrush = BrushCache.GetBrush(dropHighlightColor);
     }
 
-    public bool MatchesFilter(string filter, SearchFilterMode mode)
+    private string? searchTargetCache;
+    private string? searchTargetName;
+    private string? searchTargetId;
+    private string? searchTargetSteamId;
+    private string? searchTargetDescription;
+
+    /// <summary>
+    /// Combined text used by regex searches, rebuilt only when one of its source fields changes.
+    /// </summary>
+    private string GetSearchTarget()
     {
-        if (string.IsNullOrWhiteSpace(filter))
-            return true;
+        string name = modref.name ?? string.Empty;
+        string id = modref.ID ?? string.Empty;
+        string steamId = modref.steamID ?? string.Empty;
+        string description = modref.description ?? string.Empty;
 
-        switch (mode)
+        if (searchTargetCache == null ||
+            !string.Equals(searchTargetName, name, StringComparison.Ordinal) ||
+            !string.Equals(searchTargetId, id, StringComparison.Ordinal) ||
+            !string.Equals(searchTargetSteamId, steamId, StringComparison.Ordinal) ||
+            !string.Equals(searchTargetDescription, description, StringComparison.Ordinal))
         {
-            case SearchFilterMode.Regex:
-                {
-                    try
-                    {
-                        // Treat entire mod info as target for regex to be most flexible
-                        string fullTarget = $"{modref.name} {modref.ID} {modref.steamID} {modref.description}";
-                        return Regex.IsMatch(fullTarget, filter, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-
-            case SearchFilterMode.Color:
-                {
-                    // Filter is a comma-separated string of selected ModColor names
-                    // If we're here, filter is not null or whitespace (checked at top)
-                    var selectedColorNames = filter.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(s => s.Trim())
-                        .ToList();
-
-                    switch (selectedColorNames.Count)
-                    {
-                        case 0:
-                            return true;
-                        default:
-                            return selectedColorNames.Any(name =>
-                                string.Equals(name, modref.AssignedColor.ToString(), StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
+            searchTargetName = name;
+            searchTargetId = id;
+            searchTargetSteamId = steamId;
+            searchTargetDescription = description;
+            searchTargetCache = $"{name} {id} {steamId} {description}";
         }
 
-        string? candidate = mode switch
+        return searchTargetCache;
+    }
+
+    public bool MatchesFilter(SearchFilterContext context)
+    {
+        if (context == null || !context.HasFilter)
+            return true;
+
+        switch (context.Mode)
+        {
+            case SearchFilterMode.Regex:
+                // Treat entire mod info as target for regex to be most flexible
+                return context.MatchesRegex(GetSearchTarget());
+
+            case SearchFilterMode.Color:
+                return context.MatchesColor(modref.AssignedColor);
+        }
+
+        string? candidate = context.Mode switch
         {
             SearchFilterMode.Name => modref.name,
             SearchFilterMode.Id => modref.ID,
@@ -660,8 +666,7 @@ public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedV
             _ => modref.name
         };
 
-        return !string.IsNullOrWhiteSpace(candidate) &&
-               candidate.Contains(filter, StringComparison.OrdinalIgnoreCase);
+        return context.Contains(candidate);
     }
 
     private static Color BlendColor(Color baseColor, Color overlay)
