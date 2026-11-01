@@ -90,25 +90,28 @@ jobs:
           name: ModHearth-${{ matrix.rid }}
           path: dist/ModHearth-${{ matrix.rid }}.${{ matrix.ext }}
 
-  # --- Manual trigger ---
-  release:
+  # --- Production release on manual dispatch, bleeding-edge build on push ---
+  publish:
     runs-on: ubuntu-latest
     needs: [build-test-publish, compute-version]
-    if: ${{ github.event_name == 'workflow_dispatch' && needs.build-test-publish.result == 'success' && needs.compute-version.result == 'success' }}
+    if: ${{ needs.build-test-publish.result == 'success' && needs.compute-version.result == 'success' }}
     steps:
       - name: Normalize build tag
         id: release_tag
+        env:
+          RAW_BUILD: ${{ needs.compute-version.outputs.build_number }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          raw="${{ needs.compute-version.outputs.build_number }}"
-          raw="$(echo -n "$raw" | tr -d '\r\n' | xargs)"
+          raw="$(echo -n "$RAW_BUILD" | tr -d '\r\n' | xargs)"
           raw="${raw//\\n/}"
           raw="${raw//\\r/}"
           if [ -z "$raw" ]; then
             echo "Missing build number from compute-version."
             exit 1
           fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then prefix="Build"; else prefix="BE Build"; fi
           echo "tag=build-$raw" >> $GITHUB_OUTPUT
-          echo "name=Build $raw" >> $GITHUB_OUTPUT
+          echo "name=$prefix $raw" >> $GITHUB_OUTPUT
 
       - name: Checkout Git history only
         uses: actions/checkout@v4
@@ -117,18 +120,15 @@ jobs:
           sparse-checkout: .github
           sparse-checkout-cone-mode: false
 
-      - name: Get commit message
-        id: get_commit_message
-        run: |
-          commit_message=$(git log -1 --pretty=%s)
-          echo "commit_message=$commit_message" >> $GITHUB_OUTPUT
-
       - name: Set release body
         id: set_release_body
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           body_content=""
+          if [ -z "$COMMIT_MESSAGE" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            COMMIT_MESSAGE="$(git log -1 --format=%B)"
+          fi
           if [[ "$COMMIT_MESSAGE" == Merge* ]]; then
             parent_shas=$(git log -1 --pretty=%P)
             for parent_sha in $parent_shas;
@@ -151,85 +151,12 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
       - name: Create release
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.release_tag.outputs.tag }}
-          release_name: ${{ steps.release_tag.outputs.name }}
-          body: ${{ steps.set_release_body.outputs.body }}
-          file: dist/*
-          file_glob: true
-          overwrite: true
-
-  # --- Runs on push (automatic) ---
-  bleeding-edge-push:
-    runs-on: ubuntu-latest
-    needs: [build-test-publish, compute-version]
-    if: ${{ github.event_name == 'push' && needs.build-test-publish.result == 'success' && needs.compute-version.result == 'success' }}
-    steps:
-      - name: Normalize build tag
-        id: release_tag
-        run: |
-          raw="${{ needs.compute-version.outputs.build_number }}"
-          raw="$(echo -n "$raw" | tr -d '\r\n' | xargs)"
-          raw="${raw//\\n/}"
-          raw="${raw//\\r/}"
-          if [ -z "$raw" ]; then
-            echo "Missing build number from compute-version."
-            exit 1
-          fi
-          echo "tag=build-$raw" >> $GITHUB_OUTPUT
-          echo "name=BE Build $raw" >> $GITHUB_OUTPUT
-
-      - name: Checkout Git history only
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 5
-          sparse-checkout: .github
-          sparse-checkout-cone-mode: false
-
-      - name: Get commit message
-        id: get_commit_message
-        run: |
-          commit_message=$(git log -1 --pretty=%s)
-          echo "commit_message=$commit_message" >> $GITHUB_OUTPUT
-
-      - name: Set release body
-        id: set_release_body
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          body_content=""
-          if [[ "$COMMIT_MESSAGE" == Merge* ]]; then
-            parent_shas=$(git log -1 --pretty=%P)
-            for parent_sha in $parent_shas;
-            do
-              if [ -n "$body_content" ]; then
-                body_content+=$'\n\n'
-              fi
-              body_content+=$(git log --format=%B -n 1 $parent_sha)
-            done
-          else
-            body_content="$COMMIT_MESSAGE"
-          fi
-          {
-            echo "body<<EOF"
-            echo "$body_content"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-      - name: Download compiled build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
-      - name: Create release on Bleeding Edge Repository
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.BLEEDING_EDGE_TOKEN }}
-          repo_name: "EggleEgg/ModHearth-Builds"
+          repo_token: ${{ github.event_name == 'workflow_dispatch' && secrets.GITHUB_TOKEN || secrets.BLEEDING_EDGE_TOKEN }}
+          repo_name: ${{ github.event_name == 'workflow_dispatch' && github.repository || 'EggleEgg/ModHearth-Builds' }}
           tag: ${{ steps.release_tag.outputs.tag }}
           release_name: ${{ steps.release_tag.outputs.name }}
           body: ${{ steps.set_release_body.outputs.body }}
@@ -240,28 +167,23 @@ jobs:
   # --- Status reporting ---
   release-status:
     runs-on: ubuntu-latest
-    needs: [build-test-publish, compute-version, release, bleeding-edge-push]
+    needs: [build-test-publish, compute-version, publish]
     if: ${{ always() }}
     steps:
       - name: Report release status
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BUILD_RESULT: ${{ needs.build-test-publish.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
         run: |
-          if [ "${{ needs.build-test-publish.result }}" != "success" ]; then
+          if [ "$BUILD_RESULT" != "success" ]; then
             echo "Pipeline skipped or failed because build/test matrix failed."
             exit 1
           fi
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ "${{ needs.release.result }}" != "success" ]; then
-              echo "Production Release generation failed."
-              exit 1
-            fi
-            echo "Production release created successfully!"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then channel="Production"; else channel="Bleeding Edge"; fi
+          if [ "$PUBLISH_RESULT" != "success" ]; then
+            echo "$channel release creation failed."
+            exit 1
           fi
-
-          if [ "${{ github.event_name }}" = "push" ]; then
-            if [ "${{ needs.bleeding-edge-push.result }}" != "success" ]; then
-              echo "Bleeding Edge Release creation failed."
-              exit 1
-            fi
-            echo "Bleeding Edge Release created successfully!"
-          fi
+          echo "$channel release created successfully!"

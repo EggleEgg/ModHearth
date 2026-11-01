@@ -1,3 +1,4 @@
+using ModHearth.Models;
 using ModHearth.Utilities;
 
 namespace ModHearth
@@ -11,13 +12,11 @@ namespace ModHearth
     {
         private static bool IsVanillaBaseMod(ModReference modref)
         {
-            switch (modref)
+            return modref switch
             {
-                case null:
-                    return false;
-                default:
-                    return ModSourceClassifier.Classify(modref, GetModsPath(), GetVanillaModsPath()).IsVanilla;
-            }
+                null => false,
+                _ => ModSourceClassifier.Classify(modref, GetModsPath(), GetVanillaModsPath()).IsVanilla,
+            };
         }
 
         private static bool ContainsModId(IEnumerable<string> values, string id)
@@ -36,9 +35,9 @@ namespace ModHearth
         {
             if (modref == null || other == null)
                 return false;
-            return ContainsModId(modref.requireBeforeMe, other.ID) ||
-                   ContainsModId(modref.requireAfterMe, other.ID) ||
-                   ContainsModId(modref.requireIds, other.ID);
+            return ContainsModId(modref.RequireBeforeMe, other.ID) ||
+                   ContainsModId(modref.RequireAfterMe, other.ID) ||
+                   ContainsModId(modref.RequireIds, other.ID);
         }
 
         // True if adding fromId -> toId would create a cycle given the edges already in the graph (i.e. toId can already reach fromId). This is
@@ -152,19 +151,17 @@ namespace ModHearth
             if (indexCompare != 0)
                 return indexCompare;
 
-            return string.Compare(a.name ?? a.ID, b.name ?? b.ID, StringComparison.OrdinalIgnoreCase);
+            return string.Compare(a.Name ?? a.ID, b.Name ?? b.ID, StringComparison.OrdinalIgnoreCase);
         }
 
         private string? PickBestEffortOrder(ModReference a, ModReference b, Dictionary<string, int> originalIndex)
         {
             int comparison = CompareForBestEffortOrder(a, b, originalIndex);
-            switch (comparison)
+            return comparison switch
             {
-                case 0:
-                    return null;
-                default:
-                    return comparison < 0 ? a.ID : b.ID;
-            }
+                0 => null,
+                _ => comparison < 0 ? a.ID : b.ID,
+            };
         }
 
         public bool ModSortEnabledMods()
@@ -175,14 +172,16 @@ namespace ModHearth
             List<ModSortRule> sortRulesSnapshot;
             List<ModSortRule> communitySortRulesSnapshot;
             Dictionary<string, ModRelationshipRule> relationshipRulesSnapshot;
-            List<DFHMod> enabledModsSnapshot;
+            List<DfhMod> enabledModsSnapshot;
 
             lock (stateGate)
             {
                 idMap = new Dictionary<string, ModReference>(modrefMap.Count, StringComparer.OrdinalIgnoreCase);
                 foreach (ModReference modref in modrefMap.Values)
+                {
                     if (!idMap.ContainsKey(modref.ID))
                         idMap.Add(modref.ID, modref);
+                }
 
                 enabledModsSnapshot = [.. enabledMods];
                 sortRulesSnapshot = [.. sortRules];
@@ -192,7 +191,7 @@ namespace ModHearth
 
             for (int i = 0; i < enabledModsSnapshot.Count; i++)
             {
-                if (idMap.TryGetValue(enabledModsSnapshot[i].id, out ModReference? modref) && modref != null)
+                if (idMap.TryGetValue(enabledModsSnapshot[i].Id, out ModReference? modref) && modref != null)
                 {
                     enabledRefs.Add(modref);
                     if (!originalIndex.ContainsKey(modref.ID))
@@ -249,9 +248,9 @@ namespace ModHearth
             while (queue.Count > 0)
             {
                 ModReference current = queue.Dequeue();
-                IEnumerable<string> declaredDependencies = current.requireBeforeMe
-                    .Concat(current.requireAfterMe)
-                    .Concat(current.requireIds);
+                IEnumerable<string> declaredDependencies = current.RequireBeforeMe
+                    .Concat(current.RequireAfterMe)
+                    .Concat(current.RequireIds);
 
                 IEnumerable<string> customRequiredIds = relationshipRulesSnapshot.TryGetValue(current.ID, out ModRelationshipRule? customRule)
                     ? customRule.RequiredIds
@@ -274,8 +273,10 @@ namespace ModHearth
 
             List<ModReference> allEnabled = [];
             foreach (string id in enabledIds)
+            {
                 if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
                     allEnabled.Add(modref);
+            }
 
             // Snapshot raw info for all enabled mods to avoid repeated locking
             Dictionary<string, ModRawDependencyInfo> rawInfoSnapshot = new(StringComparer.OrdinalIgnoreCase);
@@ -291,7 +292,7 @@ namespace ModHearth
             List<ModReference> baseOrder = [.. allEnabled
                 .OrderBy(GetModSortGroup)
                 .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
-                .ThenBy(m => m.name ?? m.ID)];
+                .ThenBy(m => m.Name ?? m.ID)];
 
             Dictionary<string, int> baseIndex = new(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < baseOrder.Count; i++)
@@ -370,21 +371,21 @@ namespace ModHearth
             // --- Tier 2: declared dependencies (info.txt require_before_me / require_after_me / require_ids) ---
             foreach (ModReference modref in allEnabled)
             {
-                foreach (string dep in modref.requireBeforeMe)
+                foreach (string dep in modref.RequireBeforeMe)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
                         continue;
                     _ = TryAddEdge(edges, indegree, depId, modref.ID);
                 }
-                foreach (string dep in modref.requireAfterMe)
+                foreach (string dep in modref.RequireAfterMe)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
                         continue;
                     _ = TryAddEdge(edges, indegree, modref.ID, depId);
                 }
-                foreach (string dep in modref.requireIds)
+                foreach (string dep in modref.RequireIds)
                 {
                     string? depId = dep?.Trim();
                     if (string.IsNullOrEmpty(depId) || !enabledIds.Contains(depId))
@@ -394,7 +395,7 @@ namespace ModHearth
             }
 
             // --- Tier 3: vanilla-base structural edges ---
-            var duplicateWarningGroupsSnapshot = GetDuplicateWarningGroups();
+            IReadOnlyList<HashSet<string>> duplicateWarningGroupsSnapshot = GetDuplicateWarningGroups();
             foreach (HashSet<string> group in duplicateWarningGroupsSnapshot)
             {
                 List<string> vanillaIds = [];
@@ -582,7 +583,7 @@ namespace ModHearth
 
             // Direct definition conflicts
             List<string> conflictingKeys = [];
-            HashSet<string> activeModIds = new(enabledModsSnapshot.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> activeModIds = new(enabledModsSnapshot.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, List<string>> kvp in directDefiners)
             {
                 if (kvp.Value.Count <= 1)
@@ -611,7 +612,7 @@ namespace ModHearth
                     .Cast<ModReference>()
                     .OrderBy(GetModSortGroup)
                     .ThenBy(m => originalIndex.TryGetValue(m.ID, out int idx) ? idx : int.MaxValue)
-                    .ThenBy(m => m.name ?? m.ID, StringComparer.OrdinalIgnoreCase)];
+                    .ThenBy(m => m.Name ?? m.ID, StringComparer.OrdinalIgnoreCase)];
 
                 for (int i = 0; i < definers.Count - 1; i++)
                 {
@@ -629,8 +630,10 @@ namespace ModHearth
 
             List<string> available = [];
             foreach (KeyValuePair<string, int> kv in indegree)
+            {
                 if (kv.Value == 0)
                     available.Add(kv.Key);
+            }
 
             List<string> sortedIds = [];
             while (available.Count > 0)
@@ -649,10 +652,12 @@ namespace ModHearth
             if (sortedIds.Count != enabledIds.Count)
                 sortedIds = [.. baseOrder.Select(m => m.ID)];
 
-            List<DFHMod> sortedMods = [];
+            List<DfhMod> sortedMods = [];
             foreach (string id in sortedIds)
+            {
                 if (idMap.TryGetValue(id, out ModReference? modref) && modref != null)
                     sortedMods.Add(modref.ToDFHMod());
+            }
 
             bool changed = sortedMods.Count != enabledModsSnapshot.Count;
             if (!changed)

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Media;
+using ModHearth.UI.Theme;
 using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
@@ -73,21 +74,21 @@ namespace ModHearth.UI
         }
 
         public static async Task<List<WorkshopItemMetadata>?> ShowAsync(
-            Window owner, 
-            List<WorkshopItemMetadata> childrenMetadata, 
+            Window owner,
+            List<WorkshopItemMetadata> childrenMetadata,
             WorkshopQueueManager queueManager)
         {
-            var dialog = new CollectionChecklistDialog
+            CollectionChecklistDialog dialog = new()
             {
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
             };
 
-            var allIds = childrenMetadata.Select(c => c.PublishedFileId).ToList();
-            var checklistItems = childrenMetadata.Select(meta => new CollectionChecklistItem
+            List<ulong> allIds = [.. childrenMetadata.Select(c => c.PublishedFileId)];
+            List<CollectionChecklistItem> checklistItems = [.. childrenMetadata.Select(meta => new CollectionChecklistItem
             {
                 Metadata = meta,
                 Classification = queueManager.ClassifyModWithMetadata(meta, allIds)
-            }).ToList();
+            })];
 
             dialog._items = checklistItems;
             dialog.ItemsList.ItemsSource = checklistItems;
@@ -98,17 +99,17 @@ namespace ModHearth.UI
 
         private void SetMissingAndUpdatesChecked()
         {
-            foreach (var item in _items)
+            foreach (CollectionChecklistItem item in _items)
             {
-                item.IsChecked = item.Classification == ModStatusClassification.New || 
-                                 item.Classification == ModStatusClassification.MissingDependency ||
-                                 item.Classification == ModStatusClassification.UpdateAvailable;
+                item.IsChecked = item.Classification is ModStatusClassification.New or
+                                 ModStatusClassification.MissingDependency or
+                                 ModStatusClassification.UpdateAvailable;
             }
         }
 
         private void SetAllChecked(bool value)
         {
-            foreach (var item in _items)
+            foreach (CollectionChecklistItem item in _items)
             {
                 item.IsChecked = value;
             }
@@ -116,16 +117,16 @@ namespace ModHearth.UI
 
         private void SetMissingChecked()
         {
-            foreach (var item in _items)
+            foreach (CollectionChecklistItem item in _items)
             {
-                item.IsChecked = item.Classification == ModStatusClassification.New || 
-                                 item.Classification == ModStatusClassification.MissingDependency;
+                item.IsChecked = item.Classification is ModStatusClassification.New or
+                                 ModStatusClassification.MissingDependency;
             }
         }
 
         private void SetUpdateChecked()
         {
-            foreach (var item in _items)
+            foreach (CollectionChecklistItem item in _items)
             {
                 item.IsChecked = item.Classification == ModStatusClassification.UpdateAvailable;
             }

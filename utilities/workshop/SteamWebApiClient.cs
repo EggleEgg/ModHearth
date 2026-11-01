@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ModHearth.Utilities.Logging;
+using ModHearth.Models;
 
 namespace ModHearth.Utilities.Workshop
 {
@@ -25,10 +26,10 @@ namespace ModHearth.Utilities.Workshop
 
         public async Task<List<WorkshopItemMetadata>> GetPublishedFileDetailsAsync(IEnumerable<ulong> ids)
         {
-            var idList = ids.ToList();
+            List<ulong> idList = [.. ids];
             if (idList.Count == 0) return [];
 
-            var content = new FormUrlEncodedContent(
+            FormUrlEncodedContent content = new(
                 new[] { new KeyValuePair<string, string>("itemcount", idList.Count.ToString()) }
                 .Concat(idList.Select((id, i) => new KeyValuePair<string, string>($"publishedfileids[{i}]", id.ToString())))
             );
@@ -36,23 +37,23 @@ namespace ModHearth.Utilities.Workshop
             try
             {
                 InfoLogger.LogRunDf($"SteamWebApiClient: Fetching details for {idList.Count} IDs...");
-                var response = await HttpClient.PostAsync(PublishedFileDetailsUrl, content);
+                HttpResponseMessage response = await HttpClient.PostAsync(PublishedFileDetailsUrl, content);
                 _ = response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
+                string json = await response.Content.ReadAsStringAsync();
 
                 if (DevMode.IsEnabled)
                     InfoLogger.LogRunDf($"SteamWebApiClient: Received JSON: {json}");
 
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement.GetProperty("response");
-                if (!root.TryGetProperty("publishedfiledetails", out var detailsArray))
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement.GetProperty("response");
+                if (!root.TryGetProperty("publishedfiledetails", out JsonElement detailsArray))
                 {
                     InfoLogger.LogRunDf("SteamWebApiClient: No 'publishedfiledetails' property found in response.");
                     return [];
                 }
 
-                var results = new List<WorkshopItemMetadata>();
-                foreach (var detail in detailsArray.EnumerateArray())
+                List<WorkshopItemMetadata> results = [];
+                foreach (JsonElement detail in detailsArray.EnumerateArray())
                 {
                     int resultValue = GetIntProperty(detail, "result");
                     if (resultValue != 1)
@@ -62,14 +63,14 @@ namespace ModHearth.Utilities.Workshop
                         continue;
                     }
 
-                    var meta = new WorkshopItemMetadata
+                    WorkshopItemMetadata meta = new()
                     {
                         PublishedFileId = GetUlongProperty(detail, "publishedfileid"),
-                        Title = detail.TryGetProperty("title", out var t) ? t.GetString() ?? string.Empty : string.Empty,
-                        PreviewUrl = detail.TryGetProperty("preview_url", out var p) ? p.GetString() ?? string.Empty : string.Empty,
+                        Title = detail.TryGetProperty("title", out JsonElement t) ? t.GetString() ?? string.Empty : string.Empty,
+                        PreviewUrl = detail.TryGetProperty("preview_url", out JsonElement p) ? p.GetString() ?? string.Empty : string.Empty,
                         FileSize = GetLongProperty(detail, "file_size"),
                         UpdatedAt = DateTimeOffset.FromUnixTimeSeconds(GetLongProperty(detail, "time_updated")).DateTime,
-                        Description = detail.TryGetProperty("description", out var d) ? d.GetString() ?? string.Empty : string.Empty,
+                        Description = detail.TryGetProperty("description", out JsonElement d) ? d.GetString() ?? string.Empty : string.Empty,
                         IsCollection = false
                     };
                     InfoLogger.LogRunDf($"SteamWebApiClient: Parsed metadata for '{meta.Title}' ({meta.PublishedFileId})");
@@ -87,46 +88,44 @@ namespace ModHearth.Utilities.Workshop
         public static async Task<List<ulong>> GetCollectionDetailsAsync(ulong collectionId)
         {
             InfoLogger.LogRunDf($"SteamWebApiClient: Fetching collection details for {collectionId}...");
-            var content = new FormUrlEncodedContent(
-                new[]
-                {
+            FormUrlEncodedContent content = new(
+                [
                     new KeyValuePair<string, string>("collectioncount", "1"),
                     new KeyValuePair<string, string>("publishedfileids[0]", collectionId.ToString())
-                });
+                ]);
 
             try
             {
-                var response = await HttpClient.PostAsync(CollectionDetailsUrl, content);
+                HttpResponseMessage response = await HttpClient.PostAsync(CollectionDetailsUrl, content);
                 _ = response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync();
+                string json = await response.Content.ReadAsStringAsync();
 
                 InfoLogger.LogRunDf($"SteamWebApiClient: Collection JSON: {json}");
 
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement.GetProperty("response");
-                if (!root.TryGetProperty("collectiondetails", out var collections))
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement.GetProperty("response");
+                if (!root.TryGetProperty("collectiondetails", out JsonElement collections))
                 {
                     InfoLogger.LogRunDf("SteamWebApiClient: No 'collectiondetails' property found in response.");
                     return [];
                 }
 
-                var collection = collections.EnumerateArray().FirstOrDefault();
+                JsonElement collection = collections.EnumerateArray().FirstOrDefault();
                 if (collection.ValueKind == JsonValueKind.Undefined || GetIntProperty(collection, "result") != 1)
                 {
                     InfoLogger.LogRunDf($"SteamWebApiClient: Collection {collectionId} result is not 1 or undefined.");
                     return [];
                 }
 
-                if (!collection.TryGetProperty("children", out var children))
+                if (!collection.TryGetProperty("children", out JsonElement children))
                 {
                     InfoLogger.LogRunDf($"SteamWebApiClient: Collection {collectionId} has no children.");
                     return [];
                 }
 
-                var childrenIds = children.EnumerateArray()
+                List<ulong> childrenIds = [.. children.EnumerateArray()
                     .Select(c => GetUlongProperty(c, "publishedfileid"))
-                    .Where(id => id != 0)
-                    .ToList();
+                    .Where(id => id != 0)];
 
                 InfoLogger.LogRunDf($"SteamWebApiClient: Found {childrenIds.Count} children for collection {collectionId}");
                 return childrenIds;
@@ -140,19 +139,19 @@ namespace ModHearth.Utilities.Workshop
 
         private static ulong GetUlongProperty(JsonElement element, string propertyName, ulong defaultValue = 0)
         {
-            if (element.TryGetProperty(propertyName, out var prop))
+            if (element.TryGetProperty(propertyName, out JsonElement prop))
             {
                 switch (prop.ValueKind)
                 {
                     case JsonValueKind.Number:
                         {
-                            if (prop.TryGetUInt64(out var val)) return val;
+                            if (prop.TryGetUInt64(out ulong val)) return val;
                             break;
                         }
 
                     case JsonValueKind.String:
                         {
-                            if (ulong.TryParse(prop.GetString(), out var val)) return val;
+                            if (ulong.TryParse(prop.GetString(), out ulong val)) return val;
                             break;
                         }
 
@@ -163,19 +162,19 @@ namespace ModHearth.Utilities.Workshop
 
         private static long GetLongProperty(JsonElement element, string propertyName, long defaultValue = 0)
         {
-            if (element.TryGetProperty(propertyName, out var prop))
+            if (element.TryGetProperty(propertyName, out JsonElement prop))
             {
                 switch (prop.ValueKind)
                 {
                     case JsonValueKind.Number:
                         {
-                            if (prop.TryGetInt64(out var val)) return val;
+                            if (prop.TryGetInt64(out long val)) return val;
                             break;
                         }
 
                     case JsonValueKind.String:
                         {
-                            if (long.TryParse(prop.GetString(), out var val)) return val;
+                            if (long.TryParse(prop.GetString(), out long val)) return val;
                             break;
                         }
 
@@ -186,19 +185,19 @@ namespace ModHearth.Utilities.Workshop
 
         private static int GetIntProperty(JsonElement element, string propertyName, int defaultValue = 0)
         {
-            if (element.TryGetProperty(propertyName, out var prop))
+            if (element.TryGetProperty(propertyName, out JsonElement prop))
             {
                 switch (prop.ValueKind)
                 {
                     case JsonValueKind.Number:
                         {
-                            if (prop.TryGetInt32(out var val)) return val;
+                            if (prop.TryGetInt32(out int val)) return val;
                             break;
                         }
 
                     case JsonValueKind.String:
                         {
-                            if (int.TryParse(prop.GetString(), out var val)) return val;
+                            if (int.TryParse(prop.GetString(), out int val)) return val;
                             break;
                         }
 

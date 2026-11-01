@@ -1,13 +1,21 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="clr-namespace:ModHearth.UI"
-             x:Class="ModHearth.UI.ModSearchBar"
-             x:DataType="ui:ModSearchBar">
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:converters="using:ModHearth.UI.Converters"
+  xmlns:ui="clr-namespace:ModHearth.UI"
+  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
+  x:Class="ModHearth.UI.ModSearchBar"
+  x:DataType="ui:ModSearchBar">
   <UserControl.Resources>
-    <ui:SearchFilterModeToVisibilityConverter x:Key="SearchFilterModeToVisibilityConverter" />
+    <converters:SearchFilterModeToVisibilityConverter x:Key="SearchFilterModeToVisibilityConverter" />
   </UserControl.Resources>
 
-  <Border x:Name="SearchBorder" CornerRadius="6" BorderThickness="1" ClipToBounds="True" Padding="0">
+  <Border
+    x:Name="SearchBorder"
+    CornerRadius="6"
+    BorderThickness="1"
+    ClipToBounds="True"
+    Padding="0">
     <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="2">
       <Grid.Styles>
         <Style Selector="Button">
@@ -16,47 +24,101 @@
       </Grid.Styles>
 
       <Panel Grid.Column="0">
-        <TextBox x:Name="SearchBox" BorderThickness="0" Background="Transparent" Margin="0,0,-2,0" Padding="4,0,4,1"
-                 VerticalContentAlignment="Center" MinHeight="0" Height="28"
-                 IsVisible="{Binding $parent[ui:ModSearchBar].SearchMode, Converter={StaticResource SearchFilterModeToVisibilityConverter}, ConverterParameter=!Color}"/>
+        <TextBox
+          x:Name="SearchBox"
+          BorderThickness="0"
+          Background="Transparent"
+          Margin="0,0,-2,0"
+          Padding="4,0,4,1"
+          VerticalContentAlignment="Center"
+          MinHeight="0"
+          Height="28"
+          IsVisible="{Binding $parent[ui:ModSearchBar].SearchMode, Converter={StaticResource SearchFilterModeToVisibilityConverter}, ConverterParameter=!Color}"/>
 
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" Margin="6,0,0,0" IsHitTestVisible="False">
+        <Grid
+          ColumnDefinitions="Auto,*"
+          ColumnSpacing="6"
+          Margin="6,0,0,0"
+          IsHitTestVisible="False">
           <Grid.IsVisible>
             <MultiBinding Converter="{x:Static BoolConverters.And}">
               <Binding Path="IsVisible" ElementName="SearchBox" />
               <Binding Path="Text" ElementName="SearchBox" Converter="{x:Static StringConverters.IsNullOrEmpty}" />
             </MultiBinding>
           </Grid.IsVisible>
-          <Image Source="{ui:AssetImage searchIcon, Opacity=0.4}" Width="14" Height="14"
-                 HorizontalAlignment="Left" VerticalAlignment="Center"/>
-          <TextBlock Grid.Column="1" x:Name="PlaceholderTextBlock" VerticalAlignment="Center" HorizontalAlignment="Left" Opacity="0.5"/>
+          <Image
+            Source="{render:AssetImage searchIcon, Opacity=0.4}"
+            Width="14"
+            Height="14"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"/>
+          <TextBlock
+            Grid.Column="1"
+            x:Name="PlaceholderTextBlock"
+            VerticalAlignment="Center"
+            HorizontalAlignment="Left"
+            Opacity="0.5"/>
         </Grid>
       </Panel>
 
       <ui:ModColorPicker x:Name="ColorPicker" Grid.Column="0" IsVisible="{Binding $parent[ui:ModSearchBar].SearchMode, Converter={StaticResource SearchFilterModeToVisibilityConverter}, ConverterParameter=Color}"/>
 
-      <Button x:Name="SearchModeButton" Grid.Column="1" Height="22" Padding="6,-1,-1,-1" VerticalAlignment="Center">
+      <Button
+        x:Name="SearchModeButton"
+        Grid.Column="1"
+        Height="22"
+        Padding="6,-1,-1,-1"
+        VerticalAlignment="Center">
         <StackPanel Orientation="Horizontal" Spacing="3">
 
           <TextBlock x:Name="SearchModeTextBlock" VerticalAlignment="Center" FontSize="12" />
           <Panel>
-            <Image x:Name="SearchModeIcon" Width="15" Height="15" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            <Image
+              x:Name="SearchModeIcon"
+              Width="15"
+              Height="15"
+              Stretch="Uniform"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Center"/>
 
-            <Border x:Name="SortDirectionBorder" Width="13" Height="13" CornerRadius="0.5" VerticalAlignment="Bottom"
-                    HorizontalAlignment="Right" Background="{Binding #SearchModeButton.Background}"
-                    IsVisible="{Binding $parent[ui:ModSearchBar].IsSortingEnabled}" Margin="0,0,0.5,0.5">
-              <Image x:Name="SortDirectionIcon" Source="{ui:AssetImage sortDownIcon}" Width="11" Height="11"/>
+            <Border
+              x:Name="SortDirectionBorder"
+              Width="13"
+              Height="13"
+              CornerRadius="0.5"
+              VerticalAlignment="Bottom"
+              HorizontalAlignment="Right"
+              Background="{Binding #SearchModeButton.Background}"
+              IsVisible="{Binding $parent[ui:ModSearchBar].IsSortingEnabled}"
+              Margin="0,0,0.5,0.5">
+              <Image
+                x:Name="SortDirectionIcon"
+                Source="{render:AssetImage sortDownIcon}"
+                Width="11"
+                Height="11"/>
             </Border>
           </Panel>
 
         </StackPanel>
       </Button>
-      <Button x:Name="ToggleButton" Grid.Column="2" Width="22" Height="22" Padding="-1" VerticalAlignment="Center">
-        <Image x:Name="ToggleIcon" Source="{ui:AssetImage viewEyeIcon}" />
+      <Button
+        x:Name="ToggleButton"
+        Grid.Column="2"
+        Width="22"
+        Height="22"
+        Padding="-1"
+        VerticalAlignment="Center">
+        <Image x:Name="ToggleIcon" Source="{render:AssetImage viewEyeIcon}" />
       </Button>
-      <Button x:Name="ClearButton" Grid.Column="3" Width="22" Height="22" Padding="0" VerticalAlignment="Center"
-              ToolTip.Tip="Clear the searchbar. Click twice to revert to the default filter">
-        <Image Source="{ui:AssetImage cancelIcon}" />
+      <Button
+        x:Name="ClearButton"
+        Grid.Column="3"
+        Width="22"
+        Height="22"
+        Padding="0"
+        VerticalAlignment="Center"
+        ToolTip.Tip="Clear the searchbar. Click twice to revert to the default filter">
+        <Image Source="{render:AssetImage cancelIcon}" />
       </Button>
     </Grid>
   </Border>

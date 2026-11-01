@@ -1,7 +1,7 @@
 using System.Reflection;
 using Avalonia.Media;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Theme
 {
     /// <summary>
     /// A simpler representation of color for easy serialization.
@@ -66,27 +66,27 @@ namespace ModHearth.UI
             .Where(property => property.PropertyType == typeof(SimpleColor))];
 
         // Colors.
-        public SimpleColor backgroundColor { get; set; } = null!;
-        public SimpleColor panelColor { get; set; } = null!;
-        public SimpleColor panelColorClear { get; set; } = null!;
-        public SimpleColor panelColorDark { get; set; } = null!;
-        public SimpleColor strongPanelColor { get; set; } = null!;
-        public SimpleColor textColor { get; set; } = null!;
-        public SimpleColor buttonColor { get; set; } = null!;
-        public SimpleColor buttonTextColor { get; set; } = null!;
-        public SimpleColor buttonOutlineColor { get; set; } = null!;
-        public SimpleColor modRefHighlightColor { get; set; } = null!;
-        public SimpleColor modRefHighlightDarkColor { get; set; } = null!;
-        public SimpleColor modRefJumpHighlightColor { get; set; } = null!;
-        public SimpleColor modRefCacheBarColor { get; set; } = null!;
-        public SimpleColor modRefTextBadColor { get; set; } = null!;
-        public SimpleColor modRefTextWarningColor { get; set; } = null!;
-        public SimpleColor modRefTextFilteredColor { get; set; } = null!;
-        public SimpleColor searchBorderColor { get; set; } = null!;
-        public SimpleColor searchButtonColor { get; set; } = null!;
-        public SimpleColor searchButtonHoverColor { get; set; } = null!;
-        public SimpleColor searchButtonPressedColor { get; set; } = null!;
-        public SimpleColor selectionColor { get; set; } = null!;
+        public SimpleColor BackgroundColor { get; set; } = null!;
+        public SimpleColor PanelColor { get; set; } = null!;
+        public SimpleColor PanelColorClear { get; set; } = null!;
+        public SimpleColor PanelColorDark { get; set; } = null!;
+        public SimpleColor StrongPanelColor { get; set; } = null!;
+        public SimpleColor TextColor { get; set; } = null!;
+        public SimpleColor ButtonColor { get; set; } = null!;
+        public SimpleColor ButtonTextColor { get; set; } = null!;
+        public SimpleColor ButtonOutlineColor { get; set; } = null!;
+        public SimpleColor ModRefHighlightColor { get; set; } = null!;
+        public SimpleColor ModRefHighlightDarkColor { get; set; } = null!;
+        public SimpleColor ModRefJumpHighlightColor { get; set; } = null!;
+        public SimpleColor ModRefCacheBarColor { get; set; } = null!;
+        public SimpleColor ModRefTextBadColor { get; set; } = null!;
+        public SimpleColor ModRefTextWarningColor { get; set; } = null!;
+        public SimpleColor ModRefTextFilteredColor { get; set; } = null!;
+        public SimpleColor SearchBorderColor { get; set; } = null!;
+        public SimpleColor SearchButtonColor { get; set; } = null!;
+        public SimpleColor SearchButtonHoverColor { get; set; } = null!;
+        public SimpleColor SearchButtonPressedColor { get; set; } = null!;
+        public SimpleColor SelectionColor { get; set; } = null!;
 
         // Default style.
         public Style()

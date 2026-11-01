@@ -1,931 +1,938 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Models;
 
-namespace ModHearth;
-
-public enum ModUpdateChangeType
+namespace ModHearth.Utilities.Logging
 {
-    Added,
-    Deleted,
-    Updated
-}
-
-public sealed class ModUpdateLogEntry
-{
-    public DateTime TimestampUtc { get; set; }
-    public string ModId { get; set; } = string.Empty;
-    public string ModName { get; set; } = string.Empty;
-    public string SourceType { get; set; } = string.Empty;
-    public bool Active { get; set; }
-    public string Path { get; set; } = string.Empty;
-    public string SteamId { get; set; } = string.Empty;
-    public ModUpdateChangeType ChangeType { get; set; }
-}
-
-internal sealed class ModUpdateSnapshotEntry
-{
-    public string ModId { get; set; } = string.Empty;
-    public string ModName { get; set; } = string.Empty;
-    public string SourceType { get; set; } = string.Empty;
-    public string Path { get; set; } = string.Empty;
-    public string SteamId { get; set; } = string.Empty;
-    public string QuickStamp { get; set; } = string.Empty;
-    public string DeepStamp { get; set; } = string.Empty;
-    public bool IsIgnored { get; set; }
-}
-/// <summary>
-/// Ensures that mod update logs and folder snapshots are recorded and mantained
-/// </summary>
-public static class ModUpdateLogger
-{
-    private static readonly string OldLogDirForMigration = Path.Combine(AppContext.BaseDirectory, "logs");
-    private static readonly string LogDir = Path.Combine(AppContext.BaseDirectory, "logs");
-    private static readonly string MetadataDir = Path.Combine(AppContext.BaseDirectory, "metadata");
-
-    private static readonly string LogPath = Path.Combine(MetadataDir, "mod_update_log.json");
-    private static readonly string SnapshotPath = Path.Combine(MetadataDir, "mod_folder_snapshot.json");
-    private static readonly string WorkshopSnapshotPath = Path.Combine(MetadataDir, "steam_workshop_snapshot.json");
-    private static string ResolveCanonicalPath(string path) => ConfigManager.ResolveCanonicalPath(path);
-
-    private const int MaxLogLines = 5000;
-
-    // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
-    // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
-    private static readonly object fileGate = new();
-
-    static ModUpdateLogger()
+    public enum ModUpdateChangeType
     {
-        EnsureMetadataDirectoryAndMigrateOldFiles();
-
-        // Ensure the general logs directory exists.
-        if (!Directory.Exists(LogDir))
-        {
-            _ = Directory.CreateDirectory(LogDir);
-        }
+        Added,
+        Deleted,
+        Updated
     }
 
-    private static void EnsureMetadataDirectoryAndMigrateOldFiles()
+    public sealed class ModUpdateLogEntry
     {
-        // Ensure metadata directory exists
-        if (!Directory.Exists(MetadataDir))
+        public DateTime TimestampUtc { get; set; }
+        public string ModId { get; set; } = string.Empty;
+        public string ModName { get; set; } = string.Empty;
+        public string SourceType { get; set; } = string.Empty;
+        public bool Active { get; set; }
+        public string Path { get; set; } = string.Empty;
+        public string SteamId { get; set; } = string.Empty;
+        public ModUpdateChangeType ChangeType { get; set; }
+    }
+
+    internal sealed class ModUpdateSnapshotEntry
+    {
+        public string ModId { get; set; } = string.Empty;
+        public string ModName { get; set; } = string.Empty;
+        public string SourceType { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
+        public string SteamId { get; set; } = string.Empty;
+        public string QuickStamp { get; set; } = string.Empty;
+        public string DeepStamp { get; set; } = string.Empty;
+        public bool IsIgnored { get; set; }
+    }
+    /// <summary>
+    /// Ensures that mod update logs and folder snapshots are recorded and mantained
+    /// </summary>
+    public static class ModUpdateLogger
+    {
+        private static readonly string OldLogDirForMigration = Path.Combine(AppContext.BaseDirectory, "logs");
+        private static readonly string LogDir = Path.Combine(AppContext.BaseDirectory, "logs");
+        private static readonly string MetadataDir = Path.Combine(AppContext.BaseDirectory, "metadata");
+
+        private static readonly string LogPath = Path.Combine(MetadataDir, "mod_update_log.json");
+        private static readonly string SnapshotPath = Path.Combine(MetadataDir, "mod_folder_snapshot.json");
+        private static readonly string WorkshopSnapshotPath = Path.Combine(MetadataDir, "steam_workshop_snapshot.json");
+        private static string ResolveCanonicalPath(string path) => ConfigManager.ResolveCanonicalPath(path);
+
+        private const int MaxLogLines = 5000;
+
+        // Guards all three files as a unit. RecordChanges does a read-modify-write across all of them, and
+        // LoadEntries (used by the UI to display the log) must not read the log file mid-append.
+        private static readonly object fileGate = new();
+
+        static ModUpdateLogger()
         {
-            _ = Directory.CreateDirectory(MetadataDir);
+            EnsureMetadataDirectoryAndMigrateOldFiles();
+
+            // Ensure the general logs directory exists.
+            if (!Directory.Exists(LogDir))
+            {
+                _ = Directory.CreateDirectory(LogDir);
+            }
         }
 
-        // List of files to migrate
-        var filesToMigrate = new[]
+        private static void EnsureMetadataDirectoryAndMigrateOldFiles()
         {
-            "mod_update_log.json",
-            "mod_folder_snapshot.json",
-            "steam_workshop_snapshot.json"
-        };
-
-        foreach (var fileName in filesToMigrate)
-        {
-            string oldPath = Path.Combine(OldLogDirForMigration, fileName);
-            string newPath = Path.Combine(MetadataDir, fileName);
-
-            if (File.Exists(oldPath) && !File.Exists(newPath))
+            // Ensure metadata directory exists
+            if (!Directory.Exists(MetadataDir))
             {
-                try
+                _ = Directory.CreateDirectory(MetadataDir);
+            }
+
+            // List of files to migrate
+            string[] filesToMigrate =
+            [
+                "mod_update_log.json",
+                "mod_folder_snapshot.json",
+                "steam_workshop_snapshot.json"
+            ];
+
+            foreach (string? fileName in filesToMigrate)
+            {
+                string oldPath = Path.Combine(OldLogDirForMigration, fileName);
+                string newPath = Path.Combine(MetadataDir, fileName);
+
+                if (File.Exists(oldPath) && !File.Exists(newPath))
                 {
                     try
                     {
-                        File.Move(oldPath, newPath);
+                        try
+                        {
+                            File.Move(oldPath, newPath);
+                        }
+                        catch (IOException)
+                        {
+                            File.Copy(oldPath, newPath, true);
+                            File.Delete(oldPath);
+                        }
+                        InfoLogger.Log($"Migrated {fileName} from logs/ to metadata/.");
                     }
-                    catch (IOException)
+                    catch (Exception ex)
                     {
-                        File.Copy(oldPath, newPath, true);
-                        File.Delete(oldPath);
-                    }
-                    InfoLogger.Log($"Migrated {fileName} from logs/ to metadata/.");
-                }
-                catch (Exception ex)
-                {
-                    AppLogging.LogException($"Failed to migrate {fileName}", ex);
-                }
-            }
-        }
-    }
-
-    public static IReadOnlyList<ModUpdateLogEntry> LoadEntries()
-    {
-        lock (fileGate)
-        {
-            try
-            {
-                if (!File.Exists(LogPath))
-                {
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Log file does not exist at path: {LogPath}");
-                    return Array.Empty<ModUpdateLogEntry>();
-                }
-
-                FileInfo fileInfo = new(LogPath);
-                InfoLogger.LogRunDf($"ModUpdateLogger: Loading log file from '{LogPath}'. Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTimeUtc} UTC");
-
-                string json = File.ReadAllText(LogPath);
-                InfoLogger.LogRunDf($"ModUpdateLogger: Read JSON content length: {json.Length} chars");
-
-                List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json);
-                int count = entries?.Count ?? 0;
-                InfoLogger.LogRunDf($"ModUpdateLogger: Successfully deserialized {count} log entries.");
-
-                return entries ?? [];
-            }
-            catch (Exception ex)
-            {
-                InfoLogger.LogRunDf($"ModUpdateLogger: Error loading or deserializing log file at '{LogPath}': {ex.Message}");
-                AppLogging.LogException("ModUpdateLogger failed to load entries", ex);
-                return Array.Empty<ModUpdateLogEntry>();
-            }
-        }
-    }
-
-    public static void ClearEntries()
-    {
-        lock (fileGate)
-        {
-            try
-            {
-                if (File.Exists(LogPath))
-                {
-                    File.WriteAllText(LogPath, "[]");
-                }
-            }
-            catch (Exception ex)
-            {
-                AppLogging.LogException("Failed to clear update log entries", ex);
-            }
-        }
-    }
-
-    public static void LogUnsubscribe(IEnumerable<ModReference> mods, HashSet<string> activeIds)
-    {
-        lock (fileGate)
-        {
-            try
-            {
-                List<ModUpdateLogEntry> entries = [];
-                Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
-                bool snapshotChanged = false;
-
-                foreach (ModReference modref in mods)
-                {
-                    if (modref == null)
-                        continue;
-
-                    string id = modref.ID?.Trim() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(id))
-                        continue;
-
-                    bool active = activeIds.Contains(id);
-                    entries.Add(BuildEntryFromModReference(modref, active, ModUpdateChangeType.Deleted, DateTime.UtcNow));
-
-                    if (previous.Remove(id))
-                    {
-                        snapshotChanged = true;
+                        AppLogging.LogException($"Failed to migrate {fileName}", ex);
                     }
                 }
-
-                if (entries.Count > 0)
-                {
-                    AppendEntries(entries);
-                }
-
-                if (snapshotChanged)
-                {
-                    SaveSnapshot(previous);
-                }
-            }
-            catch (Exception ex)
-            {
-                AppLogging.LogException("Failed to log unsubscribe action", ex);
             }
         }
-    }
 
-    public static void LogRedownload(IEnumerable<ModReference> mods, HashSet<string> activeIds)
-    {
-        lock (fileGate)
+        public static IReadOnlyList<ModUpdateLogEntry> LoadEntries()
         {
-            try
-            {
-                List<ModUpdateLogEntry> entries = [];
-                Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
-                bool snapshotChanged = false;
-
-                foreach (ModReference modref in mods)
-                {
-                    if (modref == null)
-                        continue;
-
-                    string id = modref.ID?.Trim() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(id))
-                        continue;
-
-                    bool active = activeIds.Contains(id);
-                    entries.Add(BuildEntryFromModReference(modref, active, ModUpdateChangeType.Updated, DateTime.UtcNow));
-
-                    // Update the snapshot entry for this mod
-                    string path = ResolveCanonicalPath(modref.path ?? string.Empty);
-                    ModUpdateSnapshotEntry entry = new()
-
-                    {
-                        ModId = id,
-                        ModName = string.IsNullOrWhiteSpace(modref.name) ? id : modref.name,
-                        SourceType = GetSourceType(modref),
-                        Path = path,
-                        SteamId = ResolveSteamId(modref),
-                        QuickStamp = BuildLocalQuickStamp(path),
-                        DeepStamp = string.Empty,
-                        IsIgnored = modref.IsIgnored
-                    };
-                    EnsureLocalDeepStamp(entry);
-
-                    previous[id] = entry;
-                    snapshotChanged = true;
-                }
-
-                if (entries.Count > 0)
-                {
-                    AppendEntries(entries);
-                }
-
-                if (snapshotChanged)
-                {
-                    SaveSnapshot(previous);
-                }
-            }
-            catch (Exception ex)
-            {
-                AppLogging.LogException("Failed to log redownload action", ex);
-            }
-        }
-    }
-
-    public static void RecordChanges(
-        IEnumerable<ModReference> mods,
-        IEnumerable<DFHMod> activeMods,
-        IEnumerable<string>? workshopAcfPaths = null)
-    {
-        lock (fileGate)
-        {
-            try
-            {
-                Dictionary<string, ModUpdateSnapshotEntry> current = BuildSnapshot(mods);
-                if (!File.Exists(SnapshotPath))
-                {
-                    InitializeLocalFingerprints(current.Values);
-                    SaveSnapshot(current);
-                    return;
-                }
-
-                Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
-                HashSet<string> activeIds = new(
-                    activeMods.Select(m => m.id),
-                    StringComparer.OrdinalIgnoreCase);
-
-                List<ModUpdateSnapshotEntry> currentList = [.. current.Values];
-
-                // Parallelize TryDetectLocalUpdate and EnsureLocalDeepStamp passes per mod.
-                // Computed into an index-aligned array to preserve stable entry ordering.
-                List<ModUpdateLogEntry>?[] perEntryResults = new List<ModUpdateLogEntry>?[currentList.Count];
-                _ = Parallel.For(0, currentList.Count, new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = Environment.ProcessorCount
-                }, i =>
-                {
-                    ModUpdateSnapshotEntry currentEntry = currentList[i];
-                    List<ModUpdateLogEntry> localEntries = [];
-
-                    if (!previous.TryGetValue(currentEntry.ModId, out ModUpdateSnapshotEntry? oldEntry))
-                    {
-                        EnsureLocalDeepStamp(currentEntry);
-                        localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
-                    }
-                    else if (!PathsMatch(oldEntry.Path, currentEntry.Path))
-                    {
-                        EnsureLocalDeepStamp(currentEntry);
-                        localEntries.Add(BuildEntry(oldEntry, activeIds.Contains(oldEntry.ModId), ModUpdateChangeType.Deleted));
-                        localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
-                    }
-                    else if (TryDetectLocalUpdate(oldEntry, currentEntry))
-                    {
-                        localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Updated));
-                    }
-
-                    perEntryResults[i] = localEntries.Count > 0 ? localEntries : null;
-                });
-
-                List<ModUpdateLogEntry> entries = [];
-                foreach (List<ModUpdateLogEntry>? localEntries in perEntryResults)
-                {
-                    if (localEntries != null)
-                        entries.AddRange(localEntries);
-                }
-
-                foreach (ModUpdateSnapshotEntry previousEntry in previous.Values.Where(previousEntry => !current.ContainsKey(previousEntry.ModId)))
-                {
-                    if (previousEntry.IsIgnored)
-                        continue;
-
-                    entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
-                }
-
-                entries.AddRange(BuildWorkshopUpdateEntries(mods, activeIds, workshopAcfPaths));
-
-                if (entries.Count > 0)
-                    AppendEntries(entries);
-
-                SaveSnapshot(current);
-            }
-            catch
-            {
-                // Ignore logging failures.
-            }
-        }
-    }
-
-    private static Dictionary<string, ModUpdateSnapshotEntry> BuildSnapshot(IEnumerable<ModReference> mods)
-    {
-        List<ModReference> modList = mods as List<ModReference> ?? [.. mods];
-
-        ModUpdateSnapshotEntry?[] results = new ModUpdateSnapshotEntry?[modList.Count];
-        _ = Parallel.For(0, modList.Count, new ParallelOptions
-        {
-            MaxDegreeOfParallelism = Environment.ProcessorCount
-        }, i =>
-        {
-            ModReference? modref = modList[i];
-            if (modref == null)
-                return;
-
-            string id = modref.ID?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(id))
-                return;
-
-            string path = ResolveCanonicalPath(modref.path ?? string.Empty);
-            if (modref.IsIgnored)
-                return;
-
-            results[i] = new ModUpdateSnapshotEntry
-            {
-                ModId = id,
-                ModName = string.IsNullOrWhiteSpace(modref.name) ? id : modref.name,
-                SourceType = GetSourceType(modref),
-                Path = path,
-                SteamId = ResolveSteamId(modref),
-                QuickStamp = BuildLocalQuickStamp(path),
-                DeepStamp = string.Empty,
-                IsIgnored = modref.IsIgnored
-            };
-        });
-
-        Dictionary<string, ModUpdateSnapshotEntry> snapshot = new(StringComparer.OrdinalIgnoreCase);
-        foreach (ModUpdateSnapshotEntry? entry in results)
-        {
-            if (entry == null || snapshot.ContainsKey(entry.ModId))
-                continue;
-            snapshot[entry.ModId] = entry;
-        }
-
-        return snapshot;
-    }
-
-    private static ModUpdateLogEntry BuildEntry(ModUpdateSnapshotEntry entry, bool active, ModUpdateChangeType changeType) => BuildEntry(entry, active, changeType, null);
-
-    private static ModUpdateLogEntry BuildEntry(
-        ModUpdateSnapshotEntry entry,
-        bool active,
-        ModUpdateChangeType changeType,
-        DateTime? timestampUtc) => new ModUpdateLogEntry
-        {
-            TimestampUtc = timestampUtc ?? DateTime.UtcNow,
-            ModId = entry.ModId,
-            ModName = entry.ModName,
-            SourceType = entry.SourceType,
-            Active = active,
-            Path = entry.Path,
-            SteamId = entry.SteamId,
-            ChangeType = changeType
-        };
-
-    private static ModUpdateLogEntry BuildEntryFromModReference(
-        ModReference modref,
-        bool active,
-        ModUpdateChangeType changeType,
-        DateTime? timestampUtc)
-    {
-        ModUpdateSnapshotEntry entry = new()
-
-        {
-            ModId = modref.ID?.Trim() ?? string.Empty,
-            ModName = string.IsNullOrWhiteSpace(modref.name) ? (modref.ID?.Trim() ?? string.Empty) : modref.name,
-            SourceType = GetSourceType(modref),
-            Path = ResolveCanonicalPath(modref.path ?? string.Empty),
-            SteamId = ResolveSteamId(modref)
-        };
-
-        return BuildEntry(entry, active, changeType, timestampUtc);
-    }
-
-    private static string GetSourceType(ModReference modref)
-    {
-        if (ModHearthManager.TryGetSteamWorkshopItemId(modref, out _))
-            return "Steam";
-
-        string path = modref.path ?? string.Empty;
-        if (path.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            path.IndexOf("workshop", StringComparison.OrdinalIgnoreCase) >= 0)
-            return "Steam";
-
-        return "Local";
-    }
-
-    private static string ResolveSteamId(ModReference? modref)
-    {
-        if (modref == null)
-            return string.Empty;
-
-        if (ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId))
-            return steamId;
-
-        return modref.steamID?.Trim() ?? string.Empty;
-    }
-
-    private static bool PathsMatch(string? left, string? right)
-    {
-        string a = (left ?? string.Empty).Trim();
-        string b = (right ?? string.Empty).Trim();
-        if (a.Length == 0 || b.Length == 0)
-            return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
-
-        return string.Equals(
-            Path.GetFullPath(a),
-            Path.GetFullPath(b),
-            StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool TryDetectLocalUpdate(ModUpdateSnapshotEntry previousEntry, ModUpdateSnapshotEntry currentEntry)
-    {
-        if (!IsLocalSource(currentEntry.SourceType))
-            return false;
-
-        if (string.IsNullOrWhiteSpace(currentEntry.Path) || !Directory.Exists(currentEntry.Path))
-            return false;
-
-        if (string.IsNullOrWhiteSpace(currentEntry.QuickStamp))
-            currentEntry.QuickStamp = BuildLocalQuickStamp(currentEntry.Path);
-
-        if (!string.IsNullOrWhiteSpace(previousEntry.QuickStamp) &&
-            string.Equals(previousEntry.QuickStamp, currentEntry.QuickStamp, StringComparison.Ordinal))
-        {
-            currentEntry.DeepStamp = previousEntry.DeepStamp ?? string.Empty;
-            return false;
-        }
-
-        string previousDeepStamp = previousEntry.DeepStamp ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(previousDeepStamp))
-        {
-            // One-time baseline for older snapshots to avoid false "Updated" duplicates.
-            currentEntry.DeepStamp = BuildLocalDeepStamp(currentEntry.Path);
-            return false;
-        }
-
-        string currentDeepStamp = BuildLocalDeepStamp(currentEntry.Path);
-        if (string.IsNullOrWhiteSpace(currentDeepStamp))
-        {
-            currentEntry.DeepStamp = previousDeepStamp;
-            return false;
-        }
-
-        currentEntry.DeepStamp = currentDeepStamp;
-        return !string.Equals(previousDeepStamp, currentDeepStamp, StringComparison.Ordinal);
-    }
-
-    private static void EnsureLocalDeepStamp(ModUpdateSnapshotEntry entry)
-    {
-        if (!IsLocalSource(entry.SourceType))
-            return;
-        if (string.IsNullOrWhiteSpace(entry.Path) || !Directory.Exists(entry.Path))
-            return;
-
-        if (string.IsNullOrWhiteSpace(entry.QuickStamp))
-            entry.QuickStamp = BuildLocalQuickStamp(entry.Path);
-        if (string.IsNullOrWhiteSpace(entry.DeepStamp))
-            entry.DeepStamp = BuildLocalDeepStamp(entry.Path);
-    }
-
-    private static void InitializeLocalFingerprints(IEnumerable<ModUpdateSnapshotEntry> entries)
-    {
-        if (entries == null)
-            return;
-
-        // Every mod's deep stamp is independent of every other mod's, so this is safe to parallelize, no shared state between iterations.
-        _ = Parallel.ForEach(
-            entries,
-            new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
-            EnsureLocalDeepStamp);
-    }
-
-    private static bool IsLocalSource(string? sourceType) => string.Equals(sourceType?.Trim(), "Local", StringComparison.OrdinalIgnoreCase);
-
-    internal static string BuildLocalQuickStamp(string? modPath)
-    {
-        string normalizedPath = ResolveCanonicalPath(modPath ?? string.Empty);
-        if (string.IsNullOrWhiteSpace(normalizedPath) || !Directory.Exists(normalizedPath))
-            return string.Empty;
-
-        try
-        {
-            long dirTicks = Directory.GetLastWriteTimeUtc(normalizedPath).Ticks;
-            string infoPath = Path.Combine(normalizedPath, "info.txt");
-            long infoTicks = 0;
-            long infoSize = 0;
-            if (File.Exists(infoPath))
-            {
-                FileInfo info = new(infoPath);
-                infoTicks = info.LastWriteTimeUtc.Ticks;
-                infoSize = info.Length;
-            }
-
-            return $"{dirTicks}:{infoTicks}:{infoSize}";
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    private static string BuildLocalDeepStamp(string? modPath)
-    {
-        string normalizedPath = ResolveCanonicalPath(modPath ?? string.Empty);
-        if (string.IsNullOrWhiteSpace(normalizedPath) || !Directory.Exists(normalizedPath))
-            return string.Empty;
-
-        try
-        {
-            List<string> metadata = [];
-            foreach (string filePath in Directory.EnumerateFiles(normalizedPath, "*", SearchOption.AllDirectories))
+            lock (fileGate)
             {
                 try
                 {
-                    FileInfo fileInfo = new(filePath);
-                    string relativePath = Path.GetRelativePath(normalizedPath, filePath);
-                    if (Path.IsPathRooted(relativePath) && !relativePath.StartsWith("..", StringComparison.Ordinal))
+                    if (!File.Exists(LogPath))
                     {
-                        relativePath = Path.GetFileName(filePath);
+                        InfoLogger.LogRunDf($"ModUpdateLogger: Log file does not exist at path: {LogPath}");
+                        return [];
                     }
-                    relativePath = relativePath
-                        .Replace('\\', '/')
-                        .Trim();
-                    metadata.Add($"{relativePath}|{fileInfo.Length}|{fileInfo.LastWriteTimeUtc.Ticks}");
+
+                    FileInfo fileInfo = new(LogPath);
+                    InfoLogger.LogRunDf($"ModUpdateLogger: Loading log file from '{LogPath}'. Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTimeUtc} UTC");
+
+                    string json = File.ReadAllText(LogPath);
+                    InfoLogger.LogRunDf($"ModUpdateLogger: Read JSON content length: {json.Length} chars");
+
+                    List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json);
+                    int count = entries?.Count ?? 0;
+                    InfoLogger.LogRunDf($"ModUpdateLogger: Successfully deserialized {count} log entries.");
+
+                    return entries ?? [];
+                }
+                catch (Exception ex)
+                {
+                    InfoLogger.LogRunDf($"ModUpdateLogger: Error loading or deserializing log file at '{LogPath}': {ex.Message}");
+                    AppLogging.LogException("ModUpdateLogger failed to load entries", ex);
+                    return [];
+                }
+            }
+        }
+
+        public static void ClearEntries()
+        {
+            lock (fileGate)
+            {
+                try
+                {
+                    if (File.Exists(LogPath))
+                    {
+                        File.WriteAllText(LogPath, "[]");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("Failed to clear update log entries", ex);
+                }
+            }
+        }
+
+        public static void LogUnsubscribe(IEnumerable<ModReference> mods, HashSet<string> activeIds)
+        {
+            lock (fileGate)
+            {
+                try
+                {
+                    List<ModUpdateLogEntry> entries = [];
+                    Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
+                    bool snapshotChanged = false;
+
+                    foreach (ModReference modref in mods)
+                    {
+                        if (modref == null)
+                            continue;
+
+                        string id = modref.ID?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(id))
+                            continue;
+
+                        bool active = activeIds.Contains(id);
+                        entries.Add(BuildEntryFromModReference(modref, active, ModUpdateChangeType.Deleted, DateTime.UtcNow));
+
+                        if (previous.Remove(id))
+                        {
+                            snapshotChanged = true;
+                        }
+                    }
+
+                    if (entries.Count > 0)
+                    {
+                        AppendEntries(entries);
+                    }
+
+                    if (snapshotChanged)
+                    {
+                        SaveSnapshot(previous);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("Failed to log unsubscribe action", ex);
+                }
+            }
+        }
+
+        public static void LogRedownload(IEnumerable<ModReference> mods, HashSet<string> activeIds)
+        {
+            lock (fileGate)
+            {
+                try
+                {
+                    List<ModUpdateLogEntry> entries = [];
+                    Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
+                    bool snapshotChanged = false;
+
+                    foreach (ModReference modref in mods)
+                    {
+                        if (modref == null)
+                            continue;
+
+                        string id = modref.ID?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(id))
+                            continue;
+
+                        bool active = activeIds.Contains(id);
+                        entries.Add(BuildEntryFromModReference(modref, active, ModUpdateChangeType.Updated, DateTime.UtcNow));
+
+                        // Update the snapshot entry for this mod
+                        string path = ResolveCanonicalPath(modref.Path ?? string.Empty);
+                        ModUpdateSnapshotEntry entry = new()
+
+                        {
+                            ModId = id,
+                            ModName = string.IsNullOrWhiteSpace(modref.Name) ? id : modref.Name,
+                            SourceType = GetSourceType(modref),
+                            Path = path,
+                            SteamId = ResolveSteamId(modref),
+                            QuickStamp = BuildLocalQuickStamp(path),
+                            DeepStamp = string.Empty,
+                            IsIgnored = modref.IsIgnored
+                        };
+                        EnsureLocalDeepStamp(entry);
+
+                        previous[id] = entry;
+                        snapshotChanged = true;
+                    }
+
+                    if (entries.Count > 0)
+                    {
+                        AppendEntries(entries);
+                    }
+
+                    if (snapshotChanged)
+                    {
+                        SaveSnapshot(previous);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("Failed to log redownload action", ex);
+                }
+            }
+        }
+
+        public static void RecordChanges(
+            IEnumerable<ModReference> mods,
+            IEnumerable<DfhMod> activeMods,
+            IEnumerable<string>? workshopAcfPaths = null)
+        {
+            lock (fileGate)
+            {
+                try
+                {
+                    Dictionary<string, ModUpdateSnapshotEntry> current = BuildSnapshot(mods);
+                    if (!File.Exists(SnapshotPath))
+                    {
+                        InitializeLocalFingerprints(current.Values);
+                        SaveSnapshot(current);
+                        return;
+                    }
+
+                    Dictionary<string, ModUpdateSnapshotEntry> previous = LoadSnapshot();
+                    HashSet<string> activeIds = new(
+                        activeMods.Select(m => m.Id),
+                        StringComparer.OrdinalIgnoreCase);
+
+                    List<ModUpdateSnapshotEntry> currentList = [.. current.Values];
+
+                    // Parallelize TryDetectLocalUpdate and EnsureLocalDeepStamp passes per mod.
+                    // Computed into an index-aligned array to preserve stable entry ordering.
+                    List<ModUpdateLogEntry>?[] perEntryResults = new List<ModUpdateLogEntry>?[currentList.Count];
+                    _ = Parallel.For(0, currentList.Count, new ParallelOptions
+                    {
+                        MaxDegreeOfParallelism = Environment.ProcessorCount
+                    }, i =>
+                    {
+                        ModUpdateSnapshotEntry currentEntry = currentList[i];
+                        List<ModUpdateLogEntry> localEntries = [];
+
+                        if (!previous.TryGetValue(currentEntry.ModId, out ModUpdateSnapshotEntry? oldEntry))
+                        {
+                            EnsureLocalDeepStamp(currentEntry);
+                            localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
+                        }
+                        else if (!PathsMatch(oldEntry.Path, currentEntry.Path))
+                        {
+                            EnsureLocalDeepStamp(currentEntry);
+                            localEntries.Add(BuildEntry(oldEntry, activeIds.Contains(oldEntry.ModId), ModUpdateChangeType.Deleted));
+                            localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Added));
+                        }
+                        else if (TryDetectLocalUpdate(oldEntry, currentEntry))
+                        {
+                            localEntries.Add(BuildEntry(currentEntry, activeIds.Contains(currentEntry.ModId), ModUpdateChangeType.Updated));
+                        }
+
+                        perEntryResults[i] = localEntries.Count > 0 ? localEntries : null;
+                    });
+
+                    List<ModUpdateLogEntry> entries = [];
+                    foreach (List<ModUpdateLogEntry>? localEntries in perEntryResults)
+                    {
+                        if (localEntries != null)
+                            entries.AddRange(localEntries);
+                    }
+
+                    foreach (ModUpdateSnapshotEntry previousEntry in previous.Values.Where(previousEntry => !current.ContainsKey(previousEntry.ModId)))
+                    {
+                        if (previousEntry.IsIgnored)
+                            continue;
+
+                        entries.Add(BuildEntry(previousEntry, activeIds.Contains(previousEntry.ModId), ModUpdateChangeType.Deleted));
+                    }
+
+                    entries.AddRange(BuildWorkshopUpdateEntries(mods, activeIds, workshopAcfPaths));
+
+                    if (entries.Count > 0)
+                        AppendEntries(entries);
+
+                    SaveSnapshot(current);
                 }
                 catch
                 {
-                    // Ignore inaccessible files and continue fingerprinting.
+                    // Ignore logging failures.
                 }
             }
-
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-            metadata.Sort(comparer);
-
-            using SHA256 sha256 = SHA256.Create();
-            foreach (string line in metadata)
-            {
-                byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
-                _ = sha256.TransformBlock(bytes, 0, bytes.Length, null, 0);
-            }
-
-            _ = sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-            return Convert.ToHexString(sha256.Hash ?? Array.Empty<byte>());
         }
-        catch
+
+        private static Dictionary<string, ModUpdateSnapshotEntry> BuildSnapshot(IEnumerable<ModReference> mods)
         {
-            return string.Empty;
-        }
-    }
+            List<ModReference> modList = mods as List<ModReference> ?? [.. mods];
 
-    private static Dictionary<string, ModUpdateSnapshotEntry> LoadSnapshot()
-    {
-        try
-        {
-            if (!File.Exists(SnapshotPath))
-                return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
-
-            string json = File.ReadAllText(SnapshotPath);
-            List<ModUpdateSnapshotEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateSnapshotEntry>>(json);
-            if (entries == null)
-                return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
-
-            Dictionary<string, ModUpdateSnapshotEntry> map = new(StringComparer.OrdinalIgnoreCase);
-            foreach (ModUpdateSnapshotEntry entry in entries)
+            ModUpdateSnapshotEntry?[] results = new ModUpdateSnapshotEntry?[modList.Count];
+            _ = Parallel.For(0, modList.Count, new ParallelOptions
             {
-                if (entry == null || string.IsNullOrWhiteSpace(entry.ModId))
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            }, i =>
+            {
+                ModReference? modref = modList[i];
+                if (modref == null)
+                    return;
+
+                string id = modref.ID?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(id))
+                    return;
+
+                string path = ResolveCanonicalPath(modref.Path ?? string.Empty);
+                if (modref.IsIgnored)
+                    return;
+
+                results[i] = new ModUpdateSnapshotEntry
+                {
+                    ModId = id,
+                    ModName = string.IsNullOrWhiteSpace(modref.Name) ? id : modref.Name,
+                    SourceType = GetSourceType(modref),
+                    Path = path,
+                    SteamId = ResolveSteamId(modref),
+                    QuickStamp = BuildLocalQuickStamp(path),
+                    DeepStamp = string.Empty,
+                    IsIgnored = modref.IsIgnored
+                };
+            });
+
+            Dictionary<string, ModUpdateSnapshotEntry> snapshot = new(StringComparer.OrdinalIgnoreCase);
+            foreach (ModUpdateSnapshotEntry? entry in results)
+            {
+                if (entry == null || snapshot.ContainsKey(entry.ModId))
                     continue;
-                if (!map.ContainsKey(entry.ModId))
-                    map[entry.ModId] = entry;
+                snapshot[entry.ModId] = entry;
             }
 
-            return map;
+            return snapshot;
         }
-        catch
+
+        private static ModUpdateLogEntry BuildEntry(ModUpdateSnapshotEntry entry, bool active, ModUpdateChangeType changeType) => BuildEntry(entry, active, changeType, null);
+
+        private static ModUpdateLogEntry BuildEntry(
+            ModUpdateSnapshotEntry entry,
+            bool active,
+            ModUpdateChangeType changeType,
+            DateTime? timestampUtc) => new()
+            {
+                TimestampUtc = timestampUtc ?? DateTime.UtcNow,
+                ModId = entry.ModId,
+                ModName = entry.ModName,
+                SourceType = entry.SourceType,
+                Active = active,
+                Path = entry.Path,
+                SteamId = entry.SteamId,
+                ChangeType = changeType
+            };
+
+        private static ModUpdateLogEntry BuildEntryFromModReference(
+            ModReference modref,
+            bool active,
+            ModUpdateChangeType changeType,
+            DateTime? timestampUtc)
         {
-            return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
-        }
-    }
+            ModUpdateSnapshotEntry entry = new()
 
-    private static void SaveSnapshot(Dictionary<string, ModUpdateSnapshotEntry> snapshot)
-    {
-        try
+            {
+                ModId = modref.ID?.Trim() ?? string.Empty,
+                ModName = string.IsNullOrWhiteSpace(modref.Name) ? (modref.ID?.Trim() ?? string.Empty) : modref.Name,
+                SourceType = GetSourceType(modref),
+                Path = ResolveCanonicalPath(modref.Path ?? string.Empty),
+                SteamId = ResolveSteamId(modref)
+            };
+
+            return BuildEntry(entry, active, changeType, timestampUtc);
+        }
+
+        private static string GetSourceType(ModReference modref)
         {
-            List<ModUpdateSnapshotEntry> entries = [.. snapshot.Values];
-            string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(SnapshotPath, json);
-        }
-        catch
-        {
-            // Ignore snapshot failures.
-        }
-    }
+            if (ModHearthManager.TryGetSteamWorkshopItemId(modref, out _))
+                return "Steam";
 
-    private static void AppendEntries(IEnumerable<ModUpdateLogEntry> newEntries)
-    {
-        List<ModUpdateLogEntry> existing = [.. LoadEntries()];
-        existing.AddRange(newEntries);
+            string path = modref.Path ?? string.Empty;
+            if (path.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                path.IndexOf("workshop", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "Steam";
+            }
 
-        string json = SerializeEntries(existing);
-        int removedCount = TrimEntriesToLineLimit(existing, ref json, MaxLogLines);
-        if (removedCount > 0)
-        {
-            Console.WriteLine(
-                $"[ModUpdateLog] Deleted {removedCount} old log entr{(removedCount == 1 ? "y" : "ies")} to keep max {MaxLogLines} lines.");
+            return "Local";
         }
 
-        File.WriteAllText(LogPath, json);
-    }
-
-    private static int TrimEntriesToLineLimit(List<ModUpdateLogEntry> entries, ref string json, int maxLines)
-    {
-        if (entries == null || maxLines <= 0)
-            return 0;
-
-        int currentLines = CountLines(json);
-        if (currentLines <= maxLines)
-            return 0;
-
-        int removedCount = 0;
-        while (entries.Count > 0 && currentLines > maxLines)
-        {
-            int estimatedLinesPerEntry = Math.Max(1, currentLines / Math.Max(entries.Count, 1));
-            int overflow = currentLines - maxLines;
-            int removeNow = Math.Max(1, overflow / estimatedLinesPerEntry);
-            removeNow = Math.Min(removeNow, entries.Count);
-
-            entries.RemoveRange(0, removeNow);
-            removedCount += removeNow;
-
-            json = SerializeEntries(entries);
-            currentLines = CountLines(json);
-        }
-
-        return removedCount;
-    }
-
-    private static string SerializeEntries(List<ModUpdateLogEntry> entries) => JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
-
-    private static int CountLines(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return 0;
-
-        int count = 1;
-        for (int i = 0; i < text.Length; i++)
-        {
-            if (text[i] == '\n')
-                count++;
-        }
-
-        return count;
-    }
-
-    private static List<ModUpdateLogEntry> BuildWorkshopUpdateEntries(
-        IEnumerable<ModReference> mods,
-        HashSet<string> activeIds,
-        IEnumerable<string>? workshopAcfPaths)
-    {
-        void LogInfo(string message) => SteamConnectionLogger.LogInfo(message);
-
-        List<ModUpdateLogEntry> entries = [];
-        if (!SteamProcessHelper.TryDetectSteamProcess(out List<string> runningProcesses))
-        {
-            LogInfo("Steam workshop update scan skipped: no active Steam process detected.");
-            return entries;
-        }
-
-        LogInfo($"Steam workshop update scan started. Active Steam process(es): {string.Join(", ", runningProcesses)}.");
-
-        StringComparer pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        List<string> acfPaths = workshopAcfPaths?
-            .Select(ResolveCanonicalPath)
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(pathComparer)
-            .ToList() ?? [];
-
-        LogInfo($"Steam workshop update scan: {acfPaths.Count} workshop ACF path(s) received.");
-        if (acfPaths.Count == 0)
-            return entries;
-
-        Dictionary<string, long> currentUpdates = LoadWorkshopUpdateTimes(acfPaths);
-        LogInfo($"Steam workshop update scan: parsed {currentUpdates.Count} workshop item timestamps.");
-        if (currentUpdates.Count == 0)
-            return entries;
-
-        bool snapshotExists = File.Exists(WorkshopSnapshotPath);
-        Dictionary<string, long> previousUpdates = LoadWorkshopSnapshot();
-        if (!snapshotExists)
-        {
-            LogInfo("Steam workshop snapshot missing. Creating baseline snapshot.");
-            SaveWorkshopSnapshot(currentUpdates);
-            return entries;
-        }
-
-        Dictionary<string, ModReference> steamIdMap = new(StringComparer.OrdinalIgnoreCase);
-        foreach (ModReference modref in mods)
+        private static string ResolveSteamId(ModReference? modref)
         {
             if (modref == null)
-                continue;
-            string steamId = ResolveSteamId(modref);
-            if (string.IsNullOrWhiteSpace(steamId))
-                continue;
-            if (!steamIdMap.ContainsKey(steamId))
-                steamIdMap[steamId] = modref;
+                return string.Empty;
+
+            if (ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId))
+                return steamId;
+
+            return modref.SteamID?.Trim() ?? string.Empty;
         }
 
-        int unchangedCount = 0;
-        int unmappedCount = 0;
-        foreach (KeyValuePair<string, long> kvp in currentUpdates)
+        private static bool PathsMatch(string? left, string? right)
         {
-            if (previousUpdates.TryGetValue(kvp.Key, out long previousTime) && kvp.Value <= previousTime)
-            {
-                unchangedCount++;
-                continue;
-            }
+            string a = (left ?? string.Empty).Trim();
+            string b = (right ?? string.Empty).Trim();
+            if (a.Length == 0 || b.Length == 0)
+                return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
-            if (!steamIdMap.TryGetValue(kvp.Key, out ModReference? modref))
-            {
-                unmappedCount++;
-                continue;
-            }
-
-            if (modref.IsIgnored)
-                continue;
-
-            DateTime? timestamp = TryConvertUnixTime(kvp.Value);
-            bool isActive = activeIds.Contains(modref.ID ?? string.Empty);
-            entries.Add(BuildEntryFromModReference(modref, isActive, ModUpdateChangeType.Updated, timestamp));
+            return string.Equals(
+                Path.GetFullPath(a),
+                Path.GetFullPath(b),
+                StringComparison.OrdinalIgnoreCase);
         }
 
-        SaveWorkshopSnapshot(currentUpdates);
-        LogInfo(
-            $"Steam workshop update scan completed. Logged {entries.Count} updated mod(s), {unchangedCount} unchanged item(s), {unmappedCount} unmapped item(s).");
-        return entries;
-    }
-
-    private static Dictionary<string, long> LoadWorkshopUpdateTimes(IEnumerable<string> acfPaths)
-    {
-        Dictionary<string, long> updates = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string path in acfPaths)
+        private static bool TryDetectLocalUpdate(ModUpdateSnapshotEntry previousEntry, ModUpdateSnapshotEntry currentEntry)
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                continue;
+            if (!IsLocalSource(currentEntry.SourceType))
+                return false;
+
+            if (string.IsNullOrWhiteSpace(currentEntry.Path) || !Directory.Exists(currentEntry.Path))
+                return false;
+
+            if (string.IsNullOrWhiteSpace(currentEntry.QuickStamp))
+                currentEntry.QuickStamp = BuildLocalQuickStamp(currentEntry.Path);
+
+            if (!string.IsNullOrWhiteSpace(previousEntry.QuickStamp) &&
+                string.Equals(previousEntry.QuickStamp, currentEntry.QuickStamp, StringComparison.Ordinal))
+            {
+                currentEntry.DeepStamp = previousEntry.DeepStamp ?? string.Empty;
+                return false;
+            }
+
+            string previousDeepStamp = previousEntry.DeepStamp ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(previousDeepStamp))
+            {
+                // One-time baseline for older snapshots to avoid false "Updated" duplicates.
+                currentEntry.DeepStamp = BuildLocalDeepStamp(currentEntry.Path);
+                return false;
+            }
+
+            string currentDeepStamp = BuildLocalDeepStamp(currentEntry.Path);
+            if (string.IsNullOrWhiteSpace(currentDeepStamp))
+            {
+                currentEntry.DeepStamp = previousDeepStamp;
+                return false;
+            }
+
+            currentEntry.DeepStamp = currentDeepStamp;
+            return !string.Equals(previousDeepStamp, currentDeepStamp, StringComparison.Ordinal);
+        }
+
+        private static void EnsureLocalDeepStamp(ModUpdateSnapshotEntry entry)
+        {
+            if (!IsLocalSource(entry.SourceType))
+                return;
+            if (string.IsNullOrWhiteSpace(entry.Path) || !Directory.Exists(entry.Path))
+                return;
+
+            if (string.IsNullOrWhiteSpace(entry.QuickStamp))
+                entry.QuickStamp = BuildLocalQuickStamp(entry.Path);
+            if (string.IsNullOrWhiteSpace(entry.DeepStamp))
+                entry.DeepStamp = BuildLocalDeepStamp(entry.Path);
+        }
+
+        private static void InitializeLocalFingerprints(IEnumerable<ModUpdateSnapshotEntry> entries)
+        {
+            if (entries == null)
+                return;
+
+            // Every mod's deep stamp is independent of every other mod's, so this is safe to parallelize, no shared state between iterations.
+            _ = Parallel.ForEach(
+                entries,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                EnsureLocalDeepStamp);
+        }
+
+        private static bool IsLocalSource(string? sourceType) => string.Equals(sourceType?.Trim(), "Local", StringComparison.OrdinalIgnoreCase);
+
+        internal static string BuildLocalQuickStamp(string? modPath)
+        {
+            string normalizedPath = ResolveCanonicalPath(modPath ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(normalizedPath) || !Directory.Exists(normalizedPath))
+                return string.Empty;
 
             try
             {
-                string content = File.ReadAllText(path);
-                Dictionary<string, object> root = SteamAcfKeyValueParser.Parse(content);
-                if (!root.TryGetValue("AppWorkshop", out object? appObj) || appObj is not Dictionary<string, object> appDict)
+                long dirTicks = Directory.GetLastWriteTimeUtc(normalizedPath).Ticks;
+                string infoPath = Path.Combine(normalizedPath, "info.txt");
+                long infoTicks = 0;
+                long infoSize = 0;
+                if (File.Exists(infoPath))
+                {
+                    FileInfo info = new(infoPath);
+                    infoTicks = info.LastWriteTimeUtc.Ticks;
+                    infoSize = info.Length;
+                }
+
+                return $"{dirTicks}:{infoTicks}:{infoSize}";
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static string BuildLocalDeepStamp(string? modPath)
+        {
+            string normalizedPath = ResolveCanonicalPath(modPath ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(normalizedPath) || !Directory.Exists(normalizedPath))
+                return string.Empty;
+
+            try
+            {
+                List<string> metadata = [];
+                foreach (string filePath in Directory.EnumerateFiles(normalizedPath, "*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        FileInfo fileInfo = new(filePath);
+                        string relativePath = Path.GetRelativePath(normalizedPath, filePath);
+                        if (Path.IsPathRooted(relativePath) && !relativePath.StartsWith("..", StringComparison.Ordinal))
+                        {
+                            relativePath = Path.GetFileName(filePath);
+                        }
+                        relativePath = relativePath
+                            .Replace('\\', '/')
+                            .Trim();
+                        metadata.Add($"{relativePath}|{fileInfo.Length}|{fileInfo.LastWriteTimeUtc.Ticks}");
+                    }
+                    catch
+                    {
+                        // Ignore inaccessible files and continue fingerprinting.
+                    }
+                }
+
+                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                metadata.Sort(comparer);
+
+                using SHA256 sha256 = SHA256.Create();
+                foreach (string line in metadata)
+                {
+                    byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
+                    _ = sha256.TransformBlock(bytes, 0, bytes.Length, null, 0);
+                }
+
+                _ = sha256.TransformFinalBlock([], 0, 0);
+                return Convert.ToHexString(sha256.Hash ?? []);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        private static Dictionary<string, ModUpdateSnapshotEntry> LoadSnapshot()
+        {
+            try
+            {
+                if (!File.Exists(SnapshotPath))
+                    return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
+
+                string json = File.ReadAllText(SnapshotPath);
+                List<ModUpdateSnapshotEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateSnapshotEntry>>(json);
+                if (entries == null)
+                    return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
+
+                Dictionary<string, ModUpdateSnapshotEntry> map = new(StringComparer.OrdinalIgnoreCase);
+                foreach (ModUpdateSnapshotEntry entry in entries)
+                {
+                    if (entry == null || string.IsNullOrWhiteSpace(entry.ModId))
+                        continue;
+                    if (!map.ContainsKey(entry.ModId))
+                        map[entry.ModId] = entry;
+                }
+
+                return map;
+            }
+            catch
+            {
+                return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        private static void SaveSnapshot(Dictionary<string, ModUpdateSnapshotEntry> snapshot)
+        {
+            try
+            {
+                List<ModUpdateSnapshotEntry> entries = [.. snapshot.Values];
+                string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(SnapshotPath, json);
+            }
+            catch
+            {
+                // Ignore snapshot failures.
+            }
+        }
+
+        private static void AppendEntries(IEnumerable<ModUpdateLogEntry> newEntries)
+        {
+            List<ModUpdateLogEntry> existing = [.. LoadEntries()];
+            existing.AddRange(newEntries);
+
+            string json = SerializeEntries(existing);
+            int removedCount = TrimEntriesToLineLimit(existing, ref json, MaxLogLines);
+            if (removedCount > 0)
+            {
+                Console.WriteLine(
+                    $"[ModUpdateLog] Deleted {removedCount} old log entr{(removedCount == 1 ? "y" : "ies")} to keep max {MaxLogLines} lines.");
+            }
+
+            File.WriteAllText(LogPath, json);
+        }
+
+        private static int TrimEntriesToLineLimit(List<ModUpdateLogEntry> entries, ref string json, int maxLines)
+        {
+            if (entries == null || maxLines <= 0)
+                return 0;
+
+            int currentLines = CountLines(json);
+            if (currentLines <= maxLines)
+                return 0;
+
+            int removedCount = 0;
+            while (entries.Count > 0 && currentLines > maxLines)
+            {
+                int estimatedLinesPerEntry = Math.Max(1, currentLines / Math.Max(entries.Count, 1));
+                int overflow = currentLines - maxLines;
+                int removeNow = Math.Max(1, overflow / estimatedLinesPerEntry);
+                removeNow = Math.Min(removeNow, entries.Count);
+
+                entries.RemoveRange(0, removeNow);
+                removedCount += removeNow;
+
+                json = SerializeEntries(entries);
+                currentLines = CountLines(json);
+            }
+
+            return removedCount;
+        }
+
+        private static string SerializeEntries(List<ModUpdateLogEntry> entries) => JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
+
+        private static int CountLines(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return 0;
+
+            int count = 1;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                    count++;
+            }
+
+            return count;
+        }
+
+        private static List<ModUpdateLogEntry> BuildWorkshopUpdateEntries(
+            IEnumerable<ModReference> mods,
+            HashSet<string> activeIds,
+            IEnumerable<string>? workshopAcfPaths)
+        {
+            static void LogInfo(string message)
+            {
+                SteamConnectionLogger.LogInfo(message);
+            }
+
+            List<ModUpdateLogEntry> entries = [];
+            if (!SteamProcessHelper.TryDetectSteamProcess(out List<string> runningProcesses))
+            {
+                LogInfo("Steam workshop update scan skipped: no active Steam process detected.");
+                return entries;
+            }
+
+            LogInfo($"Steam workshop update scan started. Active Steam process(es): {string.Join(", ", runningProcesses)}.");
+
+            StringComparer pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            List<string> acfPaths = workshopAcfPaths?
+                .Select(ResolveCanonicalPath)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(pathComparer)
+                .ToList() ?? [];
+
+            LogInfo($"Steam workshop update scan: {acfPaths.Count} workshop ACF path(s) received.");
+            if (acfPaths.Count == 0)
+                return entries;
+
+            Dictionary<string, long> currentUpdates = LoadWorkshopUpdateTimes(acfPaths);
+            LogInfo($"Steam workshop update scan: parsed {currentUpdates.Count} workshop item timestamps.");
+            if (currentUpdates.Count == 0)
+                return entries;
+
+            bool snapshotExists = File.Exists(WorkshopSnapshotPath);
+            Dictionary<string, long> previousUpdates = LoadWorkshopSnapshot();
+            if (!snapshotExists)
+            {
+                LogInfo("Steam workshop snapshot missing. Creating baseline snapshot.");
+                SaveWorkshopSnapshot(currentUpdates);
+                return entries;
+            }
+
+            Dictionary<string, ModReference> steamIdMap = new(StringComparer.OrdinalIgnoreCase);
+            foreach (ModReference modref in mods)
+            {
+                if (modref == null)
+                    continue;
+                string steamId = ResolveSteamId(modref);
+                if (string.IsNullOrWhiteSpace(steamId))
+                    continue;
+                if (!steamIdMap.ContainsKey(steamId))
+                    steamIdMap[steamId] = modref;
+            }
+
+            int unchangedCount = 0;
+            int unmappedCount = 0;
+            foreach (KeyValuePair<string, long> kvp in currentUpdates)
+            {
+                if (previousUpdates.TryGetValue(kvp.Key, out long previousTime) && kvp.Value <= previousTime)
+                {
+                    unchangedCount++;
+                    continue;
+                }
+
+                if (!steamIdMap.TryGetValue(kvp.Key, out ModReference? modref))
+                {
+                    unmappedCount++;
+                    continue;
+                }
+
+                if (modref.IsIgnored)
                     continue;
 
-                MergeWorkshopSection(appDict, "WorkshopItemsInstalled", updates);
-                MergeWorkshopSection(appDict, "WorkshopItemDetails", updates);
+                DateTime? timestamp = TryConvertUnixTime(kvp.Value);
+                bool isActive = activeIds.Contains(modref.ID ?? string.Empty);
+                entries.Add(BuildEntryFromModReference(modref, isActive, ModUpdateChangeType.Updated, timestamp));
             }
-            catch (Exception ex)
+
+            SaveWorkshopSnapshot(currentUpdates);
+            LogInfo(
+                $"Steam workshop update scan completed. Logged {entries.Count} updated mod(s), {unchangedCount} unchanged item(s), {unmappedCount} unmapped item(s).");
+            return entries;
+        }
+
+        private static Dictionary<string, long> LoadWorkshopUpdateTimes(IEnumerable<string> acfPaths)
+        {
+            Dictionary<string, long> updates = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string path in acfPaths)
             {
-                SteamConnectionLogger.LogError($"Failed to parse workshop ACF '{path}': {ex.Message}");
-            }
-        }
-
-        return updates;
-    }
-
-    private static void MergeWorkshopSection(
-        Dictionary<string, object> appDict,
-        string sectionName,
-        Dictionary<string, long> updates)
-    {
-        if (!appDict.TryGetValue(sectionName, out object? sectionObj) ||
-            sectionObj is not Dictionary<string, object> sectionDict)
-            return;
-
-        foreach (KeyValuePair<string, object> kvp in sectionDict)
-        {
-            if (kvp.Value is not Dictionary<string, object> itemDict)
-                continue;
-
-            if (!itemDict.TryGetValue("timeupdated", out object? timeObj))
-                continue;
-
-            if (!TryParseTimeUpdated(timeObj, out long timeUpdated))
-                continue;
-
-            if (updates.TryGetValue(kvp.Key, out long existing))
-                updates[kvp.Key] = Math.Max(existing, timeUpdated);
-            else
-                updates[kvp.Key] = timeUpdated;
-        }
-    }
-
-    private static bool TryParseTimeUpdated(object timeObj, out long timeUpdated)
-    {
-        timeUpdated = 0;
-        switch (timeObj)
-        {
-            case long longValue:
-                timeUpdated = longValue;
-                return true;
-            case int intValue:
-                timeUpdated = intValue;
-                return true;
-            case string text when long.TryParse(text, out long parsed):
-                timeUpdated = parsed;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static Dictionary<string, long> LoadWorkshopSnapshot()
-    {
-        try
-        {
-            if (!File.Exists(WorkshopSnapshotPath))
-                return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-
-            string json = File.ReadAllText(WorkshopSnapshotPath);
-            List<SteamWorkshopSnapshotEntry>? entries = JsonSerializer.Deserialize<List<SteamWorkshopSnapshotEntry>>(json);
-            if (entries == null)
-                return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-
-            Dictionary<string, long> map = new(StringComparer.OrdinalIgnoreCase);
-            foreach (SteamWorkshopSnapshotEntry entry in entries)
-            {
-                if (entry == null || string.IsNullOrWhiteSpace(entry.SteamId))
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                     continue;
-                if (!map.ContainsKey(entry.SteamId))
-                    map[entry.SteamId] = entry.TimeUpdated;
+
+                try
+                {
+                    string content = File.ReadAllText(path);
+                    Dictionary<string, object> root = SteamAcfKeyValueParser.Parse(content);
+                    if (!root.TryGetValue("AppWorkshop", out object? appObj) || appObj is not Dictionary<string, object> appDict)
+                        continue;
+
+                    MergeWorkshopSection(appDict, "WorkshopItemsInstalled", updates);
+                    MergeWorkshopSection(appDict, "WorkshopItemDetails", updates);
+                }
+                catch (Exception ex)
+                {
+                    SteamConnectionLogger.LogError($"Failed to parse workshop ACF '{path}': {ex.Message}");
+                }
             }
 
-            return map;
+            return updates;
         }
-        catch
+
+        private static void MergeWorkshopSection(
+            Dictionary<string, object> appDict,
+            string sectionName,
+            Dictionary<string, long> updates)
         {
-            return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            if (!appDict.TryGetValue(sectionName, out object? sectionObj) ||
+                sectionObj is not Dictionary<string, object> sectionDict)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<string, object> kvp in sectionDict)
+            {
+                if (kvp.Value is not Dictionary<string, object> itemDict)
+                    continue;
+
+                if (!itemDict.TryGetValue("timeupdated", out object? timeObj))
+                    continue;
+
+                if (!TryParseTimeUpdated(timeObj, out long timeUpdated))
+                    continue;
+
+                if (updates.TryGetValue(kvp.Key, out long existing))
+                    updates[kvp.Key] = Math.Max(existing, timeUpdated);
+                else
+                    updates[kvp.Key] = timeUpdated;
+            }
+        }
+
+        private static bool TryParseTimeUpdated(object timeObj, out long timeUpdated)
+        {
+            timeUpdated = 0;
+            switch (timeObj)
+            {
+                case long longValue:
+                    timeUpdated = longValue;
+                    return true;
+                case int intValue:
+                    timeUpdated = intValue;
+                    return true;
+                case string text when long.TryParse(text, out long parsed):
+                    timeUpdated = parsed;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static Dictionary<string, long> LoadWorkshopSnapshot()
+        {
+            try
+            {
+                if (!File.Exists(WorkshopSnapshotPath))
+                    return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+                string json = File.ReadAllText(WorkshopSnapshotPath);
+                List<SteamWorkshopSnapshotEntry>? entries = JsonSerializer.Deserialize<List<SteamWorkshopSnapshotEntry>>(json);
+                if (entries == null)
+                    return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+
+                Dictionary<string, long> map = new(StringComparer.OrdinalIgnoreCase);
+                foreach (SteamWorkshopSnapshotEntry entry in entries)
+                {
+                    if (entry == null || string.IsNullOrWhiteSpace(entry.SteamId))
+                        continue;
+                    if (!map.ContainsKey(entry.SteamId))
+                        map[entry.SteamId] = entry.TimeUpdated;
+                }
+
+                return map;
+            }
+            catch
+            {
+                return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        private static void SaveWorkshopSnapshot(Dictionary<string, long> snapshot)
+        {
+            try
+            {
+                List<SteamWorkshopSnapshotEntry> entries = [.. snapshot.Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value })];
+                string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(WorkshopSnapshotPath, json);
+            }
+            catch
+            {
+                // Ignore snapshot failures.
+            }
+        }
+
+        private static DateTime? TryConvertUnixTime(long seconds)
+        {
+            try
+            {
+                return DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 
-    private static void SaveWorkshopSnapshot(Dictionary<string, long> snapshot)
+    internal sealed class SteamWorkshopSnapshotEntry
     {
-        try
-        {
-            List<SteamWorkshopSnapshotEntry> entries = [.. snapshot.Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value })];
-            string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(WorkshopSnapshotPath, json);
-        }
-        catch
-        {
-            // Ignore snapshot failures.
-        }
+        public string SteamId { get; set; } = string.Empty;
+        public long TimeUpdated { get; set; }
     }
-
-    private static DateTime? TryConvertUnixTime(long seconds)
-    {
-        try
-        {
-            return DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-}
-
-internal sealed class SteamWorkshopSnapshotEntry
-{
-    public string SteamId { get; set; } = string.Empty;
-    public long TimeUpdated { get; set; }
 }

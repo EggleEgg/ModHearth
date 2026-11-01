@@ -98,10 +98,10 @@ namespace ModHearth.Utilities.Steam
                         try
                         {
                             progress.Report($"Downloading SteamCMD (attempt {attempt}/{maxRetries})...");
-                            using var response = await HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                            using HttpResponseMessage response = await HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                             _ = response.EnsureSuccessStatusCode();
 
-                            using var fs = new FileStream(archivePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                            using FileStream fs = new(archivePath, FileMode.Create, FileAccess.Write, FileShare.None);
                             await response.Content.CopyToAsync(fs, cancellationToken);
                             downloaded = true;
                             break;
@@ -143,8 +143,8 @@ namespace ModHearth.Utilities.Steam
                     string extractedTar = Path.Combine(installDir, "steamcmd.tar");
                     try
                     {
-                        using (var gzStream = new GZipStream(File.OpenRead(archivePath), CompressionMode.Decompress))
-                        using (var tarFileStream = File.Create(extractedTar))
+                        using (GZipStream gzStream = new(File.OpenRead(archivePath), CompressionMode.Decompress))
+                        using (FileStream tarFileStream = File.Create(extractedTar))
                         {
                             await gzStream.CopyToAsync(tarFileStream, cancellationToken);
                         }
@@ -170,7 +170,7 @@ namespace ModHearth.Utilities.Steam
                     if (File.Exists(shPath))
                     {
                         // Ensure executable
-                        using var chmodProcess = Process.Start("chmod", $"+x \"{shPath}\"");
+                        using Process chmodProcess = Process.Start("chmod", $"+x \"{shPath}\"");
                         if (chmodProcess != null)
                         {
                             await chmodProcess.WaitForExitAsync(cancellationToken);
@@ -226,7 +226,7 @@ namespace ModHearth.Utilities.Steam
 
         private async Task<int> ExecuteCommandInternalAsync(string exe, string arguments, IProgress<string>? progress, CancellationToken cancellationToken)
         {
-            var startInfo = new ProcessStartInfo
+            ProcessStartInfo startInfo = new()
             {
                 FileName = exe,
                 Arguments = arguments,
@@ -238,7 +238,7 @@ namespace ModHearth.Utilities.Steam
 
             InfoLogger.LogRunDf($"SteamCmd: Executing {exe} {arguments}");
 
-            using var process = new Process { StartInfo = startInfo };
+            using Process process = new() { StartInfo = startInfo };
             try
             {
                 _ = process.Start();
@@ -249,7 +249,7 @@ namespace ModHearth.Utilities.Steam
                 throw;
             }
 
-            using var reg = cancellationToken.Register(() =>
+            using CancellationTokenRegistration reg = cancellationToken.Register(() =>
             {
                 try
                 {
@@ -261,9 +261,9 @@ namespace ModHearth.Utilities.Steam
                 }
             });
 
-            var outputTask = Task.Run(async () =>
+            Task outputTask = Task.Run(async () =>
             {
-                using var reader = process.StandardOutput;
+                using StreamReader reader = process.StandardOutput;
                 string? line;
                 while ((line = await reader.ReadLineAsync()) != null)
                 {
@@ -275,9 +275,9 @@ namespace ModHearth.Utilities.Steam
                 }
             }, cancellationToken);
 
-            var errorTask = Task.Run(async () =>
+            Task errorTask = Task.Run(async () =>
             {
-                using var reader = process.StandardError;
+                using StreamReader reader = process.StandardError;
                 string? line;
                 while ((line = await reader.ReadLineAsync()) != null)
                 {
@@ -321,8 +321,8 @@ namespace ModHearth.Utilities.Steam
         private static bool TryFindInPath(string tool, out string fullPath)
         {
             fullPath = string.Empty;
-            var paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? Array.Empty<string>();
-            foreach (var path in paths)
+            string[] paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
+            foreach (string path in paths)
             {
                 try
                 {

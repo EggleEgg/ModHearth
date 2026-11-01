@@ -1,6 +1,7 @@
-﻿namespace ModHearth.UI;
-
-public interface IStyleAwareWindow
+﻿namespace ModHearth.UI.Theme
 {
-    void ApplyCustomStyle(Style style);
+    public interface IStyleAwareWindow
+    {
+        void ApplyCustomStyle(Style style);
+    }
 }

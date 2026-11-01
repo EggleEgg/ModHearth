@@ -2,6 +2,7 @@ using System.Collections;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using ModHearth.Models;
 
 namespace ModHearth.Utilities
 {
@@ -30,7 +31,7 @@ namespace ModHearth.Utilities
             {
                 using TcpClient client = new();
                 // Brief timeout to avoid blocking the UI if DF is not running or listening
-                var connectTask = client.ConnectAsync("127.0.0.1", port);
+                Task connectTask = client.ConnectAsync("127.0.0.1", port);
                 if (!connectTask.Wait(1000))
                 {
                     error = "Connection timeout";
@@ -84,7 +85,7 @@ namespace ModHearth.Utilities
                     short id = BitConverter.ToInt16(responseHeader, 0);
                     int size = BitConverter.ToInt32(responseHeader, 4);
 
-                    byte[] payload = size > 0 ? ReadExactly(stream, size) : Array.Empty<byte>();
+                    byte[] payload = size > 0 ? ReadExactly(stream, size) : [];
 
                     if (id == -3) // RPC_REPLY_TEXT (Payload is CoreTextNotification)
                     {
@@ -280,8 +281,8 @@ namespace ModHearth.Utilities
                 }
                 catch (SocketException ex) when (ex.SocketErrorCode == SocketError.WouldBlock)
                 {
-                    var writeList = new ArrayList { socket };
-                    var errorList = new ArrayList { socket };
+                    ArrayList writeList = [socket];
+                    ArrayList errorList = [socket];
                     Socket.Select(null, writeList, errorList, 100000); // 100ms in microseconds
                     if (writeList.Count > 0 && socket.Connected)
                     {

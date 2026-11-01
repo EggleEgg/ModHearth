@@ -1,29 +1,31 @@
 using Avalonia.Controls;
+using ModHearth.UI.Theme;
 
-namespace ModHearth.UI;
-
-public partial class InputDialog : Window
+namespace ModHearth.UI
 {
-    public InputDialog()
+    public partial class InputDialog : Window
     {
-        InitializeComponent();
-        WindowThemeManager.Register(this);
-
-        OkButton.Click += (_, _) => Close(InputBox.Text);
-        CancelButton.Click += (_, _) => Close(null);
-    }
-
-    public static async Task<string?> ShowAsync(Window owner, string prompt, string title, string defaultValue)
-    {
-        InputDialog dialog = new()
+        public InputDialog()
         {
-            Title = title,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-        dialog.PromptText.Text = prompt;
-        dialog.InputBox.Text = defaultValue ?? string.Empty;
-        dialog.InputBox.SelectionStart = dialog.InputBox.Text?.Length ?? 0;
+            InitializeComponent();
+            WindowThemeManager.Register(this);
 
-        return await dialog.ShowDialog<string?>(owner);
+            OkButton.Click += (_, _) => Close(InputBox.Text);
+            CancelButton.Click += (_, _) => Close(null);
+        }
+
+        public static async Task<string?> ShowAsync(Window owner, string prompt, string title, string defaultValue)
+        {
+            InputDialog dialog = new()
+            {
+                Title = title,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            dialog.PromptText.Text = prompt;
+            dialog.InputBox.Text = defaultValue ?? string.Empty;
+            dialog.InputBox.SelectionStart = dialog.InputBox.Text?.Length ?? 0;
+
+            return await dialog.ShowDialog<string?>(owner);
+        }
     }
 }

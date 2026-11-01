@@ -1,57 +1,58 @@
 using System.Diagnostics;
 
-namespace ModHearth.Utilities;
-
-/// <summary>
-/// Detects whether Steam (or one of its helper processes) is currently running.
-/// </summary>
-internal static class SteamProcessHelper
+namespace ModHearth.Utilities
 {
-    private static readonly string[] CandidateProcessNames =
-    [
-        "steam",
-        "Steam",
-        "steamwebhelper",
-        "SteamWebHelper"
-    ];
-
-    public static bool TryDetectSteamProcess(out List<string> runningProcesses)
+    /// <summary>
+    /// Detects whether Steam (or one of its helper processes) is currently running.
+    /// </summary>
+    internal static class SteamProcessHelper
     {
-        runningProcesses = [];
-        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly string[] CandidateProcessNames =
+        [
+            "steam",
+            "Steam",
+            "steamwebhelper",
+            "SteamWebHelper"
+        ];
 
-        try
+        public static bool TryDetectSteamProcess(out List<string> runningProcesses)
         {
-            foreach (string name in CandidateProcessNames)
+            runningProcesses = [];
+            HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+
+            try
             {
-                Process[]? procs = null;
-                try
+                foreach (string name in CandidateProcessNames)
                 {
-                    procs = Process.GetProcessesByName(name);
-                    if (procs.Length > 0 && seen.Add(name))
-                        runningProcesses.Add(name);
-                }
-                catch
-                {
-                    // Ignore process query failures for one process name.
-                }
-                finally
-                {
-                    if (procs != null)
+                    Process[]? procs = null;
+                    try
                     {
-                        foreach (var p in procs)
+                        procs = Process.GetProcessesByName(name);
+                        if (procs.Length > 0 && seen.Add(name))
+                            runningProcesses.Add(name);
+                    }
+                    catch
+                    {
+                        // Ignore process query failures for one process name.
+                    }
+                    finally
+                    {
+                        if (procs != null)
                         {
-                            p?.Dispose();
+                            foreach (Process p in procs)
+                            {
+                                p?.Dispose();
+                            }
                         }
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            SteamConnectionLogger.LogError($"Steam process detection failed: {ex.Message}");
-        }
+            catch (Exception ex)
+            {
+                SteamConnectionLogger.LogError($"Steam process detection failed: {ex.Message}");
+            }
 
-        return runningProcesses.Count > 0;
+            return runningProcesses.Count > 0;
+        }
     }
 }

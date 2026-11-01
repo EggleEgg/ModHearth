@@ -2,28 +2,27 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Markup.Xaml;
 
-namespace ModHearth.UI;
-
-/// <summary>
-/// Used for changing text dynamically in a context menu
-/// </summary>
-public class BoolToTextConverter : MarkupExtension, IValueConverter
+namespace ModHearth.UI
 {
-    public string TrueValue { get; set; } = string.Empty;
-    public string FalseValue { get; set; } = string.Empty;
-
-    public override object ProvideValue(IServiceProvider serviceProvider) => this;
-
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    /// <summary>
+    /// Used for changing text dynamically in a context menu
+    /// </summary>
+    public class BoolToTextConverter : MarkupExtension, IValueConverter
     {
-        switch (value)
-        {
-            case bool b:
-                return b ? TrueValue : FalseValue;
-            default:
-                return FalseValue;
-        }
-    }
+        public string TrueValue { get; set; } = string.Empty;
+        public string FalseValue { get; set; } = string.Empty;
 
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+        public override object ProvideValue(IServiceProvider serviceProvider) => this;
+
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return value switch
+            {
+                bool b => b ? TrueValue : FalseValue,
+                _ => FalseValue,
+            };
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
+    }
 }

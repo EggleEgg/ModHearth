@@ -2,116 +2,122 @@
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using ModHearth.UI.Dialogs;
+using ModHearth.UI.ModList;
+using ModHearth.UI.ViewModels;
 
-namespace ModHearth.UI;
-
-public partial class MainWindow
+namespace ModHearth.UI
 {
-    private void OnModpackChanged()
+    public partial class MainWindow
     {
-        if (modifyingComboBox)
-            return;
-
-        if (manager.SelectedModlist == null)
-            return;
-
-        if (changesMade)
+        private void OnModpackChanged()
         {
-            if (ConfigManager.IsAutoSaveEnabled())
+            if (modifyingComboBox)
+                return;
+
+            if (manager.SelectedModlist == null)
+                return;
+
+            if (changesMade)
             {
-                ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
-                ShowModpackSaveNotice(result);
-            }
-            else
-            {
-                // If autosave is not enabled, prompt the user if there are unsaved changes.
-                _ = Dispatcher.UIThread.InvokeAsync(async () =>
+                if (ConfigManager.IsAutoSaveEnabled())
                 {
-                    UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                        this,
-                        manager.SelectedModlist.name,
-                        "change modpacks");
-                    switch (choice)
+                    ModHearthManager.ModpackSaveResult result = manager.SaveCurrentModpack();
+                    ShowModpackSaveNotice(result);
+                }
+                else
+                {
+                    // If autosave is not enabled, prompt the user if there are unsaved changes.
+                    _ = Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        case UnsavedChangesChoice.Cancel:
-                            modifyingComboBox = true;
-                            modpackComboBox.SelectedIndex = lastIndex;
-                            modifyingComboBox = false;
-                            return;
-                        case UnsavedChangesChoice.Save:
-                            await SaveCurrentModpackAsync();
-                            break;
-                    }
+                        UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+                            this,
+                            manager.SelectedModlist.Name,
+                            "change modpacks");
+                        switch (choice)
+                        {
+                            case UnsavedChangesChoice.Cancel:
+                                modifyingComboBox = true;
+                                modpackComboBox.SelectedIndex = lastIndex;
+                                modifyingComboBox = false;
+                                return;
+                            case UnsavedChangesChoice.Save:
+                                await SaveCurrentModpackAsync();
+                                break;
+                        }
 
-                    SetAndRefreshModpack(modpackComboBox.SelectedIndex);
-                    lastIndex = modpackComboBox.SelectedIndex;
-                    SetChangesMade(false);
-                });
-                return;
-            }
-        }
-
-        SetAndRefreshModpack(modpackComboBox.SelectedIndex);
-        lastIndex = modpackComboBox.SelectedIndex;
-        SetChangesMade(false);
-    }
-
-    private async void MainWindowClosing(object? sender, WindowClosingEventArgs e)
-    {
-        if (bypassUnsavedClosePrompt || !changesMade)
-            return;
-
-        e.Cancel = true;
-        if (unsavedClosePromptInFlight)
-            return;
-
-        unsavedClosePromptInFlight = true;
-        try
-        {
-            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                this,
-                manager.SelectedModlist.name,
-                "exit");
-            switch (choice)
-            {
-                case UnsavedChangesChoice.Cancel:
+                        SetAndRefreshModpack(modpackComboBox.SelectedIndex);
+                        lastIndex = modpackComboBox.SelectedIndex;
+                        SetChangesMade(false);
+                    });
                     return;
-                case UnsavedChangesChoice.Save:
-                    await SaveCurrentModpackAsync();
-                    break;
-                default:
-                    await SetAndMarkChangesAsync(false);
-                    break;
+                }
             }
 
-            bypassUnsavedClosePrompt = true;
-            Close();
+            SetAndRefreshModpack(modpackComboBox.SelectedIndex);
+            lastIndex = modpackComboBox.SelectedIndex;
+            SetChangesMade(false);
         }
-        finally
+
+        private async void MainWindowClosing(object? sender, WindowClosingEventArgs e)
         {
-            bypassUnsavedClosePrompt = false;
-            unsavedClosePromptInFlight = false;
-        }
-    }
-
-    private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        ContextMenuCoordinator.DismissActive();
-
-        if (!HasJumpHighlights())
-            return;
-
-        if (e.Source is Control control)
-        {
-            if (warningIssuesButton != null &&
-                (control == warningIssuesButton || control.FindAncestorOfType<Button>() == warningIssuesButton))
+            if (bypassUnsavedClosePrompt || !changesMade)
                 return;
 
-            ListBoxItem? item = control.FindAncestorOfType<ListBoxItem>();
-            if (item?.DataContext is ModRefViewModel vm && vm.IsJumpHighlighted)
+            e.Cancel = true;
+            if (unsavedClosePromptInFlight)
                 return;
+
+            unsavedClosePromptInFlight = true;
+            try
+            {
+                UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+                    this,
+                    manager.SelectedModlist.Name,
+                    "exit");
+                switch (choice)
+                {
+                    case UnsavedChangesChoice.Cancel:
+                        return;
+                    case UnsavedChangesChoice.Save:
+                        await SaveCurrentModpackAsync();
+                        break;
+                    default:
+                        _ = await SetAndMarkChangesAsync(false);
+                        break;
+                }
+
+                bypassUnsavedClosePrompt = true;
+                Close();
+            }
+            finally
+            {
+                bypassUnsavedClosePrompt = false;
+                unsavedClosePromptInFlight = false;
+            }
         }
 
-        ClearJumpHighlights();
+        private void WindowPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            ContextMenuCoordinator.DismissActive();
+
+            if (!HasJumpHighlights())
+                return;
+
+            if (e.Source is Control control)
+            {
+                if (warningIssuesButton != null &&
+                    (control == warningIssuesButton || control.FindAncestorOfType<Button>() == warningIssuesButton))
+                {
+                    return;
+                }
+
+                ListBoxItem? item = control.FindAncestorOfType<ListBoxItem>();
+                if (item?.DataContext is ModRefViewModel vm && vm.IsJumpHighlighted)
+                    return;
+            }
+
+            ClearJumpHighlights();
+        }
     }
 }

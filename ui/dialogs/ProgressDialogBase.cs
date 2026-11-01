@@ -1,7 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
+using ModHearth.UI.Theme;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Dialogs
 {
     /// <summary>
     /// Generic dialog helper class
@@ -20,15 +21,15 @@ namespace ModHearth.UI
         }
 
         protected IProgress<string> CreateProgressReporter(TextBlock statusTextBlock) => new Progress<string>(msg =>
-                                                                                                  {
-                                                                                                      Dispatcher.UIThread.Post(() => statusTextBlock.Text = msg);
-                                                                                                  });
+            {
+                Dispatcher.UIThread.Post(() => statusTextBlock.Text = msg);
+            });
 
         protected void InitializeCancellation(Button cancelButton) => cancelButton.Click += (_, _) =>
-                                                                               {
-                                                                                   Cts?.Cancel();
-                                                                                   Close(false);
-                                                                               };
+            {
+                Cts?.Cancel();
+                Close(false);
+            };
 
         protected override void OnClosed(EventArgs e)
         {

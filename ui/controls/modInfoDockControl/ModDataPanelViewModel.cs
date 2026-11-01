@@ -1,22 +1,23 @@
 using System.Collections.ObjectModel;
 using Dock.Model.Mvvm.Controls;
 
-namespace ModHearth.UI;
-
-public sealed class ModDataPanelViewModel : Tool
+namespace ModHearth.UI.Controls.ModInfoDockControl
 {
-    public ObservableCollection<ModDataEntryViewModel> Entries { get; } = [];
-
-    private bool hasSelection;
-    public bool HasSelection
+    public sealed class ModDataPanelViewModel : Tool
     {
-        get => hasSelection;
-        set
+        public ObservableCollection<ModDataEntryViewModel> Entries { get; } = [];
+
+        private bool hasSelection;
+        public bool HasSelection
         {
-            if (hasSelection == value)
-                return;
-            hasSelection = value;
-            OnPropertyChanged();
+            get => hasSelection;
+            set
+            {
+                if (hasSelection == value)
+                    return;
+                hasSelection = value;
+                OnPropertyChanged();
+            }
         }
     }
 }

@@ -1,5 +1,8 @@
 ﻿using System.Collections.Concurrent;
+using ModHearth.Models;
 using ModHearth.Utilities;
+using ModHearth.Utilities.Logging;
+using ModHearth.Utilities.Steam;
 
 namespace ModHearth
 {
@@ -43,13 +46,11 @@ namespace ModHearth
             if (modref == null)
                 return false;
 
-            if (ConfigManager.TryParsePositiveSteamId(modref.steamID, out steamItemId))
+            if (ConfigManager.TryParsePositiveSteamId(modref.SteamID, out steamItemId))
                 return true;
 
-            return ConfigManager.TryExtractSteamWorkshopItemIdFromPath(modref.path, out steamItemId);
+            return ConfigManager.TryExtractSteamWorkshopItemIdFromPath(modref.Path, out steamItemId);
         }
-
-        public static bool CanUnsubscribeSteamMod(ModReference modref) => TryGetSteamWorkshopItemId(modref, out _);
 
         public void SplitActionableMods(
             IEnumerable<ModReference>? mods,
@@ -72,7 +73,7 @@ namespace ModHearth
 
                 // Include all duplicates in the actionable set
                 string key = modref.DFHackCompatibleString();
-                IEnumerable<ModReference> allVersions = duplicateModRefs.TryGetValue(key, out var list)
+                IEnumerable<ModReference> allVersions = duplicateModRefs.TryGetValue(key, out List<ModReference>? list)
                     ? (IEnumerable<ModReference>)list
                     : [modref];
 
@@ -87,34 +88,6 @@ namespace ModHearth
                     TryAddSteamActionableMod(version, uniqueSteamIds, steamActionableMods);
                 }
             }
-        }
-
-        public bool UnsubscribeSteamMod(ModReference modref, out string message)
-        {
-            List<string> failures = UnsubscribeSteamMods([modref]);
-            if (failures.Count == 0)
-            {
-                message = "Unsubscribe request sent to Steam.";
-                SteamConnectionLogger.LogInfo(message);
-                return true;
-            }
-
-            message = failures[0];
-            return false;
-        }
-
-        public bool RedownloadSteamMod(ModReference modref, out string message)
-        {
-            List<string> failures = RedownloadSteamMods([modref]);
-            if (failures.Count == 0)
-            {
-                message = "Redownload request sent to Steam.";
-                SteamConnectionLogger.LogInfo(message);
-                return true;
-            }
-
-            message = failures[0];
-            return false;
         }
 
         public List<string> UnsubscribeSteamMods(IEnumerable<ModReference>? mods)
@@ -167,14 +140,14 @@ namespace ModHearth
                         SteamConnectionLogger.LogInfo($"Requested Steam API unsubscribe for workshop item {steamItemId}.");
 
                         // Attempt to delete the mod folder
-                        if (!string.IsNullOrWhiteSpace(modrefToDelete.path) && Directory.Exists(modrefToDelete.path))
+                        if (!string.IsNullOrWhiteSpace(modrefToDelete.Path) && Directory.Exists(modrefToDelete.Path))
                         {
                             try
                             {
-                                Directory.Delete(modrefToDelete.path, true);
-                                string sourceFolder = Path.GetDirectoryName(modrefToDelete.path) ?? string.Empty;
-                                ModDeletionNotifier.NotifyDeleted((msg, icon) => ShowNotification(msg, icon), modrefToDelete.path, sourceFolder);
-                                SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.path}");
+                                Directory.Delete(modrefToDelete.Path, true);
+                                string sourceFolder = Path.GetDirectoryName(modrefToDelete.Path) ?? string.Empty;
+                                ModDeletionNotifier.NotifyDeleted((msg, icon) => ShowNotification(msg, icon), modrefToDelete.Path, sourceFolder);
+                                SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.Path}");
 
                                 if (!string.IsNullOrWhiteSpace(modrefToDelete.ID))
                                 {
@@ -186,13 +159,13 @@ namespace ModHearth
                             }
                             catch (Exception ex)
                             {
-                                failureBag.Add($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
-                                SteamConnectionLogger.LogError($"Failed to delete mod folder '{modrefToDelete.path}': {ex.Message}");
+                                failureBag.Add($"Failed to delete mod folder '{modrefToDelete.Path}': {ex.Message}");
+                                SteamConnectionLogger.LogError($"Failed to delete mod folder '{modrefToDelete.Path}': {ex.Message}");
                             }
                         }
                         else
                         {
-                            SteamConnectionLogger.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.path}");
+                            SteamConnectionLogger.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.Path}");
                         }
                     }
                 });
@@ -217,7 +190,7 @@ namespace ModHearth
 
                     if (successfullyUnsubscribedMods.Count > 0)
                     {
-                        HashSet<string> activeIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+                        HashSet<string> activeIds = new(enabledMods.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
                         ModUpdateLogger.LogUnsubscribe(successfullyUnsubscribedMods, activeIds);
                     }
                 }
@@ -308,7 +281,7 @@ namespace ModHearth
                 List<ModReference> successfullyRedownloadedMods = [.. steamModRefs.Values];
                 if (successfullyRedownloadedMods.Count > 0)
                 {
-                    HashSet<string> activeIds = new(enabledMods.Select(m => m.id), StringComparer.OrdinalIgnoreCase);
+                    HashSet<string> activeIds = new(enabledMods.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
                     ModUpdateLogger.LogRedownload(successfullyRedownloadedMods, activeIds);
                 }
 
@@ -344,7 +317,7 @@ namespace ModHearth
                 }
                 else
                 {
-                    string modName = modref.name ?? modref.ID ?? "Unknown mod";
+                    string modName = modref.Name ?? modref.ID ?? "Unknown mod";
                     failures.Add($"Steam Workshop item ID not available for \'{modName}\'.");
                 }
             }
@@ -367,6 +340,7 @@ namespace ModHearth
         }
 
         private static bool TryDetectSteamProcess(out List<string> processNames) => SteamProcessHelper.TryDetectSteamProcess(out processNames);
+
 
         private static bool TryAddLocalActionableMod(
             ModReference modref,
@@ -410,13 +384,14 @@ namespace ModHearth
 
         private static string BuildLocalActionKey(ModReference modref)
         {
-            string localPath = ConfigManager.NormalizeFileSystemPath(modref.path ?? string.Empty);
+            string localPath = ConfigManager.NormalizeFileSystemPath(modref.Path ?? string.Empty);
             if (!string.IsNullOrWhiteSpace(localPath))
                 return localPath;
 
             return modref.ID?.Trim() ?? string.Empty;
         }
 
-        public void ShowNotification(string message, string icon) => Avalonia.Threading.Dispatcher.UIThread.Post(() => {TriggerNotification(message, icon);});
+        public void ShowNotification(string message, string icon) => TriggerNotification(message, icon);
+
     }
 }

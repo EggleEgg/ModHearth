@@ -1,117 +1,122 @@
 using Avalonia.Controls;
+using ModHearth.Models;
+using ModHearth.UI.ModList;
+using ModHearth.UI.Rendering;
+using ModHearth.UI.ViewModels;
 
-namespace ModHearth.UI;
-
-public partial class MainWindow
+namespace ModHearth.UI
 {
-    private void UpdateCachedIndicators() => ModListIndicatorUpdater.UpdateCachedIndicators(modViewMap.Values, manager.GetInstalledCacheModIds());
-
-    private int lastRelationshipRulesVersion = -1;
-    private string? lastWarningTooltip;
-
-    private void UpdateRelationshipBadges()
+    public partial class MainWindow
     {
-        int currentVersion = manager.GetRelationshipRulesVersion();
-        if (currentVersion == lastRelationshipRulesVersion)
-            return;
+        private void UpdateCachedIndicators() => ModListIndicatorUpdater.UpdateCachedIndicators(modViewMap.Values, manager.GetInstalledCacheModIds());
 
-        ModListIndicatorUpdater.UpdateRelationshipBadges(modViewMap.Values, manager.GetModRelationshipRules());
-        lastRelationshipRulesVersion = currentVersion;
-    }
+        private int lastRelationshipRulesVersion = -1;
+        private string? lastWarningTooltip;
 
-    private void UpdateProblemIndicators()
-    {
-        problemMods = ModListIndicatorUpdater.UpdateProblemIndicators(manager, modViewMap.Values);
-        problemModIndex = 0;
-        UpdateWarningIssuesButton();
-    }
-
-    private void UpdateDuplicateWarningIndicators()
-    {
-        duplicateWarningMods = ModListIndicatorUpdater.UpdateDuplicateWarningIndicators(manager, modViewMap.Values);
-        duplicateWarningIndex = 0;
-        UpdateWarningIssuesButton();
-    }
-
-    private void UpdateWarningIssuesButton()
-    {
-        int problemCount = problemMods?.Count ?? 0;
-        int duplicateCount = duplicateWarningMods?.Count ?? 0;
-        bool hasProblems = problemCount > 0;
-        bool hasDuplicates = duplicateCount > 0;
-        bool hasIssues = hasProblems || hasDuplicates;
-
-        warningIssuesButton.IsVisible = hasIssues;
-        warningIssuesButton.IsEnabled = hasIssues;
-        
-        string? tooltip = ModListIndicatorUpdater.BuildWarningIssuesTooltip(problemCount, duplicateCount);
-        if (tooltip != lastWarningTooltip)
+        private void UpdateRelationshipBadges()
         {
-            lastWarningTooltip = tooltip;
-            ToolTip.SetTip(warningIssuesButton, tooltip);
+            int currentVersion = manager.GetRelationshipRulesVersion();
+            if (currentVersion == lastRelationshipRulesVersion)
+                return;
+
+            ModListIndicatorUpdater.UpdateRelationshipBadges(modViewMap.Values, manager.GetModRelationshipRules());
+            lastRelationshipRulesVersion = currentVersion;
         }
 
-        if (!hasIssues || warningIssuesIcon == null)
-            return;
-
-        string iconName;
-        if (hasProblems && hasDuplicates)
-            iconName = "warningErrorIcon.svg";
-        else if (hasProblems)
-            iconName = "errorIcon.svg";
-        else iconName = "warningIcon.svg";
-
-        warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
-            ?? warningIssuesIcon.Source;
-    }
-
-    private ModRefViewModel? currentJumpHighlighted;
-
-    private void JumpToNextProblem()
-    {
-        if (problemMods != null && problemMods.Count > 0)
+        private void UpdateProblemIndicators()
         {
-            JumpToNextIssue(problemMods, ref problemModIndex);
-            return;
+            problemMods = ModListIndicatorUpdater.UpdateProblemIndicators(manager, modViewMap.Values);
+            problemModIndex = 0;
+            UpdateWarningIssuesButton();
         }
 
-        if (duplicateWarningMods != null && duplicateWarningMods.Count > 0)
-            JumpToNextIssue(duplicateWarningMods, ref duplicateWarningIndex);
-    }
+        private void UpdateDuplicateWarningIndicators()
+        {
+            duplicateWarningMods = ModListIndicatorUpdater.UpdateDuplicateWarningIndicators(manager, modViewMap.Values);
+            duplicateWarningIndex = 0;
+            UpdateWarningIssuesButton();
+        }
 
-    private void JumpToNextIssue(List<DFHMod> issues, ref int index)
-    {
-        if (issues.Count == 0)
-            return;
+        private void UpdateWarningIssuesButton()
+        {
+            int problemCount = problemMods?.Count ?? 0;
+            int duplicateCount = duplicateWarningMods?.Count ?? 0;
+            bool hasProblems = problemCount > 0;
+            bool hasDuplicates = duplicateCount > 0;
+            bool hasIssues = hasProblems || hasDuplicates;
 
-        if (index >= issues.Count)
-            index = 0;
+            warningIssuesButton.IsVisible = hasIssues;
+            warningIssuesButton.IsEnabled = hasIssues;
 
-        DFHMod target = issues[index];
-        index = (index + 1) % issues.Count;
+            string? tooltip = ModListIndicatorUpdater.BuildWarningIssuesTooltip(problemCount, duplicateCount);
+            if (tooltip != lastWarningTooltip)
+            {
+                lastWarningTooltip = tooltip;
+                ToolTip.SetTip(warningIssuesButton, tooltip);
+            }
 
-        ModRefViewModel? vm = activeMods.FirstOrDefault(m => m.DfMod == target);
-        if (vm == null)
-            return;
+            if (!hasIssues || warningIssuesIcon == null)
+                return;
 
-        if (currentJumpHighlighted != null)
+            string iconName;
+            if (hasProblems && hasDuplicates)
+                iconName = "warningErrorIcon.svg";
+            else if (hasProblems)
+                iconName = "errorIcon.svg";
+            else iconName = "warningIcon.svg";
+
+            warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
+                ?? warningIssuesIcon.Source;
+        }
+
+        private ModRefViewModel? currentJumpHighlighted;
+
+        private void JumpToNextProblem()
+        {
+            if (problemMods != null && problemMods.Count > 0)
+            {
+                JumpToNextIssue(problemMods, ref problemModIndex);
+                return;
+            }
+
+            if (duplicateWarningMods != null && duplicateWarningMods.Count > 0)
+                JumpToNextIssue(duplicateWarningMods, ref duplicateWarningIndex);
+        }
+
+        private void JumpToNextIssue(List<DfhMod> issues, ref int index)
+        {
+            if (issues.Count == 0)
+                return;
+
+            if (index >= issues.Count)
+                index = 0;
+
+            DfhMod target = issues[index];
+            index = (index + 1) % issues.Count;
+
+            ModRefViewModel? vm = activeMods.FirstOrDefault(m => m.DfMod == target);
+            if (vm == null)
+                return;
+
+            if (currentJumpHighlighted != null)
+                currentJumpHighlighted.IsJumpHighlighted = false;
+
+            vm.IsJumpHighlighted = true;
+            currentJumpHighlighted = vm;
+            rightModlist.SelectedItems?.Clear();
+            _ = (rightModlist.SelectedItems?.Add(vm));
+            rightModlist.ScrollIntoView(vm);
+            ShowModInfo(vm.ModReference);
+        }
+
+        private bool HasJumpHighlights() => currentJumpHighlighted != null;
+
+        private void ClearJumpHighlights()
+        {
+            if (currentJumpHighlighted == null)
+                return;
             currentJumpHighlighted.IsJumpHighlighted = false;
-
-        vm.IsJumpHighlighted = true;
-        currentJumpHighlighted = vm;
-        rightModlist.SelectedItems?.Clear();
-        _ = (rightModlist.SelectedItems?.Add(vm));
-        rightModlist.ScrollIntoView(vm);
-        ShowModInfo(vm.ModReference);
-    }
-
-    private bool HasJumpHighlights() => currentJumpHighlighted != null;
-
-    private void ClearJumpHighlights()
-    {
-        if (currentJumpHighlighted == null)
-            return;
-        currentJumpHighlighted.IsJumpHighlighted = false;
-        currentJumpHighlighted = null;
+            currentJumpHighlighted = null;
+        }
     }
 }

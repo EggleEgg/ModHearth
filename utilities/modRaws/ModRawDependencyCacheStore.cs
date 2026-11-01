@@ -1,6 +1,7 @@
 using System.Text.Json;
+using ModHearth.Models;
 
-namespace ModHearth.Utilities
+namespace ModHearth.Utilities.ModRaws
 {
     internal static class ModRawDependencyCacheStore
     {
@@ -65,8 +66,7 @@ namespace ModHearth.Utilities
             }
         }
 
-        public static string BuildKey(string modId, string numericVersion)
-            => $"{modId}|{numericVersion}";
+        public static string BuildKey(string modId, string numericVersion) => $"{modId}|{numericVersion}";
 
         private sealed class CacheFile
         {

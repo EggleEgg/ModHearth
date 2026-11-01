@@ -2,7 +2,7 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Markup.Xaml;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Converters
 {
     public class SearchFilterModeToVisibilityConverter : MarkupExtension, IValueConverter
     {
@@ -17,7 +17,7 @@ namespace ModHearth.UI
             if (paramStr != null && paramStr.StartsWith('!'))
             {
                 invert = true;
-                paramStr = paramStr.Substring(1);
+                paramStr = paramStr[1..];
             }
 
             switch (value)
@@ -31,8 +31,10 @@ namespace ModHearth.UI
                                 matches = currentMode == targetMode;
                                 break;
                             default:
-                                if (paramStr != null && Enum.TryParse<SearchFilterMode>(paramStr, out var parsedMode))
+                                if (paramStr != null && Enum.TryParse(paramStr, out SearchFilterMode parsedMode))
+                                {
                                     matches = currentMode == parsedMode;
+                                }
                                 else
                                 {
                                     matches = true;

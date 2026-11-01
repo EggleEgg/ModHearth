@@ -1,11 +1,13 @@
 <!-- Specifically used for the "search by color" filter in ModSearchBar -->
 
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="clr-namespace:ModHearth.UI"
-             xmlns:models="clr-namespace:ModHearth.Models"
-             x:Class="ModHearth.UI.ModColorPicker"
-             x:Name="root">
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:converters="using:ModHearth.UI.Converters"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
+  xmlns:models="clr-namespace:ModHearth.Models"
+  x:Class="ModHearth.UI.ModColorPicker"
+  x:Name="root">
   <UserControl.Styles>
     <Style Selector="Border.color-swatch">
       <Setter Property="Width" Value="20"/>
@@ -18,10 +20,11 @@
 
   <Border Background="Transparent" Tapped="Picker_Tapped">
     <Grid ColumnDefinitions="*,Auto">
-      <ScrollViewer Name="ColorScrollViewer"
-                    HorizontalScrollBarVisibility="Auto"
-                    VerticalScrollBarVisibility="Disabled"
-                    AllowAutoHide="False">
+      <ScrollViewer
+        Name="ColorScrollViewer"
+        HorizontalScrollBarVisibility="Auto"
+        VerticalScrollBarVisibility="Disabled"
+        AllowAutoHide="False">
 
         <ScrollViewer.Styles>
           <Style Selector="ScrollBar:horizontal">
@@ -41,26 +44,39 @@
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="models:ModColorInfo">
-                <Border Classes="color-swatch"
-                        BorderBrush="{Binding #root.BorderBrush}"
-                        Background="{Binding Brush}"
-                        Tapped="Color_Tapped"
-                        ToolTip.Tip="{Binding Name}">
-                  <Image IsVisible="{Binding IsSelected}" Source="{ui:AssetImage cancelBorderIcon}"
-                         HorizontalAlignment="Center" VerticalAlignment="Center" Margin="3"/>
+                <Border
+                  Classes="color-swatch"
+                  BorderBrush="{Binding #root.BorderBrush}"
+                  Background="{Binding Color, Converter={x:Static converters:ColorToBrushConverter.Instance}}"
+                  Tapped="Color_Tapped"
+                  ToolTip.Tip="{Binding Name}">
+                  <Image
+                    IsVisible="{Binding IsSelected}"
+                    Source="{render:AssetImage cancelBorderIcon}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Margin="3"/>
                 </Border>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </StackPanel>
       </ScrollViewer>
-      <Button x:Name="OpenColorPickerButton" Grid.Column="1"
-              Command="{Binding #root.OpenColorPickerCommand}"
-              VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-              Margin="4,2,0,2" Width="22" Height="22" BorderThickness="0" Padding="0"
-              IsVisible="{Binding #root.HasSelectedColors}"
-              ToolTip.Tip="Open the color selection menu" >
-        <Image Source="{ui:AssetImage grid2x2Icon}"/>
+      <Button
+        x:Name="OpenColorPickerButton"
+        Grid.Column="1"
+        Command="{Binding #root.OpenColorPickerCommand}"
+        VerticalAlignment="Center"
+        HorizontalContentAlignment="Center"
+        VerticalContentAlignment="Center"
+        Margin="4,2,0,2"
+        Width="22"
+        Height="22"
+        BorderThickness="0"
+        Padding="0"
+        IsVisible="{Binding #root.HasSelectedColors}"
+        ToolTip.Tip="Open the color selection menu" >
+        <Image Source="{render:AssetImage grid2x2Icon}"/>
       </Button>
     </Grid>
   </Border>

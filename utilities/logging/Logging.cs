@@ -1,4 +1,6 @@
-﻿namespace ModHearth.Utilities.Logging
+﻿using ModHearth.Models;
+
+namespace ModHearth.Utilities.Logging
 {
     /// <summary>
     /// Logging for debugging search actions
@@ -20,8 +22,6 @@
         public static void Log(string message) => Console.WriteLine($"[DIAG] {message}");
 
         public static void LogRunDf(string message) => Console.WriteLine($"[DfRunner] {message}");
-
-
     }
     public static class ReloadLogging
     {

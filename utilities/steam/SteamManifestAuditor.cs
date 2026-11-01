@@ -1,4 +1,4 @@
-﻿namespace ModHearth.Utilities
+﻿namespace ModHearth.Utilities.Steam
 {
     internal static class SteamManifestAuditor
     {
@@ -23,7 +23,7 @@
 
             SteamConnectionLogger.LogInfo("Starting Steam workshop manifest audit...");
 
-            var acfPaths = ConfigManager.GetSteamWorkshopAcfPaths();
+            IEnumerable<string> acfPaths = ConfigManager.GetSteamWorkshopAcfPaths();
             List<ulong> missingItemIds = [];
 
             foreach (string acfPath in acfPaths)
@@ -66,14 +66,16 @@
                 return;
 
             string content = File.ReadAllText(acfPath);
-            var root = SteamAcfKeyValueParser.Parse(content);
+            Dictionary<string, object> root = SteamAcfKeyValueParser.Parse(content);
 
             if (!root.TryGetValue("AppWorkshop", out object? appObj) || appObj is not Dictionary<string, object> appDict)
                 return;
 
             if (!appDict.TryGetValue("WorkshopItemsInstalled", out object? installedObj) ||
                 installedObj is not Dictionary<string, object> installedDict)
+            {
                 return;
+            }
 
             // The ACF is usually in steamapps/ or steamapps/workshop/
             // The content is in steamapps/workshop/content/975370/
@@ -84,7 +86,7 @@
                 ? Path.Combine(steamAppsDir, "content", ConfigManager.DwarfFortressSteamAppId)
                 : Path.Combine(steamAppsDir, "workshop", "content", ConfigManager.DwarfFortressSteamAppId);
 
-            foreach (var kvp in installedDict)
+            foreach (KeyValuePair<string, object> kvp in installedDict)
             {
                 if (!ulong.TryParse(kvp.Key, out ulong itemId))
                     continue;

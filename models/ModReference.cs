@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using ModHearth.Metadata;
 
-namespace ModHearth
+namespace ModHearth.Models
 {
     public enum ModSource
     {
@@ -17,33 +17,33 @@ namespace ModHearth
     {
         // Data found in modinfo files.
         public string ID { get; set; }
-        public string numericVersion { get; set; }
-        public string displayedVersion { get; set; }
-        public string earliestCompatibleNumericVersion { get; set; }
-        public string earliestCompatibleDisplayedVersion { get; set; }
-        public string author { get; set; }
-        public string name { get; set; }
-        public string description { get; set; }
+        public string NumericVersion { get; set; }
+        public string DisplayedVersion { get; set; }
+        public string EarliestCompatibleNumericVersion { get; set; }
+        public string EarliestCompatibleDisplayedVersion { get; set; }
+        public string Author { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
 
         public ModColor AssignedColor { get; set; }
 
-        public string steamName { get; set; }
-        public string steamDescription { get; set; }
-        public string steamID { get; set; }
+        public string SteamName { get; set; }
+        public string SteamDescription { get; set; }
+        public string SteamID { get; set; }
 
-        public List<string> requireBeforeMe { get; set; }
-        public List<string> requireAfterMe { get; set; }
-        public List<string> requireIds { get; set; }
-        public List<string> conflictsWith { get; set; }
+        public List<string> RequireBeforeMe { get; set; }
+        public List<string> RequireAfterMe { get; set; }
+        public List<string> RequireIds { get; set; }
+        public List<string> ConflictsWith { get; set; }
 
         // Path of mod folder, not path to info.
-        public string path { get; set; }
+        public string Path { get; set; }
 
         // Is this modref missing a version (one mod did this, dfhack set version to 1 so this matches it).
         public bool MissingVersion { get; set; } = false;
 
         // Does this mod have mods it needs loaded before it, mods it needs loaded after it, or conflicts.
-        public bool problematic { get; set; } = false;
+        public bool Problematic { get; set; } = false;
         public DateTime? LastModifiedTime { get; set; }
         public bool IsIgnored { get; set; } = false;
 
@@ -52,26 +52,26 @@ namespace ModHearth
         public ModReference()
         {
             ID = string.Empty;
-            numericVersion = string.Empty;
-            displayedVersion = string.Empty;
-            earliestCompatibleNumericVersion = string.Empty;
-            earliestCompatibleDisplayedVersion = string.Empty;
-            author = string.Empty;
-            name = string.Empty;
-            description = string.Empty;
-            steamName = string.Empty;
-            steamDescription = string.Empty;
-            steamID = string.Empty;
-            path = string.Empty;
+            NumericVersion = string.Empty;
+            DisplayedVersion = string.Empty;
+            EarliestCompatibleNumericVersion = string.Empty;
+            EarliestCompatibleDisplayedVersion = string.Empty;
+            Author = string.Empty;
+            Name = string.Empty;
+            Description = string.Empty;
+            SteamName = string.Empty;
+            SteamDescription = string.Empty;
+            SteamID = string.Empty;
+            Path = string.Empty;
             Source = ModSource.Local;
-            problematic = false;
+            Problematic = false;
             AssignedColor = ModColor.None;
             IsIgnored = false;
 
-            requireBeforeMe = [];
-            requireAfterMe = [];
-            requireIds = [];
-            conflictsWith = [];
+            RequireBeforeMe = [];
+            RequireAfterMe = [];
+            RequireIds = [];
+            ConflictsWith = [];
         }
 
 
@@ -79,29 +79,29 @@ namespace ModHearth
         {
             Dictionary<string, string> mmd = modMemoryData;
             ID = mmd["id"];
-            numericVersion = mmd["numeric_version"];
-            displayedVersion = mmd["displayed_version"];
-            earliestCompatibleNumericVersion = mmd["earliest_compatible_numeric_version"];
-            earliestCompatibleDisplayedVersion = mmd["earliest_compatible_displayed_version"];
-            author = mmd["author"];
-            name = mmd["name"];
-            description = mmd["description"];
-            path = Path.Combine(mmd["src_dir"]);
-            steamID = mmd["steam_file_id"]; // FIXME: dubious
-            steamName = mmd["steam_title"];
+            NumericVersion = mmd["numeric_version"];
+            DisplayedVersion = mmd["displayed_version"];
+            EarliestCompatibleNumericVersion = mmd["earliest_compatible_numeric_version"];
+            EarliestCompatibleDisplayedVersion = mmd["earliest_compatible_displayed_version"];
+            Author = mmd["author"];
+            Name = mmd["name"];
+            Description = mmd["description"];
+            Path = System.IO.Path.Combine(mmd["src_dir"]);
+            SteamID = mmd["steam_file_id"]; // FIXME: dubious
+            SteamName = mmd["steam_title"];
             AssignedColor = ModColorMetadataStore.GetModColor(ID);
-            steamDescription = mmd["steam_description"];
+            SteamDescription = mmd["steam_description"];
 
-            Source = string.IsNullOrWhiteSpace(steamID) ? ModSource.Local : ModSource.Steam;
+            Source = string.IsNullOrWhiteSpace(SteamID) ? ModSource.Local : ModSource.Steam;
             IsIgnored = false; // Initialize the new property
 
-            requireBeforeMe = [];
-            requireAfterMe = [];
-            requireIds = [];
-            conflictsWith = [];
+            RequireBeforeMe = [];
+            RequireAfterMe = [];
+            RequireIds = [];
+            ConflictsWith = [];
 
             // In theory info file is always present, but handle missing files gracefully.
-            string? modInfoPath = ResolveInfoPath(path);
+            string? modInfoPath = ResolveInfoPath(Path);
             if (!string.IsNullOrWhiteSpace(modInfoPath))
             {
                 string modInfo = File.ReadAllText(modInfoPath);
@@ -117,54 +117,68 @@ namespace ModHearth
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        requireBeforeMe.Add(value);
+                        RequireBeforeMe.Add(value);
                 }
 
                 foreach (Match match in requireAfterMatches)
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        requireAfterMe.Add(value);
+                        RequireAfterMe.Add(value);
                 }
 
                 foreach (Match match in conflictsMatches)
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        conflictsWith.Add(value);
+                        ConflictsWith.Add(value);
                 }
 
                 foreach (Match match in requiresMatches)
                 {
                     string value = match.Groups[1].Value.Trim();
                     if (!string.IsNullOrEmpty(value))
-                        requireIds.Add(value);
+                        RequireIds.Add(value);
                 }
             }
             else
             {
-                string expected = Path.Combine(path, "info.txt");
-                Console.WriteLine($"   Warning: info.txt missing for mod '{name}' at '{expected}'. Skipping dependency parsing.");
+                string expected = System.IO.Path.Combine(Path, "info.txt");
+                Console.WriteLine($"   Warning: info.txt missing for mod '{Name}' at '{expected}'. Skipping dependency parsing.");
             }
 
             // Set problematic based on if this mod has extra needs.
-            problematic = requireBeforeMe.Count != 0 || requireAfterMe.Count != 0 || requireIds.Count != 0 || conflictsWith.Count != 0;
+            Problematic = RequireBeforeMe.Count != 0 || RequireAfterMe.Count != 0 || RequireIds.Count != 0 || ConflictsWith.Count != 0;
 
         }
 
+        private sealed record DfModSnapshot(string Id, string NumericVersion, DfhMod Mod);
+        private volatile DfModSnapshot? dfModSnapshot;
+
         // Use this mods ID and numvericVersion to create the DFHMod.
-        public DFHMod ToDFHMod()
+        public DfhMod ToDFHMod()
         {
+            string id = ID;
+            string numeric = NumericVersion;
+
+            DfModSnapshot? snapshot = dfModSnapshot;
+            if (snapshot != null
+                && string.Equals(snapshot.Id, id, StringComparison.Ordinal)
+                && string.Equals(snapshot.NumericVersion, numeric, StringComparison.Ordinal))
+            {
+                return snapshot.Mod;
+            }
+
             // DFHack does this to version, visible in the JSON file.
-            int version = int.Parse(numericVersion.Replace(".", ""));
-            DFHMod mod = new(ID, version);
+            DfhMod mod = new(id, int.Parse(numeric.Replace(".", "")));
+            dfModSnapshot = new DfModSnapshot(id, numeric, mod);
             return mod;
         }
 
         // Functionally get the ToString/HashCode of this mod as a DFHMod. Mainly used for HashMap keys.
         public string DFHackCompatibleString()
         {
-            DFHMod temp = ToDFHMod();
+            DfhMod temp = ToDFHMod();
             return temp.ToString();
         }
 
@@ -173,7 +187,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(modPath) || !Directory.Exists(modPath))
                 return null;
 
-            string infoPath = Path.Combine(modPath, "info.txt");
+            string infoPath = System.IO.Path.Combine(modPath, "info.txt");
             if (File.Exists(infoPath))
                 return infoPath;
 
@@ -181,7 +195,7 @@ namespace ModHearth
             {
                 return Directory.EnumerateFiles(modPath)
                     .FirstOrDefault(file =>
-                        string.Equals(Path.GetFileName(file), "info.txt", StringComparison.OrdinalIgnoreCase));
+                        string.Equals(System.IO.Path.GetFileName(file), "info.txt", StringComparison.OrdinalIgnoreCase));
             }
             catch
             {

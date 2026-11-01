@@ -1,30 +1,53 @@
-namespace ModHearth.Utilities;
+using System.IO.Enumeration;
 
-/// <summary>
-/// Returns the latest last-write time for a directory and its files.
-/// </summary>
-internal static class FolderTimestampHelper
+namespace ModHearth.Utilities
 {
-    public static DateTime? GetLatestModifiedTimeUtc(string? directoryPath, Action<Exception>? onError = null)
+    /// <summary>
+    /// Returns the latest last-write time for a directory and its files.
+    /// </summary>
+    internal static class FolderTimestampHelper
     {
-        if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
-            return null;
+        // Same semantics as Directory.EnumerateFiles(path, "*", AllDirectories): hidden/system files
+        // included, inaccessible entries throw (callers already handle that).
+        private static readonly EnumerationOptions AllFilesRecursive = new()
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = 0,
+            IgnoreInaccessible = false,
+            MatchType = MatchType.Win32,
+            ReturnSpecialDirectories = false
+        };
 
-        try
+        public static DateTime? GetLatestModifiedTimeUtc(string? directoryPath, Action<Exception>? onError = null)
         {
-            DateTime latest = Directory.GetLastWriteTimeUtc(directoryPath);
-            foreach (string file in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+                return null;
+
+            try
             {
-                DateTime fileTime = File.GetLastWriteTimeUtc(file);
-                if (fileTime > latest)
-                    latest = fileTime;
+                long latestTicks = Directory.GetLastWriteTimeUtc(directoryPath).Ticks;
+
+                FileSystemEnumerable<long> fileTimes = new(
+                    directoryPath,
+                    static (ref FileSystemEntry entry) => entry.LastWriteTimeUtc.UtcTicks,
+                    AllFilesRecursive)
+                {
+                    ShouldIncludePredicate = static (ref FileSystemEntry entry) => !entry.IsDirectory
+                };
+
+                foreach (long ticks in fileTimes)
+                {
+                    if (ticks > latestTicks)
+                        latestTicks = ticks;
+                }
+
+                return new DateTime(latestTicks, DateTimeKind.Utc);
             }
-            return latest;
-        }
-        catch (Exception ex)
-        {
-            onError?.Invoke(ex);
-            return null;
+            catch (Exception ex)
+            {
+                onError?.Invoke(ex);
+                return null;
+            }
         }
     }
 }

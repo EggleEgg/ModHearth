@@ -1,46 +1,48 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using ModHearth.Models;
 
-namespace ModHearth.UI;
-
-public partial class App : Application
+namespace ModHearth.UI
 {
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
-
-    public override void OnFrameworkInitializationCompleted()
+    public partial class App : Application
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        public override void Initialize() => AvaloniaXamlLoader.Load(this);
+
+        public override void OnFrameworkInitializationCompleted()
         {
-            desktop.MainWindow = new MainWindow();
-
-            if (IsSmokeTestWindowEnabled())
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                var window = desktop.MainWindow;
-                window.Opened += (_, _) =>
-                {
-                    Dispatcher.UIThread.Post(() => window.Close());
-                };
+                desktop.MainWindow = new MainWindow();
 
-                var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                timer.Tick += (_, _) =>
+                if (IsSmokeTestWindowEnabled())
                 {
-                    timer.Stop();
-                    if (window.IsVisible)
-                        window.Close();
-                };
-                timer.Start();
+                    Window window = desktop.MainWindow;
+                    window.Opened += (_, _) =>
+                    {
+                        Dispatcher.UIThread.Post(() => window.Close());
+                    };
+
+                    DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(5) };
+                    timer.Tick += (_, _) =>
+                    {
+                        timer.Stop();
+                        if (window.IsVisible)
+                            window.Close();
+                    };
+                    timer.Start();
+                }
             }
+
+            base.OnFrameworkInitializationCompleted();
+
+            if (DevMode.IsEnabled)
+                //Use F12 key to open devtools
+                _ = this.AttachDeveloperTools();
         }
 
-        base.OnFrameworkInitializationCompleted();
-
-        if (DevMode.IsEnabled)
-            //Use F12 key to open devtools
-            _ = this.AttachDeveloperTools();
+        private static bool IsSmokeTestWindowEnabled() => string.Equals(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW"), "1", StringComparison.OrdinalIgnoreCase);
     }
-
-    private static bool IsSmokeTestWindowEnabled()
-        => string.Equals(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW"), "1", StringComparison.OrdinalIgnoreCase);
 }

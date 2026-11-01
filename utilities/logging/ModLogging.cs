@@ -1,30 +1,33 @@
-namespace ModHearth;
-
-internal sealed class Logger(string tag, Action<string> sink)
+namespace ModHearth
 {
-    private readonly object gate = new();
-    private readonly string tag = tag;
-    private readonly Action<string> sink = sink;
-
-    public void Log(string message) => Write("INFO", message);
-    public void LogWarning(string message) => Write("WARNING", message);
-    public void LogError(string message) => Write("ERROR", message);
-
-    private void Write(string level, string message)
+    internal sealed class Logger(string tag, Action<string> sink)
     {
-        try
+        private readonly object gate = new();
+        private readonly string tag = tag;
+        private readonly Action<string> sink = sink;
+
+        public void Log(string message) => Write("INFO", message);
+
+        public void LogWarning(string message) => Write("WARNING", message);
+
+        public void LogError(string message) => Write("ERROR", message);
+
+        private void Write(string level, string message)
         {
-            lock (gate)
+            try
             {
-                string formatted = string.IsNullOrEmpty(tag)
-                    ? $"{level}: {message}"
-                    : $"[{tag}] {level}: {message}";
-                sink(formatted);
+                lock (gate)
+                {
+                    string formatted = string.IsNullOrEmpty(tag)
+                        ? $"{level}: {message}"
+                        : $"[{tag}] {level}: {message}";
+                    sink(formatted);
+                }
             }
-        }
-        catch
-        {
-            // Ignore logging failures.
+            catch
+            {
+                // Ignore logging failures.
+            }
         }
     }
 }

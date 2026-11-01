@@ -1,14 +1,16 @@
-namespace ModHearth.UI;
-
-internal static class UpdateLogger
+namespace ModHearth.UI.Update
 {
-    private static readonly Logger logger = new(string.Empty, line =>
+    internal static class UpdateLogger
     {
-        string logDir = Path.Combine(AppContext.BaseDirectory, "logs");
-        _ = Directory.CreateDirectory(logDir);
-        File.AppendAllText(Path.Combine(logDir, "updatelog.txt"), line + Environment.NewLine);
-    });
+        private static readonly Logger logger = new(string.Empty, line =>
+        {
+            string logDir = Path.Combine(AppContext.BaseDirectory, "logs");
+            _ = Directory.CreateDirectory(logDir);
+            File.AppendAllText(Path.Combine(logDir, "updatelog.txt"), line + Environment.NewLine);
+        });
 
-    public static void Log(string message) => logger.Log(message);
-    public static void LogError(string message) => logger.LogError(message);
+        public static void Log(string message) => logger.Log(message);
+
+        public static void LogError(string message) => logger.LogError(message);
+    }
 }

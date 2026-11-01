@@ -1,11 +1,12 @@
 using Avalonia.Controls;
 
-namespace ModHearth.UI;
-
-public partial class ModDataPanelView : UserControl
+namespace ModHearth.UI
 {
-    public ModDataPanelView()
+    public partial class ModDataPanelView : UserControl
     {
-        InitializeComponent();
+        public ModDataPanelView()
+        {
+            InitializeComponent();
+        }
     }
 }

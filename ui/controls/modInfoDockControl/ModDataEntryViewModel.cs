@@ -2,29 +2,29 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media;
 
-namespace ModHearth.UI;
-
-public sealed class ModDataEntryViewModel(string label, string value) : INotifyPropertyChanged
+namespace ModHearth.UI.Controls.ModInfoDockControl
 {
-    private IBrush background = Brushes.Transparent;
-
-    public string Label { get; } = label;
-    public string Value { get; } = value;
-
-    public IBrush Background
+    public sealed class ModDataEntryViewModel(string label, string value) : INotifyPropertyChanged
     {
-        get => background;
-        set
+        private IBrush background = Brushes.Transparent;
+
+        public string Label { get; } = label;
+        public string Value { get; } = value;
+
+        public IBrush Background
         {
-            if (Equals(background, value))
-                return;
-            background = value;
-            OnPropertyChanged();
+            get => background;
+            set
+            {
+                if (Equals(background, value))
+                    return;
+                background = value;
+                OnPropertyChanged();
+            }
         }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -1,7 +1,8 @@
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
-namespace ModHearth.UI
+using ModHearth.UI.Theme;
+namespace ModHearth.UI.Converters
 {
     public class ColorToBrushConverter : IValueConverter
     {
@@ -9,13 +10,11 @@ namespace ModHearth.UI
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            switch (value)
+            return value switch
             {
-                case Color color:
-                    return BrushCache.GetBrush(color);
-                default:
-                    return null;
-            }
+                Color color => BrushCache.GetBrush(color),
+                _ => null,
+            };
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();

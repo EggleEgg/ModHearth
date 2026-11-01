@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using ModHearth.UI.Theme;
 
 namespace ModHearth.UI
 {
@@ -10,8 +11,7 @@ namespace ModHearth.UI
         public static double DefaultHeight => LoadDimension("Height", 750);
         public static double DefaultMinHeight => LoadDimension("MinHeight", 400);
 
-        private static double LoadDimension(string attributeName, double fallback) =>
-            WindowDimensionLoader.Load("WorkshopDownloaderWindow.axaml", attributeName, fallback);
+        private static double LoadDimension(string attributeName, double fallback) => WindowDimensionLoader.Load("WorkshopDownloaderWindow.axaml", attributeName, fallback);
 
         public WorkshopDownloaderWindow() : this(null!) { }
 

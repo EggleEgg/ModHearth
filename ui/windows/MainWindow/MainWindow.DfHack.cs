@@ -1,137 +1,142 @@
 ﻿using Avalonia.Threading;
 
-namespace ModHearth.UI;
-
-public partial class MainWindow
+namespace ModHearth.UI
 {
-    private void InitializeDfHackStatusTimer()
+    public partial class MainWindow
     {
-        dfHackStatusTimer = new DispatcherTimer
+        private void InitializeDfHackStatusTimer()
         {
-            Interval = DfHackStatusRefreshInterval
-        };
-        dfHackStatusTimer.Tick += async (_, _) => await UpdateDfHackStatusAsync();
-    }
-
-    private void StartDfHackStatusTimer()
-    {
-        if (dfHackStatusTimer == null)
-            return;
-
-        dfHackStatusTimer.Stop();
-        dfHackStatusTimer.Start();
-    }
-
-    private volatile bool dfHackStatusCheckInFlight;
-    private async Task UpdateDfHackStatusAsync()
-    {
-        if (dfHackStatusCheckInFlight)
-            return;
-        dfHackStatusCheckInFlight = true;
-        try
-        {
-            if (dfhackStatusLabel == null)
-                return;
-
-            if (TryShowTransientStatusNotice())
-                return;
-
-            (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
-                await Task.Run(() => (
-                    ModHearthManager.DwarfFortressRunning(),
-                    ModHearthManager.IsDwarfFortressFound(),
-                    ModHearthManager.HasDfhackExecutable(),
-                    ModHearthManager.IsDfhackRpcRunning(),
-                    ModHearthManager.IsDFHackInstalled()));
-
-            if (dfhackStatusLabel == null)
-                return;
-
-            ApplyDfHackStatusToLabel(dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
-            ApplyDwarfFortressButtonStatus(dfRunning, dfFound);
+            dfHackStatusTimer = new DispatcherTimer
+            {
+                Interval = DfHackStatusRefreshInterval
+            };
+            dfHackStatusTimer.Tick += async (_, _) => await UpdateDfHackStatusAsync();
         }
-        finally
+
+        private void StartDfHackStatusTimer()
         {
-            dfHackStatusCheckInFlight = false;
+            if (dfHackStatusTimer == null)
+                return;
+
+            dfHackStatusTimer.Stop();
+            dfHackStatusTimer.Start();
         }
-    }
 
-
-    private bool dfSteamLaunched = false;
-    private bool dfLaunched = false;
-
-    private void ApplyDfHackStatusToLabel(bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
-    {
-        string dfStatus;
-        if (!dfRunning)
+        private volatile bool dfHackStatusCheckInFlight;
+        private async Task UpdateDfHackStatusAsync()
         {
-            if (dfSteamLaunched)
-                dfStatus = "Dwarf Fortress Steam launched";
-            else if (dfLaunched)
-                dfStatus = "Dwarf Fortress launched";
+            if (dfHackStatusCheckInFlight)
+                return;
+            dfHackStatusCheckInFlight = true;
+            try
+            {
+                if (dfhackStatusLabel == null)
+                    return;
+
+                if (TryShowTransientStatusNotice())
+                    return;
+
+                (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) =
+                    await Task.Run(() => (
+                        ModHearthManager.DwarfFortressRunning(),
+                        ModHearthManager.IsDwarfFortressFound(),
+                        ModHearthManager.HasDfhackExecutable(),
+                        ModHearthManager.IsDfhackRpcRunning(),
+                        ModHearthManager.IsDFHackInstalled()));
+
+                if (dfhackStatusLabel == null)
+                    return;
+
+                ApplyDfHackStatusToLabel(dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+                ApplyDwarfFortressButtonStatus(dfRunning, dfFound);
+            }
+            finally
+            {
+                dfHackStatusCheckInFlight = false;
+            }
+        }
+
+
+        private bool dfSteamLaunched = false;
+        private bool dfLaunched = false;
+
+        private void ApplyDfHackStatusToLabel(bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
+        {
+            string dfStatus;
+            if (!dfRunning)
+            {
+                if (dfSteamLaunched)
+                {
+                    dfStatus = "Dwarf Fortress Steam launched";
+                }
+                else
+                {
+                    dfStatus = dfLaunched ? "Dwarf Fortress launched" : "Dwarf Fortress not running";
+                }
+            }
             else
-                dfStatus = "Dwarf Fortress not running";
+            {
+                dfStatus = "Dwarf Fortress running";
+                // Can only close from now
+                dfSteamLaunched = false;
+                dfLaunched = false;
+            }
+
+            (bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled) current = (dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
+            bool changed = current != lastDfHackStatus;
+            lastDfHackStatus = current;
+
+            string dfhackConfigStatus = isDfHackInstalled ? "DFHack configured" : "DFHack path not set";
+            string dfhackExecutableStatus = hasDfhackExecutable ? "DFHack executable found" : "DFHack executable NOT found!";
+            string dfhackRpcStatus = isDfHackRpcRunning ? "DFHack RPC server running" : "DFHack RPC server not reachable";
+
+            if (changed) Console.WriteLine($"{dfStatus}, {dfhackConfigStatus}, {dfhackExecutableStatus}, {dfhackRpcStatus}");
+
+            if (!isDfHackInstalled || !hasDfhackExecutable)
+            {
+                dfhackStatusLabel.Text = $"{dfStatus}, DFHack not found!";
+            }
+            else
+            {
+                dfhackStatusLabel.Text = isDfHackRpcRunning || (dfRunning && hasDfhackExecutable) ? $"{dfStatus}, DFHack running" : dfStatus;
+            }
+
+            dfhackStatusLabel.IsVisible = true;
+            if (dfhackStatusScrollViewer != null)
+                dfhackStatusScrollViewer.IsVisible = true;
         }
-        else
+
+        private void ApplyDwarfFortressButtonStatus(bool dfRunning, bool dfFound)
         {
-            dfStatus = "Dwarf Fortress running";
-            // Can only close from now
-            dfSteamLaunched = false;
-            dfLaunched = false;
+            if (runDwarfFortressButton == null)
+                return;
+
+            runDwarfFortressButton.IsEnabled = !dfRunning && dfFound;
         }
 
-        var current = (dfRunning, dfFound, hasDfhackExecutable, isDfHackRpcRunning, isDfHackInstalled);
-        bool changed = current != lastDfHackStatus;
-        lastDfHackStatus = current;
-
-        string dfhackConfigStatus = isDfHackInstalled ? "DFHack configured" : "DFHack path not set";
-        string dfhackExecutableStatus = hasDfhackExecutable ? "DFHack executable found" : "DFHack executable NOT found!";
-        string dfhackRpcStatus = isDfHackRpcRunning ? "DFHack RPC server running" : "DFHack RPC server not reachable";
-
-        if (changed) Console.WriteLine($"{dfStatus}, {dfhackConfigStatus}, {dfhackExecutableStatus}, {dfhackRpcStatus}");
-
-        if (!isDfHackInstalled || !hasDfhackExecutable)
-            dfhackStatusLabel.Text = $"{dfStatus}, DFHack not found!";
-        else if (isDfHackRpcRunning || (dfRunning && hasDfhackExecutable))
-            dfhackStatusLabel.Text = $"{dfStatus}, DFHack running";
-        else
-            dfhackStatusLabel.Text = dfStatus;
-
-        dfhackStatusLabel.IsVisible = true;
-        if (dfhackStatusScrollViewer != null)
-            dfhackStatusScrollViewer.IsVisible = true;
-    }
-
-    private void ApplyDwarfFortressButtonStatus(bool dfRunning, bool dfFound)
-    {
-        if (runDwarfFortressButton == null)
-            return;
-
-        runDwarfFortressButton.IsEnabled = !dfRunning && dfFound;
-    }
-
-    private void ShowTransientStatusNotice(string message)
-    {
-        transientStatusNotice = message;
-        transientStatusNoticeUntilUtc = DateTime.UtcNow.AddSeconds(6);
-        _ = TryShowTransientStatusNotice();
-    }
-
-    private bool TryShowTransientStatusNotice()
-    {
-        if (string.IsNullOrWhiteSpace(transientStatusNotice))
-            return false;
-
-        if (DateTime.UtcNow >= transientStatusNoticeUntilUtc)
+        private void ShowTransientStatusNotice(string message)
         {
-            transientStatusNotice = string.Empty;
-            return false;
+            transientStatusNotice = message;
+            transientStatusNoticeUntilUtc = DateTime.UtcNow.AddSeconds(6);
+            _ = TryShowTransientStatusNotice();
         }
 
-        dfhackStatusLabel.Text = transientStatusNotice;
-        dfhackStatusLabel.IsVisible = true;
-        if (dfhackStatusScrollViewer != null)
-            dfhackStatusScrollViewer.IsVisible = true;
-        return true;
+        private bool TryShowTransientStatusNotice()
+        {
+            if (string.IsNullOrWhiteSpace(transientStatusNotice))
+                return false;
+
+            if (DateTime.UtcNow >= transientStatusNoticeUntilUtc)
+            {
+                transientStatusNotice = string.Empty;
+                return false;
+            }
+
+            dfhackStatusLabel.Text = transientStatusNotice;
+            dfhackStatusLabel.IsVisible = true;
+            if (dfhackStatusScrollViewer != null)
+                dfhackStatusScrollViewer.IsVisible = true;
+            return true;
+        }
     }
 }

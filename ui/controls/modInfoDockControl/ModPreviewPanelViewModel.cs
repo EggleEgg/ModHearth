@@ -1,21 +1,22 @@
 using Avalonia.Media;
 using Dock.Model.Mvvm.Controls;
 
-namespace ModHearth.UI;
-
-public sealed class ModPreviewPanelViewModel : Tool
+namespace ModHearth.UI
 {
-    private IImage? previewImage;
-
-    public IImage? PreviewImage
+    public sealed class ModPreviewPanelViewModel : Tool
     {
-        get => previewImage;
-        set
+        private IImage? previewImage;
+
+        public IImage? PreviewImage
         {
-            if (Equals(previewImage, value))
-                return;
-            previewImage = value;
-            OnPropertyChanged();
+            get => previewImage;
+            set
+            {
+                if (Equals(previewImage, value))
+                    return;
+                previewImage = value;
+                OnPropertyChanged();
+            }
         }
     }
 }

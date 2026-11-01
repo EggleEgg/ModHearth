@@ -1,349 +1,260 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using ModHearth.Models;
+using ModHearth.UI.Helpers;
+using ModHearth.UI.Rendering;
+using ModHearth.UI.Theme;
 
-namespace ModHearth.UI;
-
-public class NotificationRecord : INotifyPropertyChanged, IThemedViewModel
+namespace ModHearth.UI
 {
-    private bool isFilteredOut;
-    private bool isVisible = true;
-    private TextDecorationCollection? textDecorations;
-    private IBrush messageForeground = Brushes.White;
-    private double itemOpacity = 1.0;
-
-    public NotificationRecord()
+    public class NotificationRecord : INotifyPropertyChanged, IThemedViewModel
     {
-        RefreshStyle(Style.instance);
-        ThemedViewModelRegistry.Register(this);
-    }
+        private bool isFilteredOut;
+        private bool isVisible = true;
+        private TextDecorationCollection? textDecorations;
+        private IBrush messageForeground = Brushes.White;
+        private double itemOpacity = 1.0;
 
-    public string Message { get; set; } = string.Empty;
-    public string IconResourceName { get; set; } = "infoCircleWhiteIcon.svg";
-    public IImage? IconSource { get; set; }
-    public DateTime Timestamp { get; set; }
-    public string FormattedTime => "At:    " + Timestamp.ToString("HH'h 'mm'm 'ss's'");
-
-    public bool IsFilteredOut
-    {
-        get => isFilteredOut;
-        set
+        public NotificationRecord()
         {
-            if (isFilteredOut == value)
-                return;
-            isFilteredOut = value;
-            RefreshStyle();
-            OnPropertyChanged();
-        }
-    }
-
-    public bool IsVisible
-    {
-        get => isVisible;
-        set
-        {
-            if (isVisible == value)
-                return;
-            isVisible = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public TextDecorationCollection? TextDecorations
-    {
-        get => textDecorations;
-        private set
-        {
-            if (Equals(textDecorations, value))
-                return;
-            textDecorations = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public IBrush MessageForeground
-    {
-        get => messageForeground;
-        private set
-        {
-            if (Equals(messageForeground, value))
-                return;
-            messageForeground = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public double ItemOpacity
-    {
-        get => itemOpacity;
-        private set
-        {
-            if (Math.Abs(itemOpacity - value) < 0.001)
-                return;
-            itemOpacity = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public void RefreshStyle() => RefreshStyle(Style.instance);
-
-    public void RefreshStyle(Style? style)
-    {
-        IBrush defaultBrush = style != null
-            ? BrushCache.GetBrush(style.textColor.ToAvaloniaColor())
-            : Brushes.White;
-
-        if (IsFilteredOut)
-        {
-            MessageForeground = BrushCache.EditBrushAlpha(Brushes.Gray, 160);
-            TextDecorations = Avalonia.Media.TextDecorations.Strikethrough;
-            ItemOpacity = 0.5;
-        }
-        else
-        {
-            MessageForeground = defaultBrush;
-            TextDecorations = null;
-            ItemOpacity = 1.0;
-        }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-}
-
-public partial class MainWindow
-{
-    private const int MaxNotificationRecords = 500;
-    private const int MaxShownNotifications = 4;
-    private readonly List<NotificationRecord> allNotificationRecords = [];
-    private readonly BulkObservableCollection<NotificationRecord> notificationRecords = [];
-
-    public void ApplyNotificationFilterAndSort()
-    {
-        string filter = notificationSearchBar?.Text?.Trim() ?? string.Empty;
-        SearchFilterMode mode = notificationSearchBar?.SearchMode ?? SearchFilterMode.ModifiedTime;
-        bool sortDescending = notificationSearchBar?.SortDescending ?? true;
-        bool hideFiltered = notificationSearchBar?.HideFiltered ?? true;
-
-        SearchFilterContext context = new(filter, mode);
-
-        foreach (NotificationRecord r in allNotificationRecords)
-        {
-            bool match = !context.HasFilter || (mode == SearchFilterMode.Regex
-                ? context.MatchesRegex(r.Message)
-                : context.Contains(r.Message));
-
-            r.IsFilteredOut = context.HasFilter && !match;
-            r.IsVisible = !hideFiltered || match;
+            RefreshStyle(Style.instance);
+            ThemedViewModelRegistry.Register(this);
         }
 
-        IEnumerable<NotificationRecord> query = allNotificationRecords.Where(r => r.IsVisible);
+        public string Message { get; set; } = string.Empty;
+        public string IconResourceName { get; set; } = "infoCircleWhiteIcon.svg";
+        public IImage? IconSource { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string FormattedTime => "At:    " + Timestamp.ToString("HH'h 'mm'm 'ss's'");
 
-        query = sortDescending
-            ? query.OrderByDescending(r => r.Timestamp)
-            : query.OrderBy(r => r.Timestamp);
-
-        List<NotificationRecord> filteredList = [.. query];
-
-        Dispatcher.UIThread.Post(() => SearchFilterHelper.ReplaceCollection(notificationRecords, filteredList));
-    }
-
-    public void ShowNotification(string message, string iconResourceName, int notificationDelay)
-        => ShowNotification(message, iconResourceName, showAfterReload: false, notificationDelay);
-    public void ShowNotification(string message,
-        string iconResourceName = "infoCircleWhiteIcon.svg",
-        bool showAfterReload = false,
-        int notificationDelay = 3500)
-    {
-        if (DevMode.IsEnabled)
-            Console.WriteLine($"Notification: {message}");
-
-        DateTime now = DateTime.Now;
-        var iconSource = ImageSourceLoader.LoadFromAssetUri(iconResourceName);
-        var record = new NotificationRecord
+        public bool IsFilteredOut
         {
-            Message = message,
-            IconResourceName = iconResourceName,
-            IconSource = iconSource,
-            Timestamp = now
-        };
-
-        Dispatcher.UIThread.Post(() =>
-        {
-            allNotificationRecords.Insert(0, record);
-            if (allNotificationRecords.Count > MaxNotificationRecords)
+            get => isFilteredOut;
+            set
             {
-                allNotificationRecords.RemoveRange(MaxNotificationRecords, allNotificationRecords.Count - MaxNotificationRecords);
+                if (isFilteredOut == value)
+                    return;
+                isFilteredOut = value;
+                RefreshStyle();
+                OnPropertyChanged();
             }
-            ApplyNotificationFilterAndSort();
+        }
 
-            var container = this.FindControl<StackPanel>("notificationContainer");
-            if (container == null)
-                return;
-
-            // Limit to 3 notifications by removing the oldest (last in children list)
-            while (container.Children.Count >= MaxShownNotifications)
+        public bool IsVisible
+        {
+            get => isVisible;
+            set
             {
-                var oldest = container.Children[container.Children.Count - 1];
-                if (oldest is Border b && b.Tag is CancellationTokenSource oldCts)
-                {
-                    oldCts.Cancel();
-                    oldCts.Dispose();
-                }
-                container.Children.RemoveAt(container.Children.Count - 1);
+                if (isVisible == value)
+                    return;
+                isVisible = value;
+                OnPropertyChanged();
             }
+        }
 
-            // Create notification border and elements
-            var notificationCts = new CancellationTokenSource();
-
-            var border = new Border
+        public TextDecorationCollection? TextDecorations
+        {
+            get => textDecorations;
+            private set
             {
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Padding = new Thickness(6, 5.5, 20, 5.5),
-                CornerRadius = new CornerRadius(0, 4, 4, 0),
-                BorderThickness = new Thickness(0, 1, 1, 1),
-                BoxShadow = BoxShadows.Parse("0 4 12 0 #40000000"),
-                Tag = notificationCts,
-            };
+                if (Equals(textDecorations, value))
+                    return;
+                textDecorations = value;
+                OnPropertyChanged();
+            }
+        }
 
-            // Apply theme styling
-            IBrush panelBrushClear;
-            IBrush buttonOutlineBrush;
-            IBrush textBrush;
-
-            if (Style.instance != null)
+        public IBrush MessageForeground
+        {
+            get => messageForeground;
+            private set
             {
-                panelBrushClear = BrushCache.GetBrush(Style.instance.panelColorClear.ToAvaloniaColor());
-                buttonOutlineBrush = BrushCache.GetBrush(Style.instance.buttonOutlineColor.ToAvaloniaColor());
-                textBrush = BrushCache.GetBrush(Style.instance.textColor.ToAvaloniaColor());
+                if (Equals(messageForeground, value))
+                    return;
+                messageForeground = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public double ItemOpacity
+        {
+            get => itemOpacity;
+            private set
+            {
+                if (Math.Abs(itemOpacity - value) < 0.001)
+                    return;
+                itemOpacity = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public void RefreshStyle() => RefreshStyle(Style.instance);
+
+
+        public void RefreshStyle(Style? style)
+        {
+            IBrush defaultBrush = style != null
+                ? BrushCache.GetBrush(style.TextColor.ToAvaloniaColor())
+                : Brushes.White;
+
+            if (IsFilteredOut)
+            {
+                MessageForeground = BrushCache.EditBrushAlpha(Brushes.Gray, 160);
+                TextDecorations = Avalonia.Media.TextDecorations.Strikethrough;
+                ItemOpacity = 0.5;
             }
             else
             {
-                panelBrushClear = BrushCache.GetBrush(Color.Parse("#2D2D30"));
-                buttonOutlineBrush = BrushCache.GetBrush(Color.Parse("#3F3F46"));
-                textBrush = Brushes.White;
+                MessageForeground = defaultBrush;
+                TextDecorations = null;
+                ItemOpacity = 1.0;
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+    }
+
+    public partial class MainWindow
+    {
+        private const int MaxNotificationRecords = 500;
+        private const int MaxShownNotifications = 4;
+        private readonly List<NotificationRecord> allNotificationRecords = [];
+        private readonly BulkObservableCollection<NotificationRecord> notificationRecords = [];
+        private readonly ObservableCollection<NotificationRecord> toasts = [];
+        private readonly Dictionary<NotificationRecord, CancellationTokenSource> toastTimers = [];
+
+        public void ApplyNotificationFilterAndSort()
+        {
+            string filter = notificationSearchBar?.Text?.Trim() ?? string.Empty;
+            SearchFilterMode mode = notificationSearchBar?.SearchMode ?? SearchFilterMode.ModifiedTime;
+            bool sortDescending = notificationSearchBar?.SortDescending ?? true;
+            bool hideFiltered = notificationSearchBar?.HideFiltered ?? true;
+
+            SearchFilterContext context = new(filter, mode);
+
+            foreach (NotificationRecord r in allNotificationRecords)
+            {
+                bool match = !context.HasFilter || (mode == SearchFilterMode.Regex
+                    ? context.MatchesRegex(r.Message)
+                    : context.Contains(r.Message));
+
+                r.IsFilteredOut = context.HasFilter && !match;
+                r.IsVisible = !hideFiltered || match;
             }
 
-            border.Background = panelBrushClear;
-            border.BorderBrush = buttonOutlineBrush;
+            IEnumerable<NotificationRecord> query = allNotificationRecords.Where(r => r.IsVisible);
 
-            var stackPanel = new StackPanel
+            query = sortDescending
+                ? query.OrderByDescending(r => r.Timestamp)
+                : query.OrderBy(r => r.Timestamp);
+
+            List<NotificationRecord> filteredList = [.. query];
+
+            Dispatcher.UIThread.Post(() => SearchFilterHelper.ReplaceCollection(notificationRecords, filteredList));
+        }
+
+        public void ShowNotification(string message,
+            string iconResourceName = "infoCircleWhiteIcon.svg",
+            bool showAfterReload = false,
+            int notificationDelay = 3500)
+        {
+            // Record creation loads icons and touches UI state; callers include background tasks.
+            if (!Dispatcher.UIThread.CheckAccess())
             {
-                Orientation = Orientation.Horizontal,
-                Spacing = 6
+                Dispatcher.UIThread.Post(() => ShowNotification(message, iconResourceName, showAfterReload, notificationDelay));
+                return;
+            }
+
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"Notification: {message}");
+
+            NotificationRecord record = new()
+            {
+                Message = message,
+                IconResourceName = iconResourceName,
+                IconSource = ImageSourceLoader.LoadFromAssetUri(iconResourceName),
+                Timestamp = DateTime.Now
             };
 
-            var image = new Image
-            {
-                Width = 16,
-                Height = 16,
-                VerticalAlignment = VerticalAlignment.Center,
-                Source = iconSource
-            };
+            allNotificationRecords.Insert(0, record);
+            if (allNotificationRecords.Count > MaxNotificationRecords)
+                allNotificationRecords.RemoveRange(MaxNotificationRecords, allNotificationRecords.Count - MaxNotificationRecords);
+            ApplyNotificationFilterAndSort();
 
-            var textBlock = new TextBlock
-            {
-                Text = message,
-                FontSize = 12,
-                FontWeight = FontWeight.SemiBold,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = textBrush
-            };
+            while (toasts.Count >= MaxShownNotifications)
+                DismissToast(toasts[^1]);
+            toasts.Insert(0, record); // newest on top, oldest falls off the bottom
+            ScheduleToastDismissal(record, notificationDelay);
+        }
 
-            stackPanel.Children.Add(image);
-            stackPanel.Children.Add(textBlock);
-            border.Child = stackPanel;
-
-            // Set up pointer entered to dismiss immediately
-            border.PointerEntered += (s, e) =>
-            {
-                DismissNotification(border);
-            };
-
-            // Insert at top (index 0) so newest is on top, oldest is on bottom
-            container.Children.Insert(0, border);
-
-            //timeout
+        private void ScheduleToastDismissal(NotificationRecord record, int delayMs)
+        {
+            CancellationTokenSource cts = new();
+            toastTimers[record] = cts;
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await Task.Delay(notificationDelay, notificationCts.Token);
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (!notificationCts.IsCancellationRequested)
-                        {
-                            DismissNotification(border);
-                        }
-                    });
+                    await Task.Delay(delayMs, cts.Token);
+                    Dispatcher.UIThread.Post(() => DismissToast(record));
                 }
-                catch (TaskCanceledException)
+                catch (OperationCanceledException)
                 {
-                    // Graceful cancellation
+                    // Dismissed early (hover, cap, or reload).
                 }
             });
-        });
-    }
+        }
 
-    private void OnToggleNotificationDrawerClick(object? sender, RoutedEventArgs e)
-    {
-        bool isOpen = NotificationDrawerPanel.Classes.Contains("open");
-        if (isOpen)
+        private void OnToastPointerEntered(object? sender, PointerEventArgs e)
         {
-            NotificationDrawerPanel.Classes.Remove("open");
+            if (sender is Control { DataContext: NotificationRecord record })
+                DismissToast(record);
+        }
+
+        public void DismissToast(NotificationRecord record)
+        {
+            if (toastTimers.Remove(record, out CancellationTokenSource? cts))
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+            _ = toasts.Remove(record);
+        }
+
+        private void OnToggleNotificationDrawerClick(object? sender, RoutedEventArgs e)
+        {
+            bool isOpen = NotificationDrawerPanel.Classes.Contains("open");
+            if (isOpen)
+            {
+                _ = NotificationDrawerPanel.Classes.Remove("open");
+                NotificationBackdrop.IsVisible = false;
+            }
+            else
+            {
+                NotificationDrawerPanel.Classes.Add("open");
+                NotificationBackdrop.IsVisible = true;
+            }
+        }
+
+        private void OnNotificationBackdropClick(object? sender, PointerPressedEventArgs e)
+        {
+            _ = NotificationDrawerPanel.Classes.Remove("open");
             NotificationBackdrop.IsVisible = false;
         }
-        else
-        {
-            NotificationDrawerPanel.Classes.Add("open");
-            NotificationBackdrop.IsVisible = true;
-        }
-    }
 
-    private void OnNotificationBackdropClick(object? sender, PointerPressedEventArgs e)
-    {
-        NotificationDrawerPanel.Classes.Remove("open");
-        NotificationBackdrop.IsVisible = false;
-    }
-
-    public void DismissNotification(Border border)
-    {
-        if (border.Tag is CancellationTokenSource cts)
+        public void DismissAllNotifications()
         {
-            cts.Cancel();
-            cts.Dispose();
-            border.Tag = null;
-        }
-
-        var container = this.FindControl<StackPanel>("notificationContainer");
-        if (container != null)
-        {
-            _ = container.Children.Remove(border);
-        }
-    }
-
-    public void DismissAllNotifications()
-    {
-        var container = this.FindControl<StackPanel>("notificationContainer");
-        if (container != null)
-        {
-            foreach (var child in container.Children)
-            {
-                if (child is Border b && b.Tag is CancellationTokenSource cts)
-                {
-                    cts.Cancel();
-                    cts.Dispose();
-                }
-            }
-            container.Children.Clear();
+            foreach (NotificationRecord record in toasts.ToList())
+                DismissToast(record);
         }
     }
 }

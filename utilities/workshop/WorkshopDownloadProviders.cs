@@ -69,12 +69,12 @@ namespace ModHearth.Utilities.Workshop
             // has to be relocated up out of that nesting once steamcmd finishes.
             string args = $"+force_install_dir {quotedPath} +login anonymous +workshop_download_item {appId} {workshopId} validate +quit";
 
-            var progressProxy = new Progress<string>(line =>
+            Progress<string> progressProxy = new(line =>
             {
                 if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
                     return;
 
-                var match = ProgressRegex.Match(line);
+                Match match = ProgressRegex.Match(line);
                 if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
                 {
                     progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
@@ -145,8 +145,8 @@ namespace ModHearth.Utilities.Workshop
             IEnumerable<BatchDownloadItem> items,
             CancellationToken cancellationToken)
         {
-            var result = new Dictionary<ulong, bool>();
-            var itemList = items.ToList();
+            Dictionary<ulong, bool> result = [];
+            List<BatchDownloadItem> itemList = [.. items];
             if (itemList.Count == 0)
                 return result;
 
@@ -157,17 +157,15 @@ namespace ModHearth.Utilities.Workshop
             string scriptPath = Path.Combine(stagingPath, "download_batch.txt");
             try
             {
-                using (var writer = new StreamWriter(scriptPath))
+                using StreamWriter writer = new(scriptPath);
+                await writer.WriteLineAsync($"force_install_dir \"{stagingPath}\"");
+                await writer.WriteLineAsync("login anonymous");
+                foreach (BatchDownloadItem? item in itemList)
                 {
-                    await writer.WriteLineAsync($"force_install_dir \"{stagingPath}\"");
-                    await writer.WriteLineAsync("login anonymous");
-                    foreach (var item in itemList)
-                    {
-                        result[item.WorkshopId] = false;
-                        await writer.WriteLineAsync($"workshop_download_item {appId} {item.WorkshopId} validate");
-                    }
-                    await writer.WriteLineAsync("quit");
+                    result[item.WorkshopId] = false;
+                    await writer.WriteLineAsync($"workshop_download_item {appId} {item.WorkshopId} validate");
                 }
+                await writer.WriteLineAsync("quit");
             }
             catch (Exception ex)
             {
@@ -179,13 +177,13 @@ namespace ModHearth.Utilities.Workshop
             string args = $"+runscript \"{scriptPath}\"";
 
             ulong currentlyDownloadingId = 0;
-            var itemLookup = itemList.ToDictionary(i => i.WorkshopId);
+            Dictionary<ulong, BatchDownloadItem> itemLookup = itemList.ToDictionary(i => i.WorkshopId);
 
-            var progressProxy = new Progress<string>(line =>
+            Progress<string> progressProxy = new(line =>
             {
                 if (line.Contains("Downloading item", StringComparison.OrdinalIgnoreCase))
                 {
-                    var matchId = DownloadingItemRegex.Match(line);
+                    Match matchId = DownloadingItemRegex.Match(line);
                     if (matchId.Success && ulong.TryParse(matchId.Groups[1].Value, out ulong id))
                         currentlyDownloadingId = id;
                 }
@@ -193,11 +191,11 @@ namespace ModHearth.Utilities.Workshop
                 if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
                     return;
 
-                var match = ProgressRegex.Match(line);
+                Match match = ProgressRegex.Match(line);
                 if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
                 {
-                    var prog = new DownloadProgress((long)(pct * 1000), 100000, pct);
-                    if (currentlyDownloadingId != 0 && itemLookup.TryGetValue(currentlyDownloadingId, out var activeItem))
+                    DownloadProgress prog = new((long)(pct * 1000), 100000, pct);
+                    if (currentlyDownloadingId != 0 && itemLookup.TryGetValue(currentlyDownloadingId, out BatchDownloadItem? activeItem))
                     {
                         activeItem.Progress.Report(prog);
                     }
@@ -216,7 +214,7 @@ namespace ModHearth.Utilities.Workshop
                     return result;
                 }
 
-                foreach (var item in itemList)
+                foreach (BatchDownloadItem? item in itemList)
                 {
                     ulong workshopId = item.WorkshopId;
                     string fullDownloadPath = Path.GetFullPath(item.DownloadPath);

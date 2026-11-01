@@ -1,100 +1,102 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using ModHearth.UI.Theme;
 
-namespace ModHearth.UI;
-
-public enum MessageDialogButtons
+namespace ModHearth.UI
 {
-    Ok,
-    YesNo,
-    YesNoCancel
-}
-
-public enum MessageDialogResult
-{
-    Ok,
-    Yes,
-    No,
-    Cancel
-}
-
-public partial class MessageDialog : Window
-{
-    private MessageDialogResult result = MessageDialogResult.Cancel;
-
-    public MessageDialog()
+    public enum MessageDialogButtons
     {
-        InitializeComponent();
-        WindowThemeManager.Register(this);
-
-        OkButton.Click += (_, _) => CloseWithResult(MessageDialogResult.Ok);
-        YesButton.Click += (_, _) => CloseWithResult(MessageDialogResult.Yes);
-        NoButton.Click += (_, _) => CloseWithResult(MessageDialogResult.No);
-        CancelButton.Click += (_, _) => CloseWithResult(MessageDialogResult.Cancel);
+        Ok,
+        YesNo,
+        YesNoCancel
     }
 
-    public static async Task<MessageDialogResult> ShowAsync(
-        Window? owner,
-        string message,
-        string title,
-        MessageDialogButtons buttons,
-        string? okText = null,
-        string? yesText = null,
-        string? noText = null,
-        string? cancelText = null)
+    public enum MessageDialogResult
     {
-        MessageDialog dialog = new()
+        Ok,
+        Yes,
+        No,
+        Cancel
+    }
 
-        {
-            Title = title,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-        dialog.MessageText.Text = message;
-        ConfigureButtons(dialog, buttons, okText, yesText, noText, cancelText);
+    public partial class MessageDialog : Window
+    {
+        private MessageDialogResult result = MessageDialogResult.Cancel;
 
-        Window? validOwner = owner;
-        if ((validOwner == null || !validOwner.IsLoaded) && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            && desktop.MainWindow != null && desktop.MainWindow.IsLoaded)
+        public MessageDialog()
         {
-            validOwner = desktop.MainWindow;
+            InitializeComponent();
+            WindowThemeManager.Register(this);
+
+            OkButton.Click += (_, _) => CloseWithResult(MessageDialogResult.Ok);
+            YesButton.Click += (_, _) => CloseWithResult(MessageDialogResult.Yes);
+            NoButton.Click += (_, _) => CloseWithResult(MessageDialogResult.No);
+            CancelButton.Click += (_, _) => CloseWithResult(MessageDialogResult.Cancel);
         }
 
-        try
+        public static async Task<MessageDialogResult> ShowAsync(
+            Window? owner,
+            string message,
+            string title,
+            MessageDialogButtons buttons,
+            string? okText = null,
+            string? yesText = null,
+            string? noText = null,
+            string? cancelText = null)
         {
-            if (validOwner != null && validOwner.IsLoaded)
+            MessageDialog dialog = new()
+
             {
-                return await dialog.ShowDialog<MessageDialogResult>(validOwner);
+                Title = title,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            dialog.MessageText.Text = message;
+            ConfigureButtons(dialog, buttons, okText, yesText, noText, cancelText);
+
+            Window? validOwner = owner;
+            if ((validOwner == null || !validOwner.IsLoaded) && Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+                && desktop.MainWindow != null && desktop.MainWindow.IsLoaded)
+            {
+                validOwner = desktop.MainWindow;
             }
+
+            try
+            {
+                if (validOwner != null && validOwner.IsLoaded)
+                {
+                    return await dialog.ShowDialog<MessageDialogResult>(validOwner);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Owner is closed or invalid
+            }
+
+            return MessageDialogResult.Cancel;
         }
-        catch (InvalidOperationException)
+
+        private static void ConfigureButtons(MessageDialog dialog, MessageDialogButtons buttons,
+            string? okText,
+            string? yesText,
+            string? noText,
+            string? cancelText)
         {
-            // Owner is closed or invalid
+            dialog.OkButton.Content = okText ?? "OK";
+            dialog.YesButton.Content = yesText ?? "Yes";
+            dialog.NoButton.Content = noText ?? "No";
+            dialog.CancelButton.Content = cancelText ?? "Cancel";
+
+            dialog.OkButton.IsVisible = buttons == MessageDialogButtons.Ok;
+            dialog.YesButton.IsVisible = buttons is MessageDialogButtons.YesNo or MessageDialogButtons.YesNoCancel;
+            dialog.NoButton.IsVisible = buttons is MessageDialogButtons.YesNo or MessageDialogButtons.YesNoCancel;
+            dialog.CancelButton.IsVisible = buttons == MessageDialogButtons.YesNoCancel;
         }
 
-        return MessageDialogResult.Cancel;
-    }
-
-    private static void ConfigureButtons(MessageDialog dialog, MessageDialogButtons buttons,
-        string? okText,
-        string? yesText,
-        string? noText,
-        string? cancelText)
-    {
-        dialog.OkButton.Content = okText ?? "OK";
-        dialog.YesButton.Content = yesText ?? "Yes";
-        dialog.NoButton.Content = noText ?? "No";
-        dialog.CancelButton.Content = cancelText ?? "Cancel";
-
-        dialog.OkButton.IsVisible = buttons == MessageDialogButtons.Ok;
-        dialog.YesButton.IsVisible = buttons == MessageDialogButtons.YesNo || buttons == MessageDialogButtons.YesNoCancel;
-        dialog.NoButton.IsVisible = buttons == MessageDialogButtons.YesNo || buttons == MessageDialogButtons.YesNoCancel;
-        dialog.CancelButton.IsVisible = buttons == MessageDialogButtons.YesNoCancel;
-    }
-
-    private void CloseWithResult(MessageDialogResult value)
-    {
-        result = value;
-        Close(result);
+        private void CloseWithResult(MessageDialogResult value)
+        {
+            result = value;
+            Close(result);
+        }
     }
 }

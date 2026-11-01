@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.RegularExpressions;
-using ModHearth.UI;
 using ModHearth.Utilities;
+using ModHearth.Models;
 
 /// <summary>
 /// Actually handles the logic from models\ModHearthConfig
@@ -13,8 +13,6 @@ namespace ModHearth
         public static ModHearthConfig Config { get; private set; } = new();
 
         public static readonly string ConfigPath = Path.Combine(AppContext.BaseDirectory, "config.json");
-        private static readonly string styleLightPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.light.json");
-        private static readonly string styleDarkPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.dark.json");
 
         // Guards every read/write of config.json so concurrent callers can't interleave and corrupt the file or clobber each other's writes.
         private static readonly object configGate = new();
@@ -34,10 +32,14 @@ namespace ModHearth
         private static List<string>? _cachedEffectiveModRoots;
         private static readonly object _effectiveModRootsLock = new();
         private static void LogInfo(string message) => SteamConnectionLogger.LogInfo(message);
+
+
         private static string DFHackExeName => OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
         private static readonly string installedMods = "installed_mods", dfString = "Dwarf Fortress", steamString = "Steam", steamApps = "steamapps";
 
         public static void AttemptLoadConfig() => AttemptLoadConfig(true);
+
+
         public static void AttemptLoadConfig(bool createLogs)
         {
             lock (configGate)
@@ -84,7 +86,7 @@ namespace ModHearth
         {
             lock (configGate)
             {
-                if (!String.IsNullOrEmpty(message))
+                if (!string.IsNullOrEmpty(message))
                     Console.WriteLine($"{message} config saved.");
 
                 try
@@ -115,59 +117,10 @@ namespace ModHearth
             }
         }
 
-        public static Style LoadStyle() => LoadStyle(true);
-        public static Style LoadStyle(bool createLogs)
-        {
-            Style style;
-            int theme = GetTheme();
-            string stylePath = GetStylePathForTheme(theme);
 
-            try
-            {
-                if (!File.Exists(stylePath))
-                    throw new FileNotFoundException("Style file missing.", stylePath);
-
-                if (createLogs) Console.WriteLine("Style file found.");
-                if (!TryLoadStyleFromPath(stylePath, out style))
-                    throw new InvalidOperationException($"Style file invalid: {stylePath}");
-            }
-            catch (Exception ex)
-            {
-                string message = $"Style load failed: {ex.Message}\nMissing or invalid style file: {stylePath}";
-                Console.WriteLine(message);
-                throw new InvalidOperationException(message, ex);
-            }
-
-            Style.instance = style;
-            return style;
-        }
-
-        public static string GetStylePathForTheme(int theme) => theme == 0 ? styleLightPath : styleDarkPath;
-
-        private static bool TryLoadStyleFromPath(string stylePath, out Style style)
-        {
-            style = null!;
-            if (!File.Exists(stylePath))
-                return false;
-
-            try
-            {
-                string jsonContent = File.ReadAllText(stylePath);
-                Style? foundStyle = JsonSerializer.Deserialize<Style>(jsonContent);
-                if (foundStyle == null)
-                    return false;
-                if (!foundStyle.IsComplete())
-                    return false;
-                style = foundStyle;
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
 
         public static int GetTheme() => Config.theme;
+
 
         public static void SetTheme(int theme)
         {
@@ -177,6 +130,7 @@ namespace ModHearth
 
         public static int GetAutoReloadIntervalSeconds() => Config.AutoReloadIntervalSeconds;
 
+
         public static void SetAutoReloadIntervalSeconds(int seconds)
         {
             Config.AutoReloadIntervalSeconds = seconds;
@@ -185,33 +139,15 @@ namespace ModHearth
 
         public static double GetModDataPanelProportion() => Config.ModDataPanelProportion;
 
+
         public static int GetModDataPanelOrientation() => Config.ModDataPanelOrientation;
+
 
         public static bool GetModDataPanelFirst() => Config.ModDataPanelFirst;
 
-        public static void SetModDataPanelLayout(double proportion, int orientation, bool first)
-        {
-            Config.ModDataPanelProportion = proportion;
-            Config.ModDataPanelOrientation = orientation;
-            Config.ModDataPanelFirst = first;
-            SaveConfigFile(Message);
-        }
-
         public static double GetModDescriptionPanelProportion() => Config.ModDescriptionPanelProportion;
 
-        public static void SetModDescriptionPanelProportion(double proportion)
-        {
-            Config.ModDescriptionPanelProportion = proportion;
-            SaveConfigFile(Message);
-        }
-
         public static double GetModInfoPanelProportion() => Config.ModInfoPanelProportion;
-
-        public static void SetModInfoPanelProportion(double proportion)
-        {
-            Config.ModInfoPanelProportion = proportion;
-            SaveConfigFile(Message);
-        }
 
         public static double GetModPreviewPanelProportion() => Config.ModPreviewPanelProportion;
 
@@ -219,13 +155,6 @@ namespace ModHearth
 
         public static bool GetModPreviewPanelFirst() => Config.ModPreviewPanelFirst;
 
-        public static void SetModPreviewPanelLayout(double proportion, int orientation, bool first)
-        {
-            Config.ModPreviewPanelProportion = proportion;
-            Config.ModPreviewPanelOrientation = orientation;
-            Config.ModPreviewPanelFirst = first;
-            SaveConfigFile(Message);
-        }
 
         public static void SetModInfoDockLayout(
             double modDataProportion,
@@ -250,6 +179,7 @@ namespace ModHearth
 
         public static bool IsAutoSaveEnabled() => Config.IsAutoSaveEnabled;
 
+
         public static void SetAutoSaveEnabled(bool enabled)
         {
             Config.IsAutoSaveEnabled = enabled;
@@ -257,6 +187,7 @@ namespace ModHearth
         }
 
         public static bool IsAutoSortEnabled() => Config.IsAutoSortEnabled;
+
 
         public static void SetAutoSortEnabled(bool enabled)
         {
@@ -266,6 +197,7 @@ namespace ModHearth
 
         public static bool IsAutoResolveAndQueueEnabled() => Config.IsAutoResolveAndQueueEnabled;
 
+
         public static void SetAutoResolveAndQueueEnabled(bool enabled)
         {
             Config.IsAutoResolveAndQueueEnabled = enabled;
@@ -274,6 +206,7 @@ namespace ModHearth
 
         public static bool IsAutoRetryAllEnabled() => Config.IsAutoRetryAllEnabled;
 
+
         public static void SetAutoRetryAllEnabled(bool enabled)
         {
             Config.IsAutoRetryAllEnabled = enabled;
@@ -281,6 +214,8 @@ namespace ModHearth
         }
 
         public static string GetLeftSearchBarState() => Config.LeftSearchBarState;
+
+
         public static void SetLeftSearchBarState(string state)
         {
             Config.LeftSearchBarState = state;
@@ -288,6 +223,8 @@ namespace ModHearth
         }
 
         public static string GetRightSearchBarState() => Config.RightSearchBarState;
+
+
         public static void SetRightSearchBarState(string state)
         {
             Config.RightSearchBarState = state;
@@ -295,6 +232,8 @@ namespace ModHearth
         }
 
         public static bool GetOpenSteamInClient() => Config.OpenSteamInClient;
+
+
         public static void SetOpenSteamInClient(bool openInClient)
         {
             Config.OpenSteamInClient = openInClient;
@@ -302,6 +241,8 @@ namespace ModHearth
         }
 
         public static bool GetOpenSteamFolder() => Config.OpenSteamFolder;
+
+
         public static void SetOpenSteamFolder(bool openSteamFolder)
         {
             Config.OpenSteamFolder = openSteamFolder;
@@ -309,6 +250,8 @@ namespace ModHearth
         }
 
         public static bool GetCopySteamFileId() => Config.CopySteamFileId;
+
+
         public static void SetCopySteamFileId(bool copySteamFileId)
         {
             Config.CopySteamFileId = copySteamFileId;
@@ -564,16 +507,16 @@ namespace ModHearth
             // 3. /hack subfolder inside DF folder.
             if (!string.IsNullOrWhiteSpace(Config.DFFolderPath) &&
                 TryFindExeInDirectory(Path.Combine(Config.DFFolderPath, "hack")) is { } fromDfHackSub)
+            {
                 return fromDfHackSub;
+            }
 
             // 4. Steam library auto-detection.
-            switch (TryFindExeInDirectory(TryFindSteamDFHackFolder()))
+            return TryFindExeInDirectory(TryFindSteamDFHackFolder()) switch
             {
-                case { } fromSteam:
-                    return fromSteam;
-                default:
-                    return string.Empty;
-            }
+                { } fromSteam => fromSteam,
+                _ => string.Empty,
+            };
         }
 
         private static string? ResolveDwarfFortressFolderCandidate(string candidate)
@@ -849,13 +792,12 @@ namespace ModHearth
             return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
-        public static StringComparison GetFileSystemPathComparison()
-            => OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
+        public static StringComparison GetFileSystemPathComparison() => OperatingSystem.IsWindows()
+                        ? StringComparison.OrdinalIgnoreCase
+                        : StringComparison.Ordinal;
 
-        public static string? ResolveExistingDirectoryPath(string path)
-            => ResolveExistingPath(path, expectDirectory: true);
+        public static string? ResolveExistingDirectoryPath(string path) => ResolveExistingPath(path, expectDirectory: true);
+
 
         public static string? ResolveExistingPath(string path, bool expectDirectory)
         {
@@ -887,9 +829,9 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                 return null;
 
-            string remainder = fullPath.Substring(root.Length);
+            string remainder = fullPath[root.Length..];
             string[] segments = remainder.Split(
-                new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                 StringSplitOptions.RemoveEmptyEntries);
             if (segments.Length == 0)
             {
@@ -1046,10 +988,10 @@ namespace ModHearth
             return false;
         }
 
-        public static bool IsLikelySteamShadowCopy(string? folderPath, out string workshopId)
-            => IsLikelySteamShadowCopy(folderPath, null, out workshopId);
+        public static bool IsLikelySteamShadowCopy(string? folderPath, out string workshopId) => IsLikelySteamShadowCopy(folderPath, null, out workshopId);
 
         //IMPORTANT: Local mods often contain [STEAM_FILE_ID:] and related steam tags. Steam/Vanilla/Local/Etc mod sorting should be done by their root folder location!
+
         public static bool TryParsePositiveSteamId(string? rawSteamId, out string steamItemId)
         {
             steamItemId = string.Empty;
@@ -1279,34 +1221,6 @@ namespace ModHearth
             }
         }
 
-        public static bool IsInstalledModsUnderGameFolder(string installedModsPath, string? dfFolderPath)
-        {
-            if (string.IsNullOrWhiteSpace(installedModsPath) || string.IsNullOrWhiteSpace(dfFolderPath))
-                return false;
-
-            try
-            {
-                string installedFull = Path.GetFullPath(installedModsPath);
-                string dfFull = Path.GetFullPath(dfFolderPath);
-                return IsPathUnderRoot(installedFull, dfFull);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static bool IsPathUnderRoot(string path, string root)
-        {
-            string normalizedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            string normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            normalizedRoot += Path.DirectorySeparatorChar;
-            StringComparison comparison = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-            return normalizedPath.StartsWith(normalizedRoot, comparison);
-        }
-
         private static IEnumerable<string> GetAppDataBasePaths()
         {
             HashSet<string> bases = new(
@@ -1434,6 +1348,8 @@ namespace ModHearth
         }
 
         public static double GetMainWindowGridSplitterRatio() => Config.MainWindowGridSplitterRatio;
+
+
         public static void SetMainWindowGridSplitterRatio(double ratio)
         {
             Config.MainWindowGridSplitterRatio = ratio;
@@ -1441,6 +1357,8 @@ namespace ModHearth
         }
 
         public static double GetSortRulesWindowGridSplitterRatio() => Config.SortRulesWindowGridSplitterRatio;
+
+
         public static void SetSortRulesWindowGridSplitterRatio(double ratio)
         {
             Config.SortRulesWindowGridSplitterRatio = ratio;
@@ -1448,6 +1366,8 @@ namespace ModHearth
         }
 
         public static string GetDefaultWorkshopProvider() => Config.DefaultWorkshopProvider;
+
+
         public static void SetDefaultWorkshopProvider(string providerName)
         {
             Config.DefaultWorkshopProvider = providerName;
@@ -1455,6 +1375,8 @@ namespace ModHearth
         }
 
         public static bool GetIsWorkshopDownloaderDocked() => Config.IsWorkshopDownloaderDocked;
+
+
         public static void SetIsWorkshopDownloaderDocked(bool docked)
         {
             Config.IsWorkshopDownloaderDocked = docked;
@@ -1462,6 +1384,8 @@ namespace ModHearth
         }
 
         public static bool GetIsModUpdateLogDocked() => Config.IsModUpdateLogDocked;
+
+
         public static void SetIsModUpdateLogDocked(bool docked)
         {
             Config.IsModUpdateLogDocked = docked;
@@ -1469,6 +1393,8 @@ namespace ModHearth
         }
 
         public static bool GetIsSortRulesDocked() => Config.IsSortRulesDocked;
+
+
         public static void SetIsSortRulesDocked(bool docked)
         {
             Config.IsSortRulesDocked = docked;
@@ -1508,6 +1434,8 @@ namespace ModHearth
         }
 
         public static string GetIgnoredUpdateVersion() => Config.IgnoredUpdateVersion;
+
+
         public static void SetIgnoredUpdateVersion(string version)
         {
             Config.IgnoredUpdateVersion = version ?? string.Empty;
@@ -1515,6 +1443,8 @@ namespace ModHearth
         }
 
         public static bool GetAutoCheckForReleasesOnStartup() => Config.AutoCheckForReleasesOnStartup;
+
+
         public static void SetAutoCheckForReleasesOnStartup(bool autoCheck)
         {
             Config.AutoCheckForReleasesOnStartup = autoCheck;

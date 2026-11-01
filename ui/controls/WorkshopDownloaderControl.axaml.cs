@@ -7,12 +7,20 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using ModHearth.Models;
+using ModHearth.UI.Behaviors;
+using ModHearth.UI.Contracts;
+using ModHearth.UI.Dialogs;
+using ModHearth.UI.ModList;
+using ModHearth.UI.Rendering;
+using ModHearth.UI.Theme;
+using ModHearth.UI.ViewModels;
 using ModHearth.Utilities.Logging;
 using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
 {
-    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable, IModRefContextMenuProvider, IStyleAwareWindow
+    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable, IModRefContextMenuProvider
     {
         public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -89,7 +97,7 @@ namespace ModHearth.UI
             ProviderComboBox.SelectedItem = SelectedProvider;
             ProviderComboBox.SelectionChanged += async (_, _) =>
             {
-                var provider = ProviderComboBox.SelectedItem as IWorkshopDownloadProvider;
+                IWorkshopDownloadProvider? provider = ProviderComboBox.SelectedItem as IWorkshopDownloadProvider;
                 _queueManager.SelectedProvider = provider;
                 SelectedProvider = provider;
                 if (provider != null)
@@ -128,7 +136,7 @@ namespace ModHearth.UI
                 UpdateQueueActionStates();
             };
             _queueManager.Queue.CollectionChanged += _queueCollectionChangedHandler;
-            foreach (var item in _queueManager.Queue)
+            foreach (WorkshopDownloadItem item in _queueManager.Queue)
             {
                 item.PropertyChanged += Item_PropertyChanged;
             }
@@ -155,7 +163,7 @@ namespace ModHearth.UI
 
                     InfoLogger.LogRunDf($"WorkshopDownloaderControl: Auto-detected clipboard change: {text}");
 
-                    var currentText = WorkshopUrlTextBox.Text ?? string.Empty;
+                    string currentText = WorkshopUrlTextBox.Text ?? string.Empty;
                     if (!currentText.Contains(text))
                     {
                         _suppressClipboardTextBoxAutoResolve = true;
@@ -198,7 +206,7 @@ namespace ModHearth.UI
                 string text = WorkshopUrlTextBox.Text ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(text) || text == _lastResolvedInput) return;
 
-                var ids = WorkshopUrlResolver.ParseUrls(text);
+                List<ulong> ids = WorkshopUrlResolver.ParseUrls(text);
                 if (ids.Count > 0)
                 {
                     _lastResolvedInput = text;
@@ -252,7 +260,7 @@ namespace ModHearth.UI
             _statusCts?.Cancel();
             _statusCts?.Dispose();
             _statusCts = new CancellationTokenSource();
-            var token = _statusCts.Token;
+            CancellationToken token = _statusCts.Token;
 
             _ = Task.Delay(5000, token).ContinueWith(t =>
             {
@@ -271,11 +279,11 @@ namespace ModHearth.UI
             if (string.IsNullOrWhiteSpace(input))
                 return;
 
-            var ids = WorkshopUrlResolver.ParseUrls(input);
-            var nonExistingIds = new List<ulong>();
+            List<ulong> ids = WorkshopUrlResolver.ParseUrls(input);
+            List<ulong> nonExistingIds = [];
             int ignoredCount = 0;
             int inFlightCount = 0;
-            foreach (var id in ids)
+            foreach (ulong id in ids)
             {
                 switch (_queueManager.ClassifyMod(id))
                 {
@@ -311,18 +319,17 @@ namespace ModHearth.UI
 
             try
             {
-                var filteredInput = string.Join(" ", nonExistingIds);
+                string filteredInput = string.Join(" ", nonExistingIds);
                 await _queueManager.ResolveAndEnqueueUrlsAsync(filteredInput, async (collectionMetadata) =>
                 {
                     await Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        var ownerWindow = TopLevel.GetTopLevel(this) as Window;
-                        if (ownerWindow != null)
+                        if (TopLevel.GetTopLevel(this) is Window ownerWindow)
                         {
-                            var selected = await CollectionChecklistDialog.ShowAsync(ownerWindow, collectionMetadata, _queueManager);
+                            List<WorkshopItemMetadata>? selected = await CollectionChecklistDialog.ShowAsync(ownerWindow, collectionMetadata, _queueManager);
                             if (selected != null && selected.Count > 0)
                             {
-                                foreach (var meta in selected)
+                                foreach (WorkshopItemMetadata meta in selected)
                                 {
                                     _queueManager.Enqueue(meta);
                                 }
@@ -333,7 +340,7 @@ namespace ModHearth.UI
             }
             finally
             {
-                foreach (var id in nonExistingIds)
+                foreach (ulong id in nonExistingIds)
                     _ = _idsBeingResolved.Remove(id);
             }
         }
@@ -390,10 +397,10 @@ namespace ModHearth.UI
                 _contextMenuHost.DataContext = new ModRefViewModel(new ModReference
                 {
                     ID = selected.PublishedFileId.ToString(),
-                    numericVersion = "0",
-                    name = selected.Title,
-                    author = selected.Author,
-                    steamID = selected.PublishedFileId.ToString(),
+                    NumericVersion = "0",
+                    Name = selected.Title,
+                    Author = selected.Author,
+                    SteamID = selected.PublishedFileId.ToString(),
                     Source = ModSource.Steam
                 });
             }
@@ -407,17 +414,16 @@ namespace ModHearth.UI
         {
             if (DownloadQueueList.SelectedItems != null && DownloadQueueList.SelectedItems.Count > 0)
             {
-                return DownloadQueueList.SelectedItems.Cast<WorkshopDownloadItem>()
+                return [.. DownloadQueueList.SelectedItems.Cast<WorkshopDownloadItem>()
                     .Select(selected => new ModReference
                     {
                         ID = selected.PublishedFileId.ToString(),
-                        numericVersion = "0",
-                        name = selected.Title,
-                        author = selected.Author,
-                        steamID = selected.PublishedFileId.ToString(),
+                        NumericVersion = "0",
+                        Name = selected.Title,
+                        Author = selected.Author,
+                        SteamID = selected.PublishedFileId.ToString(),
                         Source = ModSource.Steam
-                    })
-                    .ToList();
+                    })];
             }
             return [contextVm.ModReference];
         }
@@ -432,12 +438,11 @@ namespace ModHearth.UI
 
         public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
-            var manager = _queueManager?.Manager;
+            ModHearthManager? manager = _queueManager?.Manager;
             if (manager == null)
                 return;
 
-            var ownerWindow = TopLevel.GetTopLevel(this) as Window;
-            if (ownerWindow == null)
+            if (TopLevel.GetTopLevel(this) is not Window ownerWindow)
                 return;
 
             switch (item.Tag?.ToString())
@@ -450,9 +455,9 @@ namespace ModHearth.UI
                     break;
                 case ModContextMenuSupport.RedownloadTag:
                     {
-                        var targets = GetSelectedModReferences(vm);
+                        IEnumerable<ModReference> targets = GetSelectedModReferences(vm);
                         List<ulong> workshopIds = [];
-                        foreach (var target in targets)
+                        foreach (ModReference target in targets)
                         {
                             if (ModHearthManager.TryGetSteamWorkshopItemId(target, out string steamId) && ulong.TryParse(steamId, out ulong id))
                             {
@@ -502,7 +507,7 @@ namespace ModHearth.UI
                     {
                         _queueManager.Queue.CollectionChanged -= _queueCollectionChangedHandler;
                     }
-                    foreach (var item in _queueManager.Queue)
+                    foreach (WorkshopDownloadItem item in _queueManager.Queue)
                     {
                         item.PropertyChanged -= Item_PropertyChanged;
                     }
@@ -520,13 +525,12 @@ namespace ModHearth.UI
             _isSetupDialogShowing = true;
             try
             {
-                var ownerWindow = TopLevel.GetTopLevel(this) as Window;
-                if (ownerWindow != null)
+                if (TopLevel.GetTopLevel(this) is Window ownerWindow)
                 {
                     bool success = await SteamCmdSetupDialog.ShowAsync(ownerWindow);
                     if (success)
                     {
-                        var current = SelectedProvider;
+                        IWorkshopDownloadProvider? current = SelectedProvider;
                         SelectedProvider = null;
                         SelectedProvider = current;
                         NotifyOfPropertyChange("SelectedProvider.StatusBrush");
@@ -545,7 +549,7 @@ namespace ModHearth.UI
 
         public async Task CheckProviderSetupAsync()
         {
-            var provider = _queueManager?.SelectedProvider;
+            IWorkshopDownloadProvider? provider = _queueManager?.SelectedProvider;
             if (provider is SteamCmdDownloadProvider && !provider.IsAvailable)
             {
                 await ShowSteamCmdSetupAsync();
@@ -560,7 +564,7 @@ namespace ModHearth.UI
             SearchButtonBehavior.ApplyStyle(BtnClearText, style);
             if (BtnClearText.Content is Image img)
             {
-                img.Source = ImageSourceLoader.LoadFromAssetUri("broomMenuIcon", style.buttonTextColor.ToAvaloniaColor());
+                img.Source = ImageSourceLoader.LoadFromAssetUri("broomMenuIcon", style.ButtonTextColor.ToAvaloniaColor());
             }
         }
 

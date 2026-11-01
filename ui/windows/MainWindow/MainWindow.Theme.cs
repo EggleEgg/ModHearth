@@ -1,49 +1,53 @@
-namespace ModHearth.UI;
+using ModHearth.UI.Dialogs;
+using ModHearth.UI.Theme;
 
-public partial class MainWindow
+namespace ModHearth.UI
 {
-    public void ApplyCustomStyle(Style style)
+    public partial class MainWindow
     {
-        if (style == null)
-            return;
-
-        RefreshDescriptionHtml();
-        RefreshModDataViewer();
-
-        int theme = ConfigManager.GetTheme();
-        if (themeComboBox != null && themeComboBox.SelectedIndex != theme)
-            themeComboBox.SelectedIndex = theme;
-    }
-
-    private void ApplyStyle(Style style)
-    {
-        if (style == null)
-            return;
-
-        ApplyCustomStyle(style);
-
-        // Use the centralized theme manager to apply styles recursively to the entire visual tree, 
-        // including window background, theme variant, application resources, labels, listboxes, notification container, etc.
-        WindowThemeManager.ApplyToOpenWindows(style);
-    }
-
-    private async Task OnThemeChangedAsync()
-    {
-        if (themeComboBox.SelectedIndex < 0)
-            return;
-
-        ConfigManager.SetTheme(themeComboBox.SelectedIndex);
-        try
+        public void ApplyCustomStyle(Style style)
         {
-            ApplyStyle(ConfigManager.LoadStyle());
+            if (style == null)
+                return;
+
+            RefreshDescriptionHtml();
+            RefreshModDataViewer();
+
+            int theme = ConfigManager.GetTheme();
+            if (themeComboBox != null && themeComboBox.SelectedIndex != theme)
+                themeComboBox.SelectedIndex = theme;
         }
-        catch (Exception ex)
+
+        private void ApplyStyle(Style style)
         {
-            await DialogService.ShowMessageAsync(this, ex.Message, "Style load failed");
-            Close();
-            return;
+            if (style == null)
+                return;
+
+            ApplyCustomStyle(style);
+
+            // Use the centralized theme manager to apply styles recursively to the entire visual tree, 
+            // including window background, theme variant, application resources, labels, listboxes, notification container, etc.
+            WindowThemeManager.ApplyToOpenWindows(style);
         }
-        UpdateProblemIndicators();
-        UpdateDuplicateWarningIndicators();
+
+        private async Task OnThemeChangedAsync()
+        {
+            if (themeComboBox.SelectedIndex < 0)
+                return;
+
+            ConfigManager.SetTheme(themeComboBox.SelectedIndex);
+            try
+            {
+                ApplyStyle(StyleLoader.LoadStyle());
+            }
+            catch (Exception ex)
+            {
+                await DialogService.ShowMessageAsync(this, ex.Message, "Style load failed");
+                Close();
+                return;
+            }
+            UpdateProblemIndicators();
+            UpdateDuplicateWarningIndicators();
+        }
     }
 }

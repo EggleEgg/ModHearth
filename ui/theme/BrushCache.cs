@@ -2,65 +2,35 @@ using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using ModHearth.Utilities;
 
-namespace ModHearth.UI;
-
-public static class BrushCache
+namespace ModHearth.UI.Theme
 {
-    // Theme switches and blended overlay colors are finite, but bounding the cache keeps it from
-    // growing indefinitely if callers pass computed colors.
-    private static readonly BoundedLruCache<Color, IBrush> _cache = new(512);
-
-    /// <summary>
-    /// Gets a cached, high-performance ImmutableSolidColorBrush for the given color.
-    /// </summary>
-    public static IBrush GetBrush(Color color) => _cache.GetOrAdd(color, static c => new ImmutableSolidColorBrush(c));
-
-    /// <summary>
-    /// Gets a cached brush with RGB values adjusted by the specified delta, clamped to valid byte range [0, 255] to avoid overflow/underflow.
-    /// </summary>
-    public static IBrush EditBrushDelta(Color color, int delta)
+    public static class BrushCache
     {
-        byte r = (byte)Math.Clamp(color.R + delta, 0, 255);
-        byte g = (byte)Math.Clamp(color.G + delta, 0, 255);
-        byte b = (byte)Math.Clamp(color.B + delta, 0, 255);
-        return GetBrush(Color.FromArgb(color.A, r, g, b));
-    }
+        // Theme switches and blended overlay colors are finite, but bounding the cache keeps it from
+        // growing indefinitely if callers pass computed colors.
+        private static readonly BoundedLruCache<Color, IBrush> _cache = new(512);
 
-    /// <inheritdoc cref="EditBrushDelta(Color, int)"/>
-    public static IBrush EditBrushDelta(SimpleColor color, int delta) => EditBrushDelta(color.ToAvaloniaColor(), delta);
+        /// <summary>
+        /// Gets a cached, high-performance ImmutableSolidColorBrush for the given color.
+        /// </summary>
+        public static IBrush GetBrush(Color color) => _cache.GetOrAdd(color, static c => new ImmutableSolidColorBrush(c));
 
-    /// <inheritdoc cref="EditBrushDelta(Color, int)"/>
-    public static IBrush EditBrushDelta(IBrush brush, int delta)
-    {
-        switch (brush)
+        /// <summary>
+        /// Gets a cached brush for the given color with a specified alpha channel.
+        /// </summary>
+        public static IBrush EditBrushAlpha(Color color, byte alpha) => GetBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
+
+        /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
+        public static IBrush EditBrushAlpha(SimpleColor color, byte alpha) => EditBrushAlpha(color.ToAvaloniaColor(), alpha);
+
+        /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
+        public static IBrush EditBrushAlpha(IBrush brush, byte alpha)
         {
-            case ISolidColorBrush solid:
-                return EditBrushDelta(solid.Color, delta);
-            default:
-                return brush;
+            return brush switch
+            {
+                ISolidColorBrush solid => EditBrushAlpha(solid.Color, alpha),
+                _ => brush,
+            };
         }
     }
-
-    /// <summary>
-    /// Gets a cached brush for the given color with a specified alpha channel.
-    /// </summary>
-    public static IBrush EditBrushAlpha(Color color, byte alpha) => GetBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
-
-    /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
-    public static IBrush EditBrushAlpha(SimpleColor color, byte alpha) => EditBrushAlpha(color.ToAvaloniaColor(), alpha);
-
-    /// <inheritdoc cref="EditBrushAlpha(Color, byte)"/>
-    public static IBrush EditBrushAlpha(IBrush brush, byte alpha)
-    {
-        switch (brush)
-        {
-            case ISolidColorBrush solid:
-                return EditBrushAlpha(solid.Color, alpha);
-            default:
-                return brush;
-        }
-    }
-
-    // Call this whenever the theme is changed
-    public static void Clear() => _cache.Clear();
 }

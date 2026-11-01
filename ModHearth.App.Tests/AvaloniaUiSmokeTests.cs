@@ -1,221 +1,226 @@
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using ModHearth.Models;
 using ModHearth.UI;
+using ModHearth.UI.Dialogs;
+using ModHearth.UI.Theme;
+using ModHearth.UI.ViewModels;
+using ModHearth.UI.Windows;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace ModHearth.App.Tests;
-
-/// <summary>
-/// Handles Avalonia headless app bootstrap once for the test class lifetime.
-/// </summary>
-public class AvaloniaAppFixture
+namespace ModHearth.App.Tests
 {
-    public AvaloniaAppFixture()
+    /// <summary>
+    /// Handles Avalonia headless app bootstrap once for the test class lifetime.
+    /// </summary>
+    public class AvaloniaAppFixture
     {
-        try
+        public AvaloniaAppFixture()
         {
-            ConfigManager.AttemptLoadConfig(false);
-            try { _ = ConfigManager.LoadStyle(false); } catch { /* Ignore missing style files in test environments */ }
-
-            string testEnvDir = Path.Combine(AppContext.BaseDirectory, "test_env");
-            _ = Directory.CreateDirectory(testEnvDir);
-            _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "data", "installed-mods"));
-            _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "hack"));
-            string dfhackRunPath = Path.Combine(testEnvDir, "hack", OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run");
-            if (!File.Exists(dfhackRunPath))
-                File.WriteAllText(dfhackRunPath, string.Empty);
-
-            ConfigManager.SetDwarfFortressFolderPath(testEnvDir);
-            ConfigManager.SetDFHackFolderPath(Path.Combine(testEnvDir, "hack"));
-            ConfigManager.SetInstalledModsPath(Path.Combine(testEnvDir, "data", "installed-mods"));
-        }
-        catch
-        {
-            // Fallback for headless test environments
-        }
-    }
-}
-
-/// <summary>
-/// Smoke tests to verify that all Avalonia windows, dialogs, and custom controls can be instantiated
-/// and initialized without crashing due to styling, theme, resource, binding, or real mod data mismatches.
-/// </summary>
-public class AvaloniaUiSmokeTests(ITestOutputHelper output) : IClassFixture<AvaloniaAppFixture>
-{
-    private readonly ITestOutputHelper _output = output;
-
-    [Fact(Timeout = 20000)]
-    public async Task CanInstantiateAllUIComponentsAndPumpEventsWithoutCrash()
-    {
-        try
-        {
-            if (Avalonia.Application.Current == null)
+            try
             {
-                _output.WriteLine("AvaloniaUiSmokeTests: Initializing Avalonia application on the current test thread.");
-                _ = Program.BuildAvaloniaApp().SetupWithoutStarting();
+                ConfigManager.AttemptLoadConfig(false);
+                try { _ = StyleLoader.LoadStyle(false); } catch { /* Ignore missing style files in test environments */ }
+
+                string testEnvDir = Path.Combine(AppContext.BaseDirectory, "test_env");
+                _ = Directory.CreateDirectory(testEnvDir);
+                _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "data", "installed-mods"));
+                _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "hack"));
+                string dfhackRunPath = Path.Combine(testEnvDir, "hack", OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run");
+                if (!File.Exists(dfhackRunPath))
+                    File.WriteAllText(dfhackRunPath, string.Empty);
+
+                ConfigManager.SetDwarfFortressFolderPath(testEnvDir);
+                ConfigManager.SetDFHackFolderPath(Path.Combine(testEnvDir, "hack"));
+                ConfigManager.SetInstalledModsPath(Path.Combine(testEnvDir, "data", "installed-mods"));
+            }
+            catch
+            {
+                // Fallback for headless test environments
             }
         }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"AvaloniaUiSmokeTests: Failed to initialize application: {ex}");
-        }
-
-        _output.WriteLine("AvaloniaUiSmokeTests: Starting UI component instantiation test.");
-
-        // 1. Resolve test mod data
-        string exampleModDir = FindExampleModPath();
-        _output.WriteLine($"AvaloniaUiSmokeTests: Example mod path resolved to: '{exampleModDir}'.");
-        ModReference? exampleModRef = LoadModReferenceFromDirectory(exampleModDir);
-        ModRefViewModel? exampleModVm = exampleModRef != null ? new(exampleModRef) : null;
-        _output.WriteLine("AvaloniaUiSmokeTests: Mod reference and view model loaded.");
-
-        // 2. Instantiate and verify UserControls & Views
-        _output.WriteLine("AvaloniaUiSmokeTests: Instantiating UserControls & Views...");
-        var controlFactories = new (string Name, Func<Control> Factory)[]
-        {
-            ("ModColorPicker", () => new ModColorPicker()),
-            ("ModRefControl", () => new ModRefControl { DataContext = exampleModVm }),
-            ("ModSearchBar", () => new ModSearchBar()),
-            ("ModUpdateLogControl", () => new ModUpdateLogControl()),
-            ("SortRulesControl", () => new SortRulesControl()),
-            ("WorkshopDownloaderControl", () => new WorkshopDownloaderControl()),
-            ("ModDataEntryView", () => new ModDataEntryView { DataContext = exampleModRef }),
-            ("ModDataPanelView", () => new ModDataPanelView { DataContext = exampleModRef }),
-            ("ModDescriptionPanelView", () => new ModDescriptionPanelView { DataContext = exampleModRef }),
-            ("ModPreviewPanelView", () => new ModPreviewPanelView { DataContext = exampleModRef })
-        };
-
-        foreach (var (name, factory) in controlFactories)
-        {
-            _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
-            var control = factory();
-            Assert.NotNull(control);
-            _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
-        }
-        _output.WriteLine("AvaloniaUiSmokeTests: All UserControls & Views instantiated successfully.");
-
-        // 3. Instantiate and verify Dialogs
-        _output.WriteLine("AvaloniaUiSmokeTests: Instantiating Dialogs...");
-        var dialogFactories = new (string Name, Func<Window> Factory)[]
-        {
-            ("CollectionChecklistDialog", () => new CollectionChecklistDialog()),
-            ("InputDialog", () => new InputDialog()),
-            ("MessageDialog", () => new MessageDialog()),
-            ("SteamCmdSetupDialog", () => new SteamCmdSetupDialog()),
-            ("UpdateDialog", () => new UpdateDialog())
-        };
-
-        foreach (var (name, factory) in dialogFactories)
-        {
-            _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
-            var dialog = factory();
-            Assert.NotNull(dialog);
-            _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
-        }
-        _output.WriteLine("AvaloniaUiSmokeTests: All Dialogs instantiated successfully.");
-
-        // 4. Instantiate and verify Windows & Apply Themes
-        _output.WriteLine("AvaloniaUiSmokeTests: Instantiating Windows...");
-        var candidates = exampleModVm != null ? new List<ModRefViewModel> { exampleModVm } : [];
-
-        var windowFactories = new (string Name, Func<Window> Factory)[]
-        {
-            ("ModUpdateLogWindow", () => new ModUpdateLogWindow()),
-            ("SortRulesWindow", () => new SortRulesWindow()),
-            ("WorkshopDownloaderWindow", () => new WorkshopDownloaderWindow()),
-            ("RelationshipPickerWindow", () => new RelationshipPickerWindow(
-                "test_mod",
-                ModRelationshipKind.Before,
-                candidates,
-                new HashSet<string>(),
-                new Dictionary<string, ModRelationshipRule>()
-            )),
-            ("MainWindow", () => new MainWindow())
-        };
-
-        foreach (var (name, factory) in windowFactories)
-        {
-            _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
-            var window = factory();
-            Assert.NotNull(window);
-            _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
-
-            if (Style.instance != null)
-            {
-                _output.WriteLine($"AvaloniaUiSmokeTests: Applying theme to {name}...");
-                WindowThemeManager.ApplyToWindow(window, Style.instance);
-                _output.WriteLine($"AvaloniaUiSmokeTests: Theme applied to {name} successfully.");
-            }
-        }
-        _output.WriteLine("AvaloniaUiSmokeTests: Windows instantiated and themed successfully.");
-
-        // 5. Pump UI event loop for 2 seconds to catch binding/layout failures or timer ticks
-        _output.WriteLine("AvaloniaUiSmokeTests: Pumping UI event loop...");
-        DateTime end = DateTime.UtcNow.AddSeconds(2);
-        int iteration = 0;
-        while (DateTime.UtcNow < end)
-        {
-            _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - calling RunJobs()...");
-            Dispatcher.UIThread.RunJobs();
-            _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - sleeping...");
-            Thread.Sleep(50);
-            _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - finished sleep.");
-            iteration++;
-        }
-        _output.WriteLine("AvaloniaUiSmokeTests: UI event loop completed successfully.");
     }
 
-    private static string FindExampleModPath()
+    /// <summary>
+    /// Smoke tests to verify that all Avalonia windows, dialogs, and custom controls can be instantiated
+    /// and initialized without crashing due to styling, theme, resource, binding, or real mod data mismatches.
+    /// </summary>
+    public class AvaloniaUiSmokeTests(ITestOutputHelper output) : IClassFixture<AvaloniaAppFixture>
     {
-        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+        private readonly ITestOutputHelper _output = output;
+
+        [Fact(Timeout = 20000)]
+        public void CanInstantiateAllUIComponentsAndPumpEventsWithoutCrash()
         {
-            foreach (string subPath in new[] { "ModHearth.App.Tests/example_mod", "example_mod" })
+            try
             {
-                string candidate = Path.Combine(dir.FullName, subPath);
-                if (Directory.Exists(candidate))
-                    return candidate;
+                if (Avalonia.Application.Current == null)
+                {
+                    _output.WriteLine("AvaloniaUiSmokeTests: Initializing Avalonia application on the current test thread.");
+                    _ = Program.BuildAvaloniaApp().SetupWithoutStarting();
+                }
             }
+            catch (Exception ex)
+            {
+                _output.WriteLine($"AvaloniaUiSmokeTests: Failed to initialize application: {ex}");
+            }
+
+            _output.WriteLine("AvaloniaUiSmokeTests: Starting UI component instantiation test.");
+
+            // 1. Resolve test mod data
+            string exampleModDir = FindExampleModPath();
+            _output.WriteLine($"AvaloniaUiSmokeTests: Example mod path resolved to: '{exampleModDir}'.");
+            ModReference? exampleModRef = LoadModReferenceFromDirectory(exampleModDir);
+            ModRefViewModel? exampleModVm = exampleModRef != null ? new(exampleModRef) : null;
+            _output.WriteLine("AvaloniaUiSmokeTests: Mod reference and view model loaded.");
+
+            // 2. Instantiate and verify UserControls & Views
+            _output.WriteLine("AvaloniaUiSmokeTests: Instantiating UserControls & Views...");
+            (string Name, Func<Control> Factory)[] controlFactories =
+            [
+                ("ModColorPicker", () => new ModColorPicker()),
+                ("ModRefControl", () => new ModRefControl { DataContext = exampleModVm }),
+                ("ModSearchBar", () => new ModSearchBar()),
+                ("ModUpdateLogControl", () => new ModUpdateLogControl()),
+                ("SortRulesControl", () => new SortRulesControl()),
+                ("WorkshopDownloaderControl", () => new WorkshopDownloaderControl()),
+                ("ModDataEntryView", () => new ModDataEntryView { DataContext = exampleModRef }),
+                ("ModDataPanelView", () => new ModDataPanelView { DataContext = exampleModRef }),
+                ("ModDescriptionPanelView", () => new ModDescriptionPanelView { DataContext = exampleModRef }),
+                ("ModPreviewPanelView", () => new ModPreviewPanelView { DataContext = exampleModRef })
+            ];
+
+            foreach ((string? name, Func<Control>? factory) in controlFactories)
+            {
+                _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
+                Control control = factory();
+                Assert.NotNull(control);
+                _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
+            }
+            _output.WriteLine("AvaloniaUiSmokeTests: All UserControls & Views instantiated successfully.");
+
+            // 3. Instantiate and verify Dialogs
+            _output.WriteLine("AvaloniaUiSmokeTests: Instantiating Dialogs...");
+            (string Name, Func<Window> Factory)[] dialogFactories =
+            [
+                ("CollectionChecklistDialog", () => new CollectionChecklistDialog()),
+                ("InputDialog", () => new InputDialog()),
+                ("MessageDialog", () => new MessageDialog()),
+                ("SteamCmdSetupDialog", () => new SteamCmdSetupDialog()),
+                ("UpdateDialog", () => new UpdateDialog())
+            ];
+
+            foreach ((string? name, Func<Window>? factory) in dialogFactories)
+            {
+                _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
+                Window dialog = factory();
+                Assert.NotNull(dialog);
+                _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
+            }
+            _output.WriteLine("AvaloniaUiSmokeTests: All Dialogs instantiated successfully.");
+
+            // 4. Instantiate and verify Windows & Apply Themes
+            _output.WriteLine("AvaloniaUiSmokeTests: Instantiating Windows...");
+            List<ModRefViewModel> candidates = exampleModVm != null ? [exampleModVm] : [];
+
+            (string Name, Func<Window> Factory)[] windowFactories =
+            [
+                ("ModUpdateLogWindow", () => new ModUpdateLogWindow()),
+                ("SortRulesWindow", () => new SortRulesWindow()),
+                ("WorkshopDownloaderWindow", () => new WorkshopDownloaderWindow()),
+                ("RelationshipPickerWindow", () => new RelationshipPickerWindow(
+                    "test_mod",
+                    ModRelationshipKind.Before,
+                    candidates,
+                    new HashSet<string>()
+                )),
+                ("MainWindow", () => new MainWindow())
+            ];
+
+            foreach ((string? name, Func<Window>? factory) in windowFactories)
+            {
+                _output.WriteLine($"AvaloniaUiSmokeTests: Instantiating {name}...");
+                Window window = factory();
+                Assert.NotNull(window);
+                _output.WriteLine($"AvaloniaUiSmokeTests: {name} instantiated successfully.");
+
+                if (Style.instance != null)
+                {
+                    _output.WriteLine($"AvaloniaUiSmokeTests: Applying theme to {name}...");
+                    WindowThemeManager.ApplyToWindow(window, Style.instance);
+                    _output.WriteLine($"AvaloniaUiSmokeTests: Theme applied to {name} successfully.");
+                }
+            }
+            _output.WriteLine("AvaloniaUiSmokeTests: Windows instantiated and themed successfully.");
+
+            // 5. Pump UI event loop for 2 seconds to catch binding/layout failures or timer ticks
+            _output.WriteLine("AvaloniaUiSmokeTests: Pumping UI event loop...");
+            DateTime end = DateTime.UtcNow.AddSeconds(2);
+            int iteration = 0;
+            while (DateTime.UtcNow < end)
+            {
+                _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - calling RunJobs()...");
+                Dispatcher.UIThread.RunJobs();
+                _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - sleeping...");
+                Thread.Sleep(50);
+                _output.WriteLine($"AvaloniaUiSmokeTests: Pumping iteration {iteration} - finished sleep.");
+                iteration++;
+            }
+            _output.WriteLine("AvaloniaUiSmokeTests: UI event loop completed successfully.");
         }
 
-        return string.Empty;
-    }
-
-    private static ModReference? LoadModReferenceFromDirectory(string modDir)
-    {
-        if (string.IsNullOrEmpty(modDir) || !Directory.Exists(modDir))
-            return null;
-
-        string infoPath = Path.Combine(modDir, "info.txt");
-        if (!File.Exists(infoPath))
-            return null;
-
-        string infoContent = File.ReadAllText(infoPath);
-
-        string GetTag(string tagName)
+        private static string FindExampleModPath()
         {
-            Match m = Regex.Match(infoContent, $@"\[{tagName}:([^\]]+)\]", RegexOptions.IgnoreCase);
-            return m.Success ? m.Groups[1].Value.Trim() : string.Empty;
+            for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+            {
+                foreach (string subPath in new[] { "ModHearth.App.Tests/example_mod", "example_mod" })
+                {
+                    string candidate = Path.Combine(dir.FullName, subPath);
+                    if (Directory.Exists(candidate))
+                        return candidate;
+                }
+            }
+
+            return string.Empty;
         }
 
-        string[] tags =
-        [
-            "ID", "NUMERIC_VERSION", "DISPLAYED_VERSION",
-            "EARLIEST_COMPATIBLE_NUMERIC_VERSION", "EARLIEST_COMPATIBLE_DISPLAYED_VERSION",
-            "AUTHOR", "NAME", "DESCRIPTION", "STEAM_FILE_ID", "STEAM_TITLE", "STEAM_DESCRIPTION"
-        ];
-
-        var memoryData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        private static ModReference? LoadModReferenceFromDirectory(string modDir)
         {
-            ["src_dir"] = modDir
-        };
+            if (string.IsNullOrEmpty(modDir) || !Directory.Exists(modDir))
+                return null;
 
-        foreach (string tag in tags)
-        {
-            memoryData[tag.ToLowerInvariant()] = GetTag(tag);
+            string infoPath = Path.Combine(modDir, "info.txt");
+            if (!File.Exists(infoPath))
+                return null;
+
+            string infoContent = File.ReadAllText(infoPath);
+
+            string GetTag(string tagName)
+            {
+                Match m = Regex.Match(infoContent, $@"\[{tagName}:([^\]]+)\]", RegexOptions.IgnoreCase);
+                return m.Success ? m.Groups[1].Value.Trim() : string.Empty;
+            }
+
+            string[] tags =
+            [
+                "ID", "NUMERIC_VERSION", "DISPLAYED_VERSION",
+                "EARLIEST_COMPATIBLE_NUMERIC_VERSION", "EARLIEST_COMPATIBLE_DISPLAYED_VERSION",
+                "AUTHOR", "NAME", "DESCRIPTION", "STEAM_FILE_ID", "STEAM_TITLE", "STEAM_DESCRIPTION"
+            ];
+
+            Dictionary<string, string> memoryData = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["src_dir"] = modDir
+            };
+
+            foreach (string tag in tags)
+            {
+                memoryData[tag.ToLowerInvariant()] = GetTag(tag);
+            }
+
+            return new ModReference(memoryData);
         }
-
-        return new ModReference(memoryData);
     }
 }

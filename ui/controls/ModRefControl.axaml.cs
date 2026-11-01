@@ -4,274 +4,275 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using ModHearth.Models;
+using ModHearth.UI.Contracts;
+using ModHearth.UI.ModList;
+using ModHearth.UI.ViewModels;
 
-namespace ModHearth.UI;
-
-/// <summary>
-/// Centralized class for modlist viewers
-/// </summary>
-public partial class ModRefControl : UserControl
+namespace ModHearth.UI
 {
-    public static readonly StyledProperty<bool> ShowColorUnderlayProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(ShowColorUnderlay), true);
-
-    public bool ShowColorUnderlay
+    /// <summary>
+    /// Centralized class for modlist viewers
+    /// </summary>
+    public partial class ModRefControl : UserControl
     {
-        get => GetValue(ShowColorUnderlayProperty);
-        set => SetValue(ShowColorUnderlayProperty, value);
-    }
+        public static readonly StyledProperty<bool> ShowColorUnderlayProperty =
+            AvaloniaProperty.Register<ModRefControl, bool>(nameof(ShowColorUnderlay), true);
 
-    public static readonly StyledProperty<bool> ShowDetailedRuleBadgesProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(ShowDetailedRuleBadges), false);
-
-    public bool ShowDetailedRuleBadges
-    {
-        get => GetValue(ShowDetailedRuleBadgesProperty);
-        set => SetValue(ShowDetailedRuleBadgesProperty, value);
-    }
-
-    public static readonly StyledProperty<bool> AllowRelationshipEditingProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowRelationshipEditing), false);
-
-    public bool AllowRelationshipEditing
-    {
-        get => GetValue(AllowRelationshipEditingProperty);
-        set => SetValue(AllowRelationshipEditingProperty, value);
-    }
-
-    public static readonly StyledProperty<bool> AllowContextActionsProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowContextActions), true);
-
-    public bool AllowContextActions
-    {
-        get => GetValue(AllowContextActionsProperty);
-        set => SetValue(AllowContextActionsProperty, value);
-    }
-
-    public static readonly StyledProperty<IBrush> HostBackgroundProperty =
-        AvaloniaProperty.Register<ModRefControl, IBrush>(nameof(HostBackground), Brushes.Transparent);
-
-    public IBrush HostBackground
-    {
-        get => GetValue(HostBackgroundProperty);
-        set => SetValue(HostBackgroundProperty, value);
-    }
-
-    public static readonly StyledProperty<bool> AllowColorEditingProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowColorEditing), true);
-
-    public bool AllowColorEditing
-    {
-        get => GetValue(AllowColorEditingProperty);
-        set => SetValue(AllowColorEditingProperty, value);
-    }
-
-    public static readonly StyledProperty<bool> AllowSeparatorsProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowSeparators), true);
-
-    public bool AllowSeparators
-    {
-        get => GetValue(AllowSeparatorsProperty);
-        set => SetValue(AllowSeparatorsProperty, value);
-    }
-
-    public static readonly StyledProperty<bool> AllowContextMenuProperty =
-        AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowContextMenu), true);
-
-    public bool AllowContextMenu
-    {
-        get => GetValue(AllowContextMenuProperty);
-        set => SetValue(AllowContextMenuProperty, value);
-    }
-
-    public ModRefControl()
-    {
-        InitializeComponent();
-        UpdateContextMenuState();
-    }
-
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-    {
-        base.OnPropertyChanged(change);
-
-        if (change.Property == DataContextProperty)
+        public bool ShowColorUnderlay
         {
-            if (change.OldValue is ModRefViewModel oldVm)
-            {
-                oldVm.PropertyChanged -= OnViewModelPropertyChanged;
-            }
-            if (change.NewValue is ModRefViewModel newVm)
-            {
-                newVm.PropertyChanged += OnViewModelPropertyChanged;
-            }
-            UpdateBadgeVisibilities();
+            get => GetValue(ShowColorUnderlayProperty);
+            set => SetValue(ShowColorUnderlayProperty, value);
         }
-        else if (change.Property == ShowDetailedRuleBadgesProperty)
+
+        public static readonly StyledProperty<bool> ShowDetailedRuleBadgesProperty =
+            AvaloniaProperty.Register<ModRefControl, bool>(nameof(ShowDetailedRuleBadges), false);
+
+        public bool ShowDetailedRuleBadges
         {
-            UpdateBadgeVisibilities();
+            get => GetValue(ShowDetailedRuleBadgesProperty);
+            set => SetValue(ShowDetailedRuleBadgesProperty, value);
         }
-        else if (change.Property == AllowContextMenuProperty)
+
+        public static readonly StyledProperty<bool> AllowRelationshipEditingProperty =
+            AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowRelationshipEditing), false);
+
+        public bool AllowRelationshipEditing
         {
+            get => GetValue(AllowRelationshipEditingProperty);
+            set => SetValue(AllowRelationshipEditingProperty, value);
+        }
+
+        public static readonly StyledProperty<bool> AllowContextActionsProperty =
+            AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowContextActions), true);
+
+        public bool AllowContextActions
+        {
+            get => GetValue(AllowContextActionsProperty);
+            set => SetValue(AllowContextActionsProperty, value);
+        }
+
+        public static readonly StyledProperty<IBrush> HostBackgroundProperty =
+            AvaloniaProperty.Register<ModRefControl, IBrush>(nameof(HostBackground), Brushes.Transparent);
+
+        public IBrush HostBackground
+        {
+            get => GetValue(HostBackgroundProperty);
+            set => SetValue(HostBackgroundProperty, value);
+        }
+
+        public static readonly StyledProperty<bool> AllowColorEditingProperty =
+            AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowColorEditing), true);
+
+        public bool AllowColorEditing
+        {
+            get => GetValue(AllowColorEditingProperty);
+            set => SetValue(AllowColorEditingProperty, value);
+        }
+
+        public static readonly StyledProperty<bool> AllowSeparatorsProperty =
+            AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowSeparators), true);
+
+        public bool AllowSeparators
+        {
+            get => GetValue(AllowSeparatorsProperty);
+            set => SetValue(AllowSeparatorsProperty, value);
+        }
+
+        public static readonly StyledProperty<bool> AllowContextMenuProperty =
+            AvaloniaProperty.Register<ModRefControl, bool>(nameof(AllowContextMenu), true);
+
+        public bool AllowContextMenu
+        {
+            get => GetValue(AllowContextMenuProperty);
+            set => SetValue(AllowContextMenuProperty, value);
+        }
+
+        public ModRefControl()
+        {
+            InitializeComponent();
             UpdateContextMenuState();
         }
-    }
 
-    private void UpdateContextMenuState()
-    {
-        if (!AllowContextMenu)
+        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
         {
-            ContextMenu = null;
-        }
-    }
+            base.OnPropertyChanged(change);
 
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        switch (e.PropertyName)
-        {
-            case nameof(ModRefViewModel.RuleBadges):
-            case nameof(ModRefViewModel.RelationshipCount):
+            if (change.Property == DataContextProperty)
+            {
+                if (change.OldValue is ModRefViewModel oldVm)
+                {
+                    oldVm.PropertyChanged -= OnViewModelPropertyChanged;
+                }
+                if (change.NewValue is ModRefViewModel newVm)
+                {
+                    newVm.PropertyChanged += OnViewModelPropertyChanged;
+                }
                 UpdateBadgeVisibilities();
-                break;
-
-        }
-    }
-
-    private void UpdateBadgeVisibilities()
-    {
-        if (DataContext is not ModRefViewModel vm)
-            return;
-
-        bool showDetailed = ShowDetailedRuleBadges;
-        var detailed = this.FindControl<Control>("DetailedBadgesControl");
-        var simple = this.FindControl<Control>("SimpleBadgeControl");
-
-        if (detailed != null)
-        {
-            detailed.IsVisible = showDetailed && vm.HasRuleBadges;
-        }
-        if (simple != null)
-        {
-            simple.IsVisible = !showDetailed && vm.HasRelationships;
-        }
-    }
-
-    private static bool IsRelationshipTag(string? tag) => tag is not null &&
-        (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
-        tag.StartsWith("relation-", StringComparison.Ordinal));
-
-
-    private void OnContextMenuOpened(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not ContextMenu menu)
-            return;
-
-        if (DataContext is not ModRefViewModel vm)
-            return;
-
-        // The ContextMenu can be reassigned to a different owning control (ModUpdateLogWindow and
-        // WorkshopDownloaderWindow both do this via a hidden ContextMenuHost), so its own DataContext
-        // inheritance can't be relied on -- bind the Header content directly against the resolved vm.
-        menu.DataContext = vm;
-
-        IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
-
-        // 1. Centralized preparation if a manager is available via the provider.
-        // This deduplicates calls to ModContextMenuSupport.PrepareContextMenu across all windows.
-        if (provider != null)
-        {
-            ModHearthManager? manager = provider.GetManager();
-            if (manager != null)
+            }
+            else if (change.Property == ShowDetailedRuleBadgesProperty)
             {
-                var selected = provider.GetSelectedModReferences(vm);
-                ModContextMenuSupport.PrepareContextMenu(menu, manager, vm.ModReference, selected);
+                UpdateBadgeVisibilities();
+            }
+            else if (change.Property == AllowContextMenuProperty)
+            {
+                UpdateContextMenuState();
             }
         }
 
-        // 2. Let the ancestor window customize content (wording, steam-vs-local enable/disable, etc).
-        // Instance-level flags below run last so they always have final say for THIS control.
-        provider?.OnModRefContextMenuOpened(menu, vm);
-
-        bool allowRelationships = AllowRelationshipEditing;
-        bool allowActions = AllowContextActions;
-        bool allowColor = AllowColorEditing;
-        bool allowSeparators = AllowSeparators;
-        bool anyVisible = false;
-
-        foreach (Control item in menu.Items.OfType<Control>())
+        private void UpdateContextMenuState()
         {
-            // Change checkbox state on right click
-            if (item is MenuItem menuItem)
+            if (!AllowContextMenu)
             {
-                menuItem.PointerPressed -= OnContextMenuItemPointerPressed;
-                menuItem.PointerPressed += OnContextMenuItemPointerPressed;
+                ContextMenu = null;
+            }
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(ModRefViewModel.RuleBadges):
+                case nameof(ModRefViewModel.RelationshipCount):
+                    UpdateBadgeVisibilities();
+                    break;
+
+            }
+        }
+
+        private void UpdateBadgeVisibilities()
+        {
+            if (DataContext is not ModRefViewModel vm)
+                return;
+
+            bool showDetailed = ShowDetailedRuleBadges;
+            Control? detailed = this.FindControl<Control>("DetailedBadgesControl");
+            Control? simple = this.FindControl<Control>("SimpleBadgeControl");
+
+            if (detailed != null)
+            {
+                detailed.IsVisible = showDetailed && vm.HasRuleBadges;
+            }
+            if (simple != null)
+            {
+                simple.IsVisible = !showDetailed && vm.HasRelationships;
+            }
+        }
+
+        private static bool IsRelationshipTag(string? tag) => tag is not null &&
+            (string.Equals(tag, "relations-root", StringComparison.Ordinal) ||
+            tag.StartsWith("relation-", StringComparison.Ordinal));
+
+        private void OnContextMenuOpened(object? sender, RoutedEventArgs e)
+        {
+            if (sender is not ContextMenu menu)
+                return;
+
+            if (DataContext is not ModRefViewModel vm)
+                return;
+
+            // The ContextMenu can be reassigned to a different owning control (ModUpdateLogWindow and
+            // WorkshopDownloaderWindow both do this via a hidden ContextMenuHost), so its own DataContext
+            // inheritance can't be relied on -- bind the Header content directly against the resolved vm.
+            menu.DataContext = vm;
+
+            IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
+
+            // 1. Centralized preparation if a manager is available via the provider.
+            // This deduplicates calls to ModContextMenuSupport.PrepareContextMenu across all windows.
+            if (provider != null)
+            {
+                ModHearthManager? manager = provider.GetManager();
+                if (manager != null)
+                {
+                    IEnumerable<ModReference> selected = provider.GetSelectedModReferences(vm);
+                    ModContextMenuSupport.PrepareContextMenu(menu, manager, vm.ModReference, selected);
+                }
             }
 
-            string? tag = (item as MenuItem)?.Tag?.ToString() ?? (item as Separator)?.Tag?.ToString();
+            // 2. Let the ancestor window customize content (wording, steam-vs-local enable/disable, etc).
+            // Instance-level flags below run last so they always have final say for THIS control.
+            provider?.OnModRefContextMenuOpened(menu, vm);
 
-            // Only ever suppress here, never re-enable. Preserves per-item decisions providers already made (e.g. hiding "Open Steam Page" for non-steam mods).
-            if (IsRelationshipTag(tag))
+            bool allowRelationships = AllowRelationshipEditing;
+            bool allowActions = AllowContextActions;
+            bool allowColor = AllowColorEditing;
+            bool allowSeparators = AllowSeparators;
+            bool anyVisible = false;
+
+            foreach (Control item in menu.Items.OfType<Control>())
             {
-                if (!allowRelationships)
+                // Change checkbox state on right click
+                if (item is MenuItem menuItem)
+                {
+                    menuItem.PointerPressed -= OnContextMenuItemPointerPressed;
+                    menuItem.PointerPressed += OnContextMenuItemPointerPressed;
+                }
+
+                string? tag = (item as MenuItem)?.Tag?.ToString() ?? (item as Separator)?.Tag?.ToString();
+
+                // Only ever suppress here, never re-enable. Preserves per-item decisions providers already made (e.g. hiding "Open Steam Page" for non-steam mods).
+                if (IsRelationshipTag(tag))
+                {
+                    if (!allowRelationships)
+                        item.IsVisible = false;
+                    else if (string.Equals(tag, "relations-root", StringComparison.Ordinal) && item is MenuItem relationsRoot)
+                        ModContextMenuSupport.ConfigureRelationsMenu(relationsRoot, vm);
+                }
+                else if (string.Equals(tag, "set-mod-color-root", StringComparison.Ordinal))
+                {
+                    if (!allowColor)
+                        item.IsVisible = false;
+                }
+                else if (item is Separator)
+                {
+                    if (!allowSeparators)
+                        item.IsVisible = false;
+                }
+                else if (!allowActions)
+                {
                     item.IsVisible = false;
-                else if (string.Equals(tag, "relations-root", StringComparison.Ordinal) && item is MenuItem relationsRoot)
-                    ModContextMenuSupport.ConfigureRelationsMenu(relationsRoot, vm);
-            }
-            else if (string.Equals(tag, "set-mod-color-root", StringComparison.Ordinal))
-            {
-                if (!allowColor)
-                    item.IsVisible = false;
-            }
-            else if (item is Separator)
-            {
-                if (!allowSeparators)
-                    item.IsVisible = false;
-            }
-            else if (!allowActions)
-            {
-                item.IsVisible = false;
+                }
+
+                if (item.IsVisible)
+                    anyVisible = true;
             }
 
-            if (item.IsVisible)
-                anyVisible = true;
+            if (!anyVisible)
+            {
+                menu.Close();
+                e.Handled = true;
+            }
         }
 
-        if (!anyVisible)
+        private void OnContextMenuItemClick(object? sender, RoutedEventArgs e)
         {
-            menu.Close();
-            e.Handled = true;
+            if (sender is not MenuItem item)
+                return;
+
+            if (DataContext is not ModRefViewModel vm)
+                return;
+
+            IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
+            if (DevMode.IsEnabled)
+                Console.WriteLine($"[ModRefControl] OnContextMenuItemClick - Provider found: {provider != null}");
+            provider?.OnModRefContextMenuItemClicked(item, vm);
         }
-    }
 
-    private void OnContextMenuItemClick(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuItem item)
-            return;
-
-        if (DataContext is not ModRefViewModel vm)
-            return;
-
-        IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
-        if (DevMode.IsEnabled)
-            Console.WriteLine($"[ModRefControl] OnContextMenuItemClick - Provider found: {provider != null}");
-        if (provider != null)
+        private void OnContextMenuItemPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
         {
-            provider.OnModRefContextMenuItemClicked(item, vm);
-        }
-    }
+            if (sender is not MenuItem item)
+                return;
 
-    private void OnContextMenuItemPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-    {
-        if (sender is not MenuItem item)
-            return;
+            if (!e.GetCurrentPoint(item).Properties.IsRightButtonPressed)
+                return;
 
-        if (!e.GetCurrentPoint(item).Properties.IsRightButtonPressed)
-            return;
-
-        var checkBox = item.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault();
-        if (checkBox != null)
-        {
-            checkBox.IsChecked = !(checkBox.IsChecked ?? false);
-            e.Handled = true;
+            CheckBox? checkBox = item.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault();
+            if (checkBox != null)
+            {
+                checkBox.IsChecked = !(checkBox.IsChecked ?? false);
+                e.Handled = true;
+            }
         }
     }
 }

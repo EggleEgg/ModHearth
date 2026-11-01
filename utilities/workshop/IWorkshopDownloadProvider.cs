@@ -22,19 +22,19 @@ namespace ModHearth.Utilities.Workshop
         string Name { get; }
         bool IsAvailable { get; }
         IBrush StatusBrush => IsAvailable ? Brushes.LimeGreen : Brushes.Red;
-        
+
         Task<bool> DownloadAsync(
-            ulong workshopId, 
-            string downloadPath, 
-            IProgress<DownloadProgress> progress, 
+            ulong workshopId,
+            string downloadPath,
+            IProgress<DownloadProgress> progress,
             CancellationToken cancellationToken);
 
         Task<Dictionary<ulong, bool>> DownloadBatchAsync(
             IEnumerable<BatchDownloadItem> items,
             CancellationToken cancellationToken)
         {
-            var dict = new Dictionary<ulong, bool>();
-            foreach (var item in items)
+            Dictionary<ulong, bool> dict = [];
+            foreach (BatchDownloadItem item in items)
             {
                 bool success = DownloadAsync(item.WorkshopId, item.DownloadPath, item.Progress, cancellationToken).GetAwaiter().GetResult();
                 dict[item.WorkshopId] = success;

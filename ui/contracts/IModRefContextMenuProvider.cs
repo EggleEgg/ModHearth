@@ -1,11 +1,14 @@
 using Avalonia.Controls;
+using ModHearth.Models;
+using ModHearth.UI.ViewModels;
 
-namespace ModHearth.UI;
-
-public interface IModRefContextMenuProvider
+namespace ModHearth.UI.Contracts
 {
-    void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm);
-    void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm);
-    IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm);
-    ModHearthManager? GetManager();
+    public interface IModRefContextMenuProvider
+    {
+        void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm);
+        void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm);
+        IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm);
+        ModHearthManager? GetManager();
+    }
 }

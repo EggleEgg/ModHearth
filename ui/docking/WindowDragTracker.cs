@@ -35,9 +35,8 @@ namespace ModHearth.UI
         private readonly Window _window;
         private IntPtr _hwnd;
         private WndProcDelegate? _wndProc;
-        private bool _isDragging;
 
-        public bool IsDragging => _isDragging;
+        public bool IsDragging { get; private set; }
 
         public event EventHandler? DragStarted;
         public event EventHandler? DragFinished;
@@ -92,12 +91,12 @@ namespace ModHearth.UI
             switch (msg)
             {
                 case WM_ENTERSIZEMOVE:
-                    _isDragging = true;
+                    IsDragging = true;
                     DragStarted?.Invoke(this, EventArgs.Empty);
                     break;
 
                 case WM_EXITSIZEMOVE:
-                    _isDragging = false;
+                    IsDragging = false;
                     DragFinished?.Invoke(this, EventArgs.Empty);
                     break;
 
@@ -130,9 +129,8 @@ namespace ModHearth.UI
     {
         private readonly Window _window;
         private IntPtr _observerInstance;
-        private bool _isDragging;
 
-        public bool IsDragging => _isDragging;
+        public bool IsDragging { get; private set; }
 
         public event EventHandler? DragStarted;
         public event EventHandler? DragFinished;
@@ -239,18 +237,18 @@ namespace ModHearth.UI
 
         private void OnWillMoveNotification(IntPtr self, IntPtr _cmd, IntPtr notification)
         {
-            if (!_isDragging)
+            if (!IsDragging)
             {
-                _isDragging = true;
+                IsDragging = true;
                 DragStarted?.Invoke(this, EventArgs.Empty);
             }
         }
 
         private void OnDidMoveNotification(IntPtr self, IntPtr _cmd, IntPtr notification)
         {
-            if (_isDragging)
+            if (IsDragging)
             {
-                _isDragging = false;
+                IsDragging = false;
                 DragFinished?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -283,9 +281,8 @@ namespace ModHearth.UI
         private readonly Window _window;
         private DateTime _lastMoveTime;
         private bool _movementCheckScheduled;
-        private bool _isDragging;
 
-        public bool IsDragging => _isDragging;
+        public bool IsDragging { get; private set; }
 
         public event EventHandler? DragStarted;
         public event EventHandler? DragFinished;
@@ -298,9 +295,9 @@ namespace ModHearth.UI
 
         private void OnPositionChanged(object? sender, PixelPointEventArgs e)
         {
-            if (!_isDragging)
+            if (!IsDragging)
             {
-                _isDragging = true;
+                IsDragging = true;
                 DragStarted?.Invoke(this, EventArgs.Empty);
             }
 
@@ -321,7 +318,7 @@ namespace ModHearth.UI
                 if (_window == null || !_window.IsVisible)
                 {
                     _movementCheckScheduled = false;
-                    _isDragging = false;
+                    IsDragging = false;
                     return;
                 }
 
@@ -331,7 +328,7 @@ namespace ModHearth.UI
             }
 
             _movementCheckScheduled = false;
-            _isDragging = false;
+            IsDragging = false;
             DragFinished?.Invoke(this, EventArgs.Empty);
         }
 

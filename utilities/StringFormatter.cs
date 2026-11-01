@@ -1,49 +1,35 @@
-namespace ModHearth.Utilities;
-
-public static class StringFormatter
+namespace ModHearth.Utilities
 {
-    /// <summary>
-    /// For UI display, truncates string and adds "..." if it exceeds a maximum length.
-    /// </summary>
-    public static string TruncateForDisplay(string? value, int maxLength)
+    public static class StringFormatter
     {
-        if (string.IsNullOrWhiteSpace(value))
-            return string.Empty;
+        /// <summary>
+        /// For logging, truncates string to a fixed character length and escapes newlines.
+        /// </summary>
+        public static string TrimForLog(string? value, int maxLength = 80)
+        {
+            string text = value ?? string.Empty;
+            text = text.Replace("\r", "\\r").Replace("\n", "\\n");
+            return text.Length <= maxLength ? text : text[..maxLength] + "...";
+        }
 
-        string text = value.Trim();
-        if (text.Length <= maxLength)
-            return text;
+        /// <summary>
+        /// For formatting lists with a "more" indicator.
+        /// </summary>
+        public static string FormatListWithMoreIndicator(IEnumerable<string>? items, int maxItems)
+        {
+            if (items == null)
+                return "(none)";
 
-        return text[..(maxLength - 3)] + "...";
-    }
+            List<string> list = [.. items.Where(item => !string.IsNullOrWhiteSpace(item))];
 
-    /// <summary>
-    /// For logging, truncates string to a fixed character length and escapes newlines.
-    /// </summary>
-    public static string TrimForLog(string? value, int maxLength = 80)
-    {
-        string text = value ?? string.Empty;
-        text = text.Replace("\r", "\\r").Replace("\n", "\\n");
-        return text.Length <= maxLength ? text : text[..maxLength] + "...";
-    }
+            if (list.Count == 0)
+                return "(none)";
 
-    /// <summary>
-    /// For formatting lists with a "more" indicator.
-    /// </summary>
-    public static string FormatListWithMoreIndicator(IEnumerable<string>? items, int maxItems)
-    {
-        if (items == null)
-            return "(none)";
+            if (list.Count <= maxItems)
+                return string.Join(" | ", list);
 
-        List<string> list = [.. items.Where(item => !string.IsNullOrWhiteSpace(item))];
-
-        if (list.Count == 0)
-            return "(none)";
-
-        if (list.Count <= maxItems)
-            return string.Join(" | ", list);
-
-        IEnumerable<string> shown = list.Take(maxItems);
-        return $"{string.Join(" | ", shown)} | ... (+{list.Count - maxItems} more)";
+            IEnumerable<string> shown = list.Take(maxItems);
+            return $"{string.Join(" | ", shown)} | ... (+{list.Count - maxItems} more)";
+        }
     }
 }

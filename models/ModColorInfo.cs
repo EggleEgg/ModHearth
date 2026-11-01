@@ -1,76 +1,74 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Media;
-using ModHearth.UI;
 
-namespace ModHearth.Models;
-
-/// <summary>
-/// Represents a color option in the mod color picker
-/// </summary>
-public class ModColorInfo : INotifyPropertyChanged
+namespace ModHearth.Models
 {
-    private ModColor _modColor;
-    private Color _color;
-    private string _name = string.Empty;
-    private bool _isSelected;
-
-    public ModColor ModColor
+    /// <summary>
+    /// Represents a color option in the mod color picker
+    /// </summary>
+    public class ModColorInfo : INotifyPropertyChanged
     {
-        get => _modColor;
-        set
+        private ModColor _modColor;
+        private Color _color;
+        private string _name = string.Empty;
+        private bool _isSelected;
+
+        public ModColor ModColor
         {
-            if (_modColor != value)
+            get => _modColor;
+            set
             {
-                _modColor = value;
-                OnPropertyChanged();
+                if (_modColor != value)
+                {
+                    _modColor = value;
+                    OnPropertyChanged();
+                }
             }
         }
-    }
 
-    public Color Color
-    {
-        get => _color;
-        set
+        public Color Color
         {
-            if (_color != value)
+            get => _color;
+            set
             {
-                _color = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(Brush));
+                if (_color != value)
+                {
+                    _color = value;
+                    OnPropertyChanged();
+                }
             }
         }
-    }
 
-    public IBrush Brush => BrushCache.GetBrush(Color);
-
-    public string Name
-    {
-        get => _name;
-        set
+        public string Name
         {
-            if (_name != value)
+            get => _name;
+            set
             {
-                _name = value;
-                OnPropertyChanged();
+                if (_name != value)
+                {
+                    _name = value;
+                    OnPropertyChanged();
+                }
             }
         }
-    }
 
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set
+        public bool IsSelected
         {
-            if (_isSelected != value)
+            get => _isSelected;
+            set
             {
-                _isSelected = value;
-                OnPropertyChanged();
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    OnPropertyChanged();
+                }
             }
         }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

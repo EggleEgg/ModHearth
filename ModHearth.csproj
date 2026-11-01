@@ -32,7 +32,6 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
     <PackageReference Include="Dock.Controls.DeferredContentControl" Version="12.0.0.2" />
     <PackageReference Include="Dock.Model.Mvvm" Version="12.0.0.2" />
-    <PackageReference Include="ReactiveUI" Version="23.2.28" />
     <PackageReference Include="SkiaSharp" Version="4.150.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.150.0" />
     <PackageReference Include="Dock.Avalonia" Version="12.0.0.2" />
@@ -46,8 +45,6 @@
     <PackageReference Include="CodeKicker.BBCode" Version="5.0.0">
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
-
-    <PackageReference Include="Steamworks.NET" Version="2024.8.0" />
 
     <ProjectReference Include="ModHearth.SteamWorker\ModHearth.SteamWorker.csproj" />
   </ItemGroup>

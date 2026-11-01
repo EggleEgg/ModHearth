@@ -1,8 +1,10 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="clr-namespace:ModHearth.UI"
-             x:Class="ModHearth.UI.ModUpdateLogControl"
-             x:DataType="ui:ModUpdateLogControl">
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="clr-namespace:ModHearth.UI"
+  xmlns:viewmodels="using:ModHearth.UI.ViewModels"
+  x:Class="ModHearth.UI.ModUpdateLogControl"
+  x:DataType="ui:ModUpdateLogControl">
 
   <Grid Margin="12" RowDefinitions="Auto,Auto,*">
     <Grid Grid.Row="0" Margin="0,0,0,8">
@@ -12,18 +14,41 @@
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
 
-      <ui:ModSearchBar x:Name="modSearchBar" Grid.Column="0" IsSortingEnabled="False" IsColorSearchEnabled="False" />
+      <ui:ModSearchBar
+        x:Name="modSearchBar"
+        Grid.Column="0"
+        IsSortingEnabled="False"
+        IsColorSearchEnabled="False" />
       <Border Grid.Column="1" />
-      <Button x:Name="clearLogsButton" Grid.Column="2" Content="Clear Logs" Padding="10,4" Margin="4,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Left" />
+      <Button
+        x:Name="clearLogsButton"
+        Grid.Column="2"
+        Content="Clear Logs"
+        Padding="10,4"
+        Margin="4,0,0,0"
+        VerticalAlignment="Center"
+        HorizontalAlignment="Left" />
     </Grid>
-    <ui:ModRefControl Grid.Row="1" x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" />
+    <ui:ModRefControl
+      Grid.Row="1"
+      x:Name="ContextMenuHost"
+      IsVisible="False"
+      AllowColorEditing="False" />
     <!-- IMPORTANT: Do NOT wrap DataGrid in a ScrollViewer ever! It will destroy virtualization performance! -->
-     <!--TODO Refactor/rewrite DataGrid into TreeDataGrid? Is it more performant? -->
-    <DataGrid x:Name="logList"
-              Grid.Row="2"
-              ItemsSource="{Binding Entries}" CanUserReorderColumns="True" CanUserResizeColumns="True" CanUserSortColumns="True"
-              IsReadOnly="True" GridLinesVisibility="Horizontal" RowHeight="28" SelectionMode="Extended"
-              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+    <!--TODO Refactor/rewrite DataGrid into TreeDataGrid? Is it more performant? -->
+    <DataGrid
+      x:Name="logList"
+      Grid.Row="2"
+      ItemsSource="{Binding Entries}"
+      CanUserReorderColumns="True"
+      CanUserResizeColumns="True"
+      CanUserSortColumns="True"
+      IsReadOnly="True"
+      GridLinesVisibility="Horizontal"
+      RowHeight="28"
+      SelectionMode="Extended"
+      HorizontalScrollBarVisibility="Auto"
+      VerticalScrollBarVisibility="Auto">
 
       <DataGrid.Styles>
         <Style Selector="DataGridRow:selected /template/ Rectangle">
@@ -31,7 +56,12 @@
         </Style>
         <Style Selector="DataGridRow:selected DataGridCell TextBlock">
           <Setter Property="Effect">
-            <DropShadowEffect OffsetX="0" OffsetY="0" BlurRadius="5" Color="Black" Opacity="0.8"/>
+            <DropShadowEffect
+              OffsetX="0"
+              OffsetY="0"
+              BlurRadius="5"
+              Color="Black"
+              Opacity="0.8"/>
           </Setter>
         </Style>
         <Style Selector="DataGridCell TextBlock">
@@ -43,43 +73,73 @@
       <DataGrid.Columns>
         <DataGridTemplateColumn Header="Date" Width="160" SortMemberPath="DateText">
           <DataGridTemplateColumn.CellTemplate>
-            <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
-              <TextBlock Text="{Binding DateText}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+            <DataTemplate x:DataType="viewmodels:ModUpdateLogItemViewModel">
+              <TextBlock
+                Text="{Binding DateText}"
+                Foreground="{Binding RowBrush}"
+                TextDecorations="{Binding TextDecorations}"
+                VerticalAlignment="Center"
+                Margin="12,0" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
         <DataGridTemplateColumn Header="Mod" Width="220" SortMemberPath="ModName">
           <DataGridTemplateColumn.CellTemplate>
-            <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
-              <TextBlock Text="{Binding ModName}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+            <DataTemplate x:DataType="viewmodels:ModUpdateLogItemViewModel">
+              <TextBlock
+                Text="{Binding ModName}"
+                Foreground="{Binding RowBrush}"
+                TextDecorations="{Binding TextDecorations}"
+                VerticalAlignment="Center"
+                Margin="12,0" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
         <DataGridTemplateColumn Header="Type" Width="80" SortMemberPath="SourceType">
           <DataGridTemplateColumn.CellTemplate>
-            <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
-              <TextBlock Text="{Binding SourceType}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+            <DataTemplate x:DataType="viewmodels:ModUpdateLogItemViewModel">
+              <TextBlock
+                Text="{Binding SourceType}"
+                Foreground="{Binding RowBrush}"
+                TextDecorations="{Binding TextDecorations}"
+                VerticalAlignment="Center"
+                Margin="12,0" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
         <DataGridTemplateColumn Header="State" Width="80" SortMemberPath="StateSortRank">
           <DataGridTemplateColumn.CellTemplate>
-            <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
-              <TextBlock Text="{Binding StateText}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+            <DataTemplate x:DataType="viewmodels:ModUpdateLogItemViewModel">
+              <TextBlock
+                Text="{Binding StateText}"
+                Foreground="{Binding RowBrush}"
+                TextDecorations="{Binding TextDecorations}"
+                VerticalAlignment="Center"
+                Margin="12,0" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
         <DataGridTemplateColumn Header="Active" Width="80" SortMemberPath="ActiveText">
           <DataGridTemplateColumn.CellTemplate>
-            <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
-              <TextBlock Text="{Binding ActiveText}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+            <DataTemplate x:DataType="viewmodels:ModUpdateLogItemViewModel">
+              <TextBlock
+                Text="{Binding ActiveText}"
+                Foreground="{Binding RowBrush}"
+                TextDecorations="{Binding TextDecorations}"
+                VerticalAlignment="Center"
+                Margin="12,0" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>
         <DataGridTemplateColumn Header="Path" Width="Auto" SortMemberPath="Path">
           <DataGridTemplateColumn.CellTemplate>
-            <DataTemplate x:DataType="ui:ModUpdateLogItemViewModel">
-              <TextBlock Text="{Binding Path}" Foreground="{Binding RowBrush}" TextDecorations="{Binding TextDecorations}" VerticalAlignment="Center" Margin="12,0" />
+            <DataTemplate x:DataType="viewmodels:ModUpdateLogItemViewModel">
+              <TextBlock
+                Text="{Binding Path}"
+                Foreground="{Binding RowBrush}"
+                TextDecorations="{Binding TextDecorations}"
+                VerticalAlignment="Center"
+                Margin="12,0" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
         </DataGridTemplateColumn>

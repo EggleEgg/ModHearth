@@ -1,13 +1,17 @@
 <!--Generic unified avalonia axaml context and list ui controller -->
 
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="clr-namespace:ModHearth.UI"
-             x:Class="ModHearth.UI.ModRefControl"
-             x:Name="Root"
-             x:DataType="ui:ModRefViewModel"
-             Background="{Binding BackgroundBrush}"
-             MinHeight="20">
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:modlist="using:ModHearth.UI.ModList"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:ui="clr-namespace:ModHearth.UI"
+  xmlns:viewmodels="using:ModHearth.UI.ViewModels"
+  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
+  x:Class="ModHearth.UI.ModRefControl"
+  x:Name="Root"
+  x:DataType="viewmodels:ModRefViewModel"
+  Background="{Binding BackgroundBrush}"
+  MinHeight="20">
 
   <UserControl.Resources>
     <ui:BoolToTextConverter x:Key="SteamTextConverter" TrueValue="Open URL in steam" FalseValue="Open URL in browser" />
@@ -24,17 +28,19 @@
           <Setter Property="Template">
             <ControlTemplate>
               <!-- Border name matches native theme triggers for hover highlights -->
-              <Border Name="PART_LayoutRoot"
-                      Background="{TemplateBinding Background}"
-                      BorderBrush="{TemplateBinding BorderBrush}"
-                      BorderThickness="{TemplateBinding BorderThickness}"
-                      Padding="{TemplateBinding Padding}">
+              <Border
+                Name="PART_LayoutRoot"
+                Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                Padding="{TemplateBinding Padding}">
                 <!-- Strips out the hidden columns, forcing the header to take up 100% width -->
-                <ContentPresenter Name="PART_HeaderPresenter"
-                                  Content="{TemplateBinding Header}"
-                                  ContentTemplate="{TemplateBinding HeaderTemplate}"
-                                  HorizontalAlignment="Stretch"
-                                  VerticalAlignment="Center" />
+                <ContentPresenter
+                  Name="PART_HeaderPresenter"
+                  Content="{TemplateBinding Header}"
+                  ContentTemplate="{TemplateBinding HeaderTemplate}"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Center" />
               </Border>
             </ControlTemplate>
           </Setter>
@@ -60,10 +66,22 @@
       </MenuItem>
       <MenuItem Header="Delete local mod" Tag="delete-mod" Click="OnContextMenuItemClick" />
       <MenuItem Header="Delete Duplicate Mod" Tag="delete-duplicate-mod-root" IsVisible="False" />
-      <MenuItem Header="Unsubscribe from steam" Tag="unsubscribe-steam" IsVisible="False" Click="OnContextMenuItemClick" />
-      <MenuItem Header="Redownload from steam" Tag="redownload-steam" IsVisible="False" Click="OnContextMenuItemClick" />
+      <MenuItem
+        Header="Unsubscribe from steam"
+        Tag="unsubscribe-steam"
+        IsVisible="False"
+        Click="OnContextMenuItemClick" />
+      <MenuItem
+        Header="Redownload from steam"
+        Tag="redownload-steam"
+        IsVisible="False"
+        Click="OnContextMenuItemClick" />
       <Separator Tag="separator-1" />
-      <MenuItem Tag="open" Classes="remove-arrow-row" Click="OnContextMenuItemClick" PointerPressed="OnContextMenuItemPointerPressed">
+      <MenuItem
+        Tag="open"
+        Classes="remove-arrow-row"
+        Click="OnContextMenuItemClick"
+        PointerPressed="OnContextMenuItemPointerPressed">
         <MenuItem.Header>
           <Panel>
             <TextBlock Text="Open Folder"
@@ -72,29 +90,37 @@
                   IsVisible="{Binding IsSteamLocalModSource}">
               <TextBlock Text="{Binding #OpenSteamFolderCheckBox.IsChecked, Converter={StaticResource FolderTextConverter}}" />
               <CheckBox x:Name="OpenSteamFolderCheckBox"
-                        IsChecked="{Binding IsOpenSteamFolderEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
+                        IsChecked="{Binding IsOpenSteamFolderEnabled, Source={x:Static modlist:ContextMenuPreferences.Instance}}" />
             </Grid>
           </Panel>
         </MenuItem.Header>
       </MenuItem>
-      <MenuItem Tag="open-steam" Classes="remove-arrow-row" Click="OnContextMenuItemClick" PointerPressed="OnContextMenuItemPointerPressed">
+      <MenuItem
+        Tag="open-steam"
+        Classes="remove-arrow-row"
+        Click="OnContextMenuItemClick"
+        PointerPressed="OnContextMenuItemPointerPressed">
         <MenuItem.Header>
           <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
             <TextBlock x:Name="OpenSteamText"
                        Text="{Binding #OpenSteamInClientCheckBox.IsChecked, Converter={StaticResource SteamTextConverter}}" />
             <CheckBox x:Name="OpenSteamInClientCheckBox"
-                      IsChecked="{Binding IsOpenSteamInClientEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
+                      IsChecked="{Binding IsOpenSteamInClientEnabled, Source={x:Static modlist:ContextMenuPreferences.Instance}}" />
           </Grid>
         </MenuItem.Header>
       </MenuItem>
 
-      <MenuItem Tag="copy-id" Classes="remove-arrow-row" Click="OnContextMenuItemClick" PointerPressed="OnContextMenuItemPointerPressed">
+      <MenuItem
+        Tag="copy-id"
+        Classes="remove-arrow-row"
+        Click="OnContextMenuItemClick"
+        PointerPressed="OnContextMenuItemPointerPressed">
         <MenuItem.Header>
           <Grid ColumnDefinitions="*,Auto" HorizontalAlignment="Stretch">
             <TextBlock x:Name="CopyIdText"
                        Text="{Binding #CopySteamFileIdCheckBox.IsChecked, Converter={StaticResource IdTextConverter}}" />
             <CheckBox x:Name="CopySteamFileIdCheckBox"
-                      IsChecked="{Binding IsCopySteamFileIdEnabled, Source={x:Static ui:ContextMenuPreferences.Instance}}" />
+                      IsChecked="{Binding IsCopySteamFileIdEnabled, Source={x:Static modlist:ContextMenuPreferences.Instance}}" />
           </Grid>
         </MenuItem.Header>
       </MenuItem>
@@ -105,7 +131,7 @@
 
     <Grid IsHitTestVisible="False" IsVisible="{Binding $parent[ui:ModRefControl].ShowColorUnderlay}">
       <ui:ModBackground Grid.Column="1"
-                        UnderlayBrush="{Binding #Root.((ui:ModRefViewModel)DataContext).ColorUnderlayBrush}" />
+                        UnderlayBrush="{Binding #Root.((viewmodels:ModRefViewModel)DataContext).ColorUnderlayBrush}" />
     </Grid>
 
     <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="2,0,5,0">
@@ -121,94 +147,120 @@
         </Style>
       </Grid.Styles>
 
-      <Border Width="2"
-              Background="{Binding CacheBarBrush}"
-              IsVisible="{Binding IsCached}"
-              ZIndex="2" />
+      <Border
+        Width="2"
+        Background="{Binding CacheBarBrush}"
+        IsVisible="{Binding IsCached}"
+        ZIndex="2" />
       <Image
-        Source="{ui:AssetImage dwarfIcon}"
+        Source="{render:AssetImage dwarfIcon}"
         IsVisible="{Binding IsVanillaModSource}"
         ToolTip.Tip="Vanilla source mod"/>
       <Image
-        Source="{ui:AssetImage steamFolderIcon}"
+        Source="{render:AssetImage steamFolderIcon}"
         IsVisible="{Binding IsSteamLocalModSource}"
         ToolTip.Tip="Steam and local mod"/>
       <Image
-        Source="{ui:AssetImage folderIcon}"
+        Source="{render:AssetImage folderIcon}"
         IsVisible="{Binding IsLocalModSource}"
         ToolTip.Tip="Local mod"/>
       <Image
-        Source="{ui:AssetImage steamIcon}"
+        Source="{render:AssetImage steamIcon}"
         IsVisible="{Binding IsSteamModSource}"
         ToolTip.Tip="Steam mod"/>
 
-      <TextBlock Grid.Column="2"
-                 Text="{Binding DisplayName}"
-                 Foreground="{Binding TextBrush}"
-                 TextTrimming="CharacterEllipsis"
-                 FontWeight="Normal" TextDecorations="{Binding TextDecorations}"
-                 MinWidth="0" Margin="4,0,0,0"
-                 VerticalAlignment="Center"
-                 Classes.has-shadow="{Binding HasColorUnderlay}">
+      <TextBlock
+        Grid.Column="2"
+        Text="{Binding DisplayName}"
+        Foreground="{Binding TextBrush}"
+        TextTrimming="CharacterEllipsis"
+        FontWeight="Normal"
+        TextDecorations="{Binding TextDecorations}"
+        MinWidth="0"
+        Margin="4,0,0,0"
+        VerticalAlignment="Center"
+        Classes.has-shadow="{Binding HasColorUnderlay}">
 
         <TextBlock.Styles>
           <Style Selector="TextBlock.has-shadow">
             <Setter Property="Effect">
-              <DropShadowEffect OffsetX="1" OffsetY="1"
-                                BlurRadius="5"
-                                Color="Black"
-                                Opacity="0.8" />
+              <DropShadowEffect
+                OffsetX="1"
+                OffsetY="1"
+                BlurRadius="5"
+                Color="Black"
+                Opacity="0.8" />
             </Setter>
           </Style>
         </TextBlock.Styles>
 
       </TextBlock>
-      <ItemsControl x:Name="DetailedBadgesControl"
-                    Grid.Column="3"
-                    ItemsSource="{Binding RuleBadges}"
-                    ToolTip.Tip="{Binding RuleBadgesTooltip}"
-                    Foreground="{Binding TextBrush}"
-                    Margin="4,0,0,0"
-                    VerticalAlignment="Center">
+      <ItemsControl
+        x:Name="DetailedBadgesControl"
+        Grid.Column="3"
+        ItemsSource="{Binding RuleBadges}"
+        ToolTip.Tip="{Binding RuleBadgesTooltip}"
+        Foreground="{Binding TextBrush}"
+        Margin="4,0,0,0"
+        VerticalAlignment="Center">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" />
           </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="ui:RuleBadgeInfo">
-            <StackPanel Orientation="Horizontal" Spacing="0.5" VerticalAlignment="Center" Margin="0,0,3,0">
-              <Image Width="12" Height="12" VerticalAlignment="Center" Source="{Binding Icon}" />
-              <TextBlock Text="{Binding Count}" FontSize="11" FontWeight="Medium" VerticalAlignment="Center" />
+          <DataTemplate x:DataType="viewmodels:RuleBadgeInfo">
+            <StackPanel
+              Orientation="Horizontal"
+              Spacing="0.5"
+              VerticalAlignment="Center"
+              Margin="0,0,3,0">
+              <Image
+                Width="12"
+                Height="12"
+                VerticalAlignment="Center"
+                Source="{Binding Icon}" />
+              <TextBlock
+                Text="{Binding Count}"
+                FontSize="11"
+                FontWeight="Medium"
+                VerticalAlignment="Center" />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <StackPanel x:Name="SimpleBadgeControl"
-                  Grid.Column="3"
-                  Orientation="Horizontal"
-                  Spacing="1.5"
-                  VerticalAlignment="Center"
-                  Margin="4,0,0,0"
-                  ToolTip.Tip="{Binding RelationshipTooltipText}">
+      <StackPanel
+        x:Name="SimpleBadgeControl"
+        Grid.Column="3"
+        Orientation="Horizontal"
+        Spacing="1.5"
+        VerticalAlignment="Center"
+        Margin="4,0,0,0"
+        ToolTip.Tip="{Binding RelationshipTooltipText}">
 
-        <Image Width="10" Height="10" Margin="0"
-               VerticalAlignment="Center"
-               Source="{Binding FilterIconImage}" />
-        <TextBlock Text="{Binding RelationshipCount}"
-                   FontSize="11"
-                   FontWeight="Medium"
-                   VerticalAlignment="Center"
-                   Foreground="{Binding TextBrush}" />
+        <Image
+          Width="10"
+          Height="10"
+          Margin="0"
+          VerticalAlignment="Center"
+          Source="{Binding FilterIconImage}" />
+        <TextBlock
+          Text="{Binding RelationshipCount}"
+          FontSize="11"
+          FontWeight="Medium"
+          VerticalAlignment="Center"
+          Foreground="{Binding TextBrush}" />
       </StackPanel>
     </Grid>
-    <Border Height="2"
-            Background="{Binding DropHighlightBrush}"
-            IsVisible="{Binding ShowDropAbove}"
-            VerticalAlignment="Top" />
-    <Border Height="2"
-            Background="{Binding DropHighlightBrush}"
-            IsVisible="{Binding ShowDropBelow}"
-            VerticalAlignment="Bottom" />
+    <Border
+      Height="2"
+      Background="{Binding DropHighlightBrush}"
+      IsVisible="{Binding ShowDropAbove}"
+      VerticalAlignment="Top" />
+    <Border
+      Height="2"
+      Background="{Binding DropHighlightBrush}"
+      IsVisible="{Binding ShowDropBelow}"
+      VerticalAlignment="Bottom" />
   </Grid>
 </UserControl>

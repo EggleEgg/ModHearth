@@ -1,20 +1,21 @@
 using Dock.Model.Mvvm.Controls;
 
-namespace ModHearth.UI;
-
-public sealed class ModDescriptionPanelViewModel : Tool
+namespace ModHearth.UI
 {
-    private string descriptionHtml = string.Empty;
-
-    public string DescriptionHtml
+    public sealed class ModDescriptionPanelViewModel : Tool
     {
-        get => descriptionHtml;
-        set
+        private string descriptionHtml = string.Empty;
+
+        public string DescriptionHtml
         {
-            if (descriptionHtml == value)
-                return;
-            descriptionHtml = value;
-            OnPropertyChanged();
+            get => descriptionHtml;
+            set
+            {
+                if (descriptionHtml == value)
+                    return;
+                descriptionHtml = value;
+                OnPropertyChanged();
+            }
         }
     }
 }

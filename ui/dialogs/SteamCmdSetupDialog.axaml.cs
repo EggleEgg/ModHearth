@@ -1,7 +1,8 @@
 using Avalonia.Controls;
+using Avalonia.Platform.Storage;
 using ModHearth.Utilities.Steam;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Dialogs
 {
     public partial class SteamCmdSetupDialog : ProgressDialogBase
     {
@@ -25,7 +26,7 @@ namespace ModHearth.UI
             Cts = new CancellationTokenSource();
 
             string installDir = Path.Combine(AppContext.BaseDirectory, "steamcmd");
-            var progress = CreateProgressReporter(StatusTextBlock);
+            IProgress<string> progress = CreateProgressReporter(StatusTextBlock);
 
             try
             {
@@ -64,13 +65,13 @@ namespace ModHearth.UI
 
         private async Task BrowseExistingAsync()
         {
-            var fileTypes = new[]
-            {
-                new Avalonia.Platform.Storage.FilePickerFileType("SteamCMD Executable")
+            FilePickerFileType[] fileTypes =
+            [
+                new FilePickerFileType("SteamCMD Executable")
                 {
                     Patterns = OperatingSystem.IsWindows() ? new[] { "steamcmd.exe" } : ["steamcmd.sh", "steamcmd"]
                 }
-            };
+            ];
 
             string? path = await DialogService.PickFileAsync(this, "Select SteamCMD Executable", fileTypes);
             if (!string.IsNullOrEmpty(path))
@@ -98,8 +99,8 @@ namespace ModHearth.UI
 
         public static async Task<bool> ShowAsync(Window owner)
         {
-            var dialog = new SteamCmdSetupDialog();
-            var result = await dialog.ShowDialog<bool?>(owner);
+            SteamCmdSetupDialog dialog = new();
+            bool? result = await dialog.ShowDialog<bool?>(owner);
             return result == true;
         }
     }

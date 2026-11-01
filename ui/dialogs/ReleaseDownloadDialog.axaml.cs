@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Threading;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Dialogs
 {
     public partial class ReleaseDownloadDialog : ProgressDialogBase
     {
@@ -16,7 +16,7 @@ namespace ModHearth.UI
             string releaseTitle,
             Func<IProgress<string>, CancellationToken, Task<bool>> downloadAction)
         {
-            var dialog = new ReleaseDownloadDialog();
+            ReleaseDownloadDialog dialog = new();
             if (!string.IsNullOrEmpty(releaseTitle))
             {
                 dialog.HeaderText.Text = $"Downloading {releaseTitle}...";
@@ -26,7 +26,7 @@ namespace ModHearth.UI
             _ = Task.Run(async () =>
             {
                 dialog.Cts = new CancellationTokenSource();
-                var progress = dialog.CreateProgressReporter(dialog.StatusTextBlock);
+                IProgress<string> progress = dialog.CreateProgressReporter(dialog.StatusTextBlock);
                 try
                 {
                     bool success = await downloadAction(progress, dialog.Cts.Token);
@@ -57,7 +57,7 @@ namespace ModHearth.UI
                 }
             });
 
-            var dialogResult = await dialog.ShowDialog<bool?>(owner);
+            bool? dialogResult = await dialog.ShowDialog<bool?>(owner);
             return dialogResult == true || result;
         }
     }

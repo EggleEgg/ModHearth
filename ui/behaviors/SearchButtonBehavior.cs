@@ -4,148 +4,152 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Reactive;
+using ModHearth.UI.Theme;
 
-namespace ModHearth.UI;
-
-/// <summary>
-/// A clean, scalable behavior that manages hover, press, and normal background brushes of a Button.
-/// </summary>
-public sealed class SearchButtonBehavior : IDisposable
+namespace ModHearth.UI.Behaviors
 {
-    // ConditionalWeakTable keeps the behaviour attached to the lifetime of the button instead of
-    // rooting every button (and its visual tree) for the duration of the process.
-    private static readonly ConditionalWeakTable<Button, SearchButtonBehavior> behaviors = new();
-
-    private readonly Button button;
-    private IDisposable? pointerOverSubscription;
-    private bool isHooked;
-    private bool isDisposed;
-
-    private IBrush normalBrush = Brushes.Transparent;
-    private IBrush hoverBrush = Brushes.Transparent;
-    private IBrush pressedBrush = Brushes.Transparent;
-    private bool isPointerOver;
-    private bool isPressed;
-
-    public static SearchButtonBehavior GetOrCreate(Button button)
+    /// <summary>
+    /// A clean, scalable behavior that manages hover, press, and normal background brushes of a Button.
+    /// </summary>
+    public sealed class SearchButtonBehavior : IDisposable
     {
-        ArgumentNullException.ThrowIfNull(button);
-        return behaviors.GetValue(button, static b => new SearchButtonBehavior(b));
-    }
+        // ConditionalWeakTable keeps the behaviour attached to the lifetime of the button instead of
+        // rooting every button (and its visual tree) for the duration of the process.
+        private static readonly ConditionalWeakTable<Button, SearchButtonBehavior> behaviors = [];
 
-    public static void ApplyStyle(Button button, Style style)
-    {
-        if (button == null || style == null)
-            return;
+        private readonly Button button;
+        private IDisposable? pointerOverSubscription;
+        private bool isHooked;
+        private bool isDisposed;
 
-        SearchButtonBehavior behavior = GetOrCreate(button);
-        behavior.ApplyBrushes(
-            BrushCache.GetBrush(style.searchButtonColor.ToAvaloniaColor()),
-            BrushCache.GetBrush(style.searchButtonHoverColor.ToAvaloniaColor()),
-            BrushCache.GetBrush(style.searchButtonPressedColor.ToAvaloniaColor())
-        );
-        button.Foreground = BrushCache.GetBrush(style.buttonTextColor.ToAvaloniaColor());
-        button.BorderBrush = Brushes.Transparent;
-    }
+        private IBrush normalBrush = Brushes.Transparent;
+        private IBrush hoverBrush = Brushes.Transparent;
+        private IBrush pressedBrush = Brushes.Transparent;
+        private bool isPointerOver;
+        private bool isPressed;
 
-    private SearchButtonBehavior(Button button)
-    {
-        this.button = button ?? throw new ArgumentNullException(nameof(button));
-
-        Hook();
-        button.AttachedToVisualTree += OnAttachedToVisualTree;
-        button.DetachedFromVisualTree += OnDetachedFromVisualTree;
-    }
-
-    private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => Hook();
-
-    private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => Unhook();
-
-    private void Hook()
-    {
-        if (isHooked || isDisposed)
-            return;
-
-        isHooked = true;
-        pointerOverSubscription = button.GetObservable(InputElement.IsPointerOverProperty)
-            .Subscribe(new AnonymousObserver<bool>(OnPointerOverChanged));
-
-        button.PointerPressed += OnPointerPressed;
-        button.PointerReleased += OnPointerReleased;
-        button.PointerCaptureLost += OnPointerCaptureLost;
-        button.Click += OnClick;
-    }
-
-    private void Unhook()
-    {
-        if (!isHooked)
-            return;
-
-        isHooked = false;
-        pointerOverSubscription?.Dispose();
-        pointerOverSubscription = null;
-
-        button.PointerPressed -= OnPointerPressed;
-        button.PointerReleased -= OnPointerReleased;
-        button.PointerCaptureLost -= OnPointerCaptureLost;
-        button.Click -= OnClick;
-    }
-
-    private void OnPointerOverChanged(bool isOver)
-    {
-        isPointerOver = isOver;
-        if (!isOver)
-            isPressed = false;
-        UpdateBackground();
-    }
-
-    private void OnPointerPressed(object? sender, PointerPressedEventArgs args)
-    {
-        if (args.GetCurrentPoint(button).Properties.IsLeftButtonPressed)
+        public static SearchButtonBehavior GetOrCreate(Button button)
         {
-            isPressed = true;
+            ArgumentNullException.ThrowIfNull(button);
+            return behaviors.GetValue(button, static b => new SearchButtonBehavior(b));
+        }
+
+        public static void ApplyStyle(Button button, Style style)
+        {
+            if (button == null || style == null)
+                return;
+
+            SearchButtonBehavior behavior = GetOrCreate(button);
+            behavior.ApplyBrushes(
+                BrushCache.GetBrush(style.SearchButtonColor.ToAvaloniaColor()),
+                BrushCache.GetBrush(style.SearchButtonHoverColor.ToAvaloniaColor()),
+                BrushCache.GetBrush(style.SearchButtonPressedColor.ToAvaloniaColor())
+            );
+            button.Foreground = BrushCache.GetBrush(style.ButtonTextColor.ToAvaloniaColor());
+            button.BorderBrush = Brushes.Transparent;
+        }
+
+        private SearchButtonBehavior(Button button)
+        {
+            this.button = button ?? throw new ArgumentNullException(nameof(button));
+
+            Hook();
+            button.AttachedToVisualTree += OnAttachedToVisualTree;
+            button.DetachedFromVisualTree += OnDetachedFromVisualTree;
+        }
+
+        private void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => Hook();
+
+        private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => Unhook();
+
+
+        private void Hook()
+        {
+            if (isHooked || isDisposed)
+                return;
+
+            isHooked = true;
+            pointerOverSubscription = button.GetObservable(InputElement.IsPointerOverProperty)
+                .Subscribe(new AnonymousObserver<bool>(OnPointerOverChanged));
+
+            button.PointerPressed += OnPointerPressed;
+            button.PointerReleased += OnPointerReleased;
+            button.PointerCaptureLost += OnPointerCaptureLost;
+            button.Click += OnClick;
+        }
+
+        private void Unhook()
+        {
+            if (!isHooked)
+                return;
+
+            isHooked = false;
+            pointerOverSubscription?.Dispose();
+            pointerOverSubscription = null;
+
+            button.PointerPressed -= OnPointerPressed;
+            button.PointerReleased -= OnPointerReleased;
+            button.PointerCaptureLost -= OnPointerCaptureLost;
+            button.Click -= OnClick;
+        }
+
+        private void OnPointerOverChanged(bool isOver)
+        {
+            isPointerOver = isOver;
+            if (!isOver)
+                isPressed = false;
             UpdateBackground();
         }
-    }
 
-    private void OnPointerReleased(object? sender, PointerReleasedEventArgs e) => ResetState();
+        private void OnPointerPressed(object? sender, PointerPressedEventArgs args)
+        {
+            if (args.GetCurrentPoint(button).Properties.IsLeftButtonPressed)
+            {
+                isPressed = true;
+                UpdateBackground();
+            }
+        }
 
-    private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e) => ResetState();
+        private void OnPointerReleased(object? sender, PointerReleasedEventArgs e) => ResetState();
 
-    private void OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ResetState();
+        private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e) => ResetState();
 
-    public void ApplyBrushes(IBrush normal, IBrush hover, IBrush pressed)
-    {
-        normalBrush = normal ?? Brushes.Transparent;
-        hoverBrush = hover ?? Brushes.Transparent;
-        pressedBrush = pressed ?? Brushes.Transparent;
-        UpdateBackground();
-    }
+        private void OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ResetState();
 
-    private void ResetState()
-    {
-        isPressed = false;
-        isPointerOver = button.IsPointerOver;
-        UpdateBackground();
-    }
 
-    private void UpdateBackground()
-    {
-        if (isPressed)
-            button.Background = pressedBrush;
-        else
-            button.Background = isPointerOver ? hoverBrush : normalBrush;
-    }
+        public void ApplyBrushes(IBrush normal, IBrush hover, IBrush pressed)
+        {
+            normalBrush = normal ?? Brushes.Transparent;
+            hoverBrush = hover ?? Brushes.Transparent;
+            pressedBrush = pressed ?? Brushes.Transparent;
+            UpdateBackground();
+        }
 
-    public void Dispose()
-    {
-        if (isDisposed)
-            return;
+        private void ResetState()
+        {
+            isPressed = false;
+            isPointerOver = button.IsPointerOver;
+            UpdateBackground();
+        }
 
-        isDisposed = true;
-        Unhook();
-        button.AttachedToVisualTree -= OnAttachedToVisualTree;
-        button.DetachedFromVisualTree -= OnDetachedFromVisualTree;
-        behaviors.Remove(button);
+        private void UpdateBackground()
+        {
+            if (isPressed)
+                button.Background = pressedBrush;
+            else
+                button.Background = isPointerOver ? hoverBrush : normalBrush;
+        }
+
+        public void Dispose()
+        {
+            if (isDisposed)
+                return;
+
+            isDisposed = true;
+            Unhook();
+            button.AttachedToVisualTree -= OnAttachedToVisualTree;
+            button.DetachedFromVisualTree -= OnDetachedFromVisualTree;
+            _ = behaviors.Remove(button);
+        }
     }
 }

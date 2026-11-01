@@ -2,9 +2,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform;
 using Avalonia.Threading;
+using ModHearth.UI.Theme;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Docking
 {
     public enum DockSide
     {
@@ -31,6 +33,29 @@ namespace ModHearth.UI
     }
 
     /// <summary>
+    /// Configuration options for DockingManager
+    /// </summary>
+    public class DockingManagerOptions<TControl, TWindow>
+        where TControl : UserControl
+        where TWindow : Window
+    {
+        public IReadOnlyDictionary<DockSide, DockingTarget> SideTargets { get; set; } = null!;
+        public DockSide DefaultSide { get; set; } = DockSide.Right;
+        public Func<TControl> ControlCreator { get; set; } = null!;
+        public Func<TControl, TWindow> WindowCreator { get; set; } = null!;
+        public double DefaultSize { get; set; }
+        public double MinSize { get; set; }
+        public double MaxSize { get; set; }
+        public double SplitterSize { get; set; } = 7;
+        public bool InitialDocked { get; set; }
+        public Action<DockSide>? OnSideAcquired { get; set; }
+        public Func<DockSide, double>? ProportionLoader { get; set; }
+        public Action<DockSide, double>? ProportionSaver { get; set; }
+        public Func<DockSide>? SideLoader { get; set; }
+        public Action<DockSide>? SideSaver { get; set; }
+    }
+
+    /// <summary>
     /// Scalable logic for docking sub-windows into MainWindow on any side (Left, Right, Top, Bottom)
     /// with overflow prevention against host screen bounds.
     /// </summary>
@@ -38,9 +63,9 @@ namespace ModHearth.UI
         where TControl : UserControl
         where TWindow : Window
     {
+        private const string pressedName = "pressed";
         private readonly Window _parentWindow;
         private readonly IReadOnlyDictionary<DockSide, DockingTarget> _sideTargets;
-        private readonly DockSide _defaultSide;
         private readonly Action<DockSide>? _onSideAcquired;
         private readonly Func<DockSide, double>? _proportionLoader;
         private readonly Action<DockSide, double>? _proportionSaver;
@@ -54,15 +79,9 @@ namespace ModHearth.UI
         private readonly double _minSize;
         private readonly double _maxSize;
         private readonly double _splitterSize;
-
-        private TControl? _sharedControl;
-        private TWindow? _floatingWindow;
-        private bool _isDocked;
         private bool _isExpanded;
         private bool _isOverDockTarget;
         private IWindowDragTracker? _dragTracker;
-
-        private DockSide _activeSide;
         private DockSide? _hoverSide;
         private double _expandedSize;
         private double _preExpandParentPrimary;
@@ -87,60 +106,48 @@ namespace ModHearth.UI
         public event EventHandler? DockStateChanged;
         public event EventHandler? Closed;
 
-        public TControl? SharedControl => _sharedControl;
-        public TWindow? FloatingWindow => _floatingWindow;
-        public bool IsDocked => _isDocked;
-        public bool IsOpen => _isExpanded || _floatingWindow != null;
-        public DockSide ActiveSide => _activeSide;
-        public DockSide DefaultSide => _defaultSide;
+        public TControl? SharedControl { get; private set; }
+        public TWindow? FloatingWindow { get; private set; }
+        public bool IsDocked { get; private set; }
+        public bool IsOpen => _isExpanded || FloatingWindow != null;
+        public DockSide ActiveSide { get; private set; }
+        public DockSide DefaultSide { get; }
 
-        private DockingTarget ActiveTarget => _sideTargets[_activeSide];
+        private DockingTarget ActiveTarget => _sideTargets[ActiveSide];
 
         public DockingManager(
             Window parentWindow,
-            IReadOnlyDictionary<DockSide, DockingTarget> sideTargets,
-            DockSide defaultSide,
-            Func<TControl> controlCreator,
-            Func<TControl, TWindow> windowCreator,
-            double defaultSize,
-            double minSize,
-            double maxSize,
-            double splitterSize = 7,
-            bool initialDocked = false,
-            Action<DockSide>? onSideAcquired = null,
-            Func<DockSide, double>? proportionLoader = null,
-            Action<DockSide, double>? proportionSaver = null,
-            Func<DockSide>? sideLoader = null,
-            Action<DockSide>? sideSaver = null)
+            DockingManagerOptions<TControl, TWindow> options)
         {
             _parentWindow = parentWindow ?? throw new ArgumentNullException(nameof(parentWindow));
-            _sideTargets = sideTargets ?? throw new ArgumentNullException(nameof(sideTargets));
-            if (!_sideTargets.ContainsKey(defaultSide))
-                throw new ArgumentException($"Default side '{defaultSide}' is not present in sideTargets.", nameof(defaultSide));
+            DockingManagerOptions<TControl, TWindow> opts = options ?? throw new ArgumentNullException(nameof(options));
+            _sideTargets = opts.SideTargets ?? throw new ArgumentNullException(nameof(options), "SideTargets cannot be null.");
+            if (!_sideTargets.ContainsKey(opts.DefaultSide))
+                throw new ArgumentException($"Default side '{opts.DefaultSide}' is not present in sideTargets.", nameof(options));
 
-            _defaultSide = defaultSide;
-            _sideLoader = sideLoader;
-            _sideSaver = sideSaver;
-            _activeSide = _sideLoader?.Invoke() ?? defaultSide;
-            if (!_sideTargets.ContainsKey(_activeSide))
-                _activeSide = defaultSide;
+            DefaultSide = opts.DefaultSide;
+            _sideLoader = opts.SideLoader;
+            _sideSaver = opts.SideSaver;
+            ActiveSide = _sideLoader?.Invoke() ?? DefaultSide;
+            if (!_sideTargets.ContainsKey(ActiveSide))
+                ActiveSide = DefaultSide;
 
-            _controlCreator = controlCreator ?? throw new ArgumentNullException(nameof(controlCreator));
-            _windowCreator = windowCreator ?? throw new ArgumentNullException(nameof(windowCreator));
-            _defaultSize = defaultSize;
-            _minSize = minSize;
-            _maxSize = maxSize;
-            _splitterSize = splitterSize;
-            _onSideAcquired = onSideAcquired;
-            _proportionLoader = proportionLoader;
-            _proportionSaver = proportionSaver;
-            _isDocked = initialDocked && CanDockOnSide(_activeSide);
+            _controlCreator = opts.ControlCreator ?? throw new ArgumentNullException(nameof(options), "ControlCreator cannot be null.");
+            _windowCreator = opts.WindowCreator ?? throw new ArgumentNullException(nameof(options), "WindowCreator cannot be null.");
+            _defaultSize = opts.DefaultSize;
+            _minSize = opts.MinSize;
+            _maxSize = opts.MaxSize;
+            _splitterSize = opts.SplitterSize;
+            _onSideAcquired = opts.OnSideAcquired;
+            _proportionLoader = opts.ProportionLoader;
+            _proportionSaver = opts.ProportionSaver;
+            IsDocked = opts.InitialDocked && CanDockOnSide(ActiveSide);
 
             RegisterSplitterEvents();
         }
 
-        private static bool IsHorizontal(DockSide side) =>
-            side is DockSide.Left or DockSide.Right;
+        private static bool IsHorizontal(DockSide side) => side is DockSide.Left or DockSide.Right;
+
 
         private bool TryGetScreenLayout(out PixelRect workingArea, out PixelPoint parentScreenPos, out double scale)
         {
@@ -150,7 +157,7 @@ namespace ModHearth.UI
 
             try
             {
-                var screen = _parentWindow.Screens?.ScreenFromWindow(_parentWindow) ?? _parentWindow.Screens?.Primary;
+                Screen? screen = _parentWindow.Screens?.ScreenFromWindow(_parentWindow) ?? _parentWindow.Screens?.Primary;
                 if (screen == null)
                     return false;
 
@@ -164,8 +171,7 @@ namespace ModHearth.UI
             }
         }
 
-        private double GetParentMinPrimary(DockSide side) =>
-            IsHorizontal(side) ? _parentWindow.MinWidth : _parentWindow.MinHeight;
+        private double GetParentMinPrimary(DockSide side) => IsHorizontal(side) ? _parentWindow.MinWidth : _parentWindow.MinHeight;
 
         private double GetAvailablePrimary(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale) => side switch
         {
@@ -175,6 +181,7 @@ namespace ModHearth.UI
                 (workingArea.Y + workingArea.Height - parentScreenPos.Y) / scale,
             _ => double.MaxValue
         };
+
 
         private bool FitsCrossAxis(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale)
         {
@@ -260,18 +267,18 @@ namespace ModHearth.UI
             if (_isDisposed) return;
             EnsureControlCreated();
 
-            _activeSide = _sideLoader?.Invoke() ?? _defaultSide;
-            if (!_sideTargets.ContainsKey(_activeSide))
-                _activeSide = _defaultSide;
+            ActiveSide = _sideLoader?.Invoke() ?? DefaultSide;
+            if (!_sideTargets.ContainsKey(ActiveSide))
+                ActiveSide = DefaultSide;
 
-            if (_isDocked && CanDockOnSide(_activeSide))
+            if (IsDocked && CanDockOnSide(ActiveSide))
             {
                 ShowDockedContent();
             }
             else
             {
-                if (_isDocked)
-                    _isDocked = false;
+                if (IsDocked)
+                    IsDocked = false;
 
                 ShowFloatingWindow();
             }
@@ -282,7 +289,7 @@ namespace ModHearth.UI
             if (_isDisposed) return;
             CollapsePanel();
 
-            foreach (var target in _sideTargets.Values)
+            foreach (DockingTarget target in _sideTargets.Values)
                 ClearDockHost(target);
 
             if (_dragTracker != null)
@@ -292,10 +299,10 @@ namespace ModHearth.UI
                 _dragTracker = null;
             }
 
-            if (_floatingWindow != null)
+            if (FloatingWindow != null)
             {
-                var win = _floatingWindow;
-                _floatingWindow = null;
+                TWindow win = FloatingWindow;
+                FloatingWindow = null;
                 win.PositionChanged -= OnFloatingWindowPositionChanged;
                 if (_pointerReleasedHandler != null) win.RemoveHandler(InputElement.PointerReleasedEvent, _pointerReleasedHandler);
                 if (_pointerCaptureLostHandler != null) win.RemoveHandler(InputElement.PointerCaptureLostEvent, _pointerCaptureLostHandler);
@@ -307,20 +314,21 @@ namespace ModHearth.UI
             Closed?.Invoke(this, EventArgs.Empty);
         }
 
-        public void ToggleDock() => SetDocked(!_isDocked);
+        public void ToggleDock() => SetDocked(!IsDocked);
+
 
         public void SetDocked(bool docked)
         {
-            if (_isDisposed || _isDocked == docked) return;
+            if (_isDisposed || IsDocked == docked) return;
 
             if (docked)
             {
-                _activeSide = _defaultSide;
-                if (!CanDockOnSide(_activeSide))
+                ActiveSide = DefaultSide;
+                if (!CanDockOnSide(ActiveSide))
                     return;
             }
 
-            _isDocked = docked;
+            IsDocked = docked;
 
             if (!IsOpen)
             {
@@ -328,7 +336,7 @@ namespace ModHearth.UI
                 return;
             }
 
-            if (_isDocked)
+            if (IsDocked)
             {
                 if (_dragTracker != null)
                 {
@@ -337,15 +345,15 @@ namespace ModHearth.UI
                     _dragTracker = null;
                 }
 
-                if (_floatingWindow != null)
+                if (FloatingWindow != null)
                 {
-                    _floatingWindow.PositionChanged -= OnFloatingWindowPositionChanged;
-                    _floatingWindow.Content = null;
-                    _floatingWindow.Close();
-                    _floatingWindow = null;
+                    FloatingWindow.PositionChanged -= OnFloatingWindowPositionChanged;
+                    FloatingWindow.Content = null;
+                    FloatingWindow.Close();
+                    FloatingWindow = null;
                 }
 
-                if (IsOpen || _sharedControl != null)
+                if (IsOpen || SharedControl != null)
                     ShowDockedContent();
             }
             else
@@ -360,20 +368,19 @@ namespace ModHearth.UI
 
         private void EnsureControlCreated()
         {
-            if (_sharedControl == null)
-                _sharedControl = _controlCreator();
+            SharedControl ??= _controlCreator();
         }
 
         private void ShowFloatingWindow()
         {
             CollapsePanel();
-            foreach (var target in _sideTargets.Values)
+            foreach (DockingTarget target in _sideTargets.Values)
                 ClearDockHost(target);
 
-            if (_floatingWindow == null)
+            if (FloatingWindow == null)
             {
-                _floatingWindow = _windowCreator(_sharedControl!);
-                _floatingWindow.PositionChanged += OnFloatingWindowPositionChanged;
+                FloatingWindow = _windowCreator(SharedControl!);
+                FloatingWindow.PositionChanged += OnFloatingWindowPositionChanged;
 
                 _pointerReleasedHandler = (_, _) =>
                 {
@@ -387,13 +394,13 @@ namespace ModHearth.UI
                         Dock();
                 };
 
-                _floatingWindow.AddHandler(InputElement.PointerReleasedEvent, _pointerReleasedHandler, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
-                _floatingWindow.AddHandler(InputElement.PointerCaptureLostEvent, _pointerCaptureLostHandler, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
+                FloatingWindow.AddHandler(InputElement.PointerReleasedEvent, _pointerReleasedHandler, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
+                FloatingWindow.AddHandler(InputElement.PointerCaptureLostEvent, _pointerCaptureLostHandler, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, true);
 
-                _dragTracker = WindowDragTracker.Create(_floatingWindow);
+                _dragTracker = WindowDragTracker.Create(FloatingWindow);
                 _dragTracker.DragFinished += OnDragFinished;
 
-                _floatingWindow.Closed += (_, _) =>
+                FloatingWindow.Closed += (_, _) =>
                 {
                     if (_dragTracker != null)
                     {
@@ -402,9 +409,9 @@ namespace ModHearth.UI
                         _dragTracker = null;
                     }
 
-                    if (_floatingWindow == null) return;
-                    var win = _floatingWindow;
-                    _floatingWindow = null;
+                    if (FloatingWindow == null) return;
+                    TWindow win = FloatingWindow;
+                    FloatingWindow = null;
                     win.PositionChanged -= OnFloatingWindowPositionChanged;
                     if (_pointerReleasedHandler != null) win.RemoveHandler(InputElement.PointerReleasedEvent, _pointerReleasedHandler);
                     if (_pointerCaptureLostHandler != null) win.RemoveHandler(InputElement.PointerCaptureLostEvent, _pointerCaptureLostHandler);
@@ -413,7 +420,7 @@ namespace ModHearth.UI
                 };
             }
 
-            _floatingWindow.Show(_parentWindow);
+            FloatingWindow.Show(_parentWindow);
         }
 
         private void OnDragFinished(object? sender, EventArgs e)
@@ -422,7 +429,7 @@ namespace ModHearth.UI
             {
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (_isOverDockTarget && !_isDocked && !_isDisposed && _floatingWindow != null)
+                    if (_isOverDockTarget && !IsDocked && !_isDisposed && FloatingWindow != null)
                         Dock();
                 });
             }
@@ -430,7 +437,7 @@ namespace ModHearth.UI
 
         private void OnFloatingWindowPositionChanged(object? sender, PixelPointEventArgs e)
         {
-            if (_floatingWindow == null || _isDocked || _isDisposed) return;
+            if (FloatingWindow == null || IsDocked || _isDisposed) return;
 
             try
             {
@@ -442,11 +449,11 @@ namespace ModHearth.UI
                 double parentWidthPx = _parentWindow.ClientSize.Width * scale;
                 double parentHeightPx = _parentWindow.ClientSize.Height * scale;
 
-                PixelPoint floatingPos = _floatingWindow.Position;
-                double floatingScale = _floatingWindow.DesktopScaling;
+                PixelPoint floatingPos = FloatingWindow.Position;
+                double floatingScale = FloatingWindow.DesktopScaling;
                 PixelPoint floatingCenter = new(
-                    floatingPos.X + (int)(_floatingWindow.ClientSize.Width * floatingScale / 2),
-                    floatingPos.Y + (int)(_floatingWindow.ClientSize.Height * floatingScale / 2)
+                    floatingPos.X + (int)(FloatingWindow.ClientSize.Width * floatingScale / 2),
+                    floatingPos.Y + (int)(FloatingWindow.ClientSize.Height * floatingScale / 2)
                 );
 
                 _hoverSide = DetectHoverSide(floatingCenter, parentTopLeft, parentWidthPx, parentHeightPx);
@@ -468,7 +475,7 @@ namespace ModHearth.UI
             DockSide? bestSide = null;
             double bestDistance = double.MaxValue;
 
-            foreach (var (side, target) in _sideTargets)
+            foreach ((DockSide side, DockingTarget? target) in _sideTargets)
             {
                 if (!CanDockOnSide(side))
                     continue;
@@ -540,13 +547,14 @@ namespace ModHearth.UI
             };
 
         // Vacates this manager's docked side without immediately creating a floating window. Used when another DockingManager is claiming the same side.
+
         internal void ForceUndockForSideHandoff()
         {
-            if (_isDisposed || !_isDocked) return;
+            if (_isDisposed || !IsDocked) return;
 
             CollapsePanel();
             ClearDockHost(ActiveTarget);
-            _isDocked = false;
+            IsDocked = false;
             DockStateChanged?.Invoke(this, EventArgs.Empty);
         }
 
@@ -564,9 +572,10 @@ namespace ModHearth.UI
                 _ => double.MaxValue
             };
 
+
         private void UpdatePreviewVisibility(DockSide? side)
         {
-            foreach (var (dockSide, target) in _sideTargets)
+            foreach ((DockSide dockSide, DockingTarget? target) in _sideTargets)
             {
                 if (target.PreviewBorder == null)
                     continue;
@@ -578,7 +587,7 @@ namespace ModHearth.UI
                 }
                 else
                 {
-                    var border = target.PreviewBorder;
+                    Border border = target.PreviewBorder;
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (border != null)
@@ -590,7 +599,7 @@ namespace ModHearth.UI
 
         private void HidePreview()
         {
-            foreach (var target in _sideTargets.Values)
+            foreach (DockingTarget target in _sideTargets.Values)
             {
                 if (target.PreviewBorder != null)
                     target.PreviewBorder.IsVisible = false;
@@ -612,7 +621,7 @@ namespace ModHearth.UI
             if (!CanDockOnSide(side))
                 return;
 
-            if (_isDocked && _activeSide == side)
+            if (IsDocked && ActiveSide == side)
                 return;
 
             HidePreview();
@@ -624,24 +633,24 @@ namespace ModHearth.UI
                 _dragTracker = null;
             }
 
-            if (_floatingWindow != null)
+            if (FloatingWindow != null)
             {
-                var win = _floatingWindow;
-                _floatingWindow = null;
+                TWindow win = FloatingWindow;
+                FloatingWindow = null;
                 win.PositionChanged -= OnFloatingWindowPositionChanged;
                 win.Content = null;
                 win.Close();
             }
 
-            if (_isDocked && _activeSide != side)
+            if (IsDocked && ActiveSide != side)
             {
-                var previousTarget = _sideTargets[_activeSide];
+                DockingTarget previousTarget = _sideTargets[ActiveSide];
                 CollapsePanel();
                 ClearDockHost(previousTarget);
             }
 
-            _activeSide = side;
-            _isDocked = true;
+            ActiveSide = side;
+            IsDocked = true;
             _sideSaver?.Invoke(side);
             ShowDockedContent();
             DockStateChanged?.Invoke(this, EventArgs.Empty);
@@ -649,7 +658,7 @@ namespace ModHearth.UI
 
         private void ClearDockHost(DockingTarget target)
         {
-            if (target.DockHostControl.Content == _sharedControl)
+            if (target.DockHostControl.Content == SharedControl)
             {
                 target.DockHostControl.Content = null;
                 target.DockHostControl.IsVisible = false;
@@ -660,17 +669,17 @@ namespace ModHearth.UI
         {
             if (_isExpanded || _isDisposed) return;
 
-            if (!TryComputeExpandedLayout(_activeSide, out double childSize, out double newParentPrimary))
+            if (!TryComputeExpandedLayout(ActiveSide, out double childSize, out double newParentPrimary))
                 return;
 
-            var target = ActiveTarget;
+            DockingTarget target = ActiveTarget;
             _expandedSize = childSize;
             double minIncrease = childSize + _splitterSize;
-            _preExpandParentPrimary = IsHorizontal(_activeSide) ? _parentWindow.Width : _parentWindow.Height;
+            _preExpandParentPrimary = IsHorizontal(ActiveSide) ? _parentWindow.Width : _parentWindow.Height;
             _preExpandMinWidth = _parentWindow.MinWidth;
             _preExpandMinHeight = _parentWindow.MinHeight;
 
-            if (IsHorizontal(_activeSide))
+            if (IsHorizontal(ActiveSide))
             {
                 SetSafeMinWidth(_preExpandMinWidth + minIncrease);
                 SetSafeWidth(newParentPrimary);
@@ -701,10 +710,10 @@ namespace ModHearth.UI
         {
             if (!_isExpanded || _isDisposed) return;
 
-            var target = ActiveTarget;
+            DockingTarget target = ActiveTarget;
             double collapseAmount = _expandedSize + _splitterSize;
 
-            if (IsHorizontal(_activeSide))
+            if (IsHorizontal(ActiveSide))
             {
                 double newMinWidth = Math.Max(0, _parentWindow.MinWidth - collapseAmount);
                 if (_preExpandMinWidth > 0 && newMinWidth < _preExpandMinWidth)
@@ -794,27 +803,27 @@ namespace ModHearth.UI
         {
             if (_isDisposed) return;
 
-            if (!CanDockOnSide(_activeSide))
+            if (!CanDockOnSide(ActiveSide))
             {
-                _isDocked = false;
+                IsDocked = false;
                 ShowFloatingWindow();
                 return;
             }
 
-            _onSideAcquired?.Invoke(_activeSide);
+            _onSideAcquired?.Invoke(ActiveSide);
             ExpandPanel();
             if (!_isExpanded)
             {
-                _isDocked = false;
+                IsDocked = false;
                 ShowFloatingWindow();
                 return;
             }
 
-            if (_sharedControl != null)
-                _sharedControl.Opacity = 0;
+            if (SharedControl != null)
+                SharedControl.Opacity = 0;
 
             DockingTarget target = ActiveTarget;
-            switch (_sharedControl?.Parent)
+            switch (SharedControl?.Parent)
             {
                 case ContentControl oldContentControl:
                     oldContentControl.Content = null;
@@ -825,43 +834,43 @@ namespace ModHearth.UI
 
             }
 
-            target.DockHostControl.Content = _sharedControl;
+            target.DockHostControl.Content = SharedControl;
             target.DockHostControl.IsVisible = true;
 
             Dispatcher.UIThread.Post(() =>
             {
-                if (_isDisposed || _sharedControl == null) return;
+                if (_isDisposed || SharedControl == null) return;
 
                 if (Style.instance != null)
                 {
-                    WindowThemeManager.ApplyToVisual(_sharedControl, Style.instance);
+                    WindowThemeManager.ApplyToVisual(SharedControl, Style.instance);
                 }
 
-                _sharedControl.Opacity = 1;
+                SharedControl.Opacity = 1;
             }, DispatcherPriority.Loaded);
         }
 
         private void RegisterSplitterEvents()
         {
-            foreach (var target in _sideTargets.Values)
+            foreach (DockingTarget target in _sideTargets.Values)
             {
                 if (target.SplitterControl == null)
                     continue;
 
-                var splitter = target.SplitterControl;
+                Control splitter = target.SplitterControl;
 
-                EventHandler<PointerPressedEventArgs> pressedHandler = (sender, e) =>
+                void pressedHandler(object? sender, PointerPressedEventArgs e)
                 {
-                    if (_isDisposed || !_isExpanded || _activeSide != target.Side) return;
-                    var props = e.GetCurrentPoint(_parentWindow).Properties;
+                    if (_isDisposed || !_isExpanded || ActiveSide != target.Side) return;
+                    PointerPointProperties props = e.GetCurrentPoint(_parentWindow).Properties;
                     if (!props.IsLeftButtonPressed)
                         return;
 
                     _isDraggingSplitter = true;
                     _splitterStartPoint = e.GetPosition(_parentWindow);
-                    target.DockHostBorder?.Classes.Add("pressed");
+                    target.DockHostBorder?.Classes.Add(pressedName);
 
-                    if (IsHorizontal(_activeSide))
+                    if (IsHorizontal(ActiveSide))
                     {
                         if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
                             _initialContentSize = target.MainGrid.ColumnDefinitions[target.ContentIndex].Width.Value;
@@ -876,13 +885,13 @@ namespace ModHearth.UI
 
                     e.Pointer.Capture(splitter);
                     e.Handled = true;
-                };
+                }
 
-                EventHandler<PointerEventArgs> movedHandler = (sender, e) =>
+                void movedHandler(object? sender, PointerEventArgs e)
                 {
-                    if (!_isDraggingSplitter || _isDisposed || _activeSide != target.Side) return;
+                    if (!_isDraggingSplitter || _isDisposed || ActiveSide != target.Side) return;
 
-                    _pendingSplitterSize = ComputeClampedSize(target, e.GetPosition(_parentWindow));
+                    _pendingSplitterSize = ComputeClampedSize(e.GetPosition(_parentWindow));
 
                     if (!_splitterResizePending)
                     {
@@ -896,39 +905,39 @@ namespace ModHearth.UI
                     }
 
                     e.Handled = true;
-                };
+                }
 
-                EventHandler<PointerReleasedEventArgs> releasedHandler = (sender, e) =>
+                void releasedHandler(object? sender, PointerReleasedEventArgs e)
                 {
-                    target.DockHostBorder?.Classes.Remove("pressed");
+                    _ = (target.DockHostBorder?.Classes.Remove(pressedName));
                     if (!_isDraggingSplitter || _isDisposed) return;
                     _isDraggingSplitter = false;
                     _splitterResizePending = false;
                     e.Pointer.Capture(null);
 
-                    double parentPrimary = IsHorizontal(_activeSide) ? _parentWindow.Width : _parentWindow.Height;
+                    double parentPrimary = IsHorizontal(ActiveSide) ? _parentWindow.Width : _parentWindow.Height;
                     if (parentPrimary > 0)
                     {
                         double proportion = _expandedSize / parentPrimary;
                         proportion = Math.Clamp(proportion, 0.01, 0.99);
-                        _proportionSaver?.Invoke(_activeSide, proportion);
+                        _proportionSaver?.Invoke(ActiveSide, proportion);
                     }
 
                     e.Handled = true;
-                };
+                }
 
                 splitter.PointerCaptureLost += (sender, e) =>
                 {
-                    target.DockHostBorder?.Classes.Remove("pressed");
+                    _ = (target.DockHostBorder?.Classes.Remove(pressedName));
                     _isDraggingSplitter = false;
                     _splitterResizePending = false;
                 };
 
                 if (target.DockHostBorder != null)
                 {
-                    target.DockHostBorder.PointerPressed += (s, e) => target.DockHostBorder.Classes.Add("pressed");
-                    target.DockHostBorder.PointerReleased += (s, e) => target.DockHostBorder.Classes.Remove("pressed");
-                    target.DockHostBorder.PointerCaptureLost += (s, e) => target.DockHostBorder.Classes.Remove("pressed");
+                    target.DockHostBorder.PointerPressed += (s, e) => target.DockHostBorder.Classes.Add(pressedName);
+                    target.DockHostBorder.PointerReleased += (s, e) => target.DockHostBorder.Classes.Remove(pressedName);
+                    target.DockHostBorder.PointerCaptureLost += (s, e) => target.DockHostBorder.Classes.Remove(pressedName);
                 }
 
                 splitter.PointerPressed += pressedHandler;
@@ -941,9 +950,9 @@ namespace ModHearth.UI
             }
         }
 
-        private double ComputeClampedSize(DockingTarget target, Point currentPoint)
+        private double ComputeClampedSize(Point currentPoint)
         {
-            switch (_activeSide)
+            switch (ActiveSide)
             {
                 case DockSide.Right:
                     {
@@ -972,7 +981,7 @@ namespace ModHearth.UI
 
         private void ApplySplitterSize(DockingTarget target, double newSize)
         {
-            switch (_activeSide)
+            switch (ActiveSide)
             {
                 case DockSide.Right:
                 case DockSide.Left:
@@ -1002,11 +1011,11 @@ namespace ModHearth.UI
 
             if (disposing)
             {
-                foreach (var (splitter, handler) in _splitterPressedHandlers)
+                foreach ((Control? splitter, EventHandler<PointerPressedEventArgs>? handler) in _splitterPressedHandlers)
                     splitter.PointerPressed -= handler;
-                foreach (var (splitter, handler) in _splitterMovedHandlers)
+                foreach ((Control? splitter, EventHandler<PointerEventArgs>? handler) in _splitterMovedHandlers)
                     splitter.PointerMoved -= handler;
-                foreach (var (splitter, handler) in _splitterReleasedHandlers)
+                foreach ((Control? splitter, EventHandler<PointerReleasedEventArgs>? handler) in _splitterReleasedHandlers)
                     splitter.PointerReleased -= handler;
 
                 _splitterPressedHandlers.Clear();
@@ -1020,8 +1029,8 @@ namespace ModHearth.UI
                     _dragTracker = null;
                 }
 
-                (_sharedControl as IDisposable)?.Dispose();
-                _sharedControl = null;
+                (SharedControl as IDisposable)?.Dispose();
+                SharedControl = null;
 
                 Close();
             }

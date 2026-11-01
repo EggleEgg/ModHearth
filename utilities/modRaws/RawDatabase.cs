@@ -1,187 +1,144 @@
-namespace ModHearth.Utilities;
+using ModHearth.Models;
 
-/// <summary>
-/// Centralized container for the raw objects parsed from a single mod (or a merged
-/// set of mods). It exposes the data as a structural object-type graph and provides
-/// generic conflict-resolution queries over that graph.
-/// </summary>
-public sealed class RawDatabase
+namespace ModHearth.Utilities.ModRaws
 {
-    public string SourceMod { get; }
-    public IReadOnlyList<RawObject> Objects { get; }
-    public bool IsCutter { get; }
-    public bool HasGraphics { get; }
-
     /// <summary>
-    /// ObjectType -> set of Ids. Built only from objects that are direct definitions.
+    /// Centralized container for the raw objects parsed from a single mod (or a merged
+    /// set of mods). It exposes the data as a structural object-type graph and provides
+    /// generic conflict-resolution queries over that graph.
     /// </summary>
-    public IReadOnlyDictionary<string, HashSet<string>> DefinedObjects { get; }
-
-    public RawDatabase(string sourceMod, IEnumerable<RawObject> objects, bool isCutter, bool hasGraphics)
+    public sealed class RawDatabase
     {
-        SourceMod = sourceMod;
-        Objects = objects.ToList().AsReadOnly();
-        IsCutter = isCutter;
-        HasGraphics = hasGraphics;
-        DefinedObjects = BuildDefinedObjects(Objects);
-    }
+        public string SourceMod { get; }
+        public IReadOnlyList<RawObject> Objects { get; }
+        public bool IsCutter { get; }
+        public bool HasGraphics { get; }
 
-    private static IReadOnlyDictionary<string, HashSet<string>> BuildDefinedObjects(IEnumerable<RawObject> objects)
-    {
-        Dictionary<string, HashSet<string>> result = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// ObjectType -> set of Ids. Built only from objects that are direct definitions.
+        /// </summary>
+        public IReadOnlyDictionary<string, HashSet<string>> DefinedObjects { get; }
 
-        foreach (RawObject raw in objects)
+        public RawDatabase(string sourceMod, IEnumerable<RawObject> objects, bool isCutter, bool hasGraphics)
         {
-            if (!raw.IsDefinition)
-                continue;
-
-            if (string.IsNullOrWhiteSpace(raw.ObjectType) || string.IsNullOrWhiteSpace(raw.Id))
-                continue;
-
-            if (!result.TryGetValue(raw.ObjectType, out HashSet<string>? ids))
-            {
-                ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                result[raw.ObjectType] = ids;
-            }
-
-            _ = ids.Add(raw.Id);
+            SourceMod = sourceMod;
+            Objects = objects.ToList().AsReadOnly();
+            IsCutter = isCutter;
+            HasGraphics = hasGraphics;
+            DefinedObjects = BuildDefinedObjects(Objects);
         }
 
-        return result;
-    }
-
-    public bool IsDefined(ObjectKey? key)
-    {
-        switch (key)
+        private static IReadOnlyDictionary<string, HashSet<string>> BuildDefinedObjects(IEnumerable<RawObject> objects)
         {
-            case null:
-                return false;
-            default:
-                return DefinedObjects.TryGetValue(key.ObjectType, out HashSet<string>? ids)
-                    && ids.Contains(key.Id);
-        }
-    }
+            Dictionary<string, HashSet<string>> result = new(StringComparer.OrdinalIgnoreCase);
 
-    public bool IsDefined(string objectType, string id)
-    {
-        if (string.IsNullOrWhiteSpace(objectType) || string.IsNullOrWhiteSpace(id))
-            return false;
+            foreach (RawObject raw in objects)
+            {
+                if (!raw.IsDefinition)
+                    continue;
 
-        return DefinedObjects.TryGetValue(objectType, out HashSet<string>? ids)
-            && ids.Contains(id);
-    }
+                if (string.IsNullOrWhiteSpace(raw.ObjectType) || string.IsNullOrWhiteSpace(raw.Id))
+                    continue;
 
-    /// <summary>
-    /// Returns definition objects that share the same object type and ID.
-    /// </summary>
-    public IEnumerable<IGrouping<ObjectKey, RawObject>> GetDuplicateDefinitions()
-        => Objects
-            .Where(o => o.IsDefinition)
-            .GroupBy(o => new ObjectKey(o.ObjectType, o.Id))
-            .Where(g => g.Count() > 1);
+                if (!result.TryGetValue(raw.ObjectType, out HashSet<string>? ids))
+                {
+                    ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    result[raw.ObjectType] = ids;
+                }
 
-    /// <summary>
-    /// Returns selection, cut, or copy-tags-from references whose target object
-    /// is not defined in this database.
-    /// </summary>
-    public IEnumerable<RawObject> GetUnresolvedDependencies()
-        => Objects
-            .Where(o => (o.IsSelection || o.IsCut || o.IsCopyTagsFrom)
-                        && !IsDefined(o.ObjectType, o.Id));
+                _ = ids.Add(raw.Id);
+            }
 
-    /// <summary>
-    /// Returns cut operations that override an object defined in this database.
-    /// </summary>
-    public IEnumerable<RawObject> GetOverrideRelationships()
-        => Objects
-            .Where(o => o.IsCut && IsDefined(o.ObjectType, o.Id));
-
-    /// <summary>
-    /// Projects this raw database into the legacy <see cref="ModRawDependencyInfo"/>
-    /// DTO used by ModSort and the persistent cache.
-    /// </summary>
-    public ModRawDependencyInfo ToDependencyInfo(
-        string modId,
-        string numericVersion,
-        long objectsFolderStampTicks,
-        VanillaRawBaseline? vanillaBaseline)
-    {
-        StringComparer comparer = StringComparer.OrdinalIgnoreCase;
-
-        HashSet<string> cutIds = new(comparer);
-        HashSet<string> selectIds = new(comparer);
-        HashSet<string> copyIds = new(comparer);
-        HashSet<string> directIds = new(comparer);
-
-        foreach (RawObject raw in Objects)
-        {
-            if (raw.IsCut && !string.IsNullOrWhiteSpace(raw.Id))
-                _ = cutIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
-
-            if (raw.IsSelection && !string.IsNullOrWhiteSpace(raw.Id))
-                _ = selectIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
-
-            if (raw.IsCopyTagsFrom && !string.IsNullOrWhiteSpace(raw.Id))
-                _ = copyIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
-
-            if (raw.IsDefinition && !string.IsNullOrWhiteSpace(raw.Id))
-                _ = directIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+            return result;
         }
 
-        bool hasVanillaEntity = false;
-        bool hasNewEntity = false;
-        bool hasReaction = false;
-        bool hasCreature = false;
-        bool hasNewStuff = false;
-
-        foreach (RawObject raw in Objects)
+        /// <summary>
+        /// Projects this raw database into the legacy <see cref="ModRawDependencyInfo"/>
+        /// DTO used by ModSort and the persistent cache.
+        /// </summary>
+        public ModRawDependencyInfo ToDependencyInfo(
+            string modId,
+            string numericVersion,
+            long objectsFolderStampTicks,
+            VanillaRawBaseline? vanillaBaseline)
         {
-            if (!raw.IsDefinition || string.IsNullOrWhiteSpace(raw.ObjectType))
-                continue;
+            StringComparer comparer = StringComparer.OrdinalIgnoreCase;
 
-            if (string.Equals(raw.ObjectType, "ENTITY", StringComparison.OrdinalIgnoreCase))
+            HashSet<string> cutIds = new(comparer);
+            HashSet<string> selectIds = new(comparer);
+            HashSet<string> copyIds = new(comparer);
+            HashSet<string> directIds = new(comparer);
+
+            foreach (RawObject raw in Objects)
             {
-                bool isVanilla = vanillaBaseline != null && vanillaBaseline.Contains(raw.ObjectType, raw.Id);
-                if (isVanilla)
-                    hasVanillaEntity = true;
-                else
-                    hasNewEntity = true;
+                if (raw.IsCut && !string.IsNullOrWhiteSpace(raw.Id))
+                    _ = cutIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+
+                if (raw.IsSelection && !string.IsNullOrWhiteSpace(raw.Id))
+                    _ = selectIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+
+                if (raw.IsCopyTagsFrom && !string.IsNullOrWhiteSpace(raw.Id))
+                    _ = copyIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+
+                if (raw.IsDefinition && !string.IsNullOrWhiteSpace(raw.Id))
+                    _ = directIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
             }
-            else if (string.Equals(raw.ObjectType, "REACTION", StringComparison.OrdinalIgnoreCase))
+
+            bool hasVanillaEntity = false;
+            bool hasNewEntity = false;
+            bool hasReaction = false;
+            bool hasCreature = false;
+            bool hasNewStuff = false;
+
+            foreach (RawObject raw in Objects)
             {
-                hasReaction = true;
+                if (!raw.IsDefinition || string.IsNullOrWhiteSpace(raw.ObjectType))
+                    continue;
+
+                if (string.Equals(raw.ObjectType, "ENTITY", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool isVanilla = vanillaBaseline != null && vanillaBaseline.Contains(raw.ObjectType, raw.Id);
+                    if (isVanilla)
+                        hasVanillaEntity = true;
+                    else
+                        hasNewEntity = true;
+                }
+                else if (string.Equals(raw.ObjectType, "REACTION", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasReaction = true;
+                }
+                else if (string.Equals(raw.ObjectType, "CREATURE", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasCreature = true;
+                }
+                else if (string.Equals(raw.ObjectType, "INORGANIC", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(raw.ObjectType, "PLANT", StringComparison.OrdinalIgnoreCase)
+                      || raw.ObjectType.StartsWith("ITEM_", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasNewStuff = true;
+                }
             }
-            else if (string.Equals(raw.ObjectType, "CREATURE", StringComparison.OrdinalIgnoreCase))
-            {
-                hasCreature = true;
-            }
-            else if (string.Equals(raw.ObjectType, "INORGANIC", StringComparison.OrdinalIgnoreCase)
-                  || string.Equals(raw.ObjectType, "PLANT", StringComparison.OrdinalIgnoreCase)
-                  || raw.ObjectType.StartsWith("ITEM_", StringComparison.OrdinalIgnoreCase))
-            {
+
+            if (hasCreature)
                 hasNewStuff = true;
-            }
+
+            return new ModRawDependencyInfo
+            {
+                ModId = modId,
+                NumericVersion = numericVersion,
+                ObjectsFolderStampTicks = objectsFolderStampTicks,
+                IsCutter = IsCutter,
+                CutTargetIds = [.. cutIds],
+                SelectTargetIds = [.. selectIds],
+                CopyTagsFromSourceIds = [.. copyIds],
+                DirectDefinitionIds = [.. directIds],
+                HasVanillaEntity = hasVanillaEntity,
+                HasNewEntity = hasNewEntity,
+                HasReaction = hasReaction,
+                HasCreature = hasCreature,
+                HasNewStuff = hasNewStuff,
+                HasGraphics = HasGraphics
+            };
         }
-
-        if (hasCreature)
-            hasNewStuff = true;
-
-        return new ModRawDependencyInfo
-        {
-            ModId = modId,
-            NumericVersion = numericVersion,
-            ObjectsFolderStampTicks = objectsFolderStampTicks,
-            IsCutter = IsCutter,
-            CutTargetIds = [.. cutIds],
-            SelectTargetIds = [.. selectIds],
-            CopyTagsFromSourceIds = [.. copyIds],
-            DirectDefinitionIds = [.. directIds],
-            HasVanillaEntity = hasVanillaEntity,
-            HasNewEntity = hasNewEntity,
-            HasReaction = hasReaction,
-            HasCreature = hasCreature,
-            HasNewStuff = hasNewStuff,
-            HasGraphics = HasGraphics
-        };
     }
 }

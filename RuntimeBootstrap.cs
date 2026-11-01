@@ -1,55 +1,56 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace ModHearth;
-
-/// <summary>
-/// Initializes runtime components (such as the console) and logging for the application
-/// </summary>
-internal static class RuntimeBootstrap
+namespace ModHearth
 {
-    private static bool initialized;
-
-    [ModuleInitializer]
-    internal static void Initialize()
+    /// <summary>
+    /// Initializes runtime components (such as the console) and logging for the application
+    /// </summary>
+    internal static class RuntimeBootstrap
     {
-        if (initialized)
-            return;
+        private static bool initialized;
 
-        initialized = true;
-        AppLogging.Initialize();
-        AppLogging.RegisterUnhandledExceptionHandlers();
-    }
-
-    public static void HideConsole()
-    {
-        if (OperatingSystem.IsWindows())
+        [ModuleInitializer]
+        internal static void Initialize()
         {
-            NativeMethods.HideConsoleWindow();
+            if (initialized)
+                return;
+
+            initialized = true;
+            AppLogging.Initialize();
+            AppLogging.RegisterUnhandledExceptionHandlers();
         }
-    }
 
-    private static class NativeMethods
-    {
-        [DllImport("kernel32.dll")]
-        private static extern IntPtr GetConsoleWindow();
-
-        [DllImport("user32.dll")]
-        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        private const int SW_HIDE = 0;
-
-        public static void HideConsoleWindow()
+        public static void HideConsole()
         {
-            try
+            if (OperatingSystem.IsWindows())
             {
-                var handle = GetConsoleWindow();
-                if (handle != IntPtr.Zero)
-                    _ = ShowWindow(handle, SW_HIDE);
+                NativeMethods.HideConsoleWindow();
             }
-            catch
+        }
+
+        private static class NativeMethods
+        {
+            [DllImport("kernel32.dll")]
+            private static extern IntPtr GetConsoleWindow();
+
+            [DllImport("user32.dll")]
+            private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+            private const int SW_HIDE = 0;
+
+            public static void HideConsoleWindow()
             {
-                // Ignore failures to hide console.
+                try
+                {
+                    nint handle = GetConsoleWindow();
+                    if (handle != IntPtr.Zero)
+                        _ = ShowWindow(handle, SW_HIDE);
+                }
+                catch
+                {
+                    // Ignore failures to hide console.
+                }
             }
         }
     }

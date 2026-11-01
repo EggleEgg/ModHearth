@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia.Threading;
+using ModHearth.Models;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities.Workshop
@@ -22,9 +23,14 @@ namespace ModHearth.Utilities.Workshop
         private readonly Func<bool>? _canExecute = canExecute;
 
         public bool CanExecute(object? parameter) => _canExecute == null || _canExecute();
+
+
         public void Execute(object? parameter) => _execute();
+
+
         public event EventHandler? CanExecuteChanged;
         public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+
     }
 
     public class WorkshopDownloadItem : INotifyPropertyChanged
@@ -36,6 +42,7 @@ namespace ModHearth.Utilities.Workshop
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
 
         public ulong PublishedFileId { get; set; }
         public string Title { get; set; } = string.Empty;
@@ -119,8 +126,8 @@ namespace ModHearth.Utilities.Workshop
             }
         }
 
-        public bool CanRetry => State == DownloadState.Failed || State == DownloadState.Cancelled;
-        public bool CanCancel => State == DownloadState.Waiting || State == DownloadState.Resolving || State == DownloadState.Downloading;
+        public bool CanRetry => State is DownloadState.Failed or DownloadState.Cancelled;
+        public bool CanCancel => State is DownloadState.Waiting or DownloadState.Resolving or DownloadState.Downloading;
 
         private bool _isBatched;
         public bool IsBatched
@@ -148,9 +155,9 @@ namespace ModHearth.Utilities.Workshop
         private readonly SemaphoreSlim _concurrencySemaphore = new(3, 3);
         private readonly object _steamCmdBatchLock = new();
         private readonly SteamWebApiClient _apiClient = new();
-        private readonly ModHearthManager _manager;
 
         // Timer for debouncing UI reloads
+
         private DispatcherTimer? _reloadTimer;
 
         private void TriggerDebouncedUIReload() =>
@@ -163,7 +170,7 @@ namespace ModHearth.Utilities.Workshop
                     _reloadTimer.Tick += (_, _) =>
                     {
                         _reloadTimer.Stop();
-                        _manager.TriggerUIReload();
+                        Manager.TriggerUIReload();
                     };
                 }
 
@@ -172,14 +179,15 @@ namespace ModHearth.Utilities.Workshop
                 _reloadTimer.Start();
             });
 
+
         public ObservableCollection<WorkshopDownloadItem> Queue { get; } = [];
         public List<IWorkshopDownloadProvider> Providers { get; } = [];
         public IWorkshopDownloadProvider? SelectedProvider { get; set; }
-        public ModHearthManager Manager => _manager;
+        public ModHearthManager Manager { get; }
 
         public WorkshopQueueManager(ModHearthManager manager)
         {
-            _manager = manager;
+            Manager = manager;
 
             // Initialize providers
             Providers.Add(new SteamCmdDownloadProvider());
@@ -215,9 +223,9 @@ namespace ModHearth.Utilities.Workshop
             }
 
             // Find installed mod
-            var installedMods = _manager.LoadedMods;
-            var installedMod = installedMods.FirstOrDefault(m =>
-                string.Equals(m.steamID, idStr, StringComparison.OrdinalIgnoreCase));
+            IReadOnlyCollection<ModReference> installedMods = Manager.LoadedMods;
+            ModReference? installedMod = installedMods.FirstOrDefault(m =>
+                string.Equals(m.SteamID, idStr, StringComparison.OrdinalIgnoreCase));
 
             if (installedMod != null)
             {
@@ -237,9 +245,9 @@ namespace ModHearth.Utilities.Workshop
                 return ModStatusClassification.Duplicate;
             }
 
-            var installedMods = _manager.LoadedMods;
-            var installedMod = installedMods.FirstOrDefault(m =>
-                string.Equals(m.steamID, idStr, StringComparison.OrdinalIgnoreCase));
+            IReadOnlyCollection<ModReference> installedMods = Manager.LoadedMods;
+            ModReference? installedMod = installedMods.FirstOrDefault(m =>
+                string.Equals(m.SteamID, idStr, StringComparison.OrdinalIgnoreCase));
 
             if (installedMod != null)
             {
@@ -251,9 +259,9 @@ namespace ModHearth.Utilities.Workshop
             // Check missing dependencies
             if (meta.ChildrenIds != null && meta.ChildrenIds.Count > 0)
             {
-                foreach (var childId in meta.ChildrenIds)
+                foreach (ulong childId in meta.ChildrenIds)
                 {
-                    bool isInstalled = installedMods.Any(m => string.Equals(m.steamID, childId.ToString(), StringComparison.OrdinalIgnoreCase));
+                    bool isInstalled = installedMods.Any(m => string.Equals(m.SteamID, childId.ToString(), StringComparison.OrdinalIgnoreCase));
                     bool isQueued = allIds.Contains(childId);
                     if (!isInstalled && !isQueued)
                     {
@@ -268,7 +276,7 @@ namespace ModHearth.Utilities.Workshop
         public async Task ResolveAndEnqueueUrlsAsync(string inputUrls, Func<List<WorkshopItemMetadata>, Task>? onCollectionFound)
         {
             InfoLogger.LogRunDf($"WorkshopQueueManager: Resolving URLs: {inputUrls}");
-            var ids = WorkshopUrlResolver.ParseUrls(inputUrls);
+            List<ulong> ids = WorkshopUrlResolver.ParseUrls(inputUrls);
             if (ids.Count == 0)
             {
                 InfoLogger.LogRunDf("WorkshopQueueManager: No valid IDs found in input.");
@@ -276,7 +284,7 @@ namespace ModHearth.Utilities.Workshop
             }
 
             InfoLogger.LogRunDf($"WorkshopQueueManager: Fetching metadata for {ids.Count} IDs...");
-            var metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
+            List<WorkshopItemMetadata> metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
 
             if (metadataList.Count == 0)
             {
@@ -284,12 +292,12 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            var itemsToEnqueue = new List<WorkshopItemMetadata>();
+            List<WorkshopItemMetadata> itemsToEnqueue = [];
 
-            foreach (var meta in metadataList)
+            foreach (WorkshopItemMetadata meta in metadataList)
             {
                 InfoLogger.LogRunDf($"WorkshopQueueManager: Checking if {meta.PublishedFileId} ('{meta.Title}') is a collection...");
-                var children = await SteamWebApiClient.GetCollectionDetailsAsync(meta.PublishedFileId);
+                List<ulong> children = await SteamWebApiClient.GetCollectionDetailsAsync(meta.PublishedFileId);
                 switch (children.Count)
                 {
                     case > 0:
@@ -298,7 +306,7 @@ namespace ModHearth.Utilities.Workshop
                             meta.IsCollection = true;
                             meta.ChildrenIds = children;
 
-                            var childrenMeta = await _apiClient.GetPublishedFileDetailsAsync(children);
+                            List<WorkshopItemMetadata> childrenMeta = await _apiClient.GetPublishedFileDetailsAsync(children);
                             if (onCollectionFound != null)
                                 await onCollectionFound(childrenMeta);
                             break;
@@ -317,7 +325,7 @@ namespace ModHearth.Utilities.Workshop
                 InfoLogger.LogRunDf($"WorkshopQueueManager: Enqueueing {itemsToEnqueue.Count} items to UI thread...");
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    foreach (var item in itemsToEnqueue)
+                    foreach (WorkshopItemMetadata item in itemsToEnqueue)
                     {
                         Enqueue(item);
                     }
@@ -327,12 +335,12 @@ namespace ModHearth.Utilities.Workshop
 
         public async Task RedownloadWorkshopItemsAsync(IEnumerable<ulong> workshopIds)
         {
-            var ids = workshopIds.Where(id => id > 0).Distinct().ToList();
+            List<ulong> ids = [.. workshopIds.Where(id => id > 0).Distinct()];
             if (ids.Count == 0)
                 return;
 
             InfoLogger.LogRunDf($"WorkshopQueueManager: Redownloading {ids.Count} workshop items...");
-            var metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
+            List<WorkshopItemMetadata> metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
             if (metadataList.Count == 0)
             {
                 InfoLogger.LogRunDf("WorkshopQueueManager: Steam API returned no metadata for redownload IDs.");
@@ -341,9 +349,9 @@ namespace ModHearth.Utilities.Workshop
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                foreach (var meta in metadataList)
+                foreach (WorkshopItemMetadata meta in metadataList)
                 {
-                    var existing = Queue.FirstOrDefault(i => i.PublishedFileId == meta.PublishedFileId);
+                    WorkshopDownloadItem? existing = Queue.FirstOrDefault(i => i.PublishedFileId == meta.PublishedFileId);
                     if (existing != null && (existing.State == DownloadState.Completed || existing.State == DownloadState.Failed || existing.State == DownloadState.Cancelled))
                     {
                         RemoveFromQueue(existing);
@@ -368,7 +376,8 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            var item = new WorkshopDownloadItem
+            WorkshopDownloadItem item = new()
+
             {
                 PublishedFileId = meta.PublishedFileId,
                 Title = meta.Title,
@@ -386,7 +395,7 @@ namespace ModHearth.Utilities.Workshop
 
             while (Queue.Count >= MaxQueueSize)
             {
-                var oldestRemovable = Queue.FirstOrDefault(i => i.State == DownloadState.Completed || i.State == DownloadState.Failed || i.State == DownloadState.Cancelled)
+                WorkshopDownloadItem? oldestRemovable = Queue.FirstOrDefault(i => i.State is DownloadState.Completed or DownloadState.Failed or DownloadState.Cancelled)
                     ?? Queue.FirstOrDefault();
                 if (oldestRemovable != null)
                     RemoveFromQueue(oldestRemovable);
@@ -470,7 +479,7 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            foreach (var item in Queue.Where(i => i.CanRetry).ToList())
+            foreach (WorkshopDownloadItem? item in Queue.Where(i => i.CanRetry).ToList())
             {
                 RetryDownload(item);
             }
@@ -484,7 +493,7 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            foreach (var item in Queue.Where(i => i.CanCancel).ToList())
+            foreach (WorkshopDownloadItem? item in Queue.Where(i => i.CanCancel).ToList())
             {
                 CancelDownload(item);
             }
@@ -498,8 +507,8 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            var completed = Queue.Where(i => i.State == DownloadState.Completed).ToList();
-            foreach (var item in completed)
+            List<WorkshopDownloadItem> completed = [.. Queue.Where(i => i.State == DownloadState.Completed)];
+            foreach (WorkshopDownloadItem? item in completed)
             {
                 _ = Queue.Remove(item);
             }
@@ -511,13 +520,13 @@ namespace ModHearth.Utilities.Workshop
             await _concurrencySemaphore.WaitAsync();
             try
             {
-                if (item.State == DownloadState.Cancelled || item.State != DownloadState.Waiting)
+                if (item.State is DownloadState.Cancelled or not DownloadState.Waiting)
                 {
                     InfoLogger.LogRunDf($"WorkshopQueueManager: Item {item.PublishedFileId} was cancelled or already processed.");
                     return;
                 }
 
-                var provider = SelectedProvider ?? Providers.FirstOrDefault(p => p.IsAvailable);
+                IWorkshopDownloadProvider? provider = SelectedProvider ?? Providers.FirstOrDefault(p => p.IsAvailable);
                 if (provider == null)
                 {
                     InfoLogger.LogRunDf($"WorkshopQueueManager: No available download provider found for {item.PublishedFileId}.");
@@ -558,10 +567,10 @@ namespace ModHearth.Utilities.Workshop
                                     return;
                                 }
 
-                                var waitingItems = Queue.Where(i => i.State == DownloadState.Waiting && i != item).Take(9).ToList();
+                                List<WorkshopDownloadItem> waitingItems = [.. Queue.Where(i => i.State == DownloadState.Waiting && i != item).Take(9)];
                                 batchGroup.AddRange(waitingItems);
 
-                                foreach (var batchItem in batchGroup)
+                                foreach (WorkshopDownloadItem batchItem in batchGroup)
                                 {
                                     batchItem.Cts?.Dispose();
                                     batchItem.Cts = new CancellationTokenSource();
@@ -589,13 +598,13 @@ namespace ModHearth.Utilities.Workshop
                         {
                             InfoLogger.LogRunDf($"WorkshopQueueManager: Batching {batchGroup.Count} items into single SteamCMD run.");
 
-                            var batchItems = new List<BatchDownloadItem>();
-                            var ctsList = batchGroup.Select(b => b.Cts!).ToList();
+                            List<BatchDownloadItem> batchItems = [];
+                            List<CancellationTokenSource> ctsList = [.. batchGroup.Select(b => b.Cts!)];
 
-                            foreach (var batchItem in batchGroup)
+                            foreach (WorkshopDownloadItem batchItem in batchGroup)
                             {
                                 string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
-                                var prog = new Progress<DownloadProgress>(p =>
+                                Progress<DownloadProgress> prog = new(p =>
                                 {
                                     switch (batchItem.State)
                                     {
@@ -619,11 +628,11 @@ namespace ModHearth.Utilities.Workshop
                                 batchItems.Add(new BatchDownloadItem(batchItem.PublishedFileId, targetDir, prog, batchItem.Cts!.Token));
                             }
 
-                            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource([.. ctsList.Select(c => c.Token)]);
-                            var results = await steamCmdProvider.DownloadBatchAsync(batchItems, linkedCts.Token);
+                            using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource([.. ctsList.Select(c => c.Token)]);
+                            Dictionary<ulong, bool> results = await steamCmdProvider.DownloadBatchAsync(batchItems, linkedCts.Token);
 
                             bool anySuccess = false;
-                            foreach (var batchItem in batchGroup)
+                            foreach (WorkshopDownloadItem batchItem in batchGroup)
                             {
                                 bool success = results.TryGetValue(batchItem.PublishedFileId, out bool val) && val;
                                 if (success && !batchItem.Cts!.Token.IsCancellationRequested)
@@ -658,11 +667,11 @@ namespace ModHearth.Utilities.Workshop
 
                     default:
                         {
-                            var token = item.Cts!.Token;
+                            CancellationToken token = item.Cts!.Token;
                             string targetDir = Path.Combine(modsDir, item.PublishedFileId.ToString());
                             InfoLogger.LogRunDf($"WorkshopQueueManager: Target directory for {item.PublishedFileId}: {targetDir}");
 
-                            var progressReporter = new Progress<DownloadProgress>(p =>
+                            Progress<DownloadProgress> progressReporter = new(p =>
                             {
                                 switch (item.State)
                                 {
@@ -733,22 +742,22 @@ namespace ModHearth.Utilities.Workshop
                 string idStr = publishedFileId.ToString();
                 string canonicalTargetDir = ConfigManager.ResolveCanonicalPath(targetDir);
 
-                var existingMods = _manager.LoadedMods.Where(m =>
-                    string.Equals(m.steamID, idStr, StringComparison.OrdinalIgnoreCase) ||
+                List<ModReference> existingMods = [.. Manager.LoadedMods.Where(m =>
+                    string.Equals(m.SteamID, idStr, StringComparison.OrdinalIgnoreCase) ||
                      (ModHearthManager.TryGetSteamWorkshopItemId(m, out string sId) && string.Equals(sId, idStr, StringComparison.OrdinalIgnoreCase))
-                ).ToList();
+                )];
 
-                using (_manager.BeginDeletionBatch())
+                using (Manager.BeginDeletionBatch())
                 {
-                    foreach (var oldMod in existingMods)
+                    foreach (ModReference? oldMod in existingMods)
                     {
-                        if (!string.IsNullOrWhiteSpace(oldMod.path))
+                        if (!string.IsNullOrWhiteSpace(oldMod.Path))
                         {
-                            string canonicalOldPath = ConfigManager.ResolveCanonicalPath(oldMod.path);
+                            string canonicalOldPath = ConfigManager.ResolveCanonicalPath(oldMod.Path);
                             if (!string.Equals(canonicalOldPath, canonicalTargetDir, StringComparison.OrdinalIgnoreCase)
-                            && ModHearthManager.CanDeleteModFromModsFolder(oldMod) && _manager.DeleteModFromModsFolder(oldMod, out string _))
+                            && ModHearthManager.CanDeleteModFromModsFolder(oldMod) && Manager.DeleteModFromModsFolder(oldMod, out string _))
                             {
-                                InfoLogger.LogRunDf($"WorkshopQueueManager: Deleted old mod folder '{oldMod.path}' for workshop item {publishedFileId}.");
+                                InfoLogger.LogRunDf($"WorkshopQueueManager: Deleted old mod folder '{oldMod.Path}' for workshop item {publishedFileId}.");
                             }
                         }
                     }
@@ -785,7 +794,7 @@ namespace ModHearth.Utilities.Workshop
 
                 try
                 {
-                    foreach (var item in Queue)
+                    foreach (WorkshopDownloadItem item in Queue)
                     {
                         try
                         {

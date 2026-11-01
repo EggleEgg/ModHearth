@@ -1,23 +1,46 @@
-<UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:workshop="using:ModHearth.Utilities.Workshop"
-             xmlns:ui="clr-namespace:ModHearth.UI"
-             x:Class="ModHearth.UI.WorkshopDownloaderControl"
-             x:DataType="ui:WorkshopDownloaderControl">
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:workshop="using:ModHearth.Utilities.Workshop"
+  xmlns:ui="clr-namespace:ModHearth.UI"
+  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
+  x:Class="ModHearth.UI.WorkshopDownloaderControl"
+  x:DataType="ui:WorkshopDownloaderControl">
 
   <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="12" RowSpacing="12">
-    <ui:ModRefControl x:Name="ContextMenuHost" IsVisible="False" AllowColorEditing="False" AllowRelationshipEditing="False" />
+    <ui:ModRefControl
+      x:Name="ContextMenuHost"
+      IsVisible="False"
+      AllowColorEditing="False"
+      AllowRelationshipEditing="False" />
     <!-- Header Controls -->
     <Grid Grid.Row="0" RowDefinitions="Auto, Auto, Auto" RowSpacing="6">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Text="Paste workshop mods or collection URLs (one per line):" FontSize="12" Margin="0,0,0,2" VerticalAlignment="Bottom"/>
-        <Button x:Name="BtnClearText" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Bottom" Padding="0,0,-1,-3"
-                Margin="2,0,0,0" Width="25" Height="25" ToolTip.Tip="Clear text">
-          <Image Source="{ui:AssetImage broomMenuIcon}" Stretch="Uniform"/>
+        <TextBlock
+          Text="Paste workshop mods or collection URLs (one per line):"
+          FontSize="12"
+          Margin="0,0,0,2"
+          VerticalAlignment="Bottom"/>
+        <Button
+          x:Name="BtnClearText"
+          Grid.Column="1"
+          HorizontalAlignment="Right"
+          VerticalAlignment="Bottom"
+          Padding="0,0,-1,-3"
+          Margin="2,0,0,0"
+          Width="25"
+          Height="25"
+          ToolTip.Tip="Clear text">
+          <Image Source="{render:AssetImage broomMenuIcon}" Stretch="Uniform"/>
         </Button>
       </Grid>
-      <TextBox Grid.Row="1" x:Name="WorkshopUrlTextBox" Height="80" AcceptsReturn="True" TextWrapping="Wrap"
-               PlaceholderText="e.g. https://steamcommunity.com/sharedfiles/filedetails/?id=2897791846">
+      <TextBox
+        Grid.Row="1"
+        x:Name="WorkshopUrlTextBox"
+        Height="80"
+        AcceptsReturn="True"
+        TextWrapping="Wrap"
+        PlaceholderText="e.g. https://steamcommunity.com/sharedfiles/filedetails/?id=2897791846">
         <TextBox.Styles>
           <Style Selector="TextBox.workshopUrl:empty /template/ TextBlock#PART_PlaceholderTextPresenter">
             <Setter Property="FontStyle" Value="Italic"/>
@@ -25,24 +48,51 @@
         </TextBox.Styles>
       </TextBox>
       <Grid Grid.Row="2" ColumnDefinitions="*, *" ColumnSpacing="10">
-        <ToggleButton Grid.Column="0" x:Name="BtnDownloadFromClipboard" Content="Monitor Clipboard" ToolTip.Tip="Click to enable automatic clipboard monitoring"
-                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Height="30" Tag="Themed" />
-        <Button Grid.Column="1" x:Name="BtnResolveAndQueue" HorizontalAlignment="Stretch" VerticalContentAlignment="Center" Height="30"
-                ToolTip.Tip="Resolve and queue URLs. Right click to toggle auto-resolve" Tag="Themed" >
+        <ToggleButton
+          Grid.Column="0"
+          x:Name="BtnDownloadFromClipboard"
+          Content="Monitor Clipboard"
+          ToolTip.Tip="Click to enable automatic clipboard monitoring"
+          HorizontalAlignment="Stretch"
+          HorizontalContentAlignment="Center"
+          VerticalContentAlignment="Center"
+          Height="30"
+          Tag="Themed" />
+        <Button
+          Grid.Column="1"
+          x:Name="BtnResolveAndQueue"
+          HorizontalAlignment="Stretch"
+          VerticalContentAlignment="Center"
+          Height="30"
+          ToolTip.Tip="Resolve and queue URLs. Right click to toggle auto-resolve"
+          Tag="Themed" >
           <Grid ColumnDefinitions="Auto,*">
-            <Image x:Name="autoResolveIndicator"
-                   Source="{ui:AssetImage updateBorderIcon}" IsVisible="{Binding IsAutoResolveAndQueueEnabled}"
-                   Width="16" Height="16"
-                   HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0"/>
-            <TextBlock Text="Resolve and Queue" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Foreground="{DynamicResource ButtonForegroundBrush}"/>
+            <Image
+              x:Name="autoResolveIndicator"
+              Source="{render:AssetImage updateBorderIcon}"
+              IsVisible="{Binding IsAutoResolveAndQueueEnabled}"
+              Width="16"
+              Height="16"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Center"
+              Margin="2,0"/>
+            <TextBlock
+              Text="Resolve and Queue"
+              Grid.Column="1"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center"
+              Foreground="{DynamicResource ButtonForegroundBrush}"/>
           </Grid>
         </Button>
       </Grid>
     </Grid>
 
     <!-- Provider Settings -->
-    <Grid Grid.Row="1" ColumnDefinitions="Auto, *" ColumnSpacing="10" VerticalAlignment="Center">
+    <Grid
+      Grid.Row="1"
+      ColumnDefinitions="Auto, *"
+      ColumnSpacing="10"
+      VerticalAlignment="Center">
       <TextBlock Text="Download Provider:" VerticalAlignment="Center" FontSize="12" />
       <Grid Grid.Column="1">
         <ComboBox x:Name="ProviderComboBox" HorizontalAlignment="Stretch" Height="30">
@@ -61,32 +111,69 @@
             </DataTemplate>
           </ComboBox.SelectionBoxItemTemplate>
         </ComboBox>
-        <Ellipse Width="8" Height="8" Margin="10,0,0,0"
-                 HorizontalAlignment="Left" VerticalAlignment="Center"
-                 IsHitTestVisible="False"
-                 Fill="{Binding SelectedProvider.StatusBrush}" />
+        <Ellipse
+          Width="8"
+          Height="8"
+          Margin="10,0,0,0"
+          HorizontalAlignment="Left"
+          VerticalAlignment="Center"
+          IsHitTestVisible="False"
+          Fill="{Binding SelectedProvider.StatusBrush}" />
       </Grid>
     </Grid>
 
     <!-- Queue Area -->
     <Grid Grid.Row="2" RowDefinitions="Auto, *">
-      <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,6" VerticalAlignment="Center">
-        <TextBlock Grid.Column="0" Text="Download Queue" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+      <Grid
+        Grid.Row="0"
+        ColumnDefinitions="*, Auto"
+        Margin="0,0,0,6"
+        VerticalAlignment="Center">
+        <TextBlock
+          Grid.Column="0"
+          Text="Download Queue"
+          FontWeight="SemiBold"
+          FontSize="13"
+          VerticalAlignment="Center" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-          <Button x:Name="BtnRetryAll" Padding="8,4" Height="26" VerticalContentAlignment="Center" FontSize="11"
-                  ToolTip.Tip="Retry all failed or cancelled downloads. Right click to toggle auto-retry" >
+          <Button
+            x:Name="BtnRetryAll"
+            Padding="8,4"
+            Height="26"
+            VerticalContentAlignment="Center"
+            FontSize="11"
+            ToolTip.Tip="Retry all failed or cancelled downloads. Right click to toggle auto-retry" >
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
-              <Image x:Name="autoRetryAllIndicator"
-                     Source="{ui:AssetImage updateIcon}" IsVisible="{Binding IsAutoRetryAllEnabled}"
-                     Width="14" Height="14"
-                     HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0"/>
-              <TextBlock Text="Retry All" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <Image
+                x:Name="autoRetryAllIndicator"
+                Source="{render:AssetImage updateIcon}"
+                IsVisible="{Binding IsAutoRetryAllEnabled}"
+                Width="14"
+                Height="14"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Margin="0"/>
+              <TextBlock
+                Text="Retry All"
+                Grid.Column="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center" />
             </Grid>
           </Button>
-          <Button x:Name="BtnCancelAll" Content="Cancel All" Padding="8,4" Height="26" VerticalContentAlignment="Center" FontSize="11" />
+          <Button
+            x:Name="BtnCancelAll"
+            Content="Cancel All"
+            Padding="8,4"
+            Height="26"
+            VerticalContentAlignment="Center"
+            FontSize="11" />
         </StackPanel>
       </Grid>
-      <Border Grid.Row="1" BorderBrush="{DynamicResource PanelBrush}" BorderThickness="1" CornerRadius="4">
+      <Border
+        Grid.Row="1"
+        BorderBrush="{DynamicResource PanelBrush}"
+        BorderThickness="1"
+        CornerRadius="4">
         <ListBox x:Name="DownloadQueueList" SelectionMode="Single">
           <ListBox.Styles>
             <Style Selector="ListBoxItem">
@@ -101,21 +188,51 @@
                   <!-- Left: Details -->
                   <StackPanel Grid.Column="0" Spacing="4">
                     <Grid ColumnDefinitions="Auto, *, Auto" ColumnSpacing="6">
-                      <Border Grid.Column="0" Background="{DynamicResource BackgroundBrush}" CornerRadius="3" Padding="4,1" IsVisible="{Binding IsBatched}" VerticalAlignment="Center">
-                        <TextBlock Text="Batched" FontSize="10" FontWeight="SemiBold" FontStyle="Italic" Tag="IgnoreTheme"
-                                   ToolTip.Tip="Batching eliminates SteamCmd process overhead and reuses tcp connections. Network download speed limits may still apply."/>
+                      <Border
+                        Grid.Column="0"
+                        Background="{DynamicResource BackgroundBrush}"
+                        CornerRadius="3"
+                        Padding="4,1"
+                        IsVisible="{Binding IsBatched}"
+                        VerticalAlignment="Center">
+                        <TextBlock
+                          Text="Batched"
+                          FontSize="10"
+                          FontWeight="SemiBold"
+                          FontStyle="Italic"
+                          Tag="IgnoreTheme"
+                          ToolTip.Tip="Batching eliminates SteamCmd process overhead and reuses tcp connections. Network download speed limits may still apply."/>
                       </Border>
-                      <TextBlock Grid.Column="1" Text="{Binding Title}" Tag="IgnoreTheme" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      <TextBlock
+                        Grid.Column="1"
+                        Text="{Binding Title}"
+                        Tag="IgnoreTheme"
+                        FontWeight="SemiBold"
+                        TextTrimming="CharacterEllipsis"
+                        VerticalAlignment="Center" />
                     </Grid>
                     <Grid Height="10" >
-                      <ProgressBar Value="{Binding ProgressPercentage}" Minimum="0" Maximum="100" Height="10"  Margin="0,2"
-                                   BorderBrush="{DynamicResource PanelBrushDark}" BorderThickness="0.5" CornerRadius="4"
-                                   Background="{DynamicResource PanelDarkBrush}"
-                                   ShowProgressText="True" Foreground="{DynamicResource ModRefHighlightDarkBrush}">
+                      <ProgressBar
+                        Value="{Binding ProgressPercentage}"
+                        Minimum="0"
+                        Maximum="100"
+                        Height="10"
+                        Margin="0,2"
+                        BorderBrush="{DynamicResource PanelBrushDark}"
+                        BorderThickness="0.5"
+                        CornerRadius="4"
+                        Background="{DynamicResource PanelDarkBrush}"
+                        ShowProgressText="True"
+                        Foreground="{DynamicResource ModRefHighlightDarkBrush}">
                         <ProgressBar.Template>
                           <ControlTemplate TargetType="ProgressBar">
-                            <Border Name="PART_Track" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" ClipToBounds="True">
+                            <Border
+                              Name="PART_Track"
+                              Background="{TemplateBinding Background}"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              CornerRadius="4"
+                              ClipToBounds="True">
                               <Border Margin="1" CornerRadius="3" ClipToBounds="True">
                                 <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left">
                                   <ui:ModBackground UnderlayBrush="{DynamicResource ModRefHighlightBrush}" IsHitTestVisible="False"/>
@@ -126,13 +243,33 @@
                         </ProgressBar.Template>
                       </ProgressBar>
                     </Grid>
-                    <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource MainTextBrush}" FontSize="11" Width="200"/>
+                    <TextBlock
+                      Text="{Binding StatusText}"
+                      Foreground="{DynamicResource MainTextBrush}"
+                      FontSize="11"
+                      Width="200"/>
                   </StackPanel>
 
                   <!-- Right: Actions -->
-                  <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Spacing="6" Margin="8,0,0,0">
-                    <Button Content="Retry" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" Padding="8,4" FontSize="12" />
-                    <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding CanCancel}" Padding="8,4" FontSize="12" />
+                  <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Spacing="6"
+                    Margin="8,0,0,0">
+                    <Button
+                      Content="Retry"
+                      Command="{Binding RetryCommand}"
+                      IsVisible="{Binding CanRetry}"
+                      Padding="8,4"
+                      FontSize="12" />
+                    <Button
+                      Content="Cancel"
+                      Command="{Binding CancelCommand}"
+                      IsVisible="{Binding CanCancel}"
+                      Padding="8,4"
+                      FontSize="12" />
                   </StackPanel>
                 </Grid>
               </Border>
@@ -144,9 +281,22 @@
 
     <!-- Queue Actions -->
     <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
-      <TextBlock x:Name="StatusTextBlock" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" />
-      <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-        <Button x:Name="BtnClearCompleted" Content="Clear Completed" Padding="12,6" Height="30" VerticalContentAlignment="Center" />
+      <TextBlock
+        x:Name="StatusTextBlock"
+        VerticalAlignment="Center"
+        FontSize="12"
+        TextTrimming="CharacterEllipsis" />
+      <StackPanel
+        Grid.Column="1"
+        Orientation="Horizontal"
+        HorizontalAlignment="Right"
+        Spacing="10">
+        <Button
+          x:Name="BtnClearCompleted"
+          Content="Clear Completed"
+          Padding="12,6"
+          Height="30"
+          VerticalContentAlignment="Center" />
       </StackPanel>
     </Grid>
   </Grid>

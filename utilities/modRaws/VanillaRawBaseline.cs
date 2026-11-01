@@ -1,65 +1,66 @@
 using System.Collections.Concurrent;
 
-namespace ModHearth.Utilities;
-
-/// <summary>
-/// A set of structural keys (OBJECT_TYPE:ID) for every object defined by the
-/// official Dwarf Fortress vanilla raws. This baseline is loaded once and used
-/// to determine whether an asset originates from vanilla by set containment
-/// rather than by string matching a hardcoded list.
-/// </summary>
-public sealed class VanillaRawBaseline(IEnumerable<ObjectKey> keys)
+namespace ModHearth.Utilities.ModRaws
 {
-    public static VanillaRawBaseline Empty { get; } = new VanillaRawBaseline(Enumerable.Empty<ObjectKey>());
-
-    private readonly HashSet<ObjectKey> _baseline = [.. keys];
-
-    public bool Contains(ObjectKey? key) => key != null && _baseline.Contains(key);
-
-    public bool Contains(string objectType, string id)
-    {
-        if (string.IsNullOrWhiteSpace(objectType) || string.IsNullOrWhiteSpace(id))
-            return false;
-
-        return _baseline.Contains(new ObjectKey(objectType, id));
-    }
-
     /// <summary>
-    /// Loads the vanilla baseline by scanning the objects/ folders of all mods
-    /// located under <paramref name="vanillaModsPath"/>. Each mod folder's scan is
-    /// independent, so this mirrors EnsureModRawDependencyCacheAsync's parallel raw scan.
+    /// A set of structural keys (OBJECT_TYPE:ID) for every object defined by the
+    /// official Dwarf Fortress vanilla raws. This baseline is loaded once and used
+    /// to determine whether an asset originates from vanilla by set containment
+    /// rather than by string matching a hardcoded list.
     /// </summary>
-    public static VanillaRawBaseline Load(string vanillaModsPath)
+    public sealed class VanillaRawBaseline(IEnumerable<ObjectKey> keys)
     {
-        if (string.IsNullOrWhiteSpace(vanillaModsPath) || !Directory.Exists(vanillaModsPath))
-            return Empty;
+        public static VanillaRawBaseline Empty { get; } = new VanillaRawBaseline([]);
 
-        try
+        private readonly HashSet<ObjectKey> _baseline = [.. keys];
+
+        public bool Contains(ObjectKey? key) => key != null && _baseline.Contains(key);
+
+        public bool Contains(string objectType, string id)
         {
-            List<string> modDirs = [.. Directory.EnumerateDirectories(vanillaModsPath)];
-            ConcurrentBag<ObjectKey> keys = [];
+            if (string.IsNullOrWhiteSpace(objectType) || string.IsNullOrWhiteSpace(id))
+                return false;
 
-            _ = Parallel.ForEach(modDirs, new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            }, modDir =>
-            {
-                RawDatabase db = ModRawObjectScanner.Scan(modDir, Path.GetFileName(modDir));
-                foreach (var kvp in db.DefinedObjects)
-                {
-                    string objectType = kvp.Key;
-                    foreach (string id in kvp.Value)
-                    {
-                        keys.Add(new ObjectKey(objectType, id));
-                    }
-                }
-            });
-
-            return new VanillaRawBaseline(keys);
+            return _baseline.Contains(new ObjectKey(objectType, id));
         }
-        catch
+
+        /// <summary>
+        /// Loads the vanilla baseline by scanning the objects/ folders of all mods
+        /// located under <paramref name="vanillaModsPath"/>. Each mod folder's scan is
+        /// independent, so this mirrors EnsureModRawDependencyCacheAsync's parallel raw scan.
+        /// </summary>
+        public static VanillaRawBaseline Load(string vanillaModsPath)
         {
-            return Empty;
+            if (string.IsNullOrWhiteSpace(vanillaModsPath) || !Directory.Exists(vanillaModsPath))
+                return Empty;
+
+            try
+            {
+                List<string> modDirs = [.. Directory.EnumerateDirectories(vanillaModsPath)];
+                ConcurrentBag<ObjectKey> keys = [];
+
+                _ = Parallel.ForEach(modDirs, new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                }, modDir =>
+                {
+                    RawDatabase db = ModRawObjectScanner.Scan(modDir, Path.GetFileName(modDir));
+                    foreach (KeyValuePair<string, HashSet<string>> kvp in db.DefinedObjects)
+                    {
+                        string objectType = kvp.Key;
+                        foreach (string id in kvp.Value)
+                        {
+                            keys.Add(new ObjectKey(objectType, id));
+                        }
+                    }
+                });
+
+                return new VanillaRawBaseline(keys);
+            }
+            catch
+            {
+                return Empty;
+            }
         }
     }
 }

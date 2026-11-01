@@ -6,124 +6,128 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using ModHearth.Models;
-using ReactiveUI;
+using ModHearth.UI.Behaviors;
+using ModHearth.Utilities.Workshop;
 
-namespace ModHearth.UI;
-
-/// <summary>
-/// UI Used for the "search by color" filter
-/// </summary>
-public partial class ModColorPicker : UserControl
+namespace ModHearth.UI
 {
-    public static readonly StyledProperty<ObservableCollection<ModColorInfo>> AvailableColorsProperty =
-        AvaloniaProperty.Register<ModColorPicker, ObservableCollection<ModColorInfo>>(nameof(AvailableColors));
-
-    public static readonly StyledProperty<ObservableCollection<ModColorInfo>> SelectedColorsProperty =
-        AvaloniaProperty.Register<ModColorPicker, ObservableCollection<ModColorInfo>>(nameof(SelectedColors));
-
-    public static readonly StyledProperty<bool> HasSelectedColorsProperty =
-        AvaloniaProperty.Register<ModColorPicker, bool>(nameof(HasSelectedColors), false);
-
-    public event EventHandler? SelectionChanged;
-    public event EventHandler? PickerClicked;
-
-    public ICommand OpenColorPickerCommand { get; }
-
-    public ObservableCollection<ModColorInfo> AvailableColors
+    /// <summary>
+    /// UI Used for the "search by color" filter
+    /// </summary>
+    public partial class ModColorPicker : UserControl
     {
-        get => GetValue(AvailableColorsProperty);
-        set => SetValue(AvailableColorsProperty, value);
-    }
+        public static readonly StyledProperty<ObservableCollection<ModColorInfo>> AvailableColorsProperty =
+            AvaloniaProperty.Register<ModColorPicker, ObservableCollection<ModColorInfo>>(nameof(AvailableColors));
 
-    public ObservableCollection<ModColorInfo> SelectedColors
-    {
-        get => GetValue(SelectedColorsProperty);
-        set => SetValue(SelectedColorsProperty, value);
-    }
+        public static readonly StyledProperty<ObservableCollection<ModColorInfo>> SelectedColorsProperty =
+            AvaloniaProperty.Register<ModColorPicker, ObservableCollection<ModColorInfo>>(nameof(SelectedColors));
 
-    public bool HasSelectedColors
-    {
-        get => GetValue(HasSelectedColorsProperty);
-        set => SetValue(HasSelectedColorsProperty, value);
-    }
+        public static readonly StyledProperty<bool> HasSelectedColorsProperty =
+            AvaloniaProperty.Register<ModColorPicker, bool>(nameof(HasSelectedColors), false);
 
-    public ModColorPicker()
-    {
-        // Initialize collections before InitializeComponent to ensure they are available for binding
-        AvailableColors = [];
-        SelectedColors = [];
+        public event EventHandler? SelectionChanged;
+        public event EventHandler? PickerClicked;
 
-        InitializeComponent();
+        public ICommand OpenColorPickerCommand { get; }
 
-        OpenColorPickerCommand = ReactiveCommand.Create(OpenColorPicker);
-
-        SelectedColors.CollectionChanged += (s, e) =>
+        public ObservableCollection<ModColorInfo> AvailableColors
         {
-            HasSelectedColors = SelectedColors.Any();
-            SelectionChanged?.Invoke(this, EventArgs.Empty);
-        };
-
-        // Intercept scrollbar interaction to protect Picker_Tapped
-        var scrollViewer = this.FindControl<ScrollViewer>("ColorScrollViewer");
-        if (scrollViewer != null)
-        {
-            HorizontalScrollHelper.EnableSidewaysScrolling(scrollViewer);
+            get => GetValue(AvailableColorsProperty);
+            set => SetValue(AvailableColorsProperty, value);
         }
 
-        var openColorPickerButton = this.FindControl<Button>("OpenColorPickerButton");
-        if (openColorPickerButton != null)
+        public ObservableCollection<ModColorInfo> SelectedColors
         {
-            SearchButtonBehavior.GetOrCreate(openColorPickerButton);
+            get => GetValue(SelectedColorsProperty);
+            set => SetValue(SelectedColorsProperty, value);
         }
-    }
 
-    private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-
-    private void Color_Tapped(object? sender, TappedEventArgs e)
-    {
-        if (sender is Border border && border.DataContext is ModColorInfo modColorInfo)
+        public bool HasSelectedColors
         {
-            e.Handled = true; // Stop propagation to PickerClicked
-            modColorInfo.IsSelected = !modColorInfo.IsSelected;
-            if (modColorInfo.IsSelected)
+            get => GetValue(HasSelectedColorsProperty);
+            set => SetValue(HasSelectedColorsProperty, value);
+        }
+
+        public ModColorPicker()
+        {
+            // Initialize collections before InitializeComponent to ensure they are available for binding
+            AvailableColors = [];
+            SelectedColors = [];
+
+            InitializeComponent();
+
+            OpenColorPickerCommand = new SimpleCommand(OpenColorPicker);
+
+            SelectedColors.CollectionChanged += (s, e) =>
             {
-                if (!SelectedColors.Contains(modColorInfo))
-                    SelectedColors.Add(modColorInfo);
+                HasSelectedColors = SelectedColors.Any();
+                SelectionChanged?.Invoke(this, EventArgs.Empty);
+            };
+
+            // Intercept scrollbar interaction to protect Picker_Tapped
+            ScrollViewer? scrollViewer = this.FindControl<ScrollViewer>("ColorScrollViewer");
+            if (scrollViewer != null)
+            {
+                HorizontalScrollHelper.EnableSidewaysScrolling(scrollViewer);
             }
-            else
+
+            Button? openColorPickerButton = this.FindControl<Button>("OpenColorPickerButton");
+            if (openColorPickerButton != null)
             {
-                _ = SelectedColors.Remove(modColorInfo);
+                _ = SearchButtonBehavior.GetOrCreate(openColorPickerButton);
             }
         }
-    }
 
-    private void Picker_Tapped(object? sender, TappedEventArgs e)
-    {
-        // Only trigger if we didn't tap a specific color
-        if (!e.Handled)
-            PickerClicked?.Invoke(this, EventArgs.Empty);
-    }
+        private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
-    public void OpenColorPicker() => PickerClicked?.Invoke(this, EventArgs.Empty);
 
-    public void ClearSelection()
-    {
-        foreach (ModColorInfo color in AvailableColors)
+        private void Color_Tapped(object? sender, TappedEventArgs e)
         {
-            color.IsSelected = false;
+            if (sender is Border border && border.DataContext is ModColorInfo modColorInfo)
+            {
+                e.Handled = true; // Stop propagation to PickerClicked
+                modColorInfo.IsSelected = !modColorInfo.IsSelected;
+                if (modColorInfo.IsSelected)
+                {
+                    if (!SelectedColors.Contains(modColorInfo))
+                        SelectedColors.Add(modColorInfo);
+                }
+                else
+                {
+                    _ = SelectedColors.Remove(modColorInfo);
+                }
+            }
         }
-        SelectedColors.Clear();
-    }
 
-    public void ApplyStyle(IBrush normalBrush, IBrush hoverBrush, IBrush pressedBrush, IBrush textBrush)
-    {
-        var openColorPickerButton = this.FindControl<Button>("OpenColorPickerButton");
-        if (openColorPickerButton != null)
+        private void Picker_Tapped(object? sender, TappedEventArgs e)
         {
-            SearchButtonBehavior.GetOrCreate(openColorPickerButton).ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
-            openColorPickerButton.Foreground = textBrush;
-            openColorPickerButton.BorderBrush = Brushes.Transparent;
-            openColorPickerButton.BorderThickness = new Thickness(0);
+            // Only trigger if we didn't tap a specific color
+            if (!e.Handled)
+                PickerClicked?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void OpenColorPicker() => PickerClicked?.Invoke(this, EventArgs.Empty);
+
+
+        public void ClearSelection()
+        {
+            foreach (ModColorInfo color in AvailableColors)
+            {
+                color.IsSelected = false;
+            }
+            SelectedColors.Clear();
+        }
+
+        public void ApplyStyle(IBrush normalBrush, IBrush hoverBrush, IBrush pressedBrush, IBrush textBrush)
+        {
+            Button? openColorPickerButton = this.FindControl<Button>("OpenColorPickerButton");
+            if (openColorPickerButton != null)
+            {
+                SearchButtonBehavior.GetOrCreate(openColorPickerButton).ApplyBrushes(normalBrush, hoverBrush, pressedBrush);
+                openColorPickerButton.Foreground = textBrush;
+                openColorPickerButton.BorderBrush = Brushes.Transparent;
+                openColorPickerButton.BorderThickness = new Thickness(0);
+            }
         }
     }
 }

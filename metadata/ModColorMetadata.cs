@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ModHearth.Models;
 
 namespace ModHearth.Metadata
 {
@@ -64,7 +65,7 @@ namespace ModHearth.Metadata
             lock (FileLock)
             {
                 bool changed = false;
-                foreach (var pair in updates)
+                foreach (KeyValuePair<string, ModColor> pair in updates)
                 {
                     if (string.IsNullOrWhiteSpace(pair.Key))
                         continue;
@@ -76,7 +77,7 @@ namespace ModHearth.Metadata
                                 changed = true;
                             break;
                         default:
-                            if (!_modColors.TryGetValue(pair.Key, out var existing) || existing != pair.Value)
+                            if (!_modColors.TryGetValue(pair.Key, out ModColor existing) || existing != pair.Value)
                             {
                                 _modColors[pair.Key] = pair.Value;
                                 changed = true;
@@ -108,9 +109,9 @@ namespace ModHearth.Metadata
                     Dictionary<string, ModColor> loaded = new(StringComparer.OrdinalIgnoreCase);
                     if (data != null)
                     {
-                        foreach (var entry in from ModColorMetadata entry in data
-                                              where !string.IsNullOrWhiteSpace(entry.ModId)
-                                              select entry)
+                        foreach (ModColorMetadata? entry in from ModColorMetadata entry in data
+                                                            where !string.IsNullOrWhiteSpace(entry.ModId)
+                                                            select entry)
                         {
                             loaded[entry.ModId] = entry.Color;
                         }

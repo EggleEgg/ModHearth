@@ -22,11 +22,11 @@ namespace ModHearth.Utilities.Workshop
             if (string.IsNullOrWhiteSpace(input))
                 yield break;
 
-            var lines = input.Split(new char[] { '\r', '\n', ' ', '\t', ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] lines = input.Split(['\r', '\n', ' ', '\t', ',', '|', ';'], StringSplitOptions.RemoveEmptyEntries);
 
-            foreach (var line in lines)
+            foreach (string line in lines)
             {
-                var trimmed = line.Trim();
+                string trimmed = line.Trim();
                 if (string.IsNullOrEmpty(trimmed)) continue;
 
                 // Try plain ID
@@ -40,7 +40,7 @@ namespace ModHearth.Utilities.Workshop
                 }
 
                 // Try URL matching
-                var match = WorkshopIdRegex.Match(trimmed);
+                Match match = WorkshopIdRegex.Match(trimmed);
                 if (match.Success && ulong.TryParse(match.Groups[1].Value, out ulong idout))
                     yield return (idout, trimmed);
             }
@@ -49,9 +49,9 @@ namespace ModHearth.Utilities.Workshop
         public static List<ulong> ParseUrls(string input)
         {
             InfoLogger.LogRunDf($"WorkshopUrlResolver: Parsing input: {input}");
-            var results = new HashSet<ulong>();
+            HashSet<ulong> results = [];
 
-            foreach (var (id, token) in ExtractEntries(input))
+            foreach ((ulong id, string? token) in ExtractEntries(input))
             {
                 if (results.Add(id))
                 {
@@ -68,10 +68,10 @@ namespace ModHearth.Utilities.Workshop
 
         public static string FilterUrls(string input)
         {
-            var results = new List<string>();
-            var seen = new HashSet<ulong>();
+            List<string> results = [];
+            HashSet<ulong> seen = [];
 
-            foreach (var (id, token) in ExtractEntries(input))
+            foreach ((ulong id, string? token) in ExtractEntries(input))
             {
                 if (seen.Add(id))
                 {

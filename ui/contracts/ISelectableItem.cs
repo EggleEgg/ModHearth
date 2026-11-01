@@ -1,6 +1,7 @@
-﻿namespace ModHearth.UI;
-
-public interface ISelectableItem
+﻿namespace ModHearth.UI
 {
-    bool IsSelected { get; set; }
+    public interface ISelectableItem
+    {
+        bool IsSelected { get; set; }
+    }
 }

@@ -9,7 +9,7 @@ namespace ModHearth.Utilities
     {
         public static void NotifyDeleted(Action<string, string> sender, string itemPath, string sourceFolder)
         {
-            var scope = ModDeletionBatchScope.Current;
+            ModDeletionBatchScope? scope = ModDeletionBatchScope.Current;
             if (scope != null)
             {
                 scope.RegisterDeletion(itemPath, sourceFolder);
@@ -40,7 +40,7 @@ namespace ModHearth.Utilities
         public void RegisterDeletion(string itemPath, string sourceFolder)
         {
             string src = string.IsNullOrWhiteSpace(sourceFolder) ? "Unknown" : sourceFolder;
-            var bag = _deletionsBySource.GetOrAdd(src, _ => new ConcurrentBag<string>());
+            ConcurrentBag<string> bag = _deletionsBySource.GetOrAdd(src, _ => []);
             bag.Add(itemPath);
         }
 
@@ -50,9 +50,9 @@ namespace ModHearth.Utilities
 
             if (_parentScope != null)
             {
-                foreach (var kvp in _deletionsBySource)
+                foreach (KeyValuePair<string, ConcurrentBag<string>> kvp in _deletionsBySource)
                 {
-                    foreach (var path in kvp.Value)
+                    foreach (string path in kvp.Value)
                     {
                         _parentScope.RegisterDeletion(path, kvp.Key);
                     }
@@ -60,7 +60,7 @@ namespace ModHearth.Utilities
                 return;
             }
 
-            foreach (var kvp in _deletionsBySource)
+            foreach (KeyValuePair<string, ConcurrentBag<string>> kvp in _deletionsBySource)
             {
                 string sourceFolder = kvp.Key;
                 List<string> paths = [.. kvp.Value];

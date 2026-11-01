@@ -1,4 +1,4 @@
-namespace ModHearth
+namespace ModHearth.Models
 {
     // Per-mod raw-file scan result, persisted to disk so mods whose objects folder hasn't changed since the last scan skip re-scanning entirely.
     // This is the data ModSort's dependency graph is built from, replacing the old name/ID/description-text heuristics.
