@@ -1451,7 +1451,7 @@ namespace ModHearth
             SaveConfigFile("Auto check for releases on startup");
         }
 
-        [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled, "es-ES")]
+        [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex MyRegex();
 
     }

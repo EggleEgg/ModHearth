@@ -82,7 +82,7 @@ namespace ModHearth.Utilities.Workshop
             return string.Join(Environment.NewLine, results);
         }
 
-        [GeneratedRegex(@"^(?:https?://)?(?:www\.)?(?:steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/(?:changelog/)?(?:\?(?:[^&\s]+&)*id=|/)?|steam://url/CommunityFilePage/)(\d{7,20})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "es-ES")]
+        [GeneratedRegex(@"^(?:https?://)?(?:www\.)?(?:steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/(?:changelog/)?(?:\?(?:[^&\s]+&)*id=|/)?|steam://url/CommunityFilePage/)(\d{7,20})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex MyRegex();
 
     }

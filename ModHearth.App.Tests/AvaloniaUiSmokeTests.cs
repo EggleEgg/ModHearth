@@ -26,7 +26,7 @@ namespace ModHearth.App.Tests
 
                 string testEnvDir = Path.Combine(AppContext.BaseDirectory, "test_env");
                 _ = Directory.CreateDirectory(testEnvDir);
-                _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "data", "installed-mods"));
+                _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "data", "installed_mods"));
                 _ = Directory.CreateDirectory(Path.Combine(testEnvDir, "hack"));
                 string dfhackRunPath = Path.Combine(testEnvDir, "hack", OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run");
                 if (!File.Exists(dfhackRunPath))
@@ -34,7 +34,7 @@ namespace ModHearth.App.Tests
 
                 ConfigManager.SetDwarfFortressFolderPath(testEnvDir);
                 ConfigManager.SetDFHackFolderPath(Path.Combine(testEnvDir, "hack"));
-                ConfigManager.SetInstalledModsPath(Path.Combine(testEnvDir, "data", "installed-mods"));
+                ConfigManager.SetInstalledModsPath(Path.Combine(testEnvDir, "data", "installed_mods"));
             }
             catch
             {
@@ -52,7 +52,7 @@ namespace ModHearth.App.Tests
         private readonly ITestOutputHelper _output = output;
 
         [Fact(Timeout = 20000)]
-        public void CanInstantiateAllUIComponentsAndPumpEventsWithoutCrash()
+        public async Task CanInstantiateAllUIComponentsAndPumpEventsWithoutCrash()
         {
             try
             {

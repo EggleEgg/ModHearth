@@ -46,7 +46,7 @@ namespace ModHearth.UI
             RefreshReleaseList();
         }
 
-        private void UpdateChannelButtonState() => ChannelSwitchButton.Content = "Switch to" + (_isBleedingEdge ? "Main" : "Bleeding Edge");
+        private void UpdateChannelButtonState() => ChannelSwitchButton.Content = "Switch to " + (_isBleedingEdge ? "Main" : "Bleeding Edge");
 
         private void RefreshReleaseList() => ReleaseList.ItemsSource = _releases
                 .Select((release, index) => ReleaseEntry.FromRelease(release, index, _currentBuild))
