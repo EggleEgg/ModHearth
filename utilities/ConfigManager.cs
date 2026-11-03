@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using ModHearth.Utilities;
 using ModHearth.Models;
@@ -275,7 +275,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(resolved))
                 return configuredPath;
 
-            if (!string.Equals(Config.ModsPathOverride, resolved, GetFileSystemPathComparison()))
+            if (!string.Equals(Config.ModsPathOverride, resolved, PathHelper.Comparison))
             {
                 Config.ModsPathOverride = resolved;
                 SaveConfigFile($"Path resolved: {resolved},");
@@ -294,7 +294,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(resolved))
                 return normalizedConfigured;
 
-            if (!string.Equals(Config.InstalledModsPath, resolved, GetFileSystemPathComparison()))
+            if (!string.Equals(Config.InstalledModsPath, resolved, PathHelper.Comparison))
             {
                 Config.InstalledModsPath = resolved;
                 SaveConfigFile($"Path resolved: {resolved},");
@@ -358,7 +358,7 @@ namespace ModHearth
         public static void AutoDiscoverConfigPaths()
         {
             bool updated = false;
-            StringComparison pathComparison = GetFileSystemPathComparison();
+            StringComparison pathComparison = PathHelper.Comparison;
 
             if (string.IsNullOrWhiteSpace(Config.DFFolderPath))
             {
@@ -452,7 +452,7 @@ namespace ModHearth
                     return resolved;
             }
 
-            return string.Empty;
+            return null;
         }
 
         // Returns the full exe path if dfhack-run exists in the given directory, null otherwise.
@@ -523,7 +523,7 @@ namespace ModHearth
         {
             string? resolvedCandidate = ResolveExistingDirectoryPath(candidate);
             if (string.IsNullOrWhiteSpace(resolvedCandidate))
-                return string.Empty;
+                return null;
 
             if (IsLikelyDwarfFortressFolder(resolvedCandidate))
                 return resolvedCandidate;
@@ -535,7 +535,7 @@ namespace ModHearth
                     return appResources;
             }
 
-            return string.Empty;
+            return null;
         }
 
         public static IEnumerable<string> EnumerateSteamLibraryRoots()
@@ -548,13 +548,13 @@ namespace ModHearth
                 }
 
                 HashSet<string> libraries = new(
-                    OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                    PathHelper.Comparer);
                 List<string> candidateRoots = [.. GetSteamRootCandidates().Where(root => !string.IsNullOrWhiteSpace(root))];
 
                 LogInfo($"Steam root candidates ({candidateRoots.Count}): {FormatPathListForLog(candidateRoots)}");
 
                 HashSet<string> processedRoots = new(
-                    OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                    PathHelper.Comparer);
 
                 foreach (string root in candidateRoots)
                 {
@@ -672,7 +672,7 @@ namespace ModHearth
         private static IEnumerable<string> ReadSteamLibraryFolders(string steamRoot)
         {
             HashSet<string> libraries = new(
-                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                PathHelper.Comparer);
 
             string vdfPath = Path.Combine(steamRoot, steamApps, "libraryfolders.vdf");
             if (!File.Exists(vdfPath))
@@ -792,10 +792,6 @@ namespace ModHearth
             return normalized.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
-        public static StringComparison GetFileSystemPathComparison() => OperatingSystem.IsWindows()
-                        ? StringComparison.OrdinalIgnoreCase
-                        : StringComparison.Ordinal;
-
         public static string? ResolveExistingDirectoryPath(string path) => ResolveExistingPath(path, expectDirectory: true);
 
 
@@ -893,20 +889,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(resolvedDirectory))
                 return null;
 
-            string exactInfoPath = Path.Combine(resolvedDirectory, "info.txt");
-            if (File.Exists(exactInfoPath))
-                return exactInfoPath;
-
-            try
-            {
-                return Directory.EnumerateFiles(resolvedDirectory)
-                    .FirstOrDefault(file =>
-                        string.Equals(Path.GetFileName(file), "info.txt", StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return null;
-            }
+            return PathHelper.ResolveFile(resolvedDirectory, "info.txt");
         }
         public static string FormatPathListForLog(IEnumerable<string> paths, int maxItems = 24)
         {
@@ -917,7 +900,7 @@ namespace ModHearth
                 .Where(path => !string.IsNullOrWhiteSpace(path))
                 .Select(NormalizeFileSystemPath)
                 .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)];
+                .Distinct(PathHelper.Comparer)];
 
             return StringFormatter.FormatListWithMoreIndicator(list, maxItems);
         }
@@ -974,7 +957,7 @@ namespace ModHearth
                 {
                     string canonicalPath = NormalizeFileSystemPath(Path.Combine(workshopContentRoot, candidateId));
 
-                    if (string.Equals(normalizedFolderPath, canonicalPath, GetFileSystemPathComparison()))
+                    if (string.Equals(normalizedFolderPath, canonicalPath, PathHelper.Comparison))
                         continue;
 
                     if (Directory.Exists(canonicalPath))
@@ -1033,7 +1016,7 @@ namespace ModHearth
                     return _cachedSteamAppsRoots;
                 }
 
-                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                StringComparer comparer = PathHelper.Comparer;
                 HashSet<string> steamAppsRoots = new(comparer);
 
                 foreach (string libraryRoot in EnumerateSteamLibraryRoots())
@@ -1066,7 +1049,7 @@ namespace ModHearth
                     return _cachedWorkshopContentPaths;
                 }
 
-                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                StringComparer comparer = PathHelper.Comparer;
                 HashSet<string> paths = new(comparer);
                 List<string> steamAppsRoots = [.. EnumerateSteamAppsRoots()];
                 LogInfo($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
@@ -1096,7 +1079,7 @@ namespace ModHearth
 
         public static IEnumerable<string> GetSteamWorkshopAcfPaths()
         {
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            StringComparer comparer = PathHelper.Comparer;
             HashSet<string> paths = new(comparer);
             List<string> steamAppsRoots = [.. EnumerateSteamAppsRoots()];
 
@@ -1177,7 +1160,7 @@ namespace ModHearth
                     return resolved;
             }
 
-            return string.Empty;
+            return null;
         }
 
         public static bool IsDwarfFortressPortable()
@@ -1224,7 +1207,7 @@ namespace ModHearth
         private static IEnumerable<string> GetAppDataBasePaths()
         {
             HashSet<string> bases = new(
-                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+                PathHelper.Comparer);
 
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             if (!string.IsNullOrWhiteSpace(appData))
@@ -1304,7 +1287,7 @@ namespace ModHearth
                     return _cachedEffectiveModRoots;
                 }
 
-                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                StringComparer comparer = PathHelper.Comparer;
                 HashSet<string> seen = new(comparer);
                 List<string> resolvedRoots = [];
 

@@ -1,6 +1,5 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -10,10 +9,11 @@ using ModHearth.Models;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI
 {
-    public class NotificationRecord : INotifyPropertyChanged, IThemedViewModel
+    public class NotificationRecord : ObservableObject, IThemedViewModel
     {
         private bool isFilteredOut;
         private bool isVisible = true;
@@ -116,11 +116,6 @@ namespace ModHearth.UI
                 ItemOpacity = 1.0;
             }
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
     }
 
     public partial class MainWindow

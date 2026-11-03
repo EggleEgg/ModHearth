@@ -3,11 +3,11 @@
         xmlns:ui="clr-namespace:ModHearth.UI"
         x:Class="ModHearth.UI.SortRulesWindow"
         Title="Sort Rules"
-        Width="980"
-        Height="760"
-        MinWidth="640"
-        MinHeight="350"
-        MaxWidth="1100"
-        MaxHeight="1100">
+        Width="{x:Static ui:SortRulesWindow.DefaultWidth}"
+        Height="{x:Static ui:SortRulesWindow.DefaultHeight}"
+        MinWidth="{x:Static ui:SortRulesWindow.DefaultMinWidth}"
+        MinHeight="{x:Static ui:SortRulesWindow.DefaultMinHeight}"
+        MaxWidth="{x:Static ui:SortRulesWindow.DefaultMaxWidth}"
+        MaxHeight="{x:Static ui:SortRulesWindow.DefaultMaxHeight}">
   <ui:SortRulesControl x:Name="RulesControl" />
 </Window>

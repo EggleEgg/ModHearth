@@ -341,8 +341,6 @@ namespace ModHearth.UI
             };
         }
 
-        public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
-
         public ModHearthManager? GetManager() => manager;
 
         public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => logList.SelectedItems?.Cast<ModUpdateLogItemViewModel>().Select(item => item.ModReference)
@@ -357,27 +355,7 @@ namespace ModHearth.UI
             if (TopLevel.GetTopLevel(this) is not Window ownerWindow)
                 return;
 
-            switch (item.Tag?.ToString())
-            {
-                case ModContextMenuSupport.DeleteTag:
-                    _ = await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
-                    break;
-                case ModContextMenuSupport.UnsubscribeTag:
-                    await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
-                    break;
-                case ModContextMenuSupport.RedownloadTag:
-                    await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(ownerWindow, manager, [vm.ModReference]);
-                    break;
-                case ModContextMenuSupport.OpenFolderTag:
-                    await ModContextMenuSupport.OpenFolderAsync(ownerWindow, vm.ModReference);
-                    break;
-                case ModContextMenuSupport.OpenSteamTag:
-                    await ModContextMenuSupport.OpenSteamPageAsync(ownerWindow, vm.ModReference);
-                    break;
-                case ModContextMenuSupport.CopyIdTag:
-                    await ModContextMenuSupport.CopyModIdAsync(ownerWindow, vm.ModReference);
-                    break;
-            }
+            await ModContextMenuSupport.DispatchDefaultActionAsync(ownerWindow, manager, item, vm.ModReference);
         }
 
         private static readonly Binding BackgroundBrushBinding = new(nameof(ModUpdateLogItemViewModel.BackgroundBrush)) { Mode = BindingMode.OneWay };

@@ -6,7 +6,8 @@ namespace ModHearth.UI.Contracts
 {
     public interface IModRefContextMenuProvider
     {
-        void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm);
+        // Most providers have nothing to do when the menu opens; only override when needed.
+        void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
         void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm);
         IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm);
         ModHearthManager? GetManager();

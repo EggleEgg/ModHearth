@@ -85,6 +85,43 @@ namespace ModHearth.UI
             RefreshModlistPanels();
         }
 
+        /// <summary>
+        /// Replaces the modpack combo's items with the manager's current names and selects
+        /// <paramref name="index"/>, suppressing SelectionChanged side effects while doing so.
+        /// </summary>
+        private void RefreshModpackCombo(int index)
+            => RefreshModpackCombo([.. manager.modpacks.Select(m => m.Name)], index);
+
+        private void RefreshModpackCombo(IReadOnlyList<string> names, int index)
+        {
+            modifyingComboBox = true;
+            try
+            {
+                modpackComboBox.ItemsSource = names;
+                modpackComboBox.SelectedIndex = index;
+            }
+            finally
+            {
+                modifyingComboBox = false;
+            }
+        }
+
+        /// <summary>
+        /// Selects an existing combo entry without triggering the modpack switch handler.
+        /// </summary>
+        private void SetModpackComboIndex(int index)
+        {
+            modifyingComboBox = true;
+            try
+            {
+                modpackComboBox.SelectedIndex = index;
+            }
+            finally
+            {
+                modifyingComboBox = false;
+            }
+        }
+
         private void MarkChanges(int index)
         {
             if (changesMarked)
@@ -94,10 +131,7 @@ namespace ModHearth.UI
 
             List<string> names = [.. manager.modpacks.Select(m => m.Name)];
             names[index] = names[index] + "*";
-            modifyingComboBox = true;
-            modpackComboBox.ItemsSource = names;
-            modpackComboBox.SelectedIndex = index;
-            modifyingComboBox = false;
+            RefreshModpackCombo(names, index);
             changesMarked = true;
         }
 
@@ -115,10 +149,7 @@ namespace ModHearth.UI
             if (names[index].EndsWith("*", StringComparison.Ordinal))
                 names[index] = names[index][..^1];
 
-            modifyingComboBox = true;
-            modpackComboBox.ItemsSource = names;
-            modpackComboBox.SelectedIndex = index;
-            modifyingComboBox = false;
+            RefreshModpackCombo(names, index);
             changesMarked = false;
         }
 
@@ -225,20 +256,16 @@ namespace ModHearth.UI
 
         private async Task RegisterNewModpackAsync(DfhModpack newList)
         {
-            modifyingComboBox = true;
-
             manager.modpacks.Add(newList);
             ModHearthManager.ModpackSaveResult saveResult = manager.SaveAllModpacks();
             ShowModpackSaveNotice(saveResult);
 
-            modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.Name).ToList();
-            modpackComboBox.SelectedIndex = manager.modpacks.Count - 1;
+            int index = manager.modpacks.Count - 1;
+            RefreshModpackCombo(index);
 
-            manager.SetSelectedModpack(modpackComboBox.SelectedIndex);
+            manager.SetSelectedModpack(index);
             RefreshModlistPanels();
             _ = await SetAndMarkChangesAsync(false);
-
-            modifyingComboBox = false;
         }
 
         private async Task RenameModpackAsync()
@@ -251,17 +278,12 @@ namespace ModHearth.UI
             if (string.IsNullOrWhiteSpace(newName))
                 return;
 
-            modifyingComboBox = true;
-
             manager.SelectedModlist.Name = newName;
-            modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.Name).ToList();
-            modpackComboBox.SelectedIndex = manager.selectedModlistIndex;
+            RefreshModpackCombo(manager.selectedModlistIndex);
 
             ModHearthManager.ModpackSaveResult saveResult = manager.SaveCurrentModpack();
             ShowModpackSaveNotice(saveResult);
             _ = await SetAndMarkChangesAsync(false);
-
-            modifyingComboBox = false;
         }
 
         private async Task DeleteModpackAsync()
@@ -280,20 +302,15 @@ namespace ModHearth.UI
                 return;
             }
 
-            modifyingComboBox = true;
-
             int removeIndex = manager.selectedModlistIndex;
             manager.modpacks.RemoveAt(removeIndex);
             ModHearthManager.ModpackSaveResult saveResult = manager.SaveAllModpacks();
             ShowModpackSaveNotice(saveResult);
 
-            modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.Name).ToList();
+            RefreshModpackCombo(0);
             manager.SetSelectedModpack(0);
-            modpackComboBox.SelectedIndex = 0;
             lastIndex = 0;
             RefreshModlistPanels();
-
-            modifyingComboBox = false;
         }
 
         private async Task ImportModpackAsync()
@@ -320,10 +337,8 @@ namespace ModHearth.UI
                         if (!overwrite)
                             return;
 
-                        modifyingComboBox = true;
-                        modpackComboBox.SelectedIndex = i;
+                        SetModpackComboIndex(i);
                         lastIndex = i;
-                        modifyingComboBox = false;
 
                         manager.SetSelectedModpack(i);
                         manager.SetActiveMods(importedList.Modlist);

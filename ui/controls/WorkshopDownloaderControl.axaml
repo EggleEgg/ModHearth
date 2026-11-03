@@ -209,6 +209,7 @@
                         Tag="IgnoreTheme"
                         FontWeight="SemiBold"
                         TextTrimming="CharacterEllipsis"
+                        Foreground="{DynamicResource MainTextBrush}"
                         VerticalAlignment="Center" />
                     </Grid>
                     <Grid Height="10" >

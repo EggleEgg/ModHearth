@@ -1,14 +1,13 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using Avalonia.Media;
 using ModHearth.Models;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Theme;
+using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI.ViewModels
 {
-    public sealed class ModUpdateLogItemViewModel : INotifyPropertyChanged, ISelectableItem, IThemedViewModel
+    public sealed class ModUpdateLogItemViewModel : ObservableObject, ISelectableItem, IThemedViewModel
     {
         private readonly IBrush defaultBackgroundBrush = Brushes.Transparent;
         private IBrush selectedBackgroundBrush;
@@ -164,7 +163,7 @@ namespace ModHearth.UI.ViewModels
                 SearchFilterMode.SteamFileId => Entry.SteamId,
                 SearchFilterMode.Regex => throw new NotImplementedException(),
                 SearchFilterMode.Color => throw new NotImplementedException(),
-                SearchFilterMode.ModifiedTime => throw new NotImplementedException(),
+                SearchFilterMode.ModifiedTime => ModName,
                 _ => ModName
             };
 
@@ -199,9 +198,5 @@ namespace ModHearth.UI.ViewModels
                 OnPropertyChanged(nameof(BackgroundBrush));
             }
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

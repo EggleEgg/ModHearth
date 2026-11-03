@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ModHearth.Models;
+using ModHearth.Utilities.Steam;
 
 namespace ModHearth.Utilities.Logging
 {
@@ -230,18 +231,8 @@ namespace ModHearth.Utilities.Logging
 
                         // Update the snapshot entry for this mod
                         string path = ResolveCanonicalPath(modref.Path ?? string.Empty);
-                        ModUpdateSnapshotEntry entry = new()
-
-                        {
-                            ModId = id,
-                            ModName = string.IsNullOrWhiteSpace(modref.Name) ? id : modref.Name,
-                            SourceType = GetSourceType(modref),
-                            Path = path,
-                            SteamId = ResolveSteamId(modref),
-                            QuickStamp = BuildLocalQuickStamp(path),
-                            DeepStamp = string.Empty,
-                            IsIgnored = modref.IsIgnored
-                        };
+                        ModUpdateSnapshotEntry entry = BuildSnapshotEntry(modref, id, path);
+                        entry.QuickStamp = BuildLocalQuickStamp(path);
                         EnsureLocalDeepStamp(entry);
 
                         previous[id] = entry;
@@ -370,17 +361,9 @@ namespace ModHearth.Utilities.Logging
                 if (modref.IsIgnored)
                     return;
 
-                results[i] = new ModUpdateSnapshotEntry
-                {
-                    ModId = id,
-                    ModName = string.IsNullOrWhiteSpace(modref.Name) ? id : modref.Name,
-                    SourceType = GetSourceType(modref),
-                    Path = path,
-                    SteamId = ResolveSteamId(modref),
-                    QuickStamp = BuildLocalQuickStamp(path),
-                    DeepStamp = string.Empty,
-                    IsIgnored = modref.IsIgnored
-                };
+                ModUpdateSnapshotEntry entry = BuildSnapshotEntry(modref, id, path);
+                entry.QuickStamp = BuildLocalQuickStamp(path);
+                results[i] = entry;
             });
 
             Dictionary<string, ModUpdateSnapshotEntry> snapshot = new(StringComparer.OrdinalIgnoreCase);
@@ -393,6 +376,16 @@ namespace ModHearth.Utilities.Logging
 
             return snapshot;
         }
+
+        private static ModUpdateSnapshotEntry BuildSnapshotEntry(ModReference modref, string id, string path) => new()
+        {
+            ModId = id,
+            ModName = string.IsNullOrWhiteSpace(modref.Name) ? id : modref.Name,
+            SourceType = GetSourceType(modref),
+            Path = path,
+            SteamId = ResolveSteamId(modref),
+            IsIgnored = modref.IsIgnored
+        };
 
         private static ModUpdateLogEntry BuildEntry(ModUpdateSnapshotEntry entry, bool active, ModUpdateChangeType changeType) => BuildEntry(entry, active, changeType, null);
 
@@ -418,15 +411,10 @@ namespace ModHearth.Utilities.Logging
             ModUpdateChangeType changeType,
             DateTime? timestampUtc)
         {
-            ModUpdateSnapshotEntry entry = new()
-
-            {
-                ModId = modref.ID?.Trim() ?? string.Empty,
-                ModName = string.IsNullOrWhiteSpace(modref.Name) ? (modref.ID?.Trim() ?? string.Empty) : modref.Name,
-                SourceType = GetSourceType(modref),
-                Path = ResolveCanonicalPath(modref.Path ?? string.Empty),
-                SteamId = ResolveSteamId(modref)
-            };
+            ModUpdateSnapshotEntry entry = BuildSnapshotEntry(
+                modref,
+                modref.ID?.Trim() ?? string.Empty,
+                ResolveCanonicalPath(modref.Path ?? string.Empty));
 
             return BuildEntry(entry, active, changeType, timestampUtc);
         }
@@ -591,7 +579,7 @@ namespace ModHearth.Utilities.Logging
                     }
                 }
 
-                StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                StringComparer comparer = PathHelper.Comparer;
                 metadata.Sort(comparer);
 
                 using SHA256 sha256 = SHA256.Create();
@@ -732,7 +720,7 @@ namespace ModHearth.Utilities.Logging
 
             LogInfo($"Steam workshop update scan started. Active Steam process(es): {string.Join(", ", runningProcesses)}.");
 
-            StringComparer pathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            StringComparer pathComparer = PathHelper.Comparer;
             List<string> acfPaths = workshopAcfPaths?
                 .Select(ResolveCanonicalPath)
                 .Where(path => !string.IsNullOrWhiteSpace(path))

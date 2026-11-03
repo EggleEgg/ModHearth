@@ -4,9 +4,9 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 
 ![ModHearth ui](ModHearth.png)
 
-## User Information:
+## User Information
 
-### Requirements:
+### Requirements
 
 - Dwarf Fortress steam version
 - Windows or Linux
@@ -28,8 +28,8 @@ This is a modified mod manager for the steam version of Dwarf Fortress, made to 
 - Ctrl + S triggers any save action.
 - Ctrl + A selects all mods in the list
 - Escape to deselect mods.
-- Delete selects the previously selected mod.
-- Backspace removes the selected mods.
+- Delete removes the selected local mods.
+- Backspace selects the previously selected mod.
 - Up/down arrow keys to scroll through mods, left/right to move mods between lists
 - Tab key (or Shift + Tab) switches selection between main modlists
 

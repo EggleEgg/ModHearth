@@ -106,17 +106,7 @@ namespace ModHearth.Utilities.Workshop
 
             // Fallback: some steamcmd invocations (persistent installs without a per-item
             // force_install_dir) place content relative to steamcmd's own install directory instead.
-            string exe = _steamCmdService.GetExecutablePath();
-            string steamCmdDir = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? AppContext.BaseDirectory;
-            string workshopSource = Path.Combine(steamCmdDir, SteamApps, Workshop, Content, appId, workshopId.ToString());
-
-            if (!Directory.Exists(workshopSource))
-            {
-                string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                string homeFallback = Path.Combine(home, ".steam", "steamcmd", SteamApps, Workshop, Content, appId, workshopId.ToString());
-                if (Directory.Exists(homeFallback))
-                    workshopSource = homeFallback;
-            }
+            string workshopSource = ResolveWorkshopSource(GetSteamCmdInstallDirectory(), appId, workshopId);
 
             if (Directory.Exists(workshopSource))
             {
@@ -230,17 +220,7 @@ namespace ModHearth.Utilities.Workshop
                         continue;
                     }
 
-                    string exe = _steamCmdService.GetExecutablePath();
-                    string steamCmdDir = Path.GetDirectoryName(Path.GetFullPath(exe)) ?? AppContext.BaseDirectory;
-                    string workshopSource = Path.Combine(steamCmdDir, SteamApps, Workshop, Content, appId, workshopId.ToString());
-
-                    if (!Directory.Exists(workshopSource))
-                    {
-                        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                        string homeFallback = Path.Combine(home, ".steam", "steamcmd", SteamApps, Workshop, Content, appId, workshopId.ToString());
-                        if (Directory.Exists(homeFallback))
-                            workshopSource = homeFallback;
-                    }
+                    string workshopSource = ResolveWorkshopSource(GetSteamCmdInstallDirectory(), appId, workshopId);
 
                     if (Directory.Exists(workshopSource))
                     {
@@ -273,6 +253,27 @@ namespace ModHearth.Utilities.Workshop
         // steamapps/workshop/content/<appId>/<id>/ layout into downloadPath directly, then removes the
         // now-empty scaffolding (steamapps/, logs/, etc.) steamcmd left behind so it doesn't linger
         // next to the flattened content or confuse a future re-download into the same folder.
+        private string GetSteamCmdInstallDirectory()
+        {
+            string exe = _steamCmdService.GetExecutablePath();
+            return Path.GetDirectoryName(Path.GetFullPath(exe)) ?? AppContext.BaseDirectory;
+        }
+
+        /// <summary>
+        /// Resolves where steamcmd places content when it ignores +force_install_dir: relative to its
+        /// own install directory, or the per-user ~/.steam/steamcmd fallback.
+        /// </summary>
+        private static string ResolveWorkshopSource(string steamCmdDir, string appId, ulong workshopId)
+        {
+            string workshopSource = Path.Combine(steamCmdDir, SteamApps, Workshop, Content, appId, workshopId.ToString());
+            if (Directory.Exists(workshopSource))
+                return workshopSource;
+
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string homeFallback = Path.Combine(home, ".steam", "steamcmd", SteamApps, Workshop, Content, appId, workshopId.ToString());
+            return Directory.Exists(homeFallback) ? homeFallback : workshopSource;
+        }
+
         private static void FlattenNestedContent(string nestedContentDir, string downloadPath)
         {
             if (!Directory.Exists(nestedContentDir))

@@ -32,7 +32,13 @@ namespace ModHearth.Utilities.Steam
             CancellationToken cancellationToken = default) => RunWorker("download", workshopId.ToString(), DownloadWorkerTimeout, onProgress, cancellationToken);
 
         // Sends wake-up calls for multiple workshop items concurrently.
-        public static int DownloadMany(IEnumerable<ulong> workshopIds)
+        public static int DownloadMany(IEnumerable<ulong> workshopIds) => RunMany("download", workshopIds);
+
+        public static int UnsubscribeMany(IEnumerable<ulong> workshopIds) => RunMany("unsubscribe", workshopIds);
+
+        public static int SubscribeMany(IEnumerable<ulong> workshopIds) => RunMany("subscribe", workshopIds);
+
+        private static int RunMany(string action, IEnumerable<ulong> workshopIds)
         {
             List<ulong> ids = [.. workshopIds.Distinct()];
             if (ids.Count == 0)
@@ -51,59 +57,7 @@ namespace ModHearth.Utilities.Steam
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, id =>
             {
-                if (RunWorker("download", id.ToString()))
-                    _ = Interlocked.Increment(ref successCount);
-            });
-
-            return successCount;
-        }
-
-        public static int UnsubscribeMany(IEnumerable<ulong> workshopIds)
-        {
-            List<ulong> ids = [.. workshopIds.Distinct()];
-            if (ids.Count == 0)
-                return 0;
-
-            string? workerPath = ResolveWorkerPath();
-            if (workerPath == null)
-            {
-                SteamConnectionLogger.LogError(Message);
-                return 0;
-            }
-
-            int successCount = 0;
-            _ = Parallel.ForEach(ids, new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            }, id =>
-            {
-                if (RunWorker("unsubscribe", id.ToString()))
-                    _ = Interlocked.Increment(ref successCount);
-            });
-
-            return successCount;
-        }
-
-        public static int SubscribeMany(IEnumerable<ulong> workshopIds)
-        {
-            List<ulong> ids = [.. workshopIds.Distinct()];
-            if (ids.Count == 0)
-                return 0;
-
-            string? workerPath = ResolveWorkerPath();
-            if (workerPath == null)
-            {
-                SteamConnectionLogger.LogError(Message);
-                return 0;
-            }
-
-            int successCount = 0;
-            _ = Parallel.ForEach(ids, new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            }, id =>
-            {
-                if (RunWorker("subscribe", id.ToString()))
+                if (RunWorker(action, id.ToString()))
                     _ = Interlocked.Increment(ref successCount);
             });
 

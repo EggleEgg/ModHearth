@@ -66,6 +66,8 @@ namespace ModHearth
             HashSet<string> uniqueLocalKeys = new(StringComparer.OrdinalIgnoreCase);
             HashSet<string> uniqueSteamIds = new(StringComparer.OrdinalIgnoreCase);
 
+            ModSourceContext sourceContext = ModSourceContext.FromConfig();
+
             foreach (ModReference modref in mods)
             {
                 if (modref == null)
@@ -79,13 +81,13 @@ namespace ModHearth
 
                 foreach (ModReference version in allVersions)
                 {
-                    if (TryAddLocalActionableMod(version, uniqueLocalKeys, localDeletableMods))
+                    if (TryAddLocalActionableMod(version, sourceContext, uniqueLocalKeys, localDeletableMods))
                     {
                         // Note: a single ModReference might technically be both,
                         // but TryAddLocalActionableMod returning true means we handled it as local.
                     }
 
-                    TryAddSteamActionableMod(version, uniqueSteamIds, steamActionableMods);
+                    TryAddSteamActionableMod(version, sourceContext, uniqueSteamIds, steamActionableMods);
                 }
             }
         }
@@ -344,13 +346,11 @@ namespace ModHearth
 
         private static bool TryAddLocalActionableMod(
             ModReference modref,
+            ModSourceContext sourceContext,
             HashSet<string> uniqueLocalKeys,
             List<ModReference> localDeletableMods)
         {
-            (_, bool isLocal, _, bool isSteamLocal) = ModSourceClassifier.Classify(
-                modref,
-                ConfigManager.GetModsPath(),
-                ConfigManager.GetVanillaModsPath());
+            (_, bool isLocal, _, bool isSteamLocal) = ModSourceClassifier.Classify(modref, sourceContext);
             if ((!isLocal && !isSteamLocal) || !CanDeleteModFromModsFolder(modref))
                 return false;
 
@@ -366,13 +366,11 @@ namespace ModHearth
 
         private static void TryAddSteamActionableMod(
             ModReference modref,
+            ModSourceContext sourceContext,
             HashSet<string> uniqueSteamIds,
             List<ModReference> steamActionableMods)
         {
-            (_, _, bool isSteam, bool isSteamLocal) = ModSourceClassifier.Classify(
-                modref,
-                ConfigManager.GetModsPath(),
-                ConfigManager.GetVanillaModsPath());
+            (_, _, bool isSteam, bool isSteamLocal) = ModSourceClassifier.Classify(modref, sourceContext);
             if (!isSteam && !isSteamLocal)
                 return;
             if (!TryGetSteamWorkshopItemId(modref, out string steamId))

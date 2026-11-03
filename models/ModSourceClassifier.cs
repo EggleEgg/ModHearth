@@ -1,3 +1,5 @@
+using ModHearth.Utilities;
+
 namespace ModHearth.Models
 {
     public static class ModSourceClassifier
@@ -18,11 +20,11 @@ namespace ModHearth.Models
                 return (false, false, false, false);
             }
 
-            bool isVanilla = IsPathUnderRootOrEqual(path, vanillaFolderPath);
+            bool isVanilla = PathHelper.IsUnderRoot(path, vanillaFolderPath, includeRoot: true);
             if (isVanilla)
                 return (true, false, false, false);
 
-            bool isLocalPath = IsPathUnderRoot(path, modsFolderPath);
+            bool isLocalPath = PathHelper.IsUnderRoot(path, modsFolderPath);
             bool isSteamShadowCopy = isLocalPath && ConfigManager.IsLikelySteamShadowCopy(path, modref.SteamID, out _);
 
             bool hasSteamId = ConfigManager.TryParsePositiveSteamId(modref.SteamID, out _);
@@ -45,40 +47,12 @@ namespace ModHearth.Models
             return (false, false, false, false);
         }
 
+        public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamLocal) Classify(
+            ModReference modref,
+            ModSourceContext sourceContext)
+            => Classify(modref, sourceContext.ModsFolderPath, sourceContext.VanillaFolderPath);
+
         public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamLocal) Classify(ModReference modref, string? modsFolderPath) => Classify(modref, modsFolderPath, null);
-
-        private static bool IsPathUnderRoot(string path, string? root) => IsPathUnderRootCore(path, root, includeRoot: false);
-
-        private static bool IsPathUnderRootOrEqual(string path, string? root) => IsPathUnderRootCore(path, root, includeRoot: true);
-
-
-        private static bool IsPathUnderRootCore(string path, string? root, bool includeRoot)
-        {
-            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(root))
-                return false;
-
-            try
-            {
-                string fullPath = Path.GetFullPath(path)
-                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                string fullRoot = Path.GetFullPath(root)
-                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-                StringComparison comparison = OperatingSystem.IsWindows()
-                    ? StringComparison.OrdinalIgnoreCase
-                    : StringComparison.Ordinal;
-
-                if (includeRoot && string.Equals(fullPath, fullRoot, comparison))
-                    return true;
-
-                string prefix = fullRoot + Path.DirectorySeparatorChar;
-                return fullPath.StartsWith(prefix, comparison);
-            }
-            catch
-            {
-                return false;
-            }
-        }
 
         private static bool IsPathIgnored(string path)
         {

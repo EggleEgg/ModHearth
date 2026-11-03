@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using ModHearth.Metadata;
+using ModHearth.Utilities;
 
 namespace ModHearth.Models
 {
@@ -76,6 +77,16 @@ namespace ModHearth.Models
 
 
         public ModReference(Dictionary<string, string> modMemoryData)
+            : this(modMemoryData, modInfoText: null)
+        {
+        }
+
+        /// <summary>
+        /// Builds a reference from memory/file data. <paramref name="modInfoText"/> lets callers that
+        /// already read info.txt pass its contents in, avoiding a second disk read; null falls back to
+        /// reading it from <see cref="Path"/>.
+        /// </summary>
+        public ModReference(Dictionary<string, string> modMemoryData, string? modInfoText)
         {
             Dictionary<string, string> mmd = modMemoryData;
             ID = mmd["id"];
@@ -101,45 +112,22 @@ namespace ModHearth.Models
             ConflictsWith = [];
 
             // In theory info file is always present, but handle missing files gracefully.
-            string? modInfoPath = ResolveInfoPath(Path);
-            if (!string.IsNullOrWhiteSpace(modInfoPath))
+            string? modInfo = modInfoText;
+            if (modInfo == null)
             {
-                string modInfo = File.ReadAllText(modInfoPath);
+                string? modInfoPath = ResolveInfoPath(Path);
+                if (!string.IsNullOrWhiteSpace(modInfoPath))
+                    modInfo = File.ReadAllText(modInfoPath);
+            }
 
-                MatchCollection requireBeforeMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_BEFORE_ME(?::(.*?))?\]", RegexOptions.IgnoreCase);
-                MatchCollection requireAfterMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID_AFTER_ME(?::(.*?))?\]", RegexOptions.IgnoreCase);
-                MatchCollection conflictsMatches = Regex.Matches(modInfo, @"\[CONFLICTS_WITH_ID(?::(.*?))?\]", RegexOptions.IgnoreCase);
-                MatchCollection requiresMatches = Regex.Matches(modInfo, @"\[REQUIRES_ID(?::(.*?))?\]", RegexOptions.IgnoreCase);
-
-                // Each pattern now has exactly one capturing group (empty for a valueless "[TAG]" tag), rather than the old two-alternative pattern
-                // that needed both groups concatenated together.
-                foreach (Match match in requireBeforeMatches)
-                {
-                    string value = match.Groups[1].Value.Trim();
-                    if (!string.IsNullOrEmpty(value))
-                        RequireBeforeMe.Add(value);
-                }
-
-                foreach (Match match in requireAfterMatches)
-                {
-                    string value = match.Groups[1].Value.Trim();
-                    if (!string.IsNullOrEmpty(value))
-                        RequireAfterMe.Add(value);
-                }
-
-                foreach (Match match in conflictsMatches)
-                {
-                    string value = match.Groups[1].Value.Trim();
-                    if (!string.IsNullOrEmpty(value))
-                        ConflictsWith.Add(value);
-                }
-
-                foreach (Match match in requiresMatches)
-                {
-                    string value = match.Groups[1].Value.Trim();
-                    if (!string.IsNullOrEmpty(value))
-                        RequireIds.Add(value);
-                }
+            if (!string.IsNullOrWhiteSpace(modInfo))
+            {
+                // Each pattern has exactly one capturing group (empty for a valueless "[TAG]" tag),
+                // rather than the old two-alternative pattern that needed both groups concatenated.
+                AppendTagValues(RequireBeforeMe, modInfo, @"\[REQUIRES_ID_BEFORE_ME(?::(.*?))?\]");
+                AppendTagValues(RequireAfterMe, modInfo, @"\[REQUIRES_ID_AFTER_ME(?::(.*?))?\]");
+                AppendTagValues(ConflictsWith, modInfo, @"\[CONFLICTS_WITH_ID(?::(.*?))?\]");
+                AppendTagValues(RequireIds, modInfo, @"\[REQUIRES_ID(?::(.*?))?\]");
             }
             else
             {
@@ -183,23 +171,15 @@ namespace ModHearth.Models
         }
 
         private static string? ResolveInfoPath(string modPath)
+            => PathHelper.ResolveFile(modPath, "info.txt");
+
+        private static void AppendTagValues(List<string> target, string info, string pattern)
         {
-            if (string.IsNullOrWhiteSpace(modPath) || !Directory.Exists(modPath))
-                return null;
-
-            string infoPath = System.IO.Path.Combine(modPath, "info.txt");
-            if (File.Exists(infoPath))
-                return infoPath;
-
-            try
+            foreach (Match match in Regex.Matches(info, pattern, RegexOptions.IgnoreCase))
             {
-                return Directory.EnumerateFiles(modPath)
-                    .FirstOrDefault(file =>
-                        string.Equals(System.IO.Path.GetFileName(file), "info.txt", StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return null;
+                string value = match.Groups[1].Value.Trim();
+                if (!string.IsNullOrEmpty(value))
+                    target.Add(value);
             }
         }
     }

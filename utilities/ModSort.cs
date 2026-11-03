@@ -10,13 +10,53 @@ namespace ModHearth
     // actual graph relationship to anything else.
     public partial class ModHearthManager
     {
-        private static bool IsVanillaBaseMod(ModReference modref)
+        private static bool IsVanillaBaseMod(ModReference modref, ModSourceContext sourceContext)
+            => modref != null && ModSourceClassifier.Classify(modref, sourceContext).IsVanilla;
+
+        // Sort rules implicitly enable the mod they require, even when it is not currently enabled.
+        private static void AddRequiredMods(
+            List<ModSortRule> rules,
+            Dictionary<string, ModReference> idMap,
+            HashSet<string> enabledIds)
         {
-            return modref switch
+            foreach (ModSortRule rule in rules)
             {
-                null => false,
-                _ => ModSourceClassifier.Classify(modref, GetModsPath(), GetVanillaModsPath()).IsVanilla,
-            };
+                if (rule == null)
+                    continue;
+
+                string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(requiredId))
+                    continue;
+                if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
+                    continue;
+
+                _ = enabledIds.Add(requiredRef.ID);
+            }
+        }
+
+        // Applies the "beforeId must load before afterId" edges declared by one sort-rule set.
+        private static void AddSortRuleEdges(
+            List<ModSortRule> rules,
+            HashSet<string> enabledIds,
+            Dictionary<string, List<string>> edges,
+            Dictionary<string, int> indegree)
+        {
+            foreach (ModSortRule rule in rules)
+            {
+                if (rule == null)
+                    continue;
+
+                string beforeId = rule.BeforeId?.Trim() ?? string.Empty;
+                string afterId = rule.AfterId?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(beforeId) || string.IsNullOrWhiteSpace(afterId))
+                    continue;
+                if (string.Equals(beforeId, afterId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!enabledIds.Contains(beforeId) || !enabledIds.Contains(afterId))
+                    continue;
+
+                _ = TryAddEdge(edges, indegree, beforeId, afterId);
+            }
         }
 
         private static bool ContainsModId(IEnumerable<string> values, string id)
@@ -189,6 +229,10 @@ namespace ModHearth
                 relationshipRulesSnapshot = new Dictionary<string, ModRelationshipRule>(relationshipRules, StringComparer.OrdinalIgnoreCase);
             }
 
+            // Resolve the configured mod roots once; classifying each mod re-queried (and could
+            // re-save) them per call, including from repeated loops below.
+            ModSourceContext sourceContext = ModSourceContext.FromConfig();
+
             for (int i = 0; i < enabledModsSnapshot.Count; i++)
             {
                 if (idMap.TryGetValue(enabledModsSnapshot[i].Id, out ModReference? modref) && modref != null)
@@ -203,39 +247,14 @@ namespace ModHearth
 
             foreach (ModReference modref in idMap.Values)
             {
-                if (IsVanillaBaseMod(modref))
+                if (IsVanillaBaseMod(modref, sourceContext))
                 {
                     _ = enabledIds.Add(modref.ID);
                 }
             }
 
-            foreach (ModSortRule rule in sortRulesSnapshot)
-            {
-                if (rule == null)
-                    continue;
-
-                string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(requiredId))
-                    continue;
-                if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
-                    continue;
-
-                _ = enabledIds.Add(requiredRef.ID);
-            }
-
-            foreach (ModSortRule rule in communitySortRulesSnapshot)
-            {
-                if (rule == null)
-                    continue;
-
-                string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(requiredId))
-                    continue;
-                if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
-                    continue;
-
-                _ = enabledIds.Add(requiredRef.ID);
-            }
+            AddRequiredMods(sortRulesSnapshot, idMap, enabledIds);
+            AddRequiredMods(communitySortRulesSnapshot, idMap, enabledIds);
 
             Queue<ModReference> queue = new();
             foreach (string enabledId in enabledIds)
@@ -333,40 +352,10 @@ namespace ModHearth
             }
 
             // --- Tier 1.1: legacy user-defined sort rules ---
-            foreach (ModSortRule rule in sortRulesSnapshot)
-            {
-                if (rule == null)
-                    continue;
-
-                string beforeId = rule.BeforeId?.Trim() ?? string.Empty;
-                string afterId = rule.AfterId?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(beforeId) || string.IsNullOrWhiteSpace(afterId))
-                    continue;
-                if (string.Equals(beforeId, afterId, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (!enabledIds.Contains(beforeId) || !enabledIds.Contains(afterId))
-                    continue;
-
-                _ = TryAddEdge(edges, indegree, beforeId, afterId);
-            }
+            AddSortRuleEdges(sortRulesSnapshot, enabledIds, edges, indegree);
 
             // --- Tier 1.5: community sort rules ---
-            foreach (ModSortRule rule in communitySortRulesSnapshot)
-            {
-                if (rule == null)
-                    continue;
-
-                string beforeId = rule.BeforeId?.Trim() ?? string.Empty;
-                string afterId = rule.AfterId?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(beforeId) || string.IsNullOrWhiteSpace(afterId))
-                    continue;
-                if (string.Equals(beforeId, afterId, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (!enabledIds.Contains(beforeId) || !enabledIds.Contains(afterId))
-                    continue;
-
-                _ = TryAddEdge(edges, indegree, beforeId, afterId);
-            }
+            AddSortRuleEdges(communitySortRulesSnapshot, enabledIds, edges, indegree);
 
             // --- Tier 2: declared dependencies (info.txt require_before_me / require_after_me / require_ids) ---
             foreach (ModReference modref in allEnabled)
@@ -408,7 +397,7 @@ namespace ModHearth
                     if (!idMap.TryGetValue(id, out ModReference? modref) || modref == null)
                         continue;
 
-                    if (IsVanillaBaseMod(modref))
+                    if (IsVanillaBaseMod(modref, sourceContext))
                         vanillaIds.Add(id);
                     else
                         modIds.Add(id);
@@ -545,7 +534,7 @@ namespace ModHearth
             {
                 List<string> modIds = [.. group.Where(id =>
                     enabledIds.Contains(id) &&
-                    idMap.TryGetValue(id, out ModReference? m) && m != null && !IsVanillaBaseMod(m))];
+                    idMap.TryGetValue(id, out ModReference? m) && m != null && !IsVanillaBaseMod(m, sourceContext))];
 
                 if (modIds.Count <= 1)
                     continue;

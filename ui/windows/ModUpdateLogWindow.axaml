@@ -3,9 +3,9 @@
         xmlns:ui="clr-namespace:ModHearth.UI"
         x:Class="ModHearth.UI.ModUpdateLogWindow"
         Title="Mod Update Log"
-        Width="980"
-        Height="560"
-        MinWidth="820"
-        MinHeight="200">
+        Width="{x:Static ui:ModUpdateLogWindow.DefaultWidth}"
+        Height="{x:Static ui:ModUpdateLogWindow.DefaultHeight}"
+        MinWidth="{x:Static ui:ModUpdateLogWindow.DefaultMinWidth}"
+        MinHeight="{x:Static ui:ModUpdateLogWindow.DefaultMinHeight}">
   <ui:ModUpdateLogControl x:Name="LogControl" />
 </Window>

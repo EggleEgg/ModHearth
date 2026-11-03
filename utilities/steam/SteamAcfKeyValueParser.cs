@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace ModHearth.Utilities
+namespace ModHearth.Utilities.Steam
 {
     /// <summary>
     /// Parses Valve KeyValue (VDF/ACF) text such as Steam's appworkshop_*.acf files.

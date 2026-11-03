@@ -115,44 +115,30 @@ namespace ModHearth.UI
         }
 
         private void OnHideFilteredChanged(object? sender, EventArgs e)
-        {
-            if (suppressSearchInputEvents)
-            {
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log($"OnHideFilteredChanged suppressed source={DescribeSearchSender(sender)}");
-                return;
-            }
-
-            if (DevMode.IsEnabled)
-                SearchLogging.Log($"OnHideFilteredChanged source={DescribeSearchSender(sender)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
-
-            if (sender is ModSearchBar searchBar &&
-                searchBar.HideFiltered &&
-                !string.IsNullOrWhiteSpace(searchBar.Text))
-            {
-                ensureSearchResultVisibleOnNextFilter = true;
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log($"OnHideFilteredChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
-            }
-
-            ApplySearchFilterImmediately();
-        }
+            => HandleSearchCriteriaChanged(
+                "OnHideFilteredChanged",
+                sender,
+                () => $"leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
 
         private void OnSearchModeChanged(object? sender, EventArgs e)
+            => HandleSearchCriteriaChanged(
+                "OnSearchModeChanged",
+                sender,
+                () => $"leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
+
+        // Hide-filtered, search-mode and sort-order changes all use the same apply/ensure-visible
+        // pipeline; only the diagnostic line differs.
+        private void HandleSearchCriteriaChanged(string eventName, object? sender, Func<string> describeState)
         {
             if (suppressSearchInputEvents)
             {
                 if (DevMode.IsEnabled)
-                    SearchLogging.Log($"OnSearchModeChanged suppressed source={DescribeSearchSender(sender)}");
+                    SearchLogging.Log($"{eventName} suppressed source={DescribeSearchSender(sender)}");
                 return;
             }
 
             if (DevMode.IsEnabled)
-            {
-                SearchLogging.Log(
-                    $"OnSearchModeChanged source={DescribeSearchSender(sender)} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
-                    $"rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
-            }
+                SearchLogging.Log($"{eventName} source={DescribeSearchSender(sender)} {describeState()}");
 
             if (sender is ModSearchBar searchBar &&
                 searchBar.HideFiltered &&
@@ -160,7 +146,7 @@ namespace ModHearth.UI
             {
                 ensureSearchResultVisibleOnNextFilter = true;
                 if (DevMode.IsEnabled)
-                    SearchLogging.Log($"OnSearchModeChanged scheduled ensure-visible source={DescribeSearchSender(sender)}");
+                    SearchLogging.Log($"{eventName} scheduled ensure-visible source={DescribeSearchSender(sender)}");
             }
 
             ApplySearchFilterImmediately();

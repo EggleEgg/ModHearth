@@ -237,11 +237,9 @@ namespace ModHearth.UI
 
         private void SetupModlistBox()
         {
-            modifyingComboBox = true;
-            modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.Name).ToList();
-            modpackComboBox.SelectedIndex = manager.selectedModlistIndex;
-            lastIndex = manager.selectedModlistIndex;
-            modifyingComboBox = false;
+            int index = manager.selectedModlistIndex;
+            RefreshModpackCombo(index);
+            lastIndex = index;
         }
     }
 }

@@ -37,6 +37,10 @@ namespace ModHearth.UI.ModList
                     vm.RuleBadges = [];
                     vm.RuleBadgesTooltip = null;
                     vm.RelationshipCount = 0;
+                    vm.BeforeCount = 0;
+                    vm.AfterCount = 0;
+                    vm.RequiredCount = 0;
+                    vm.IncompatibleCount = 0;
                     continue;
                 }
 

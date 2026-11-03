@@ -34,7 +34,7 @@ namespace ModHearth.UI
         private void InitializeUpdateChecking()
         {
             updateButton.DataContext = this;
-            updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
+            // (Click is wired in the constructor with the other button handlers.)
             updateButton.AddHandler(PointerPressedEvent, UpdateButtonPointerPressed, RoutingStrategies.Tunnel, true);
 
             if (ConfigManager.GetAutoCheckForReleasesOnStartup())

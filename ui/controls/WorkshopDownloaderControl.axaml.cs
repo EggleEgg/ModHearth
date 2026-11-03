@@ -385,6 +385,24 @@ namespace ModHearth.UI
                 BtnCancelAll.IsEnabled = _queueManager.Queue.Any(i => i.CanCancel);
         }
 
+        /// <summary>
+        /// Queue items are not mods on disk yet, so context-menu actions need a synthetic reference
+        /// describing the Steam workshop item they will become.
+        /// </summary>
+        private static ModReference CreateQueueItemReference(WorkshopDownloadItem item)
+        {
+            string workshopId = item.PublishedFileId.ToString();
+            return new ModReference
+            {
+                ID = workshopId,
+                NumericVersion = "0",
+                Name = item.Title,
+                Author = item.Author,
+                SteamID = workshopId,
+                Source = ModSource.Steam
+            };
+        }
+
         private void DownloadQueueListSelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (sender is not ListBox list)
@@ -394,19 +412,9 @@ namespace ModHearth.UI
                 ?? list.SelectedItems?.OfType<WorkshopDownloadItem>().FirstOrDefault();
             if (selected != null && _contextMenuHost != null)
             {
-                _contextMenuHost.DataContext = new ModRefViewModel(new ModReference
-                {
-                    ID = selected.PublishedFileId.ToString(),
-                    NumericVersion = "0",
-                    Name = selected.Title,
-                    Author = selected.Author,
-                    SteamID = selected.PublishedFileId.ToString(),
-                    Source = ModSource.Steam
-                });
+                _contextMenuHost.DataContext = new ModRefViewModel(CreateQueueItemReference(selected));
             }
         }
-
-        public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
 
         public ModHearthManager? GetManager() => _queueManager?.Manager;
 
@@ -415,15 +423,7 @@ namespace ModHearth.UI
             if (DownloadQueueList.SelectedItems != null && DownloadQueueList.SelectedItems.Count > 0)
             {
                 return [.. DownloadQueueList.SelectedItems.Cast<WorkshopDownloadItem>()
-                    .Select(selected => new ModReference
-                    {
-                        ID = selected.PublishedFileId.ToString(),
-                        NumericVersion = "0",
-                        Name = selected.Title,
-                        Author = selected.Author,
-                        SteamID = selected.PublishedFileId.ToString(),
-                        Source = ModSource.Steam
-                    })];
+                    .Select(CreateQueueItemReference)];
             }
             return [contextVm.ModReference];
         }

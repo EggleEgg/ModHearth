@@ -40,6 +40,39 @@ namespace ModHearth.UI.ModList
         public const string SetModColorTag = "set-mod-color";
         public const string DeleteDuplicateModTag = "delete-duplicate-mod-root";
 
+        /// <summary>
+        /// Runs the default action for a context-menu item that maps directly onto one of the shared
+        /// confirm dialogs, so windows using the standard action set don't repeat the tag switch.
+        /// </summary>
+        public static async Task DispatchDefaultActionAsync(
+            Window owner,
+            ModHearthManager manager,
+            MenuItem item,
+            ModReference modref)
+        {
+            switch (item.Tag?.ToString())
+            {
+                case DeleteTag:
+                    await DeleteLocalModsWithConfirmAsync(owner, manager, [modref]);
+                    break;
+                case UnsubscribeTag:
+                    await UnsubscribeSteamWithConfirmAsync(owner, manager, [modref]);
+                    break;
+                case RedownloadTag:
+                    await RedownloadSteamWithConfirmAsync(owner, manager, [modref]);
+                    break;
+                case OpenFolderTag:
+                    await OpenFolderAsync(owner, modref);
+                    break;
+                case OpenSteamTag:
+                    await OpenSteamPageAsync(owner, modref);
+                    break;
+                case CopyIdTag:
+                    await CopyModIdAsync(owner, modref);
+                    break;
+            }
+        }
+
         public static void PrepareContextMenu(
             ContextMenu menu,
             ModHearthManager manager,
@@ -108,10 +141,9 @@ namespace ModHearth.UI.ModList
             bool canOpenFolder = !string.IsNullOrWhiteSpace(contextMod.Path) && Directory.Exists(contextMod.Path);
             bool hasSteamPage = ModHearthManager.TryGetSteamWorkshopItemId(contextMod, out _);
 
-            (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(
-                contextMod,
-                ModHearthManager.GetModsPath(),
-                ModHearthManager.GetVanillaModsPath());
+            ModSourceContext sourceContext = ModSourceContext.FromConfig();
+
+            (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(contextMod, sourceContext);
 
             bool isSteamCmdAvailable = new SteamCmdService().IsAvailable();
 
@@ -124,10 +156,7 @@ namespace ModHearth.UI.ModList
                     if (!ModHearthManager.TryGetSteamWorkshopItemId(m, out _))
                         return false;
 
-                    (_, _, _, bool isSteamLocalMod) = ModSourceClassifier.Classify(
-                        m,
-                        ModHearthManager.GetModsPath(),
-                        ModHearthManager.GetVanillaModsPath());
+                    (_, _, _, bool isSteamLocalMod) = ModSourceClassifier.Classify(m, sourceContext);
 
                     return !isSteamLocalMod;
                 })

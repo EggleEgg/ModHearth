@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Text;
 using Avalonia.Media;
 using ModHearth.Models;
@@ -12,10 +10,10 @@ using ModHearth.Utilities.Logging;
 namespace ModHearth.UI.ViewModels
 {
     /// <summary>
-    /// 
+    /// Represents a mod reference in the UI, with properties for display, filtering, selection, and theming.
     /// </summary>
     public sealed record RuleBadgeInfo(IImage? Icon, int Count);
-    public class ModRefViewModel : INotifyPropertyChanged, ISelectableItem, IThemedViewModel
+    public class ModRefViewModel : ObservableObject, ISelectableItem, IThemedViewModel
     {
         private bool isProblem;
         private bool isDuplicateWarning;
@@ -52,8 +50,6 @@ namespace ModHearth.UI.ViewModels
 
             ThemedViewModelRegistry.Register(this);
         }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
 
         public ModReference ModReference { get; }
 
@@ -625,7 +621,7 @@ namespace ModHearth.UI.ViewModels
                 SearchFilterMode.SteamFileId => ModReference.SteamID,
                 SearchFilterMode.Regex => throw new NotImplementedException(),
                 SearchFilterMode.Color => throw new NotImplementedException(),
-                SearchFilterMode.ModifiedTime => throw new NotImplementedException(),
+                SearchFilterMode.ModifiedTime => ModReference.Name,
                 _ => ModReference.Name
             };
 
@@ -687,7 +683,5 @@ namespace ModHearth.UI.ViewModels
             byte b = (byte)Math.Clamp(baseColor.B + ((255 - baseColor.B) * amount), 0, 255);
             return Color.FromArgb(255, r, g, b);
         }
-
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

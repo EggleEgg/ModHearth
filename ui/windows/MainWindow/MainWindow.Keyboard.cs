@@ -31,8 +31,16 @@ namespace ModHearth.UI
                 return;
             }
 
-            if (e.Key != Key.Delete || !CanHandleDeleteKeyFromSource(e.Source))
+            if (e.Key is not (Key.Back or Key.Delete) || !CanHandleListKeyFromSource(e.Source))
                 return;
+
+            if (e.Key == Key.Back)
+            {
+                // Re-selecting goes through TrackSelectedMod, so repeated presses alternate between the last two mods.
+                if (TrySelectModById(previousSelectedModId))
+                    e.Handled = true;
+                return;
+            }
 
             List<ModRefViewModel> selection = GetSelectedModsForDeletion();
             if (selection.Count == 0)
@@ -125,13 +133,15 @@ namespace ModHearth.UI
             return handled;
         }
 
-        private static bool CanHandleDeleteKeyFromSource(object? source)
+        private static bool CanHandleListKeyFromSource(object? source)
         {
             if (source is not Control control)
                 return true;
 
-            return control.FindAncestorOfType<TextBox>() == null &&
-                   control.FindAncestorOfType<ComboBox>() == null;
+            // includeSelf: the focused TextBox/ComboBox is normally the event source itself, which a
+            // plain ancestor search skips. TextBox's own Handled flag was masking this for Delete.
+            return control.FindAncestorOfType<TextBox>(includeSelf: true) == null &&
+                   control.FindAncestorOfType<ComboBox>(includeSelf: true) == null;
         }
 
         private List<ModRefViewModel> GetSelectedModsForDeletion()

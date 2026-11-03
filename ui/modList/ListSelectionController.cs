@@ -51,29 +51,30 @@ namespace ModHearth.UI.ModList
         }
         public bool TryRestoreScrollbarSelection(ListBox list)
         {
-            if (list?.SelectedItems == null || !suppressSelectionForScrollbar || suppressSelectionList != list.SelectedItems)
+            if (list?.SelectedItems is not { } selectedItems)
                 return false;
 
-            suppressSelectionForScrollbar = false;
-            suppressSelectionList = null;
-
-            if (suppressSelectionSnapshot != null)
-                RestoreListSelection(list, suppressSelectionSnapshot);
-
-            suppressSelectionSnapshot = null;
-            return true;
+            return TryRestoreScrollbarSelectionCore(selectedItems, selection => RestoreListSelection(list, selection));
         }
 
         public bool TryRestoreScrollbarSelection(DataGrid grid)
         {
-            if (grid?.SelectedItems == null || !suppressSelectionForScrollbar || suppressSelectionList != grid.SelectedItems)
+            if (grid?.SelectedItems is not { } selectedItems)
+                return false;
+
+            return TryRestoreScrollbarSelectionCore(selectedItems, selection => RestoreListSelection(grid, selection));
+        }
+
+        private bool TryRestoreScrollbarSelectionCore(IList selectedItems, Action<List<T>> restore)
+        {
+            if (!suppressSelectionForScrollbar || suppressSelectionList != selectedItems)
                 return false;
 
             suppressSelectionForScrollbar = false;
             suppressSelectionList = null;
 
             if (suppressSelectionSnapshot != null)
-                RestoreListSelection(grid, suppressSelectionSnapshot);
+                restore(suppressSelectionSnapshot);
 
             suppressSelectionSnapshot = null;
             return true;
@@ -81,34 +82,28 @@ namespace ModHearth.UI.ModList
 
         public bool TryRestoreContextSelection(ListBox list, T item)
         {
-            if (list?.SelectedItems == null)
+            if (list?.SelectedItems is not { } selectedItems)
                 return false;
 
-            bool restored = false;
-            if (contextSelectionSnapshot != null &&
-                contextSelectionList == list.SelectedItems &&
-                contextSelectionSnapshot.Contains(item))
-            {
-                RestoreListSelection(list, contextSelectionSnapshot);
-                restored = true;
-            }
-
-            contextSelectionSnapshot = null;
-            contextSelectionList = null;
-            return restored;
+            return TryRestoreContextSelectionCore(selectedItems, item, selection => RestoreListSelection(list, selection));
         }
 
         public bool TryRestoreContextSelection(DataGrid grid, T item)
         {
-            if (grid?.SelectedItems == null)
+            if (grid?.SelectedItems is not { } selectedItems)
                 return false;
 
+            return TryRestoreContextSelectionCore(selectedItems, item, selection => RestoreListSelection(grid, selection));
+        }
+
+        private bool TryRestoreContextSelectionCore(IList selectedItems, T item, Action<List<T>> restore)
+        {
             bool restored = false;
             if (contextSelectionSnapshot != null &&
-                contextSelectionList == grid.SelectedItems &&
+                contextSelectionList == selectedItems &&
                 contextSelectionSnapshot.Contains(item))
             {
-                RestoreListSelection(grid, contextSelectionSnapshot);
+                restore(contextSelectionSnapshot);
                 restored = true;
             }
 
@@ -264,47 +259,28 @@ namespace ModHearth.UI.ModList
         }
 
         private void CaptureScrollbarSelectionSnapshot(ListBox list, PointerPoint point)
-        {
-            if (!point.Properties.IsLeftButtonPressed)
-                return;
-
-            suppressSelectionForScrollbar = true;
-            suppressSelectionList = list.SelectedItems;
-            suppressSelectionSnapshot = list.SelectedItems?.Cast<T>().ToList() ?? [];
-        }
+            => CaptureScrollbarSelectionSnapshot(list.SelectedItems, point);
 
         private void CaptureScrollbarSelectionSnapshot(DataGrid grid, PointerPoint point)
+            => CaptureScrollbarSelectionSnapshot(grid.SelectedItems, point);
+
+        private void CaptureScrollbarSelectionSnapshot(IList? selectedItems, PointerPoint point)
         {
             if (!point.Properties.IsLeftButtonPressed)
                 return;
 
             suppressSelectionForScrollbar = true;
-            suppressSelectionList = grid.SelectedItems;
-            suppressSelectionSnapshot = grid.SelectedItems?.Cast<T>().ToList() ?? [];
+            suppressSelectionList = selectedItems;
+            suppressSelectionSnapshot = selectedItems?.Cast<T>().ToList() ?? [];
         }
-
 
         private void CaptureContextSelectionSnapshot(ListBox list, PointerPoint point)
-        {
-            contextSelectionSnapshot = null;
-            contextSelectionList = null;
-
-            if (!point.Properties.IsRightButtonPressed)
-                return;
-
-            T? hit = GetItemAtPoint(list, point.Position);
-            if (hit == null)
-                return;
-
-            List<T> selected = list.SelectedItems?.Cast<T>().ToList() ?? [];
-            if (selected.Count > 1 && selected.Contains(hit))
-            {
-                contextSelectionSnapshot = selected;
-                contextSelectionList = list.SelectedItems;
-            }
-        }
+            => CaptureContextSelectionSnapshot(list.SelectedItems, point, () => GetItemAtPoint<ListBoxItem>(list, point.Position));
 
         private void CaptureContextSelectionSnapshot(DataGrid grid, PointerPoint point)
+            => CaptureContextSelectionSnapshot(grid.SelectedItems, point, () => GetItemAtPoint<DataGridRow>(grid, point.Position));
+
+        private void CaptureContextSelectionSnapshot(IList? selectedItems, PointerPoint point, Func<T?> resolveHit)
         {
             contextSelectionSnapshot = null;
             contextSelectionList = null;
@@ -312,32 +288,24 @@ namespace ModHearth.UI.ModList
             if (!point.Properties.IsRightButtonPressed)
                 return;
 
-            T? hit = GetItemAtPoint(grid, point.Position);
+            T? hit = resolveHit();
             if (hit == null)
                 return;
 
-            List<T> selected = grid.SelectedItems?.Cast<T>().ToList() ?? [];
+            List<T> selected = selectedItems?.Cast<T>().ToList() ?? [];
             if (selected.Count > 1 && selected.Contains(hit))
             {
                 contextSelectionSnapshot = selected;
-                contextSelectionList = grid.SelectedItems;
+                contextSelectionList = selectedItems;
             }
         }
 
-        private static T? GetItemAtPoint(ListBox list, Point point)
+        private static T? GetItemAtPoint<TContainer>(IInputElement root, Point point) where TContainer : Control
         {
-            IInputElement? element = list.InputHitTest(point);
+            IInputElement? element = root.InputHitTest(point);
             Control? control = element as Control;
-            ListBoxItem? item = control?.FindAncestorOfType<ListBoxItem>();
-            return item?.DataContext as T;
-        }
-
-        private static T? GetItemAtPoint(DataGrid grid, Point point)
-        {
-            IInputElement? element = grid.InputHitTest(point);
-            Control? control = element as Control;
-            DataGridRow? row = control?.FindAncestorOfType<DataGridRow>();
-            return row?.DataContext as T;
+            TContainer? container = control?.FindAncestorOfType<TContainer>();
+            return container?.DataContext as T;
         }
 
         private static bool IsPointerOverScrollBar(IInputElement root, Point point)
@@ -377,44 +345,52 @@ namespace ModHearth.UI.ModList
             return false;
         }
 
-        private bool TryOpenContextMenu(ListBox list, PointerPressedEventArgs e, PointerPoint point)
+        private static void EnsureItemSelected(IList? selectedItems, T hit)
         {
-            T? hit = GetItemAtPoint(list, point.Position);
-            if (hit == null)
-                return false;
+            if (selectedItems == null)
+                return;
 
-            if (!TryFindContextMenu(list, point.Position, out _, out _))
-                return false;
-
-            if (list.SelectedItems != null &&
-                (list.SelectedItems.Count == 0 || !list.SelectedItems.Contains(hit)))
+            if (selectedItems.Count == 0 || !selectedItems.Contains(hit))
             {
-                list.SelectedItems.Clear();
-                _ = list.SelectedItems.Add(hit);
+                selectedItems.Clear();
+                _ = selectedItems.Add(hit);
             }
-
-            UpdateSelectionState(list);
-            e.Handled = true;
-            return true;
         }
 
+        private bool TryOpenContextMenu(ListBox list, PointerPressedEventArgs e, PointerPoint point)
+            => TryOpenContextMenu(
+                list,
+                list.SelectedItems,
+                point,
+                e,
+                GetItemAtPoint<ListBoxItem>(list, point.Position),
+                () => UpdateSelectionState(list));
+
         private bool TryOpenContextMenu(DataGrid grid, PointerPressedEventArgs e, PointerPoint point)
+            => TryOpenContextMenu(
+                grid,
+                grid.SelectedItems,
+                point,
+                e,
+                GetItemAtPoint<DataGridRow>(grid, point.Position),
+                () => UpdateSelectionState(grid));
+
+        private bool TryOpenContextMenu(
+            IInputElement root,
+            IList? selectedItems,
+            PointerPoint point,
+            PointerPressedEventArgs e,
+            T? hit,
+            Action updateSelectionState)
         {
-            T? hit = GetItemAtPoint(grid, point.Position);
             if (hit == null)
                 return false;
 
-            if (!TryFindContextMenu(grid, point.Position, out _, out _))
+            if (!TryFindContextMenu(root, point.Position, out _, out _))
                 return false;
 
-            if (grid.SelectedItems != null &&
-                (grid.SelectedItems.Count == 0 || !grid.SelectedItems.Contains(hit)))
-            {
-                grid.SelectedItems.Clear();
-                _ = grid.SelectedItems.Add(hit);
-            }
-
-            UpdateSelectionState(grid);
+            EnsureItemSelected(selectedItems, hit);
+            updateSelectionState();
             e.Handled = true;
             return true;
         }

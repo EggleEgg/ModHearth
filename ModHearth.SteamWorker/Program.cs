@@ -67,54 +67,48 @@ namespace ModHearth.SteamWorker
         }
 
 
-        private static int RunSubscribe(PublishedFileId_t id)
+        private static int RunSubscribe(PublishedFileId_t id) => RunSubscriptionAction<RemoteStorageSubscribePublishedFileResult_t>(
+            SteamUGC.SubscribeItem(id),
+            "Subscribe",
+            "SteamUGC.SubscribeItem returned an invalid call handle.",
+            handler => CallResult<RemoteStorageSubscribePublishedFileResult_t>.Create(handler),
+            res => res.m_eResult);
+
+        private static int RunUnsubscribe(PublishedFileId_t id) => RunSubscriptionAction<RemoteStorageUnsubscribePublishedFileResult_t>(
+            SteamUGC.UnsubscribeItem(id),
+            "Unsubscribe",
+            "SteamUGC.UnsubscribeItem returned an invalid call handle.",
+            handler => CallResult<RemoteStorageUnsubscribePublishedFileResult_t>.Create(handler),
+            res => res.m_eResult);
+
+        // Subscribe and Unsubscribe differ only in their callback result type, so both share this
+        // wait-and-check pipeline.
+        private static int RunSubscriptionAction<T>(
+            SteamAPICall_t call,
+            string actionName,
+            string invalidHandleMessage,
+            Func<CallResult<T>.APIDispatchDelegate, CallResult<T>> createCallResult,
+            Func<T, EResult> getResult)
         {
-            SteamAPICall_t call = SteamUGC.SubscribeItem(id);
             if (call == SteamAPICall_t.Invalid)
-                return Fail("SteamUGC.SubscribeItem returned an invalid call handle.");
+                return Fail(invalidHandleMessage);
 
             bool completed = false;
             EResult result = EResult.k_EResultFail;
 
-            using CallResult<RemoteStorageSubscribePublishedFileResult_t> callResult =
-                CallResult<RemoteStorageSubscribePublishedFileResult_t>.Create((res, failure) =>
-                {
-                    completed = true;
-                    if (!failure)
-                        result = res.m_eResult;
-                });
+            using CallResult<T> callResult = createCallResult((res, failure) =>
+            {
+                completed = true;
+                if (!failure)
+                    result = getResult(res);
+            });
             callResult.Set(call);
 
             WaitForCallback(() => completed);
 
             return completed && result == EResult.k_EResultOK
                 ? Success
-                : Fail($"Subscribe did not complete successfully (result: {result}).");
-        }
-
-        private static int RunUnsubscribe(PublishedFileId_t id)
-        {
-            SteamAPICall_t call = SteamUGC.UnsubscribeItem(id);
-            if (call == SteamAPICall_t.Invalid)
-                return Fail("SteamUGC.UnsubscribeItem returned an invalid call handle.");
-
-            bool completed = false;
-            EResult result = EResult.k_EResultFail;
-
-            using CallResult<RemoteStorageUnsubscribePublishedFileResult_t> callResult =
-                CallResult<RemoteStorageUnsubscribePublishedFileResult_t>.Create((res, failure) =>
-                {
-                    completed = true;
-                    if (!failure)
-                        result = res.m_eResult;
-                });
-            callResult.Set(call);
-
-            WaitForCallback(() => completed);
-
-            return completed && result == EResult.k_EResultOK
-                ? Success
-                : Fail($"Unsubscribe did not complete successfully (result: {result}).");
+                : Fail($"{actionName} did not complete successfully (result: {result}).");
         }
 
         private static int RunDownload(PublishedFileId_t id)

@@ -196,9 +196,6 @@ namespace ModHearth.UI
             }
         }
 
-        // Handled by ModRefControl
-        public void OnModRefContextMenuOpened(ContextMenu menu, ModRefViewModel vm) { }
-
         public ModHearthManager? GetManager() => null;
 
         public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => modTreeList.SelectedItems?.Cast<ModRefViewModel>().Select(vm => vm.ModReference)
@@ -372,8 +369,7 @@ namespace ModHearth.UI
                 Padding = new Thickness(10),
                 Child = panel
             };
-            if (Style.instance != null)
-                border.Background = BrushCache.GetBrush(Style.instance.PanelColor.ToAvaloniaColor());
+            border[!Border.BackgroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("PanelBrush");
 
             Grid header = new() { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 8 };
             Border accent = new()
@@ -433,18 +429,22 @@ namespace ModHearth.UI
             header.Children.Add(addButton);
             header.Children.Add(clearButton);
             panel.Children.Add(header);
-            panel.Children.Add(new TextBlock { Text = description, FontSize = 12, Opacity = 0.72 });
+            TextBlock descText = new() { Text = description, FontSize = 12, Opacity = 0.72 };
+            descText[!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("MainTextBrush");
+            panel.Children.Add(descText);
 
             switch (ids.Count)
             {
                 case 0:
-                    panel.Children.Add(new TextBlock
+                    TextBlock emptyText = new()
                     {
                         Text = $"No {title.ToLowerInvariant()} mods.",
                         FontStyle = FontStyle.Italic,
                         Opacity = 0.65,
                         Margin = new Thickness(0, 5, 0, 2)
-                    });
+                    };
+                    emptyText[!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("MainTextBrush");
+                    panel.Children.Add(emptyText);
                     break;
                 default:
                     {
@@ -567,7 +567,7 @@ namespace ModHearth.UI
 
             string ownerId = selectedMod.ModReference.ID.Trim();
             ModRelationshipRule rule = GetRule(ownerId);
-            HashSet<string> alreadyAdded = new(GetList(rule, kind), StringComparer.OrdinalIgnoreCase);
+            HashSet<string> alreadyAdded = new(rule.GetIds(kind), StringComparer.OrdinalIgnoreCase);
             RelationshipPickerWindow picker = new(ownerId, kind, GetOrBuildPickerMods(), alreadyAdded)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
@@ -580,7 +580,7 @@ namespace ModHearth.UI
                 return;
 
             PushUndo();
-            GetList(GetOrCreateRule(ownerId), kind).Add(selectedId.Trim());
+            GetOrCreateRule(ownerId).GetIds(kind).Add(selectedId.Trim());
             CommitRulesChanged();
         }
 
@@ -590,7 +590,7 @@ namespace ModHearth.UI
                 return;
 
             PushUndo();
-            GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind).Clear();
+            GetOrCreateRule(selectedMod.ModReference.ID).GetIds(kind).Clear();
             CommitRulesChanged();
         }
 
@@ -600,7 +600,7 @@ namespace ModHearth.UI
                 return;
 
             PushUndo();
-            List<string> list = GetList(GetOrCreateRule(selectedMod.ModReference.ID), kind);
+            List<string> list = GetOrCreateRule(selectedMod.ModReference.ID).GetIds(kind);
             _ = list.RemoveAll(existing => string.Equals(existing, id, StringComparison.OrdinalIgnoreCase));
             CommitRulesChanged();
         }
@@ -610,7 +610,7 @@ namespace ModHearth.UI
             rulesVersion++;
             NormalizeRules();
             ModListIndicatorUpdater.UpdateRelationshipBadges(allMods, rules);
-            onRulesChanged?.Invoke(CloneRules(rules));
+            onRulesChanged?.Invoke(ModRelationshipRule.CloneAll(rules));
             RefreshEditor();
         }
 
@@ -619,7 +619,7 @@ namespace ModHearth.UI
             if (applyingUndo)
                 return;
 
-            _ = undoStack.AddFirst(CloneRules(rules));
+            _ = undoStack.AddFirst(ModRelationshipRule.CloneAll(rules));
             while (undoStack.Count > MaxUndoDepth)
                 undoStack.RemoveLast();
         }
@@ -637,7 +637,7 @@ namespace ModHearth.UI
                 foreach (KeyValuePair<string, ModRelationshipRule> kvp in snapshot.Value)
                     rules[kvp.Key] = kvp.Value.Clone();
                 rulesVersion++;
-                onRulesChanged?.Invoke(CloneRules(rules));
+                onRulesChanged?.Invoke(ModRelationshipRule.CloneAll(rules));
                 RefreshEditor();
             }
             finally
@@ -667,27 +667,10 @@ namespace ModHearth.UI
         {
             foreach (string key in rules.Keys.ToList())
             {
-                ModRelationshipRule rule = rules[key];
-                rule.BeforeIds = NormalizeList(rule.BeforeIds);
-                rule.AfterIds = NormalizeList(rule.AfterIds);
-                rule.RequiredIds = NormalizeList(rule.RequiredIds);
-                rule.IncompatibleIds = NormalizeList(rule.IncompatibleIds);
+                ModRelationshipRule rule = rules[key].NormalizeInPlace();
                 if (rule.IsEmpty)
                     _ = rules.Remove(key);
             }
-        }
-
-        private static List<string> NormalizeList(IEnumerable<string> ids)
-        {
-            HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
-            List<string> normalized = [];
-            foreach (string id in ids)
-            {
-                string trimmed = id?.Trim() ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(trimmed) && seen.Add(trimmed))
-                    normalized.Add(trimmed);
-            }
-            return normalized;
         }
 
         private ModRelationshipRule GetRule(string id) => rules.TryGetValue(id.Trim(), out ModRelationshipRule? rule)
@@ -705,15 +688,6 @@ namespace ModHearth.UI
             }
             return rule;
         }
-
-        private static List<string> GetList(ModRelationshipRule rule, ModRelationshipKind kind) => kind switch
-        {
-            ModRelationshipKind.Before => rule.BeforeIds,
-            ModRelationshipKind.After => rule.AfterIds,
-            ModRelationshipKind.Required => rule.RequiredIds,
-            ModRelationshipKind.Incompatible => rule.IncompatibleIds,
-            _ => rule.BeforeIds
-        };
 
         private IEnumerable<string> SortIdsForDisplay(IEnumerable<string> ids) => ids
                 .OrderBy(id => modIdMap.TryGetValue(id, out ModRefViewModel? vm) ? vm.DisplayName : id, StringComparer.OrdinalIgnoreCase)
@@ -741,10 +715,10 @@ namespace ModHearth.UI
             {
                 string ownerId = kvp.Key;
 
-                HashSet<string> beforeSet = new(kvp.Value.BeforeIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
-                HashSet<string> afterSet = new(kvp.Value.AfterIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
-                HashSet<string> requiredSet = new(kvp.Value.RequiredIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
-                HashSet<string> incompatibleSet = new(kvp.Value.IncompatibleIds.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
+                HashSet<string> beforeSet = new(ModRelationshipRule.NormalizeIds(kvp.Value.BeforeIds), StringComparer.OrdinalIgnoreCase);
+                HashSet<string> afterSet = new(ModRelationshipRule.NormalizeIds(kvp.Value.AfterIds), StringComparer.OrdinalIgnoreCase);
+                HashSet<string> requiredSet = new(ModRelationshipRule.NormalizeIds(kvp.Value.RequiredIds), StringComparer.OrdinalIgnoreCase);
+                HashSet<string> incompatibleSet = new(ModRelationshipRule.NormalizeIds(kvp.Value.IncompatibleIds), StringComparer.OrdinalIgnoreCase);
 
                 foreach (string target in incompatibleSet)
                 {
@@ -866,18 +840,17 @@ namespace ModHearth.UI
         private TextBlock DisplayLabel(string id)
         {
             string label = modIdMap.TryGetValue(id, out ModRefViewModel? vm) ? vm.DisplayName : id;
-            IBrush textBrush = Style.instance != null ? BrushCache.GetBrush(Style.instance.TextColor.ToAvaloniaColor()) : Brushes.Black;
-
-            return new TextBlock
+            TextBlock tb = new()
             {
                 Text = label,
                 FontStyle = FontStyle.Italic,
                 FontSize = 11.5,
-                Foreground = textBrush,
                 VerticalAlignment = VerticalAlignment.Bottom,
                 Padding = new Thickness(0, 0, 0, 0.5),
                 Tag = "DisplayLabel"
             };
+            tb[!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("MainTextBrush");
+            return tb;
         }
 
         private static Control BuildIssueControl(params object[] parts)
@@ -902,14 +875,6 @@ namespace ModHearth.UI
                 }
             }
             return panel;
-        }
-
-        private static Dictionary<string, ModRelationshipRule> CloneRules(IDictionary<string, ModRelationshipRule> source)
-        {
-            Dictionary<string, ModRelationshipRule> clone = new(StringComparer.OrdinalIgnoreCase);
-            foreach (KeyValuePair<string, ModRelationshipRule> kvp in source)
-                clone[kvp.Key] = kvp.Value.Clone();
-            return clone;
         }
 
         private static Image? IconFor(ModRelationshipKind kind) => kind switch
@@ -961,7 +926,7 @@ namespace ModHearth.UI
             else
             {
                 foreach (ModRelationshipKind kind in Enum.GetValues<ModRelationshipKind>())
-                    GetList(GetOrCreateRule(ownerId!), kind).Clear();
+                    GetOrCreateRule(ownerId!).GetIds(kind).Clear();
             }
 
 
@@ -1002,15 +967,13 @@ namespace ModHearth.UI
 
             foreach ((string id, ModRelationshipRule rule) in targetRules)
             {
-                _ = rule.BeforeIds.RemoveAll(target => IsSelfOrMissing(id, target));
-                _ = rule.AfterIds.RemoveAll(target => IsSelfOrMissing(id, target));
-                _ = rule.RequiredIds.RemoveAll(target => IsSelfOrMissing(id, target));
-                _ = rule.IncompatibleIds.RemoveAll(target => IsSelfOrMissing(id, target));
+                foreach (ModRelationshipKind kind in Enum.GetValues<ModRelationshipKind>())
+                    _ = rule.GetIds(kind).RemoveAll(target => IsSelfOrMissing(id, target));
 
-                _ = rule.IncompatibleIds.RemoveAll(target => rule.RequiredIds.Any(r => string.Equals(r, target, StringComparison.OrdinalIgnoreCase)));
-                _ = rule.IncompatibleIds.RemoveAll(target => rule.BeforeIds.Any(b => string.Equals(b, target, StringComparison.OrdinalIgnoreCase)));
-                _ = rule.IncompatibleIds.RemoveAll(target => rule.AfterIds.Any(a => string.Equals(a, target, StringComparison.OrdinalIgnoreCase)));
-                _ = rule.AfterIds.RemoveAll(target => rule.BeforeIds.Any(b => string.Equals(b, target, StringComparison.OrdinalIgnoreCase)));
+                RemoveOverlappingIds(rule.IncompatibleIds, rule.RequiredIds);
+                RemoveOverlappingIds(rule.IncompatibleIds, rule.BeforeIds);
+                RemoveOverlappingIds(rule.IncompatibleIds, rule.AfterIds);
+                RemoveOverlappingIds(rule.AfterIds, rule.BeforeIds);
             }
 
             Dictionary<string, HashSet<string>> graph = new(StringComparer.OrdinalIgnoreCase);
@@ -1055,6 +1018,9 @@ namespace ModHearth.UI
 
             CommitRulesChanged();
         }
+
+        private static void RemoveOverlappingIds(List<string> targets, List<string> other)
+            => _ = targets.RemoveAll(target => other.Any(candidate => string.Equals(candidate, target, StringComparison.OrdinalIgnoreCase)));
 
         private static void AddGraphEdge(Dictionary<string, HashSet<string>> graph, string from, string to)
         {

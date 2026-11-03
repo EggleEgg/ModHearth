@@ -1,8 +1,7 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Media;
 using ModHearth.UI.Theme;
+using ModHearth.Utilities;
 using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
@@ -10,13 +9,9 @@ namespace ModHearth.UI
     /// <summary>
     /// Handles downloading steam workshop collections
     /// </summary>
-    public class CollectionChecklistItem : INotifyPropertyChanged
+    public class CollectionChecklistItem : ObservableObject
     {
         private bool _isChecked = true;
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
         public WorkshopItemMetadata Metadata { get; set; } = null!;
         public string Title => Metadata.Title;
@@ -97,39 +92,24 @@ namespace ModHearth.UI
             return await dialog.ShowDialog<List<WorkshopItemMetadata>?>(owner);
         }
 
-        private void SetMissingAndUpdatesChecked()
+        private void SetChecked(Func<CollectionChecklistItem, bool> predicate)
         {
             foreach (CollectionChecklistItem item in _items)
-            {
-                item.IsChecked = item.Classification is ModStatusClassification.New or
-                                 ModStatusClassification.MissingDependency or
-                                 ModStatusClassification.UpdateAvailable;
-            }
+                item.IsChecked = predicate(item);
         }
 
-        private void SetAllChecked(bool value)
-        {
-            foreach (CollectionChecklistItem item in _items)
-            {
-                item.IsChecked = value;
-            }
-        }
+        private void SetMissingAndUpdatesChecked()
+            => SetChecked(item => item.Classification is ModStatusClassification.New or
+                                  ModStatusClassification.MissingDependency or
+                                  ModStatusClassification.UpdateAvailable);
+
+        private void SetAllChecked(bool value) => SetChecked(_ => value);
 
         private void SetMissingChecked()
-        {
-            foreach (CollectionChecklistItem item in _items)
-            {
-                item.IsChecked = item.Classification is ModStatusClassification.New or
-                                 ModStatusClassification.MissingDependency;
-            }
-        }
+            => SetChecked(item => item.Classification is ModStatusClassification.New or
+                                  ModStatusClassification.MissingDependency);
 
         private void SetUpdateChecked()
-        {
-            foreach (CollectionChecklistItem item in _items)
-            {
-                item.IsChecked = item.Classification == ModStatusClassification.UpdateAvailable;
-            }
-        }
+            => SetChecked(item => item.Classification == ModStatusClassification.UpdateAvailable);
     }
 }

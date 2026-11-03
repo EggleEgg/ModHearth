@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia.Threading;
 using ModHearth.Models;
+using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities.Workshop
@@ -33,16 +33,11 @@ namespace ModHearth.Utilities.Workshop
 
     }
 
-    public class WorkshopDownloadItem : INotifyPropertyChanged
+    public class WorkshopDownloadItem : ObservableObject
     {
         private DownloadState _state = DownloadState.Waiting;
         private double _progressPercentage;
         private string _statusText = "Waiting...";
-
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
 
         public ulong PublishedFileId { get; set; }
         public string Title { get; set; } = string.Empty;
@@ -292,8 +287,6 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            List<WorkshopItemMetadata> itemsToEnqueue = [];
-
             foreach (WorkshopItemMetadata meta in metadataList)
             {
                 InfoLogger.LogRunDf($"WorkshopQueueManager: Checking if {meta.PublishedFileId} ('{meta.Title}') is a collection...");
@@ -318,18 +311,6 @@ namespace ModHearth.Utilities.Workshop
                         break;
 
                 }
-            }
-
-            if (itemsToEnqueue.Count > 0)
-            {
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Enqueueing {itemsToEnqueue.Count} items to UI thread...");
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    foreach (WorkshopItemMetadata item in itemsToEnqueue)
-                    {
-                        Enqueue(item);
-                    }
-                });
             }
         }
 
@@ -604,26 +585,7 @@ namespace ModHearth.Utilities.Workshop
                             foreach (WorkshopDownloadItem batchItem in batchGroup)
                             {
                                 string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
-                                Progress<DownloadProgress> prog = new(p =>
-                                {
-                                    switch (batchItem.State)
-                                    {
-                                        case DownloadState.Failed:
-                                        case DownloadState.Cancelled:
-                                        case DownloadState.Completed:
-                                            return;
-                                    }
-
-                                    switch (p.Percentage)
-                                    {
-                                        case >= 100:
-                                            batchItem.SetProgress(100, "Download complete");
-                                            break;
-                                        default:
-                                            batchItem.SetProgress(p.Percentage, $"Downloading {p.Percentage:F1}% (Batched)");
-                                            break;
-                                    }
-                                });
+                                Progress<DownloadProgress> prog = CreateProgressReporter(batchItem, batched: true);
 
                                 batchItems.Add(new BatchDownloadItem(batchItem.PublishedFileId, targetDir, prog, batchItem.Cts!.Token));
                             }
@@ -671,26 +633,7 @@ namespace ModHearth.Utilities.Workshop
                             string targetDir = Path.Combine(modsDir, item.PublishedFileId.ToString());
                             InfoLogger.LogRunDf($"WorkshopQueueManager: Target directory for {item.PublishedFileId}: {targetDir}");
 
-                            Progress<DownloadProgress> progressReporter = new(p =>
-                            {
-                                switch (item.State)
-                                {
-                                    case DownloadState.Failed:
-                                    case DownloadState.Cancelled:
-                                    case DownloadState.Completed:
-                                        return;
-                                }
-
-                                switch (p.Percentage)
-                                {
-                                    case >= 100:
-                                        item.SetProgress(100, "Download complete");
-                                        break;
-                                    default:
-                                        item.SetProgress(p.Percentage, $"Downloading {p.Percentage:F1}%");
-                                        break;
-                                }
-                            });
+                            Progress<DownloadProgress> progressReporter = CreateProgressReporter(item, batched: false);
 
                             InfoLogger.LogRunDf($"WorkshopQueueManager: Starting download for {item.PublishedFileId}...");
                             bool success = await provider.DownloadAsync(item.PublishedFileId, targetDir, progressReporter, token);
@@ -733,6 +676,26 @@ namespace ModHearth.Utilities.Workshop
                 InfoLogger.LogRunDf($"WorkshopQueueManager: Releasing semaphore for {item.PublishedFileId}.");
                 _ = _concurrencySemaphore.Release();
             }
+        }
+
+        private static Progress<DownloadProgress> CreateProgressReporter(WorkshopDownloadItem item, bool batched)
+        {
+            string batchedSuffix = batched ? " (Batched)" : string.Empty;
+            return new Progress<DownloadProgress>(p =>
+            {
+                switch (item.State)
+                {
+                    case DownloadState.Failed:
+                    case DownloadState.Cancelled:
+                    case DownloadState.Completed:
+                        return;
+                }
+
+                if (p.Percentage >= 100)
+                    item.SetProgress(100, "Download complete");
+                else
+                    item.SetProgress(p.Percentage, $"Downloading {p.Percentage:F1}%{batchedSuffix}");
+            });
         }
 
         private void CleanupOldModFolders(ulong publishedFileId, string targetDir)

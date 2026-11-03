@@ -103,23 +103,11 @@ namespace ModHearth.UI
             _ = UpdateDfHackStatusAsync();
             ResetModManagerWatcher();
 
-            modifyingComboBox = true;
-            modpackComboBox.ItemsSource = manager.modpacks.Select(m => m.Name).ToList();
-
-            switch (manager.selectedModlistIndex)
-            {
-                case >= 0 when manager.selectedModlistIndex < manager.modpacks.Count:
-                    modpackComboBox.SelectedIndex = manager.selectedModlistIndex;
-                    lastIndex = manager.selectedModlistIndex;
-                    break;
-                default:
-                    modpackComboBox.SelectedIndex = -1;
-                    lastIndex = -1;
-                    break;
-
-            }
-
-            modifyingComboBox = false;
+            int selectedIndex = manager.selectedModlistIndex >= 0 && manager.selectedModlistIndex < manager.modpacks.Count
+                ? manager.selectedModlistIndex
+                : -1;
+            RefreshModpackCombo(selectedIndex);
+            lastIndex = selectedIndex;
 
             ReloadLogging.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
 

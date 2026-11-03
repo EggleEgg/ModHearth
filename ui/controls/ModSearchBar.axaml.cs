@@ -369,15 +369,7 @@ namespace ModHearth.UI
         };
 
         private SearchFilterMode GetFirstAllowedSearchMode()
-        {
-            if (IsNameSearchEnabled) return SearchFilterMode.Name;
-            if (IsRegexSearchEnabled) return SearchFilterMode.Regex;
-            if (IsColorSearchEnabled) return SearchFilterMode.Color;
-            if (IsSortingEnabled && IsModifiedTimeSearchEnabled) return SearchFilterMode.ModifiedTime;
-            if (IsIdSearchEnabled) return SearchFilterMode.Id;
-            if (IsSteamFileIdSearchEnabled) return SearchFilterMode.SteamFileId;
-            return SearchFilterMode.Name;
-        }
+            => Enum.GetValues<SearchFilterMode>().FirstOrDefault(IsSearchModeAllowed);
 
         public SearchFilterMode SearchMode
         {
@@ -466,20 +458,9 @@ namespace ModHearth.UI
                 MinWidth = 160
             };
 
-            if (IsNameSearchEnabled)
-                panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Name));
-            if (IsRegexSearchEnabled)
-                panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Regex));
-            if (IsColorSearchEnabled)
-                panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Color));
+            foreach (SearchFilterMode mode in Enum.GetValues<SearchFilterMode>().Where(IsSearchModeAllowed))
+                panel.Children.Add(CreateSearchModeOptionButton(mode));
 
-            if (IsSortingEnabled && IsModifiedTimeSearchEnabled)
-                panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.ModifiedTime));
-
-            if (IsIdSearchEnabled)
-                panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.Id));
-            if (IsSteamFileIdSearchEnabled)
-                panel.Children.Add(CreateSearchModeOptionButton(SearchFilterMode.SteamFileId));
             UpdateSearchModeOptionLabels();
 
             searchModeFlyout = new Flyout

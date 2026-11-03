@@ -67,47 +67,30 @@ namespace ModHearth.Utilities
         }
 
         private static bool HasSoundAssets(string modPath)
-        {
-            string soundDir = Path.Combine(modPath, "sound");
-            if (!Directory.Exists(soundDir))
-                return false;
-
-            try
-            {
-                return Directory.EnumerateFiles(soundDir, "*.ogg", SearchOption.AllDirectories).Any();
-            }
-            catch
-            {
-                return false;
-            }
-        }
+            => AnyFile(Path.Combine(modPath, "sound"), "*.ogg", SearchOption.AllDirectories);
 
         private static bool HasInitDScripts(string modPath)
-        {
-            string initDDir = Path.Combine(modPath, "init.d");
-            if (!Directory.Exists(initDDir))
-                return false;
-
-            try
-            {
-                return Directory.EnumerateFiles(initDDir, "*.lua", SearchOption.TopDirectoryOnly).Any();
-            }
-            catch
-            {
-                return false;
-            }
-        }
+            => AnyFile(Path.Combine(modPath, "init.d"), "*.lua", SearchOption.TopDirectoryOnly);
 
         private static bool HasNativePlugins(string modPath)
         {
             string pluginsDir = Path.Combine(modPath, "plugins");
-            if (!Directory.Exists(pluginsDir))
+            return NativePluginExtensions.Any(ext =>
+                AnyFile(pluginsDir, $"*{ext}", SearchOption.AllDirectories));
+        }
+
+        /// <summary>
+        /// Returns whether at least one file matching <paramref name="searchPattern"/> exists under an
+        /// existing <paramref name="directory"/>; unreadable folders are treated as empty.
+        /// </summary>
+        private static bool AnyFile(string directory, string searchPattern, SearchOption searchOption)
+        {
+            if (!Directory.Exists(directory))
                 return false;
 
             try
             {
-                return NativePluginExtensions.Any(ext =>
-                    Directory.EnumerateFiles(pluginsDir, $"*{ext}", SearchOption.AllDirectories).Any());
+                return Directory.EnumerateFiles(directory, searchPattern, searchOption).Any();
             }
             catch
             {

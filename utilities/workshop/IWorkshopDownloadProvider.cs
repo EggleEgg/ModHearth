@@ -28,18 +28,5 @@ namespace ModHearth.Utilities.Workshop
             string downloadPath,
             IProgress<DownloadProgress> progress,
             CancellationToken cancellationToken);
-
-        Task<Dictionary<ulong, bool>> DownloadBatchAsync(
-            IEnumerable<BatchDownloadItem> items,
-            CancellationToken cancellationToken)
-        {
-            Dictionary<ulong, bool> dict = [];
-            foreach (BatchDownloadItem item in items)
-            {
-                bool success = DownloadAsync(item.WorkshopId, item.DownloadPath, item.Progress, cancellationToken).GetAwaiter().GetResult();
-                dict[item.WorkshopId] = success;
-            }
-            return Task.FromResult(dict);
-        }
     }
 }

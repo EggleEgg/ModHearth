@@ -142,7 +142,7 @@ namespace ModHearth.UI
             PopulateModDataViewer(modref);
 
             int requestVersion = ++previewRequestVersion;
-            string? previewPath = ResolveFilePathCaseInsensitive(modref.Path, "preview.png");
+            string? previewPath = PathHelper.ResolveFile(modref.Path, "preview.png");
 
             if (string.IsNullOrWhiteSpace(previewPath))
             {
@@ -169,29 +169,6 @@ namespace ModHearth.UI
                     SetPreviewImage(image ?? LoadFallbackPreview());
                 });
             });
-        }
-
-        private static string? ResolveFilePathCaseInsensitive(string directory, string fileName)
-        {
-            if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName))
-                return null;
-            if (!Directory.Exists(directory))
-                return null;
-
-            string exactPath = Path.Combine(directory, fileName);
-            if (File.Exists(exactPath))
-                return exactPath;
-
-            try
-            {
-                return Directory.EnumerateFiles(directory)
-                    .FirstOrDefault(file =>
-                        string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         private static IImage LoadFallbackPreview(string file = "43G6tag.png") => fallbackPreviewCache.GetOrAdd(file, static f => LoadFallbackPreviewCore(f));

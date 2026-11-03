@@ -37,9 +37,7 @@ namespace ModHearth.UI
                         switch (choice)
                         {
                             case UnsavedChangesChoice.Cancel:
-                                modifyingComboBox = true;
-                                modpackComboBox.SelectedIndex = lastIndex;
-                                modifyingComboBox = false;
+                                SetModpackComboIndex(lastIndex);
                                 return;
                             case UnsavedChangesChoice.Save:
                                 await SaveCurrentModpackAsync();

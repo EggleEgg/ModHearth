@@ -1,5 +1,4 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI.ModList
 {
@@ -10,13 +9,11 @@ namespace ModHearth.UI.ModList
     /// WorkshopDownloaderWindow when floated) -- an ancestor-based binding silently fails to resolve
     /// there, leaving these checkboxes stuck unchecked and unable to persist changes.
     /// </summary>
-    public sealed class ContextMenuPreferences : INotifyPropertyChanged
+    public sealed class ContextMenuPreferences : ObservableObject
     {
         public static ContextMenuPreferences Instance { get; } = new();
 
         private ContextMenuPreferences() { }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
 
         public bool IsOpenSteamInClientEnabled
         {
@@ -53,7 +50,5 @@ namespace ModHearth.UI.ModList
                 OnPropertyChanged();
             }
         }
-
-        private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

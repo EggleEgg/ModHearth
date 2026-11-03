@@ -302,7 +302,7 @@ namespace ModHearth
             {
                 if (cachedClonedRelationshipRules != null)
                     return cachedClonedRelationshipRules;
-                cachedClonedRelationshipRules = CloneRelationshipRules(relationshipRules);
+                cachedClonedRelationshipRules = ModRelationshipRule.CloneAll(relationshipRules);
                 return cachedClonedRelationshipRules;
             }
         }
@@ -319,76 +319,12 @@ namespace ModHearth
         {
             lock (stateGate)
             {
-                relationshipRules = NormalizeRelationshipRules(rules);
+                relationshipRules = ModRelationshipRule.NormalizeAll(rules);
                 sortRules = RelationshipRulesToSortRules(relationshipRules);
                 cachedClonedRelationshipRules = null;
                 relationshipRulesVersion++;
             }
             SaveRelationshipRules();
-        }
-
-        private static Dictionary<string, ModRelationshipRule> CloneRelationshipRules(
-            IDictionary<string, ModRelationshipRule>? rules)
-        {
-            Dictionary<string, ModRelationshipRule> clone = new(StringComparer.OrdinalIgnoreCase);
-            if (rules == null)
-                return clone;
-
-            foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
-            {
-                string key = kvp.Key?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(key) || kvp.Value == null)
-                    continue;
-                clone[key] = kvp.Value.Clone();
-            }
-
-            return clone;
-        }
-
-        private static Dictionary<string, ModRelationshipRule> NormalizeRelationshipRules(
-            IDictionary<string, ModRelationshipRule>? rules)
-        {
-            Dictionary<string, ModRelationshipRule> normalized = new(StringComparer.OrdinalIgnoreCase);
-            if (rules == null)
-                return normalized;
-
-            foreach (KeyValuePair<string, ModRelationshipRule> kvp in rules)
-            {
-                string key = kvp.Key?.Trim() ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(key) || kvp.Value == null)
-                    continue;
-
-                ModRelationshipRule rule = new()
-
-                {
-                    BeforeIds = NormalizeIdList(kvp.Value.BeforeIds),
-                    AfterIds = NormalizeIdList(kvp.Value.AfterIds),
-                    RequiredIds = NormalizeIdList(kvp.Value.RequiredIds),
-                    IncompatibleIds = NormalizeIdList(kvp.Value.IncompatibleIds)
-                };
-
-                if (!rule.IsEmpty)
-                    normalized[key] = rule;
-            }
-
-            return normalized;
-        }
-
-        private static List<string> NormalizeIdList(IEnumerable<string>? ids)
-        {
-            List<string> normalized = [];
-            HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
-            if (ids == null)
-                return normalized;
-
-            foreach (string id in ids)
-            {
-                string trimmed = id?.Trim() ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(trimmed) && seen.Add(trimmed))
-                    normalized.Add(trimmed);
-            }
-
-            return normalized;
         }
 
         private static List<ModSortRule> RelationshipRulesToSortRules(
@@ -494,7 +430,7 @@ namespace ModHearth
             {
                 string jsonContent = File.ReadAllText(modRelationshipRulesPath);
                 Dictionary<string, ModRelationshipRule>? loadedRules = JsonSerializer.Deserialize<Dictionary<string, ModRelationshipRule>>(jsonContent);
-                return NormalizeRelationshipRules(loadedRules);
+                return ModRelationshipRule.NormalizeAll(loadedRules);
             }
             catch
             {
@@ -521,7 +457,7 @@ namespace ModHearth
                 relationshipRule.BeforeIds.Add(after);
             }
 
-            return NormalizeRelationshipRules(converted);
+            return ModRelationshipRule.NormalizeAll(converted);
         }
 
         private void SaveRelationshipRules()
@@ -699,7 +635,7 @@ namespace ModHearth
             modsPath = ConfigManager.ResolveCanonicalPath(modsPath);
             if (string.IsNullOrWhiteSpace(modPath) || string.IsNullOrWhiteSpace(modsPath))
                 return false;
-            if (!IsPathUnderRoot(modPath, modsPath))
+            if (!PathHelper.IsUnderRoot(modPath, modsPath))
                 return false;
             return Directory.Exists(modPath);
         }
@@ -768,17 +704,6 @@ namespace ModHearth
 
             message = $"Deleted {modPath}";
             return true;
-        }
-
-        private static bool IsPathUnderRoot(string path, string root)
-        {
-            string normalizedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            string normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            normalizedRoot += Path.DirectorySeparatorChar;
-            StringComparison comparison = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-            return normalizedPath.StartsWith(normalizedRoot, comparison);
         }
 
         public bool ClearInstalledModsFolder(out string message)
@@ -884,28 +809,39 @@ namespace ModHearth
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, dir =>
             {
-                string? infoPath = ResolveInfoFilePath(dir);
-                if (string.IsNullOrWhiteSpace(infoPath))
-                    return;
-
-                try
-                {
-                    string info = File.ReadAllText(infoPath);
-                    Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
-                    if (idMatch.Success)
-                    {
-                        string id = idMatch.Groups[1].Value.Trim();
-                        if (!string.IsNullOrEmpty(id))
-                            _ = ids.TryAdd(id, 0);
-                    }
-                }
-                catch
-                {
-                    // Ignore unreadable info files.
-                }
+                string? id = TryReadModIdFromInfo(ResolveInfoFilePath(dir));
+                if (id != null)
+                    _ = ids.TryAdd(id, 0);
             });
 
             return new HashSet<string>(ids.Keys, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static readonly Regex InfoIdRegex = new(@"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        /// <summary>
+        /// Reads the trimmed "[ID:...]" value from a mod's info.txt. Returns null when the file is
+        /// missing, unreadable, has no id tag, or the tag is blank.
+        /// </summary>
+        private static string? TryReadModIdFromInfo(string? infoPath)
+        {
+            if (string.IsNullOrWhiteSpace(infoPath))
+                return null;
+
+            try
+            {
+                Match idMatch = InfoIdRegex.Match(File.ReadAllText(infoPath));
+                if (!idMatch.Success)
+                    return null;
+
+                string id = idMatch.Groups[1].Value.Trim();
+                return string.IsNullOrEmpty(id) ? null : id;
+            }
+            catch
+            {
+                // Ignore unreadable info files.
+                return null;
+            }
         }
 
         private static readonly string scrDir = "src_dir";
@@ -948,6 +884,10 @@ namespace ModHearth
             // Enumerate. Pin down an explicit order, so the parallel compute and sequential merge phases below are deterministic
             List<Dictionary<string, string>> modDataList = [.. modData];
 
+            // Resolve the configured mod roots once; the parallel body used to re-query (and could
+            // re-save) them per mod from multiple threads.
+            ModSourceContext sourceContext = ModSourceContext.FromConfig();
+
             // Parallel compute. Path resolution, ModReference construction and LastModifiedTime stamp are all independent per entry work
             ModReference?[] results = new ModReference?[modDataList.Count];
             _ = Parallel.For(0, modDataList.Count, new ParallelOptions
@@ -964,7 +904,7 @@ namespace ModHearth
                     LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"])
                 };
 
-                _ = ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
+                _ = ModSourceClassifier.Classify(modRef, sourceContext);
                 if (modRef.IsIgnored)
                 {
                     results[i] = null; // Mark as null to be filtered out later
@@ -980,29 +920,15 @@ namespace ModHearth
             Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
             HashSet<DfhMod> newModPool = [];
 
-            foreach (ModReference? modRef in results.Where(m => m != null))
+            foreach (ModReference? modRef in results)
             {
                 if (modRef == null)
                     continue;
 
-                string key = modRef.DFHackCompatibleString();
-                if (newModrefMap.ContainsKey(key))
-                {
-                    if (!newDuplicateModRefs.TryGetValue(key, out List<ModReference>? list))
-                    {
-                        list = [newModrefMap[key]];
-                        newDuplicateModRefs[key] = list;
-                    }
-                    list.Add(modRef);
-                    continue;
-                }
-
-                Console.WriteLine($"   Mod found + registered: {modRef.Name}.");
-                newModrefMap.Add(key, modRef);
-                _ = newModPool.Add(modRef.ToDFHMod());
+                _ = TryAddScannedModReference(modRef, newModrefMap, newDuplicateModRefs, newModPool);
             }
 
-            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs);
+            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs, sourceContext);
         }
 
         /// <summary>
@@ -1022,13 +948,17 @@ namespace ModHearth
                     candidates.Add((root, dir));
             }
 
+            // Resolve the configured mod roots once; re-querying them inside the parallel body read
+            // (and could write) shared config from multiple threads.
+            ModSourceContext sourceContext = ModSourceContext.FromConfig();
+
             ModReference?[] results = new ModReference?[candidates.Count];
             _ = Parallel.For(0, candidates.Count, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, i =>
             {
-                results[i] = TryBuildModReferenceFromDirectory(candidates[i].Dir);
+                results[i] = TryBuildModReferenceFromDirectory(candidates[i].Dir, sourceContext);
             });
 
 
@@ -1064,54 +994,69 @@ namespace ModHearth
                 if (modRef == null)
                     continue;
 
-                string key = modRef.DFHackCompatibleString();
-                if (newModrefMap.ContainsKey(key))
-                {
+                if (TryAddScannedModReference(modRef, newModrefMap, newDuplicateModRefs, newModPool))
+                    addedCount++;
+                else
                     duplicateCount++;
-                    if (!newDuplicateModRefs.TryGetValue(key, out List<ModReference>? list))
-                    {
-                        list = [newModrefMap[key]];
-                        newDuplicateModRefs[key] = list;
-                    }
-                    list.Add(modRef);
-                    continue;
-                }
-
-                Console.WriteLine($"   Mod found + registered: {modRef.Name}.");
-                newModrefMap.Add(key, modRef);
-                _ = newModPool.Add(modRef.ToDFHMod());
-                addedCount++;
             }
 
             FlushRootDiagnostics();
 
-            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs);
+            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs, sourceContext);
 
             InfoLogger.Log($"Disk mod scan completed. Total registered mods: {newModrefMap.Count}.");
         }
 
         // Parallel safe
-        private ModReference? TryBuildModReferenceFromDirectory(string dir)
+        private ModReference? TryBuildModReferenceFromDirectory(string dir, ModSourceContext sourceContext)
         {
             string? infoPath = ResolveInfoFilePath(dir);
             if (string.IsNullOrWhiteSpace(infoPath))
                 return null;
 
-            Dictionary<string, string> modData = BuildModMemoryDataFromInfo(infoPath, dir, out bool missingVersion);
+            Dictionary<string, string> modData = BuildModMemoryDataFromInfo(infoPath, dir, out bool missingVersion, out string info);
             if (!modData.TryGetValue("id", out string? id) || string.IsNullOrWhiteSpace(id))
                 return null;
 
-            ModReference modRef = new(modData)
+            ModReference modRef = new(modData, info)
             {
                 MissingVersion = missingVersion,
                 LastModifiedTime = GetLatestModifiedTimestampCached(dir)
             };
 
-            _ = ModSourceClassifier.Classify(modRef, GetModsPath(), GetVanillaModsPath());
+            _ = ModSourceClassifier.Classify(modRef, sourceContext);
             if (modRef.IsIgnored)
                 return null;
 
             return modRef;
+        }
+
+        /// <summary>
+        /// Adds a scanned mod to the catalog, preserving "first occurrence wins" for duplicates.
+        /// Returns false when the mod was a duplicate of an already-registered one.
+        /// </summary>
+        private static bool TryAddScannedModReference(
+            ModReference modRef,
+            Dictionary<string, ModReference> newModrefMap,
+            Dictionary<string, List<ModReference>> newDuplicateModRefs,
+            HashSet<DfhMod> newModPool)
+        {
+            string key = modRef.DFHackCompatibleString();
+            if (newModrefMap.ContainsKey(key))
+            {
+                if (!newDuplicateModRefs.TryGetValue(key, out List<ModReference>? list))
+                {
+                    list = [newModrefMap[key]];
+                    newDuplicateModRefs[key] = list;
+                }
+                list.Add(modRef);
+                return false;
+            }
+
+            Console.WriteLine($"   Mod found + registered: {modRef.Name}.");
+            newModrefMap.Add(key, modRef);
+            _ = newModPool.Add(modRef.ToDFHMod());
+            return true;
         }
 
         // A reader that checks modPool for a key must be able to find it in modrefMap too.
@@ -1119,17 +1064,15 @@ namespace ModHearth
         private void PublishModCatalog(
             Dictionary<string, ModReference> newModrefMap,
             HashSet<DfhMod> newModPool,
-            Dictionary<string, List<ModReference>> newDuplicateModRefs)
+            Dictionary<string, List<ModReference>> newDuplicateModRefs,
+            ModSourceContext sourceContext)
         {
             Dictionary<string, List<ModReference>> newFilteredDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, List<ModReference>> kvp in newDuplicateModRefs)
             {
                 List<ModReference> nonSteamLocalList = [.. kvp.Value.Where(m =>
                 {
-                    (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(
-                        m,
-                        GetModsPath(),
-                        GetVanillaModsPath());
+                    (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(m, sourceContext);
                     return !isSteamLocal;
                 })];
 
@@ -1187,7 +1130,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
                 yield break;
 
-            StringComparer comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            StringComparer comparer = PathHelper.Comparer;
             HashSet<string> seen = new(comparer);
 
             foreach (string candidate in Directory.EnumerateDirectories(root))
@@ -1210,10 +1153,10 @@ namespace ModHearth
             }
         }
 
-        private static Dictionary<string, string> BuildModMemoryDataFromInfo(string infoPath, string modPath, out bool missingVersion)
+        private static Dictionary<string, string> BuildModMemoryDataFromInfo(string infoPath, string modPath, out bool missingVersion, out string info)
         {
             missingVersion = false;
-            string info = File.ReadAllText(infoPath);
+            info = File.ReadAllText(infoPath);
             Dictionary<string, string> tags = ParseInfoTags(info);
 
             string id = GetInfoTag(tags, "ID") ?? string.Empty;
@@ -1413,25 +1356,9 @@ namespace ModHearth
             }, i =>
             {
                 string dir = candidateDirs[i];
-                string? infoPath = ResolveInfoFilePath(dir);
-                if (string.IsNullOrWhiteSpace(infoPath))
-                    return;
-
-                try
-                {
-                    string info = File.ReadAllText(infoPath);
-                    Match idMatch = Regex.Match(info, @"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase);
-                    if (idMatch.Success)
-                    {
-                        string id = idMatch.Groups[1].Value.Trim();
-                        if (!string.IsNullOrEmpty(id))
-                            results[i] = (id, dir);
-                    }
-                }
-                catch
-                {
-                    // Ignore unreadable info files.
-                }
+                string? id = TryReadModIdFromInfo(ResolveInfoFilePath(dir));
+                if (id != null)
+                    results[i] = (id, dir);
             });
 
             // Sequential-merge phase: same "first occurrence across roots/dirs wins" as the original loop.
@@ -1572,35 +1499,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
                 throw new FileNotFoundException("dfhack-run executable not found.", dfhackRunPath);
 
-            // Set up dfhack process.
-            ProcessStartInfo processStartInfo = new()
-
-            {
-                FileName = dfhackRunPath,
-                WorkingDirectory = Config!.DFFolderPath,
-                Arguments = $"lua -f \"{luaPath}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            // Start dfhack process.
-            Process process = new()
-
-            {
-                StartInfo = processStartInfo
-            };
-
-            _ = process.Start();
-
-            // Get output string.
-            string output = process.StandardOutput.ReadToEnd();
-            string error = process.StandardError.ReadToEnd();
-
-            // Wait for the process to exit.
-            process.WaitForExit();
-
+            string output = RunDfhackRunLua(dfhackRunPath, luaPath, out string error);
             if (!string.IsNullOrWhiteSpace(error))
                 Console.WriteLine(error.TrimEnd());
 
@@ -1658,15 +1557,15 @@ namespace ModHearth
 
             try
             {
-                // Check if Dwarf Fortress is a Steam installation by comparing paths
+                // Check if Dwarf Fortress is a Steam installation by comparing paths. No Steam copy
+                // (null) is the normal case for non-Steam installs, not an error.
                 string? steamFolder = ConfigManager.TryFindSteamDwarfFortressFolder();
                 bool isSteamInstallation =
-                    steamFolder != null &&
-                    Path.GetFullPath(steamFolder)
-                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                        .Equals(
-                            Path.GetFullPath(dfFolderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+                    !string.IsNullOrWhiteSpace(steamFolder) &&
+                    string.Equals(
+                        ConfigManager.ResolveCanonicalPath(steamFolder),
+                        ConfigManager.ResolveCanonicalPath(dfFolderPath),
+                        PathHelper.Comparison);
 
                 if (isSteamInstallation)
                 {
@@ -2002,25 +1901,9 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(dfhackRunPath) || !File.Exists(dfhackRunPath))
                 return false;
 
-            ProcessStartInfo processStartInfo = new()
-
-            {
-                FileName = dfhackRunPath,
-                WorkingDirectory = Config!.DFFolderPath,
-                Arguments = $"lua -f \"{luaPath}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
             try
             {
-                using Process process = new() { StartInfo = processStartInfo };
-                _ = process.Start();
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
-                process.WaitForExit();
+                string output = RunDfhackRunLua(dfhackRunPath, luaPath, out string error);
                 if (!string.IsNullOrWhiteSpace(output))
                     Console.WriteLine(output.TrimEnd());
                 if (!string.IsNullOrWhiteSpace(error))
@@ -2028,11 +1911,36 @@ namespace ModHearth
 
                 return IsModManagerReloadOutputSuccessful(output);
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore reload failures to avoid disrupting saving.
+                // Don't disrupt saving, but don't swallow the reason either.
+                Console.WriteLine($"[ModHearth] dfhack-run fallback failed: {ex.Message}");
                 return false;
             }
+        }
+
+        private static string RunDfhackRunLua(string dfhackRunPath, string luaPath, out string error)
+        {
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = dfhackRunPath,
+                WorkingDirectory = Config.DFFolderPath,
+                Arguments = $"lua -f \"{luaPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            SetDfHackRunEnvironmentVariables(startInfo);
+
+            using Process process = new() { StartInfo = startInfo };
+            _ = process.Start();
+
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+            string output = process.StandardOutput.ReadToEnd();
+            error = errorTask.GetAwaiter().GetResult();
+            process.WaitForExit();
+            return output;
         }
 
         // Fix for Linux 'locale::facet::_S_create_c_locale' errors
@@ -2258,7 +2166,7 @@ namespace ModHearth
                 {
                     List<ModReference> relevantDuplicates = [.. duplicates.Where(m =>
                     {
-                        if (hasInstalledModsPath && !string.IsNullOrWhiteSpace(m.Path) && IsPathUnderRoot(m.Path, installedModsPath))
+                        if (hasInstalledModsPath && !string.IsNullOrWhiteSpace(m.Path) && PathHelper.IsUnderRoot(m.Path, installedModsPath))
                             return false;
 
                         if (ConfigManager.IsLikelySteamShadowCopy(m.Path, m.SteamID, out _))
@@ -2289,104 +2197,69 @@ namespace ModHearth
                 DfhMod currentDFM = enabledMods[i];
                 ModReference currentMod = GetRefFromDFHMod(currentDFM);
 
+                void ReportIds(
+                    IEnumerable<string> ids,
+                    Func<string, bool> isViolation,
+                    ModProblem.ProblemType problemType,
+                    string logPrefix)
+                {
+                    foreach (string rawId in ids)
+                    {
+                        string trimmedId = rawId?.Trim() ?? string.Empty;
+                        if (string.IsNullOrWhiteSpace(trimmedId) || !isViolation(trimmedId))
+                            continue;
+
+                        newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, problemType));
+                        LogProblems(logPrefix + trimmedId + modNeedIsStr + currentDFM.Id);
+                    }
+                }
+
                 if (currentMod.Problematic)
                 {
-                    foreach (string beforeID in currentMod.RequireBeforeMe)
-                    {
-                        string trimmedId = beforeID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId))
-                            continue;
-                        if (!scannedModIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.MissingBefore));
-                            LogProblems("Problem found: missing before mod with ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-                    }
-                    foreach (string afterID in currentMod.RequireAfterMe)
-                    {
-                        string trimmedId = afterID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId))
-                            continue;
-                        if (!unscannedModIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.MissingAfter));
-                            LogProblems("Problem found: missing after mod with ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-                    }
-                    foreach (string conflictID in currentMod.ConflictsWith)
-                    {
-                        string trimmedId = conflictID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId))
-                            continue;
-                        if (allEnabledIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.ConflictPresent));
-                            LogProblems("Problem found: conflict present mod with ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-                    }
-                    foreach (string requiredID in currentMod.RequireIds)
-                    {
-                        string trimmedId = requiredID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId))
-                            continue;
-                        if (!scannedModIDs.Contains(trimmedId) && !unscannedModIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.MissingRequired));
-                            LogProblems("Problem found: missing required mod with ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-
-                    }
+                    ReportIds(
+                        currentMod.RequireBeforeMe,
+                        id => !scannedModIDs.Contains(id),
+                        ModProblem.ProblemType.MissingBefore,
+                        "Problem found: missing before mod with ID: ");
+                    ReportIds(
+                        currentMod.RequireAfterMe,
+                        id => !unscannedModIDs.Contains(id),
+                        ModProblem.ProblemType.MissingAfter,
+                        "Problem found: missing after mod with ID: ");
+                    ReportIds(
+                        currentMod.ConflictsWith,
+                        allEnabledIDs.Contains,
+                        ModProblem.ProblemType.ConflictPresent,
+                        "Problem found: conflict present mod with ID: ");
+                    ReportIds(
+                        currentMod.RequireIds,
+                        id => !scannedModIDs.Contains(id) && !unscannedModIDs.Contains(id),
+                        ModProblem.ProblemType.MissingRequired,
+                        "Problem found: missing required mod with ID: ");
                 }
 
                 if (relationshipRules.TryGetValue(currentDFM.Id, out ModRelationshipRule? customRule))
                 {
-                    foreach (string beforeID in customRule.BeforeIds)
-                    {
-                        string trimmedId = beforeID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId) || !allEnabledIDs.Contains(trimmedId))
-                            continue;
-                        if (!unscannedModIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.MissingAfter));
-                            LogProblems("Problem found: custom before rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-                    }
-
-                    foreach (string afterID in customRule.AfterIds)
-                    {
-                        string trimmedId = afterID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId) || !allEnabledIDs.Contains(trimmedId))
-                            continue;
-                        if (!scannedModIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.MissingBefore));
-                            LogProblems("Problem found: custom after rule violated for ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-                    }
-
-                    foreach (string conflictID in customRule.IncompatibleIds)
-                    {
-                        string trimmedId = conflictID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId))
-                            continue;
-                        if (allEnabledIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.ConflictPresent));
-                            LogProblems("Problem found: custom incompatible rule present for ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-                    }
-
-                    foreach (string requiredID in customRule.RequiredIds)
-                    {
-                        string trimmedId = requiredID?.Trim() ?? string.Empty;
-                        if (string.IsNullOrWhiteSpace(trimmedId))
-                            continue;
-                        if (!allEnabledIDs.Contains(trimmedId))
-                        {
-                            newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, ModProblem.ProblemType.MissingRequired));
-                            LogProblems("Problem found: custom required mod missing with ID: " + trimmedId + modNeedIsStr + currentDFM.Id);
-                        }
-                    }
+                    ReportIds(
+                        customRule.BeforeIds,
+                        id => allEnabledIDs.Contains(id) && !unscannedModIDs.Contains(id),
+                        ModProblem.ProblemType.MissingAfter,
+                        "Problem found: custom before rule violated for ID: ");
+                    ReportIds(
+                        customRule.AfterIds,
+                        id => allEnabledIDs.Contains(id) && !scannedModIDs.Contains(id),
+                        ModProblem.ProblemType.MissingBefore,
+                        "Problem found: custom after rule violated for ID: ");
+                    ReportIds(
+                        customRule.IncompatibleIds,
+                        allEnabledIDs.Contains,
+                        ModProblem.ProblemType.ConflictPresent,
+                        "Problem found: custom incompatible rule present for ID: ");
+                    ReportIds(
+                        customRule.RequiredIds,
+                        id => !allEnabledIDs.Contains(id),
+                        ModProblem.ProblemType.MissingRequired,
+                        "Problem found: custom required mod missing with ID: ");
                 }
 
                 _ = scannedModIDs.Add(currentDFM.Id);
@@ -2855,7 +2728,7 @@ namespace ModHearth
                     continue;
 
                 string modPath = Path.GetFullPath(modref.Path);
-                if (!IsPathUnderRoot(modPath, vanillaPath))
+                if (!PathHelper.IsUnderRoot(modPath, vanillaPath))
                     continue;
 
                 vanillaRefs.Add(modref);

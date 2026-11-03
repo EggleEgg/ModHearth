@@ -6,14 +6,12 @@ namespace ModHearth.UI
 {
     public partial class SortRulesWindow : Window, IDisposable
     {
-        public static double DefaultWidth => LoadDimension("Width", 760);
-        public static double DefaultMinWidth => LoadDimension("MinWidth", 480);
-        public static double DefaultMaxWidth => LoadDimension("MaxWidth", 1100);
-        public static double DefaultHeight => LoadDimension("Height", 760);
-        public static double DefaultMinHeight => LoadDimension("MinHeight", 350);
-        public static double DefaultMaxHeight => LoadDimension("MaxHeight", 1100);
-
-        private static double LoadDimension(string attributeName, double fallback) => WindowDimensionLoader.Load("SortRulesWindow.axaml", attributeName, fallback);
+        public static double DefaultWidth => 980;
+        public static double DefaultMinWidth => 640;
+        public static double DefaultMaxWidth => 1100;
+        public static double DefaultHeight => 760;
+        public static double DefaultMinHeight => 350;
+        public static double DefaultMaxHeight => 1100;
 
         public SortRulesWindow()
             : this(new Dictionary<string, ModRelationshipRule>(), [], string.Empty, null)
