@@ -22,8 +22,6 @@ namespace ModHearth.Utilities
     /// </summary>
     public static partial class GitHubUrlParser
     {
-        private static readonly Regex RepoRegex = MyRegex();
-
         public static bool TryParse(string input, out string owner, out string repo, out string branch, out string filePath)
         {
             owner = string.Empty;
@@ -34,7 +32,7 @@ namespace ModHearth.Utilities
             if (string.IsNullOrWhiteSpace(input))
                 return false;
 
-            Match match = RepoRegex.Match(input.Trim());
+            Match match = RepoRegex().Match(input.Trim());
             if (!match.Success)
                 return false;
 
@@ -58,6 +56,6 @@ namespace ModHearth.Utilities
         }
 
         [GeneratedRegex(@"^https?://(?:www\.)?github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)/?(?:$|(?:tree|blob)/(?<branch>[^/]+)(?:/(?<path>.*))?)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-        private static partial Regex MyRegex();
+        private static partial Regex RepoRegex();
     }
 }

@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using ModHearth.Models;
 using ModHearth.UI.Dialogs;
 using ModHearth.UI.Docking;
 using ModHearth.UI.Update;
+using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI
 {
@@ -53,7 +55,7 @@ namespace ModHearth.UI
             }
         }
 
-        private IReadOnlyDictionary<DockSide, DockingTarget> CreateDockSideTargets() => new Dictionary<DockSide, DockingTarget>
+        private Dictionary<DockSide, DockingTarget> CreateDockSideTargets() => new()
         {
             [DockSide.Left] = new DockingTarget
             {
@@ -237,6 +239,25 @@ namespace ModHearth.UI
             );
 
             InitializeDockingButtons();
+        }
+
+        private void OnWorkshopDownloadsChanged(object? sender, EventArgs e)
+        {
+            if (sender is not WorkshopDownloadProgressTracker tracker)
+                return;
+
+            if (Dispatcher.UIThread.CheckAccess())
+                ApplyWorkshopDownloadProgress(tracker);
+            else
+                Dispatcher.UIThread.Post(() => ApplyWorkshopDownloadProgress(tracker));
+        }
+
+        private void ApplyWorkshopDownloadProgress(WorkshopDownloadProgressTracker tracker)
+        {
+            WorkshopActiveDownloadCount = tracker.ActiveDownloadCount;
+            WorkshopDownloadProgress = tracker.OverallProgress;
+            WorkshopDownloadStatusText = tracker.StatusText;
+            IsWorkshopDownloadActive = tracker.ActiveDownloadCount > 0;
         }
 
         private async Task OpenWorkshopDownloaderAsync()

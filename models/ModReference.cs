@@ -41,12 +41,12 @@ namespace ModHearth.Models
         public string Path { get; set; }
 
         // Is this modref missing a version (one mod did this, dfhack set version to 1 so this matches it).
-        public bool MissingVersion { get; set; } = false;
+        public bool MissingVersion { get; set; }
 
         // Does this mod have mods it needs loaded before it, mods it needs loaded after it, or conflicts.
-        public bool Problematic { get; set; } = false;
+        public bool Problematic { get; set; }
         public DateTime? LastModifiedTime { get; set; }
-        public bool IsIgnored { get; set; } = false;
+        public bool IsIgnored { get; set; }
 
         public ModSource Source { get; set; } = ModSource.Local;
 

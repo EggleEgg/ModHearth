@@ -19,7 +19,7 @@
         <TextBlock
           Text="Paste workshop mods or collection URLs (one per line):"
           FontSize="12"
-          Margin="0,0,0,2"
+          Margin="0,7,0,2"
           VerticalAlignment="Bottom"/>
         <Button
           x:Name="BtnClearText"
@@ -30,6 +30,8 @@
           Margin="2,0,0,0"
           Width="25"
           Height="25"
+          BorderBrush="{DynamicResource ButtonBorderBrush}"
+          BorderThickness="1"
           ToolTip.Tip="Clear text">
           <Image Source="{render:AssetImage broomMenuIcon}" Stretch="Uniform"/>
         </Button>
@@ -224,25 +226,7 @@
                         CornerRadius="4"
                         Background="{DynamicResource PanelDarkBrush}"
                         ShowProgressText="True"
-                        Foreground="{DynamicResource ModRefHighlightDarkBrush}">
-                        <ProgressBar.Template>
-                          <ControlTemplate TargetType="ProgressBar">
-                            <Border
-                              Name="PART_Track"
-                              Background="{TemplateBinding Background}"
-                              BorderBrush="{TemplateBinding BorderBrush}"
-                              BorderThickness="{TemplateBinding BorderThickness}"
-                              CornerRadius="4"
-                              ClipToBounds="True">
-                              <Border Margin="1" CornerRadius="3" ClipToBounds="True">
-                                <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left">
-                                  <ui:ModBackground UnderlayBrush="{DynamicResource ModRefHighlightBrush}" IsHitTestVisible="False"/>
-                                </Border>
-                              </Border>
-                            </Border>
-                          </ControlTemplate>
-                        </ProgressBar.Template>
-                      </ProgressBar>
+                        Foreground="{DynamicResource ModRefHighlightDarkBrush}" />
                     </Grid>
                     <TextBlock
                       Text="{Binding StatusText}"

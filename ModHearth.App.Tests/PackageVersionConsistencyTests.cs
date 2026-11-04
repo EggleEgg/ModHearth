@@ -10,15 +10,13 @@ namespace ModHearth.App.Tests
     /// </summary>
     public partial class PackageVersionConsistencyTests
     {
-        private static readonly Regex PackageReferenceRegex = MyRegex();
-
         [Fact]
         public void SkiaSharpNativeAssetPackagesMatchManagedSkiaSharpVersion()
         {
             string csprojPath = FindMainCsprojPath();
             string content = File.ReadAllText(csprojPath);
 
-            Dictionary<string, string> skiaPackages = PackageReferenceRegex
+            Dictionary<string, string> skiaPackages = SkiaPackageVersionRegex()
                 .Matches(content)
                 .Select(m => (Id: m.Groups["id"].Value, Version: m.Groups["version"].Value))
                 .Where(p => p.Id.Equals("SkiaSharp", StringComparison.OrdinalIgnoreCase) ||
@@ -58,6 +56,6 @@ namespace ModHearth.App.Tests
         }
 
         [GeneratedRegex(@"<PackageReference\s+Include=""(?<id>[^""]+)""\s+Version=""(?<version>[^""]+)""", RegexOptions.Compiled)]
-        private static partial Regex MyRegex();
+        private static partial Regex SkiaPackageVersionRegex();
     }
 }

@@ -565,7 +565,9 @@ namespace ModHearth.UI
         {
             if (BtnClearText != null)
             {
-                BtnClearText.IsEnabled = !string.IsNullOrEmpty(WorkshopUrlTextBox?.Text);
+                bool hasText = !string.IsNullOrEmpty(WorkshopUrlTextBox?.Text);
+                BtnClearText.IsEnabled = hasText;
+                BtnClearText.IsVisible = hasText;
             }
         }
     }

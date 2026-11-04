@@ -26,7 +26,7 @@ namespace ModHearth.UI.Dialogs
             _ = Task.Run(async () =>
             {
                 dialog.Cts = new CancellationTokenSource();
-                IProgress<string> progress = dialog.CreateProgressReporter(dialog.StatusTextBlock);
+                IProgress<string> progress = CreateProgressReporter(dialog.StatusTextBlock);
                 try
                 {
                     bool success = await downloadAction(progress, dialog.Cts.Token);

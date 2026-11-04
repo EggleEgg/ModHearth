@@ -8,8 +8,8 @@ namespace ModHearth.Utilities
     /// </summary> <summary>
     public class DFMonitor
     {
-        private int? _trackedPid = null;
-        private DateTime? _processStartTime = null;
+        private int? _trackedPid;
+        private DateTime? _processStartTime;
         private readonly TimeSpan _rpcStartupTimeout = TimeSpan.FromSeconds(30);
         private readonly object _lock = new();
 

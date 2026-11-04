@@ -6,7 +6,7 @@ namespace ModHearth.UI.Dialogs
 {
     public partial class SteamCmdSetupDialog : ProgressDialogBase
     {
-        private readonly ISteamCmdService _steamCmdService = new SteamCmdService();
+        private readonly SteamCmdService _steamCmdService = new();
 
         public SteamCmdSetupDialog()
         {

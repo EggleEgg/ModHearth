@@ -28,7 +28,7 @@ namespace ModHearth.Utilities.ModRaws
             DefinedObjects = BuildDefinedObjects(Objects);
         }
 
-        private static IReadOnlyDictionary<string, HashSet<string>> BuildDefinedObjects(IEnumerable<RawObject> objects)
+        private static Dictionary<string, HashSet<string>> BuildDefinedObjects(IEnumerable<RawObject> objects)
         {
             Dictionary<string, HashSet<string>> result = new(StringComparer.OrdinalIgnoreCase);
 

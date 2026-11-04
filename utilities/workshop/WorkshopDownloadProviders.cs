@@ -8,7 +8,7 @@ namespace ModHearth.Utilities.Workshop
     public class SteamWorkerDownloadProvider : IWorkshopDownloadProvider
     {
         public string Name => "Steam Client (via SteamAPI)";
-        public bool IsAvailable => new SteamWorkshopService().IsAvailable;
+        public bool IsAvailable => SteamWorkshopService.IsAvailable;
 
         public async Task<bool> DownloadAsync(
             ulong workshopId,
@@ -42,9 +42,7 @@ namespace ModHearth.Utilities.Workshop
 
     public partial class SteamCmdDownloadProvider : IWorkshopDownloadProvider
     {
-        private static readonly Regex ProgressRegex = MyRegex();
-        private static readonly Regex DownloadingItemRegex = MyRegex1();
-        private readonly ISteamCmdService _steamCmdService = new SteamCmdService();
+        private readonly SteamCmdService _steamCmdService = new();
 
         public const string SteamApps = "steamapps";
         private const string Workshop = "workshop";
@@ -74,7 +72,7 @@ namespace ModHearth.Utilities.Workshop
                 if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
                     return;
 
-                Match match = ProgressRegex.Match(line);
+                Match match = ProgressRegex().Match(line);
                 if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
                 {
                     progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
@@ -173,7 +171,7 @@ namespace ModHearth.Utilities.Workshop
             {
                 if (line.Contains("Downloading item", StringComparison.OrdinalIgnoreCase))
                 {
-                    Match matchId = DownloadingItemRegex.Match(line);
+                    Match matchId = DownloadingItemRegex().Match(line);
                     if (matchId.Success && ulong.TryParse(matchId.Groups[1].Value, out ulong id))
                         currentlyDownloadingId = id;
                 }
@@ -181,7 +179,7 @@ namespace ModHearth.Utilities.Workshop
                 if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
                     return;
 
-                Match match = ProgressRegex.Match(line);
+                Match match = ProgressRegex().Match(line);
                 if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
                 {
                     DownloadProgress prog = new((long)(pct * 1000), 100000, pct);
@@ -368,8 +366,8 @@ namespace ModHearth.Utilities.Workshop
         }
 
         [GeneratedRegex(@"progress:\s+([0-9.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex();
+        private static partial Regex ProgressRegex();
         [GeneratedRegex(@"Downloading item (\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex1();
+        private static partial Regex DownloadingItemRegex();
     }
 }

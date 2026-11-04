@@ -3,6 +3,7 @@
   xmlns:modinfodockcontrol="using:ModHearth.UI.Controls.ModInfoDockControl"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:ui="clr-namespace:ModHearth.UI"
+  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
   xmlns:viewmodels="using:ModHearth.UI.ViewModels"
   x:Class="ModHearth.UI.App">
 
@@ -70,6 +71,30 @@
     <Style Selector="FlyoutPresenter.compact-flyout">
       <Setter Property="Padding" Value="2"/>
       <Setter Property="MinWidth" Value="0"/>
+    </Style>
+
+    <Style Selector="ProgressBar">
+      <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBrushDark}" />
+      <Setter Property="BorderThickness" Value="0.5" />
+      <Setter Property="Foreground" Value="{DynamicResource ModRefHighlightBrush}" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="ProgressBar">
+          <Border
+            Name="PART_Track"
+            Background="{TemplateBinding Background}"
+            BorderBrush="{TemplateBinding BorderBrush}"
+            BorderThickness="{TemplateBinding BorderThickness}"
+            CornerRadius="4"
+            ClipToBounds="True">
+            <Border Margin="1" CornerRadius="3" ClipToBounds="True">
+              <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left">
+                <render:ModBackground UnderlayBrush="{DynamicResource ModRefHighlightBrush}" IsHitTestVisible="False"/>
+              </Border>
+            </Border>
+          </Border>
+        </ControlTemplate>
+      </Setter>
     </Style>
 
   </Application.Styles>

@@ -191,13 +191,44 @@
               Margin="0,5,2,0"
               MinHeight="18"
               RowSpacing="7">
-              <Border
+              <Grid
                 Grid.Row="0"
                 Grid.ColumnSpan="2"
-                Height="2"
-                Background="{DynamicResource PanelBrush}"
-                HorizontalAlignment="Stretch"
-                Margin="2,2,0,0" />
+                RowDefinitions="Auto,Auto">
+                <Grid
+                  Grid.Row="0"
+                  ColumnDefinitions="*,Auto"
+                  ColumnSpacing="6"
+                  Margin="0,0,0,2"
+                  ClipToBounds="True"
+                  IsVisible="{Binding IsWorkshopDownloadActive, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}">
+                  <ProgressBar
+                    Grid.Column="0"
+                    Height="6"
+                    Minimum="0"
+                    Maximum="100"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Stretch"
+                    MinWidth="0"
+                    ClipToBounds="True"
+                    Background="{DynamicResource PanelBrush}"
+                    Foreground="{DynamicResource ModRefHighlightBrush}"
+                    Value="{Binding WorkshopDownloadProgress, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}" />
+                  <TextBlock
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    FontSize="10"
+                    TextTrimming="CharacterEllipsis"
+                    Foreground="{DynamicResource MainTextBrush}"
+                    Text="{Binding WorkshopDownloadStatusText, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}" />
+                </Grid>
+                <Border
+                  Grid.Row="1"
+                  Height="2"
+                  Background="{DynamicResource PanelBrush}"
+                  HorizontalAlignment="Stretch"
+                  Margin="2,2,0,0" />
+              </Grid>
               <StackPanel
                 Grid.Row="1"
                 Orientation="Horizontal"

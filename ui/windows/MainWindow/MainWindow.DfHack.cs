@@ -56,8 +56,8 @@ namespace ModHearth.UI
             }
         }
 
-        private bool dfSteamLaunched = false;
-        private bool dfLaunched = false;
+        private bool dfSteamLaunched;
+        private bool dfLaunched;
 
         private void ApplyDfHackStatusToLabel(bool dfRunning, bool dfFound, bool hasDfhackExecutable, bool isDfHackRpcRunning, bool isDfHackInstalled)
         {

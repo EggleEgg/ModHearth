@@ -26,7 +26,7 @@ namespace ModHearth.Utilities
                     continue;
                 }
 
-                Match headingMatch = MyRegex().Match(trimmed);
+                Match headingMatch = ExtractHeadingRegex().Match(trimmed);
                 if (headingMatch.Success)
                 {
                     string heading = DecodeInlineMarkdown(headingMatch.Groups["title"].Value).Trim();
@@ -44,7 +44,7 @@ namespace ModHearth.Utilities
                     continue;
                 }
 
-                Match numberedMatch = MyRegex1().Match(trimmed);
+                Match numberedMatch = NumberedMatchRegex().Match(trimmed);
                 if (numberedMatch.Success)
                 {
                     _ = builder.Append(numberedMatch.Groups["num"].Value);
@@ -67,15 +67,15 @@ namespace ModHearth.Utilities
             string output = text;
 
             // [label](url) -> label (url)
-            output = MyRegex2().Replace(output, "${label} (${url})");
+            output = LinkMarkdownRegex().Replace(output, "${label} (${url})");
             // `code` -> code
-            output = MyRegex3().Replace(output, "$1");
+            output = CodeMarkdownRegex().Replace(output, "$1");
             // **bold** / __bold__ -> bold
-            output = MyRegex4().Replace(output, "$1");
-            output = MyRegex5().Replace(output, "$1");
+            output = BoldMarkdownRegex().Replace(output, "$1");
+            output = ExtractBoldMarkdownRegex().Replace(output, "$1");
             // *italic* / _italic_ -> italic
-            output = MyRegex6().Replace(output, "$1");
-            output = MyRegex7().Replace(output, "$1");
+            output = ItalicMarkdownRegex().Replace(output, "$1");
+            output = ExtractItalicMarkdownRegex().Replace(output, "$1");
 
             return output;
         }
@@ -122,20 +122,20 @@ namespace ModHearth.Utilities
         }
 
         [GeneratedRegex(@"^(?<level>#{1,6})\s+(?<title>.+)$")]
-        private static partial Regex MyRegex();
+        private static partial Regex ExtractHeadingRegex();
         [GeneratedRegex(@"^(?<num>\d+)\.\s+(?<text>.+)$")]
-        private static partial Regex MyRegex1();
+        private static partial Regex NumberedMatchRegex();
         [GeneratedRegex(@"\[(?<label>[^\]]+)\]\((?<url>[^)]+)\)")]
-        private static partial Regex MyRegex2();
+        private static partial Regex LinkMarkdownRegex();
         [GeneratedRegex(@"`([^`]+)`")]
-        private static partial Regex MyRegex3();
+        private static partial Regex CodeMarkdownRegex();
         [GeneratedRegex(@"\*\*(.+?)\*\*")]
-        private static partial Regex MyRegex4();
+        private static partial Regex BoldMarkdownRegex();
         [GeneratedRegex(@"__(.+?)__")]
-        private static partial Regex MyRegex5();
+        private static partial Regex ExtractBoldMarkdownRegex();
         [GeneratedRegex(@"\*(.+?)\*")]
-        private static partial Regex MyRegex6();
+        private static partial Regex ItalicMarkdownRegex();
         [GeneratedRegex(@"_(.+?)_")]
-        private static partial Regex MyRegex7();
+        private static partial Regex ExtractItalicMarkdownRegex();
     }
 }

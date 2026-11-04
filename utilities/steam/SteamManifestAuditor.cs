@@ -20,7 +20,7 @@ namespace ModHearth.Utilities.Steam
 
         public static void Audit(SteamWorkshopService steamService)
         {
-            if (steamService == null || !steamService.IsAvailable)
+            if (steamService == null || !SteamWorkshopService.IsAvailable)
                 return;
 
             Loggers.Steam.Log("Starting Steam workshop manifest audit...");

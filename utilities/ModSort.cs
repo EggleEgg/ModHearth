@@ -164,7 +164,7 @@ namespace ModHearth
         {
             if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
                 return false;
-            if (!edges.TryGetValue(fromId, out List<string>? destinations) || !indegree.ContainsKey(toId))
+            if (!edges.TryGetValue(fromId, out List<string>? destinations) || !indegree.TryGetValue(toId, out int value))
                 return false;
             if (destinations.Contains(toId, StringComparer.OrdinalIgnoreCase))
                 return false;
@@ -172,7 +172,7 @@ namespace ModHearth
                 return false;
 
             destinations.Add(toId);
-            indegree[toId]++;
+            indegree[toId] = ++value;
             return true;
         }
 
@@ -220,8 +220,8 @@ namespace ModHearth
                 idMap = new Dictionary<string, ModReference>(modrefMap.Count, StringComparer.OrdinalIgnoreCase);
                 foreach (ModReference modref in modrefMap.Values)
                 {
-                    if (!idMap.ContainsKey(modref.ID))
-                        idMap.Add(modref.ID, modref);
+                    _ = idMap.TryAdd(modref.ID, modref);
+
                 }
 
                 enabledModsSnapshot = [.. enabledMods];
@@ -612,7 +612,7 @@ namespace ModHearth
                 }
             }
 
-            if (conflictingKeys.Any())
+            if (conflictingKeys.Count != 0)
             {
                 Console.WriteLine($"[ModSort] Warning: '{string.Join(", ", conflictingKeys.Select(ObjectKey.FormatForDisplay))}' are directly defined by multiple enabled mods with no CUT relationship between them. This is likely to cause silent raw conflicts regardless of load order. Applying a best-effort order.");
                 ShowNotification("Conflicting keys present. Applying a best-effort order", "sortCancelIcon.svg");

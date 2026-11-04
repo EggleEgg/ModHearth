@@ -358,7 +358,7 @@ namespace ModHearth.UI
             }
         }
 
-        private Control CreateSection(ModRelationshipKind kind, string title, string description, IReadOnlyList<string> ids)
+        private Border CreateSection(ModRelationshipKind kind, string title, string description, IReadOnlyList<string> ids)
         {
             StackPanel panel = new() { Spacing = 6 };
             Border border = new()
@@ -455,7 +455,7 @@ namespace ModHearth.UI
             return border;
         }
 
-        private Control CreateRelationshipRow(ModRelationshipKind kind, string id)
+        private Grid CreateRelationshipRow(ModRelationshipKind kind, string id)
         {
             Grid row = new()
             {
@@ -503,7 +503,7 @@ namespace ModHearth.UI
             return row;
         }
 
-        private Control CreateKnownModRow(ModRefViewModel vm)
+        private Grid CreateKnownModRow(ModRefViewModel vm)
         {
             ModRefViewModel displayVm = new(vm.ModReference)
             {
@@ -537,7 +537,7 @@ namespace ModHearth.UI
             return grid;
         }
 
-        private static Control CreateMissingModRow(string id)
+        private static StackPanel CreateMissingModRow(string id)
         {
             StackPanel panel = new() { Spacing = 1 };
             panel.Children.Add(new TextBlock
@@ -644,7 +644,13 @@ namespace ModHearth.UI
         private void SetSummary(int beforeCount, int afterCount, int requiredCount, int incompatibleCount) => summaryText.Text = $"Before: {beforeCount}   After: {afterCount}   Required: {requiredCount}   Incompatible: {incompatibleCount}";
 
         private static string BuildCountedButtonLabel(string verb, string singularNoun, int count, string zeroLabel)
-            => count <= 0 ? zeroLabel : $"{verb} {count} {singularNoun}{(count == 1 ? string.Empty : "s")}";
+        {
+            if (count <= 0)
+                return zeroLabel;
+
+            string pluralSuffix = count == 1 ? string.Empty : "s";
+            return $"{verb} {count} {singularNoun}{pluralSuffix}";
+        }
 
         private int CountAllRelationships()
         {
@@ -838,7 +844,7 @@ namespace ModHearth.UI
             return tb;
         }
 
-        private static Control BuildIssueControl(params object[] parts)
+        private static WrapPanel BuildIssueControl(params object[] parts)
         {
             WrapPanel panel = new() { Orientation = Orientation.Horizontal };
             foreach (object part in parts)

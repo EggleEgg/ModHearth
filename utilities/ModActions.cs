@@ -3,6 +3,7 @@ using ModHearth.Models;
 using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
 using ModHearth.Utilities.Steam;
+using ModHearth.Utilities.Workshop;
 
 namespace ModHearth
 {
@@ -28,7 +29,7 @@ namespace ModHearth
                     return;
 
                 SteamWorkshopService steam = new();
-                if (!steam.IsAvailable)
+                if (!SteamWorkshopService.IsAvailable)
                     return;
 
                 SteamManifestAuditor.Audit(steam);
@@ -105,8 +106,7 @@ namespace ModHearth
                 if (!TryEnsureSteamSession(failures))
                     return failures;
 
-                SteamWorkshopService steam = new();
-                if (!steam.IsAvailable)
+                if (!SteamWorkshopService.IsAvailable)
                 {
                     failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
                     return failures;
@@ -220,8 +220,7 @@ namespace ModHearth
             if (!TryEnsureSteamSession(failures))
                 return failures;
 
-            SteamWorkshopService steam = new();
-            if (!steam.IsAvailable)
+            if (!SteamWorkshopService.IsAvailable)
             {
                 failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
                 return failures;
@@ -267,12 +266,8 @@ namespace ModHearth
 
                 Thread.Sleep(SteamResubscribeSubscribeWait);
 
-                // Download all in parallel
-                _ = SteamWorkshopService.DownloadMany(workshopIds);
-                foreach (string steamItemId in steamItemIds)
-                {
-                    Loggers.Steam.Log($"Requested Steam download/validation for workshop item {steamItemId}.");
-                }
+                // Download all in parallel, reporting real progress to the shared main-window indicator.
+                _ = DownloadSteamItemsWithProgress(workshopIds, failures);
             }
 
             Loggers.Steam.Log($"Steam resubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
@@ -296,6 +291,52 @@ namespace ModHearth
             return failures;
         }
 
+        /// <summary>
+        /// Downloads the given workshop items through the Steam client, reporting per-item progress to
+        /// <see cref="WorkshopDownloads"/> so the main window can show it.
+        /// </summary>
+        private int DownloadSteamItemsWithProgress(IReadOnlyList<ulong> workshopIds, List<string> failures)
+        {
+            ConcurrentBag<string> failureBag = [];
+            int successCount = 0;
+
+            CancellationToken token = deferredModManagerReloadCts?.Token ?? CancellationToken.None;
+
+            using WorkshopDownloadSession session = WorkshopDownloads.BeginSession();
+
+            _ = Parallel.ForEach(workshopIds, new ParallelOptions
+            {
+                MaxDegreeOfParallelism = 3,
+                CancellationToken = token
+            }, workshopId =>
+            {
+                long entryId = session.Track();
+
+                void ReportProgress(ulong bytesDownloaded, ulong bytesTotal)
+                {
+                    if (bytesTotal == 0)
+                        return;
+
+                    session.Report(entryId, (double)bytesDownloaded / bytesTotal * 100);
+                }
+
+                if (SteamWorkshopService.Download(workshopId, onProgress: ReportProgress, cancellationToken: token))
+                {
+                    session.Complete(entryId);
+                    _ = Interlocked.Increment(ref successCount);
+                }
+                else
+                {
+                    session.Drop(entryId);
+                    failureBag.Add($"Failed to download workshop item {workshopId}.");
+                }
+            });
+
+            failures.AddRange(failureBag);
+            Loggers.Steam.Log($"Steam download finished for {successCount}/{workshopIds.Count} workshop item(s).");
+            return successCount;
+        }
+
         private static Dictionary<string, ModReference> ResolveUniqueSteamWorkshopItemIds(
             IEnumerable<ModReference>? mods,
             List<string> failures)
@@ -311,10 +352,7 @@ namespace ModHearth
 
                 if (TryGetSteamWorkshopItemId(modref, out string steamItemId))
                 {
-                    if (!steamModRefs.ContainsKey(steamItemId))
-                    {
-                        steamModRefs.Add(steamItemId, modref);
-                    }
+                    _ = steamModRefs.TryAdd(steamItemId, modref);
                 }
                 else
                 {

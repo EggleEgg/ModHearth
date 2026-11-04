@@ -20,7 +20,7 @@ namespace ModHearth.UI.Dialogs
             CanResize = false;
         }
 
-        protected IProgress<string> CreateProgressReporter(TextBlock statusTextBlock) => new Progress<string>(msg =>
+        protected static IProgress<string> CreateProgressReporter(TextBlock statusTextBlock) => new Progress<string>(msg =>
             {
                 Dispatcher.UIThread.Post(() => statusTextBlock.Text = msg);
             });

@@ -172,7 +172,7 @@ namespace ModHearth.UI.Docking
 
         private double GetParentMinPrimary(DockSide side) => IsHorizontal(side) ? _parentWindow.MinWidth : _parentWindow.MinHeight;
 
-        private double GetAvailablePrimary(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale) => side switch
+        private static double GetAvailablePrimary(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale) => side switch
         {
             DockSide.Right or DockSide.Left =>
                 (workingArea.X + workingArea.Width - parentScreenPos.X) / scale,
@@ -207,7 +207,7 @@ namespace ModHearth.UI.Docking
 
                 double parentMinPrimary = GetParentMinPrimary(side);
                 double requiredPrimary = parentMinPrimary + _minSize + _splitterSize;
-                double availablePrimary = GetAvailablePrimary(side, workingArea, parentScreenPos, scale);
+                double availablePrimary = DockingManager<TControl, TWindow>.GetAvailablePrimary(side, workingArea, parentScreenPos, scale);
 
                 if (requiredPrimary > availablePrimary)
                     return false;
@@ -238,7 +238,7 @@ namespace ModHearth.UI.Docking
                 return true;
             }
 
-            double availablePrimary = GetAvailablePrimary(side, workingArea, parentScreenPos, scale);
+            double availablePrimary = DockingManager<TControl, TWindow>.GetAvailablePrimary(side, workingArea, parentScreenPos, scale);
 
             newParentPrimary = currentPrimary + childSize + _splitterSize;
 

@@ -8,6 +8,7 @@ using ModHearth.Models;
 using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
 using ModHearth.Utilities.ModRaws;
+using ModHearth.Utilities.Workshop;
 using static ModHearth.ConfigManager;
 
 namespace ModHearth
@@ -54,6 +55,9 @@ namespace ModHearth
     {
         public event Action? RequestUIReload;
         public event Action<string, string>? RequestNotification;
+
+        /// <summary>Aggregate progress for every workshop download path surfaced in the main window.</summary>
+        public WorkshopDownloadProgressTracker WorkshopDownloads { get; } = new();
 
         public void TriggerUIReload() => RequestUIReload?.Invoke();
 
@@ -138,8 +142,6 @@ namespace ModHearth
         private static readonly string modSortRulesPath = Path.Combine(baseDir, "modsort_rules.json");
         private static readonly string modRelationshipRulesPath = Path.Combine(baseDir, "modrules.json");
         private static readonly string localFallbackModpacksPath = Path.Combine(baseDir, "metadata", "modpacks.local.json");
-        private static readonly Regex DuplicateWarningRegex = MyRegex();
-        private static readonly Regex DuplicateWarningCountRegex = MyRegex1();
 
         // Mod problem tracker.
         public volatile List<ModProblem> modproblems = [];
@@ -741,8 +743,6 @@ namespace ModHearth
             return new HashSet<string>(ids.Keys, StringComparer.OrdinalIgnoreCase);
         }
 
-        private static readonly Regex InfoIdRegex = MyRegex2();
-
         /// <summary>
         /// Reads the trimmed "[ID:...]" value from a mod's info.txt. Returns null when the file is
         /// missing, unreadable, has no id tag, or the tag is blank.
@@ -754,7 +754,7 @@ namespace ModHearth
 
             try
             {
-                Match idMatch = InfoIdRegex.Match(File.ReadAllText(infoPath));
+                Match idMatch = InfoIdRegex().Match(File.ReadAllText(infoPath));
                 if (!idMatch.Success)
                     return null;
 
@@ -965,11 +965,11 @@ namespace ModHearth
             HashSet<DfhMod> newModPool)
         {
             string key = modRef.DFHackCompatibleString();
-            if (newModrefMap.ContainsKey(key))
+            if (newModrefMap.TryGetValue(key, out ModReference? value))
             {
                 if (!newDuplicateModRefs.TryGetValue(key, out List<ModReference>? list))
                 {
-                    list = [newModrefMap[key]];
+                    list = [value];
                     newDuplicateModRefs[key] = list;
                 }
                 list.Add(modRef);
@@ -1253,7 +1253,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(value))
                 return null;
 
-            Match match = MyRegex3().Match(value);
+            Match match = NumericVersionRegex().Match(value);
             return match.Success ? match.Value : null;
         }
 
@@ -1353,7 +1353,7 @@ namespace ModHearth
 
         // Output a dictionary, that given a modID gets the true version.
         // Because this relies on the DFHack codebase there is a non 0 chance of becoming incompatible with future versions of DFHack.
-        private HashSet<Dictionary<string, string>> GetModMemoryData()
+        private static HashSet<Dictionary<string, string>> GetModMemoryData()
         {
             HashSet<Dictionary<string, string>> modData = [];
 
@@ -1390,7 +1390,7 @@ namespace ModHearth
         }
 
         // Use dfhack-run and lua to get raw mod data.
-        private string LoadModMemoryData()
+        private static string LoadModMemoryData()
         {
             // Get path to lua script.
             string luaPath = Path.Combine(AppContext.BaseDirectory, "lua", "GetModMemoryData.lua");
@@ -1779,7 +1779,7 @@ namespace ModHearth
                    output.Contains("[ModHearth] Applying default modlist to Mods screen.", StringComparison.OrdinalIgnoreCase);
         }
 
-        private bool ReloadDFHackModManagerScreen()
+        private static bool ReloadDFHackModManagerScreen()
         {
             if (!DwarfFortressRunning())
                 return false;
@@ -2307,7 +2307,7 @@ namespace ModHearth
 
             foreach (string line in File.ReadLines(errorLogPath))
             {
-                Match match = DuplicateWarningRegex.Match(line);
+                Match match = DuplicateWarningRegex().Match(line);
                 if (!match.Success)
                     continue;
 
@@ -2319,7 +2319,7 @@ namespace ModHearth
                 HashSet<string> groupIds = new(StringComparer.OrdinalIgnoreCase);
                 foreach (string entry in offenders.Split(','))
                 {
-                    string token = DuplicateWarningCountRegex.Replace(entry, string.Empty).Trim();
+                    string token = DuplicateWarningCountRegex().Replace(entry, string.Empty).Trim();
                     if (string.IsNullOrWhiteSpace(token))
                         continue;
 
@@ -2643,13 +2643,13 @@ namespace ModHearth
         public readonly record struct ConfigIssue(ConfigIssueType IssueType, string Message);
 
         [GeneratedRegex("^Duplicate Object:\\s*(?<object>.+?);\\s*Offending mods are\\s*(?<mods>.+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex();
+        private static partial Regex DuplicateWarningRegex();
         [GeneratedRegex("\\s*\\(x\\d+\\)\\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex1();
+        private static partial Regex DuplicateWarningCountRegex();
         [GeneratedRegex(@"\[ID:([^\]]+)\]", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex2();
+        private static partial Regex InfoIdRegex();
         [GeneratedRegex(@"\d+(?:\.\d+)*")]
-        private static partial Regex MyRegex3();
+        private static partial Regex NumericVersionRegex();
 
         #endregion
     }

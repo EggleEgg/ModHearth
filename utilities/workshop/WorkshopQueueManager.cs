@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia.Threading;
 using ModHearth.Models;
@@ -132,7 +134,7 @@ namespace ModHearth.Utilities.Workshop
             }
         }
 
-        public int AutoRetryCount { get; set; } = 0;
+        public int AutoRetryCount { get; set; }
 
         public CancellationTokenSource? Cts { get; set; }
 
@@ -146,11 +148,17 @@ namespace ModHearth.Utilities.Workshop
 
         private readonly SemaphoreSlim _concurrencySemaphore = new(3, 3);
         private readonly object _steamCmdBatchLock = new();
-        private readonly SteamWebApiClient _apiClient = new();
 
         // Timer for debouncing UI reloads
 
         private DispatcherTimer? _reloadTimer;
+
+        // Aggregate progress for the main-window indicator. Each logical run gets its own tracker
+        // session so stale Completed items from a previous run never leak into the next one.
+        private WorkshopDownloadSession? _progressSession;
+        private readonly Dictionary<WorkshopDownloadItem, long> _progressEntries = [];
+        private int _aggregateRefreshQueued;
+        private volatile bool _aggregateUnsubscribed;
 
         private void TriggerDebouncedUIReload() =>
             // Marshal timer reset to the UI Thread
@@ -179,6 +187,8 @@ namespace ModHearth.Utilities.Workshop
         public WorkshopQueueManager(ModHearthManager manager)
         {
             Manager = manager;
+
+            Queue.CollectionChanged += OnQueueCollectionChanged;
 
             // Initialize providers
             Providers.Add(new SteamCmdDownloadProvider());
@@ -275,7 +285,7 @@ namespace ModHearth.Utilities.Workshop
             }
 
             Loggers.Workshop.Log($"WorkshopQueueManager: Fetching metadata for {ids.Count} IDs...");
-            List<WorkshopItemMetadata> metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
+            List<WorkshopItemMetadata> metadataList = await SteamWebApiClient.GetPublishedFileDetailsAsync(ids);
 
             if (metadataList.Count == 0)
             {
@@ -293,7 +303,7 @@ namespace ModHearth.Utilities.Workshop
                     meta.IsCollection = true;
                     meta.ChildrenIds = children;
 
-                    List<WorkshopItemMetadata> childrenMeta = await _apiClient.GetPublishedFileDetailsAsync(children);
+                    List<WorkshopItemMetadata> childrenMeta = await SteamWebApiClient.GetPublishedFileDetailsAsync(children);
                     if (onCollectionFound != null)
                         await onCollectionFound(childrenMeta);
                 }
@@ -312,7 +322,7 @@ namespace ModHearth.Utilities.Workshop
                 return;
 
             Loggers.Workshop.Log($"WorkshopQueueManager: Redownloading {ids.Count} workshop items...");
-            List<WorkshopItemMetadata> metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
+            List<WorkshopItemMetadata> metadataList = await SteamWebApiClient.GetPublishedFileDetailsAsync(ids);
             if (metadataList.Count == 0)
             {
                 Loggers.Workshop.Log("WorkshopQueueManager: Steam API returned no metadata for redownload IDs.");
@@ -484,6 +494,156 @@ namespace ModHearth.Utilities.Workshop
             {
                 _ = Queue.Remove(item);
             }
+        }
+
+        private static bool IsActiveState(DownloadState state) =>
+            state is DownloadState.Waiting or DownloadState.Resolving or DownloadState.Downloading;
+
+        private void OnQueueCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems != null)
+            {
+                foreach (WorkshopDownloadItem item in e.OldItems.OfType<WorkshopDownloadItem>())
+                    item.PropertyChanged -= OnQueuedItemPropertyChanged;
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (WorkshopDownloadItem item in e.NewItems.OfType<WorkshopDownloadItem>())
+                    item.PropertyChanged += OnQueuedItemPropertyChanged;
+            }
+
+            RequestAggregateRefresh();
+        }
+
+        private void OnQueuedItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is not (nameof(WorkshopDownloadItem.State) or nameof(WorkshopDownloadItem.ProgressPercentage)))
+                return;
+
+            RequestAggregateRefresh();
+        }
+
+        /// <summary>Coalesces bursts of per-item updates into a single UI-thread refresh.</summary>
+        private void RequestAggregateRefresh()
+        {
+            if (_aggregateUnsubscribed)
+                return;
+
+            if (Interlocked.Exchange(ref _aggregateRefreshQueued, 1) != 0)
+                return;
+
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                _aggregateRefreshQueued = 0;
+                RefreshAggregateProgress();
+                return;
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                _aggregateRefreshQueued = 0;
+                RefreshAggregateProgress();
+            });
+        }
+
+        private void RefreshAggregateProgress()
+        {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(RefreshAggregateProgress);
+                return;
+            }
+
+            if (_aggregateUnsubscribed)
+                return;
+
+            // Items leave Queue when the user clears completed downloads or removes an entry; drop them
+            // so the run total stops counting something that is no longer tracked.
+            if (_progressEntries.Count > 0)
+            {
+                List<WorkshopDownloadItem> removed = [.. _progressEntries.Keys.Where(item => !Queue.Contains(item))];
+                foreach (WorkshopDownloadItem item in removed)
+                {
+                    _progressSession?.Drop(_progressEntries[item]);
+                    _ = _progressEntries.Remove(item);
+                }
+            }
+
+            WorkshopDownloadProgressTracker? tracker = ProgressTracker;
+            if (tracker == null)
+            {
+                EndProgressSession();
+                return;
+            }
+
+            bool anyActive = false;
+            foreach (WorkshopDownloadItem item in Queue)
+            {
+                bool tracked = _progressEntries.TryGetValue(item, out long entryId);
+
+                if (IsActiveState(item.State))
+                {
+                    anyActive = true;
+                    if (!tracked)
+                    {
+                        _progressSession ??= tracker.BeginSession();
+                        entryId = _progressSession.Track(item.ProgressPercentage);
+                        _progressEntries[item] = entryId;
+                    }
+                    else
+                    {
+                        _progressSession?.Report(entryId, item.ProgressPercentage);
+                    }
+                }
+                else if (tracked)
+                {
+                    // Completed items stay counted (as 100%) until the whole run ends so the bar keeps
+                    // moving forward; failed/cancelled items are dropped since they have no progress.
+                    if (item.State == DownloadState.Completed)
+                    {
+                        _progressSession?.Complete(entryId);
+                    }
+                    else
+                    {
+                        _progressSession?.Drop(entryId);
+                        _ = _progressEntries.Remove(item);
+                    }
+                }
+            }
+
+            if (!anyActive)
+                EndProgressSession();
+        }
+
+        private WorkshopDownloadProgressTracker? ProgressTracker => Manager?.WorkshopDownloads;
+
+        private void EndProgressSession()
+        {
+            _progressSession?.Dispose();
+            _progressSession = null;
+            _progressEntries.Clear();
+        }
+
+        private void DetachAggregateTracking()
+        {
+            _aggregateUnsubscribed = true;
+
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(DetachAggregateTrackingCore);
+                return;
+            }
+
+            DetachAggregateTrackingCore();
+        }
+
+        private void DetachAggregateTrackingCore()
+        {
+            Queue.CollectionChanged -= OnQueueCollectionChanged;
+            foreach (WorkshopDownloadItem item in Queue)
+                item.PropertyChanged -= OnQueuedItemPropertyChanged;
+            EndProgressSession();
         }
 
         private async Task ProcessQueueItemAsync(WorkshopDownloadItem item)
@@ -746,6 +906,12 @@ namespace ModHearth.Utilities.Workshop
                 catch (Exception ex)
                 {
                     AppLogging.LogException("Failed to iterate workshop queue items during disposal", ex);
+                }
+
+                try { DetachAggregateTracking(); }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("Failed to detach workshop aggregate progress tracking", ex);
                 }
 
                 try { _concurrencySemaphore?.Dispose(); } catch (Exception ex) { AppLogging.LogException("Failed to dispose concurrency semaphore", ex); }

@@ -43,25 +43,9 @@ namespace ModHearth.UI
 
         private bool IsPreviewCached(IImage image) => previewCache.Any(entry => ReferenceEquals(entry.Image, image));
 
-        /// <summary>
-        /// Disposes a cache-owned preview unless it is still displayed or shared as a fallback.
-        /// </summary>
-        private void DisposeCachedPreview(IImage image, string failureMessage)
-        {
-            if (ReferenceEquals(image, currentPreview) ||
-                fallbackPreviewCache.ContainsValue(image, previewReferenceComparer) ||
-                image is not IDisposable disposable)
-            {
-                return;
-            }
-
-            try { disposable.Dispose(); }
-            catch (Exception ex) { AppLogging.LogException(failureMessage, ex); }
-        }
-
         public void ClearPreviewCache()
         {
-            previewCache.Clear(); // the removal callback disposes whatever isn't still displayed or shared
+            previewCache.Clear();
             ImageSourceLoader.ClearCache();
         }
 
@@ -89,7 +73,7 @@ namespace ModHearth.UI
 
             if (!string.IsNullOrWhiteSpace(sanitizedBBCode))
             {
-                sanitizedBBCode = MyRegex().Replace(sanitizedBBCode, "");
+                sanitizedBBCode = SanitizeBBCodeRegex().Replace(sanitizedBBCode, "");
             }
 
             modDescriptionPanelViewModel.DescriptionHtml = BBCodeRenderer.ToHtml(
@@ -196,7 +180,7 @@ namespace ModHearth.UI
         }
 
         [GeneratedRegex(@"\[[a-zA-Z0-9_]+(?![^\]]*\])$", RegexOptions.RightToLeft)]
-        private static partial Regex MyRegex();
+        private static partial Regex SanitizeBBCodeRegex();
 
     }
 }

@@ -12,6 +12,12 @@ namespace ModHearth.UI
 
             OkButton.Click += (_, _) => Close(InputBox.Text);
             CancelButton.Click += (_, _) => Close(null);
+
+            Opened += (_, _) =>
+            {
+                InputBox.Focus();
+                InputBox.SelectAll();
+            };
         }
 
         public static async Task<string?> ShowAsync(Window owner, string prompt, string title, string defaultValue)
@@ -23,7 +29,8 @@ namespace ModHearth.UI
             };
             dialog.PromptText.Text = prompt;
             dialog.InputBox.Text = defaultValue ?? string.Empty;
-            dialog.InputBox.SelectionStart = dialog.InputBox.Text?.Length ?? 0;
+            dialog.InputBox.Focus();
+            dialog.InputBox.SelectAll();
 
             return await dialog.ShowDialog<string?>(owner);
         }

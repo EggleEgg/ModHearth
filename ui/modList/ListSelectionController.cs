@@ -347,7 +347,7 @@ namespace ModHearth.UI.ModList
         }
 
         private bool TryOpenContextMenu(ListBox list, PointerPressedEventArgs e, PointerPoint point)
-            => TryOpenContextMenu(
+            => ListSelectionController<T>.TryOpenContextMenu(
                 list,
                 list.SelectedItems,
                 point,
@@ -356,7 +356,7 @@ namespace ModHearth.UI.ModList
                 () => UpdateSelectionState(list));
 
         private bool TryOpenContextMenu(DataGrid grid, PointerPressedEventArgs e, PointerPoint point)
-            => TryOpenContextMenu(
+            => ListSelectionController<T>.TryOpenContextMenu(
                 grid,
                 grid.SelectedItems,
                 point,
@@ -364,7 +364,7 @@ namespace ModHearth.UI.ModList
                 GetItemAtPoint<DataGridRow>(grid, point.Position),
                 () => UpdateSelectionState(grid));
 
-        private bool TryOpenContextMenu(
+        private static bool TryOpenContextMenu(
             IInputElement root,
             IList? selectedItems,
             PointerPoint point,

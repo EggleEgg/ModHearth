@@ -223,7 +223,7 @@ namespace ModHearth.Utilities.Steam
             return await ExecuteCommandInternalAsync(exe, arguments, progress, cancellationToken);
         }
 
-        private async Task<int> ExecuteCommandInternalAsync(string exe, string arguments, IProgress<string>? progress, CancellationToken cancellationToken)
+        private static async Task<int> ExecuteCommandInternalAsync(string exe, string arguments, IProgress<string>? progress, CancellationToken cancellationToken)
         {
             ProcessStartInfo startInfo = new()
             {

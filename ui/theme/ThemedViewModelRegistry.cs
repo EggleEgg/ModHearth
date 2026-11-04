@@ -9,7 +9,7 @@ namespace ModHearth.UI.Theme
     {
         private static readonly List<WeakReference<IThemedViewModel>> instances = [];
         private static readonly object gate = new();
-        private static int registerCounter = 0;
+        private static int registerCounter;
 
         public static void Register(IThemedViewModel vm)
         {

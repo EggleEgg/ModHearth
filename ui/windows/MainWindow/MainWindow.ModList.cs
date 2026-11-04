@@ -189,7 +189,7 @@ namespace ModHearth.UI
         // unfiltered backing order.
         private static int MapFilteredToMasterIndex(
             IList<ModRefViewModel> filtered,
-            IList<ModRefViewModel> master,
+            List<ModRefViewModel> master,
             int filteredIndex)
         {
             if (filteredIndex <= 0)

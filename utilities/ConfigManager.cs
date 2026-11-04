@@ -18,10 +18,6 @@ namespace ModHearth
         // Guards every read/write of config.json so concurrent callers can't interleave and corrupt the file or clobber each other's writes.
         private static readonly object configGate = new();
 
-        private static readonly Regex SteamLibraryPathRegex = MyRegex();
-        private static readonly Regex SteamLibraryLegacyPathRegex = MyRegex1();
-        private static readonly Regex SteamWorkshopPathRegex = MyRegex2();
-        private static readonly Regex SteamShadowCopyFolderNameRegex = MyRegex3();
         public const string DwarfFortressSteamAppId = "975370";
         private const string Message = "Panel data";
         private static List<string>? _cachedSteamLibraryRoots;
@@ -547,7 +543,7 @@ namespace ModHearth
             }
         }
 
-        private static IEnumerable<string> GetWindowsSteamRootCandidates()
+        private static HashSet<string> GetWindowsSteamRootCandidates()
         {
             HashSet<string> candidates = new(StringComparer.OrdinalIgnoreCase);
 
@@ -593,7 +589,7 @@ namespace ModHearth
             return null;
         }
 
-        private static IEnumerable<string> ReadSteamLibraryFolders(string steamRoot)
+        private static HashSet<string> ReadSteamLibraryFolders(string steamRoot)
         {
             HashSet<string> libraries = new(
                 PathHelper.Comparer);
@@ -632,16 +628,16 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(line))
                 return null;
 
-            Match match = SteamLibraryPathRegex.Match(line);
+            Match match = SteamLibraryPathRegex().Match(line);
             if (match.Success)
                 return match.Groups["path"].Value;
 
-            match = SteamLibraryLegacyPathRegex.Match(line);
+            match = SteamLibraryLegacyPathRegex().Match(line);
             if (!match.Success)
                 return null;
 
             string candidate = match.Groups["path"].Value;
-            if (candidate.Contains("\\") || candidate.Contains("/") || candidate.Contains(":"))
+            if (candidate.Contains('\\') || candidate.Contains('/') || candidate.Contains(':'))
                 return candidate;
 
             return null;
@@ -835,7 +831,7 @@ namespace ModHearth
                 return false;
 
             string normalizedPath = path.Replace('\\', '/');
-            Match pathMatch = SteamWorkshopPathRegex.Match(normalizedPath);
+            Match pathMatch = SteamWorkshopPathRegex().Match(normalizedPath);
             if (!pathMatch.Success)
                 return false;
 
@@ -857,7 +853,7 @@ namespace ModHearth
 
             // Try identifying by folder name (canonical shadow copy)
             string? candidateIdFromFolder = null;
-            Match match = SteamShadowCopyFolderNameRegex.Match(folderName);
+            Match match = SteamShadowCopyFolderNameRegex().Match(folderName);
             if (match.Success)
                 candidateIdFromFolder = match.Groups["id"].Value;
 
@@ -1123,7 +1119,7 @@ namespace ModHearth
             }
         }
 
-        private static IEnumerable<string> GetAppDataBasePaths()
+        private static HashSet<string> GetAppDataBasePaths()
         {
             HashSet<string> bases = new(
                 PathHelper.Comparer);
@@ -1306,12 +1302,12 @@ namespace ModHearth
         public static void SetAutoCheckForReleasesOnStartup(bool autoCheck) => Update(c => c.AutoCheckForReleasesOnStartup = autoCheck, "Auto check for releases on startup");
 
         [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex();
+        private static partial Regex SteamLibraryPathRegex();
         [GeneratedRegex("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled)]
-        private static partial Regex MyRegex1();
+        private static partial Regex SteamLibraryLegacyPathRegex();
         [GeneratedRegex("/workshop/content/975370/(?<id>\\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex2();
+        private static partial Regex SteamWorkshopPathRegex();
         [GeneratedRegex(@"^(?<id>\d+)(?:\s*\(\d+\))?$", RegexOptions.Compiled)]
-        private static partial Regex MyRegex3();
+        private static partial Regex SteamShadowCopyFolderNameRegex();
     }
 }

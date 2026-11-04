@@ -12,7 +12,6 @@ namespace ModHearth.Utilities.ModRaws
     internal static partial class ModRawObjectScanner
     {
         // Matches a bracketed raw tag: [TAG_NAME] or [TAG_NAME:arg1:arg2:...]
-        private static readonly Regex TagRegex = MyRegex();
 
         /// <summary>
         /// Parses the objects/ folder under <paramref name="modPath"/> into a
@@ -54,7 +53,7 @@ namespace ModHearth.Utilities.ModRaws
                         string? currentSelectObjectType = null;
                         string? currentSelectId = null;
 
-                        foreach (GroupCollection? groups in TagRegex.Matches(text).Select(match => match.Groups))
+                        foreach (GroupCollection? groups in TagRegex().Matches(text).Select(match => match.Groups))
                         {
                             string tag = groups[1].Value;
                             string arg = groups[2].Success ? groups[2].Value.Trim() : string.Empty;
@@ -146,6 +145,6 @@ namespace ModHearth.Utilities.ModRaws
         }
 
         [GeneratedRegex(@"\[([A-Za-z_][A-Za-z0-9_]*)(?::([^\]]*))?\]", RegexOptions.Compiled)]
-        private static partial Regex MyRegex();
+        private static partial Regex TagRegex();
     }
 }

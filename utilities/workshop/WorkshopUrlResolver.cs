@@ -11,12 +11,6 @@ namespace ModHearth.Utilities.Workshop
         // - steam://url/CommunityFilePage/3445635304
         // - https://steamcommunity.com/sharedfiles/filedetails/changelog/3445635304
 
-        // Rigid regex requiring valid Steam domains, exact path structures, and realistic 64-bit Steam ID digit counts (7-20 digits)
-        private static readonly Regex WorkshopIdRegex = MyRegex();
-
-        // Ensures standalone numeric inputs strictly match valid Steam PublishedFileId length bounds
-        private static readonly Regex PlainIdRegex = MyRegex1();
-
         private static IEnumerable<(ulong Id, string Token)> ExtractEntries(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
@@ -30,7 +24,7 @@ namespace ModHearth.Utilities.Workshop
                 if (string.IsNullOrEmpty(trimmed)) continue;
 
                 // Try plain ID
-                if (PlainIdRegex.IsMatch(trimmed))
+                if (PlainIdRegex().IsMatch(trimmed))
                 {
                     if (ulong.TryParse(trimmed, out ulong id))
                     {
@@ -40,7 +34,7 @@ namespace ModHearth.Utilities.Workshop
                 }
 
                 // Try URL matching
-                Match match = WorkshopIdRegex.Match(trimmed);
+                Match match = WorkshopIdRegex().Match(trimmed);
                 if (match.Success && ulong.TryParse(match.Groups[1].Value, out ulong idout))
                     yield return (idout, trimmed);
             }
@@ -55,7 +49,7 @@ namespace ModHearth.Utilities.Workshop
             {
                 if (results.Add(id))
                 {
-                    if (PlainIdRegex.IsMatch(token))
+                    if (PlainIdRegex().IsMatch(token))
                         Loggers.Workshop.Log($"WorkshopUrlResolver: Found plain ID: {id}");
                     else
                         Loggers.Workshop.Log($"WorkshopUrlResolver: Found ID from URL: {id} (Source: {token})");
@@ -83,8 +77,8 @@ namespace ModHearth.Utilities.Workshop
         }
 
         [GeneratedRegex(@"^(?:https?://)?(?:www\.)?(?:steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/(?:changelog/)?(?:\?(?:[^&\s]+&)*id=|/)?|steam://url/CommunityFilePage/)(\d{7,20})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex MyRegex();
+        private static partial Regex WorkshopIdRegex();
         [GeneratedRegex(@"^\d{7,20}$", RegexOptions.Compiled)]
-        private static partial Regex MyRegex1();
+        private static partial Regex PlainIdRegex();
     }
 }

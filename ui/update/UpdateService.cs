@@ -35,6 +35,10 @@ namespace ModHearth.UI.Update
         private const string Title = "Update failed";
 
         private static readonly HttpClient UpdateHttpClient = CreateUpdateHttpClient();
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
 
         // List of legacy, non-self-contained files and folders to clean up. Paths should be relative to the installation root directory.
         private static readonly (string Path, bool IsDirectory, CleanupPlatforms Platform)[] LegacyPathsToClean =
@@ -143,7 +147,7 @@ namespace ModHearth.UI.Update
             using Stream stream = await response.Content.ReadAsStreamAsync();
             GitHubRelease[]? releases = await JsonSerializer.DeserializeAsync<GitHubRelease[]>(
                 stream,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                JsonOptions);
 
             return releases?.ToList() ?? [];
         }

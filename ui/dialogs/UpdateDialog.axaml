@@ -1,18 +1,33 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:viewmodels="using:ModHearth.UI.ViewModels"
-        x:Class="ModHearth.UI.UpdateDialog"
-        SizeToContent="WidthAndHeight"
-        MaxWidth="520" MaxHeight="700"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        Title="Update ModHearth">
+<Window
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:viewmodels="using:ModHearth.UI.ViewModels"
+  x:Class="ModHearth.UI.UpdateDialog"
+  SizeToContent="WidthAndHeight"
+  MaxWidth="520"
+  MaxHeight="700"
+  WindowStartupLocation="CenterOwner"
+  CanResize="False"
+  Title="Update ModHearth">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="16" Spacing="12">
       <Grid ColumnDefinitions="*,Auto">
-        <TextBlock x:Name="HeaderText" TextWrapping="Wrap" VerticalAlignment="Center" />
-        <Button x:Name="ChannelSwitchButton" Grid.Column="1" Content="Bleeding Edge" Tag="Themed" Padding="20,4"
-                Click="ChannelSwitchClicked" IsVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" HorizontalContentAlignment="Center" />
+        <TextBlock
+          x:Name="HeaderText"
+          TextWrapping="Wrap"
+          VerticalAlignment="Center"
+          Margin="0,0,15,0" />
+        <Button
+          x:Name="ChannelSwitchButton"
+          Grid.Column="1"
+          Content="Bleeding Edge"
+          Tag="Themed"
+          Padding="20,4"
+          Click="ChannelSwitchClicked"
+          IsVisible="False"
+          Margin="8,0,0,0"
+          VerticalAlignment="Center"
+          HorizontalContentAlignment="Center" />
       </Grid>
       <ItemsControl x:Name="ReleaseList">
         <ItemsControl.Styles>
@@ -21,25 +36,44 @@
           </Style>
         </ItemsControl.Styles>
         <ItemsControl.ItemTemplate>
-        <DataTemplate x:DataType="viewmodels:ReleaseEntry">
-          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,*" Margin="0,4">
-            <Border Grid.Row="0" Grid.ColumnSpan="2" Height="2" HorizontalAlignment="Stretch" Margin="0,0,0,8"
-                    Background="{DynamicResource StrongPanelBrush}" IsVisible="{Binding IsNotFirstItem}"/>
-            <StackPanel Grid.Row="1">
-              <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding Subtitle}" FontSize="11" Opacity="0.7" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding Description}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap" MaxHeight="100" VerticalAlignment="Center" IsVisible="{Binding HasDescription}" />
-            </StackPanel>
-            <Button Grid.Row="1" Grid.Column="1"
-                    Content="{Binding ButtonLabel}"
-                    IsEnabled="{Binding CanInstall}"
-                    Click="InstallClicked"
-                    Margin="8,0,0,0"
-                    VerticalAlignment="Center" />
-          </Grid>
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
+          <DataTemplate x:DataType="viewmodels:ReleaseEntry">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,*" Margin="0,4">
+              <Border
+                Grid.Row="0"
+                Grid.ColumnSpan="2"
+                Height="2"
+                HorizontalAlignment="Stretch"
+                Margin="0,0,0,8"
+                Background="{DynamicResource StrongPanelBrush}"
+                IsVisible="{Binding IsNotFirstItem}"/>
+              <StackPanel Grid.Row="1">
+                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                <TextBlock
+                  Text="{Binding Subtitle}"
+                  FontSize="11"
+                  Opacity="0.7"
+                  TextWrapping="Wrap" />
+                <TextBlock
+                  Text="{Binding Description}"
+                  FontSize="12"
+                  Margin="0,4,0,0"
+                  TextWrapping="Wrap"
+                  MaxHeight="100"
+                  VerticalAlignment="Center"
+                  IsVisible="{Binding HasDescription}" />
+              </StackPanel>
+              <Button
+                Grid.Row="1"
+                Grid.Column="1"
+                Content="{Binding ButtonLabel}"
+                IsEnabled="{Binding CanInstall}"
+                Click="InstallClicked"
+                Margin="8,0,0,0"
+                VerticalAlignment="Center" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </StackPanel>
   </ScrollViewer>
 </Window>

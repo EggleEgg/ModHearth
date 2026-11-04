@@ -147,7 +147,7 @@ namespace ModHearth.UI
             }
 
             List<string> names = [.. manager.modpacks.Select(m => m.Name)];
-            if (names[index].EndsWith("*", StringComparison.Ordinal))
+            if (names[index].EndsWith('*'))
                 names[index] = names[index][..^1];
 
             RefreshModpackCombo(names, index);
@@ -165,8 +165,8 @@ namespace ModHearth.UI
         }
 
         // At most one autosort+autosave pass runs at a time. If a trigger arrives while a pass is already running, we don't start a second overlapping one (which could finish out of order
-        // and silently clobber the more recent state with a stale sort/save), 
-        // we just flag that the in-flight pass should run once more after it finishes, reflecting whatever the latest state is by then. 
+        // and silently clobber the more recent state with a stale sort/save),
+        // we just flag that the in-flight pass should run once more after it finishes, reflecting whatever the latest state is by then.
         // Made=false calls skip this gate entirely, matching original behavior where they never triggered sort/save in the first place.
         private async Task<bool> SetAndMarkChangesAsync(bool made, bool skipSort = false)
         {

@@ -688,10 +688,10 @@ namespace ModHearth.UI
                 List<string> selectedColors = [.. text.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim())];
 
                 string colorStr = color.ToString();
-                if (selectedColors.Contains(colorStr))
-                    _ = selectedColors.Remove(colorStr);
-                else
+                if (!selectedColors.Remove(colorStr))
+                {
                     selectedColors.Add(colorStr);
+                }
 
                 Text = string.Join(",", selectedColors);
             }

@@ -24,6 +24,7 @@ dotnet_diagnostic.SYSLIB1042.severity = warning
 dotnet_diagnostic.SYSLIB1043.severity = warning
 dotnet_diagnostic.SYSLIB1044.severity = warning
 dotnet_diagnostic.SYSLIB1045.severity = warning
+
 # --- JSON Source Generator (SYSLIB1030 - SYSLIB1039) ---
 dotnet_diagnostic.SYSLIB1030.severity = warning
 dotnet_diagnostic.SYSLIB1031.severity = warning
@@ -35,7 +36,14 @@ dotnet_diagnostic.SYSLIB1036.severity = warning
 dotnet_diagnostic.SYSLIB1037.severity = warning
 dotnet_diagnostic.SYSLIB1038.severity = warning
 dotnet_diagnostic.SYSLIB1039.severity = warning
+
 # --- Logging Source Generator (SYSLIB1001 - SYSLIB1029) ---
 dotnet_diagnostic.SYSLIB1006.severity = warning
 dotnet_diagnostic.SYSLIB1014.severity = warning
 dotnet_diagnostic.SYSLIB1015.severity = warning
+
+# Promote all Performance diagnostics (CA18xx series) to warnings
+dotnet_analyzer_diagnostic.category-Performance.severity = warning
+
+
+### Footnote: holy shit I love c# dev kit, it s like using ai agents but without the indeterminism

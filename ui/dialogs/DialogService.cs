@@ -62,7 +62,7 @@ namespace ModHearth.UI.Dialogs
             };
 
             IReadOnlyList<IStorageFile> result = await owner.StorageProvider.OpenFilePickerAsync(options);
-            return result?.FirstOrDefault()?.TryGetLocalPath();
+            return result is { Count: > 0 } ? result[0]?.TryGetLocalPath() : null;
         }
 
         public static async Task<string?> PickFolderAsync(Window owner, string title)
@@ -73,7 +73,7 @@ namespace ModHearth.UI.Dialogs
             };
 
             IReadOnlyList<IStorageFolder> result = await owner.StorageProvider.OpenFolderPickerAsync(options);
-            return result?.FirstOrDefault()?.TryGetLocalPath();
+            return result is { Count: > 0 } ? result[0]?.TryGetLocalPath() : null;
         }
 
         public static async Task<string?> PickSaveFileAsync(Window owner, string title, string defaultFileName, IEnumerable<FilePickerFileType> fileTypes)

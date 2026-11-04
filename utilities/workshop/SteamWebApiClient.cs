@@ -17,13 +17,13 @@ namespace ModHearth.Utilities.Workshop
         public List<ulong> ChildrenIds { get; set; } = [];
     }
 
-    public class SteamWebApiClient
+    public static class SteamWebApiClient
     {
         private static readonly HttpClient HttpClient = new();
         private const string PublishedFileDetailsUrl = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
         private const string CollectionDetailsUrl = "https://api.steampowered.com/ISteamRemoteStorage/GetCollectionDetails/v1/";
 
-        public async Task<List<WorkshopItemMetadata>> GetPublishedFileDetailsAsync(IEnumerable<ulong> ids)
+        public static async Task<List<WorkshopItemMetadata>> GetPublishedFileDetailsAsync(IEnumerable<ulong> ids)
         {
             List<ulong> idList = [.. ids];
             if (idList.Count == 0) return [];

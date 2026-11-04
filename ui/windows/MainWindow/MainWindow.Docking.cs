@@ -24,7 +24,7 @@ namespace ModHearth.UI
             UpdateDockingButtonImage(sortRulesModeIndicator, ConfigManager.GetIsSortRulesDocked());
         }
 
-        private void UpdateDockingButtonImage(Image? indicator, bool docked)
+        private static void UpdateDockingButtonImage(Image? indicator, bool docked)
         {
             if (indicator == null)
                 return;

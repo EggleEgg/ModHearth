@@ -164,7 +164,7 @@ namespace ModHearth.UI.Rendering
             return false;
         }
 
-        private static IImage? LoadTintedSvg(string assetUri, Color? tint = null, double? opacity = null)
+        private static SvgImage? LoadTintedSvg(string assetUri, Color? tint = null, double? opacity = null)
         {
             try
             {
@@ -205,7 +205,7 @@ namespace ModHearth.UI.Rendering
                         if (styleAttr != null)
                         {
                             string val = styleAttr.Value;
-                            val = MyRegex().Replace(val, match =>
+                            val = SvgColorFilterRegex().Replace(val, match =>
                                 {
                                     string prefix = match.Groups["prefix"].Value;
                                     string rawColor = match.Groups["color"].Value;
@@ -327,7 +327,7 @@ namespace ModHearth.UI.Rendering
 
         private static bool IsSvgPath(string path) => RemoveQueryAndFragment(path).EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
 
-        private static IImage? LoadSvgImage(string uriText)
+        private static SvgImage? LoadSvgImage(string uriText)
         {
             if (string.IsNullOrWhiteSpace(uriText))
                 return null;
@@ -359,7 +359,7 @@ namespace ModHearth.UI.Rendering
             return null;
         }
 
-        private static IImage? LoadBitmap(string assetUri)
+        private static Bitmap? LoadBitmap(string assetUri)
         {
             if (string.IsNullOrWhiteSpace(assetUri))
                 return null;
@@ -433,7 +433,7 @@ namespace ModHearth.UI.Rendering
             return index < 0 ? value : value[..index];
         }
 
-        private static IImage? RenderSvgFile(string path)
+        private static SvgImage? RenderSvgFile(string path)
         {
             try
             {
@@ -447,7 +447,7 @@ namespace ModHearth.UI.Rendering
             }
         }
 
-        private static IImage? RenderSvgStream(Stream stream)
+        private static SvgImage? RenderSvgStream(Stream stream)
         {
             try
             {
@@ -467,7 +467,7 @@ namespace ModHearth.UI.Rendering
 
         public static void ClearCache() => imageCache.Clear();
         [GeneratedRegex(@"(?<prefix>fill|stroke)\s*:\s*(?<color>[^;]+)", RegexOptions.IgnoreCase)]
-        private static partial Regex MyRegex();
+        private static partial Regex SvgColorFilterRegex();
     }
     public sealed class TintedAssetConverter : IValueConverter
     {

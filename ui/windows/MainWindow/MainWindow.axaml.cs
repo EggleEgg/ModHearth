@@ -20,6 +20,62 @@ namespace ModHearth.UI
 
         protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
+        private double _workshopDownloadProgress;
+        /// <summary>Overall Steam workshop download progress (0-100) across the current run.</summary>
+        public double WorkshopDownloadProgress
+        {
+            get => _workshopDownloadProgress;
+            private set
+            {
+                if (Math.Abs(_workshopDownloadProgress - value) < 0.01)
+                    return;
+                _workshopDownloadProgress = value;
+                NotifyOfPropertyChange();
+            }
+        }
+
+        private bool _isWorkshopDownloadActive;
+        /// <summary>True while at least one Steam workshop download is in flight.</summary>
+        public bool IsWorkshopDownloadActive
+        {
+            get => _isWorkshopDownloadActive;
+            private set
+            {
+                if (_isWorkshopDownloadActive == value)
+                    return;
+                _isWorkshopDownloadActive = value;
+                NotifyOfPropertyChange();
+            }
+        }
+
+        private int _workshopActiveDownloadCount;
+        /// <summary>Number of Steam workshop downloads currently in flight.</summary>
+        public int WorkshopActiveDownloadCount
+        {
+            get => _workshopActiveDownloadCount;
+            private set
+            {
+                if (_workshopActiveDownloadCount == value)
+                    return;
+                _workshopActiveDownloadCount = value;
+                NotifyOfPropertyChange();
+            }
+        }
+
+        private string _workshopDownloadStatusText = string.Empty;
+        /// <summary>Text shown next to the aggregate workshop progress bar.</summary>
+        public string WorkshopDownloadStatusText
+        {
+            get => _workshopDownloadStatusText;
+            private set
+            {
+                if (string.Equals(_workshopDownloadStatusText, value, StringComparison.Ordinal))
+                    return;
+                _workshopDownloadStatusText = value;
+                NotifyOfPropertyChange();
+            }
+        }
+
         public bool IsAutoSaveEnabled
         {
             get => ConfigManager.IsAutoSaveEnabled();
@@ -117,8 +173,7 @@ namespace ModHearth.UI
         public MainWindow()
         {
             InitializeComponent();
-            previewCache = new(MaxCachedPreviews, StringComparer.OrdinalIgnoreCase,
-                (_, entry) => DisposeCachedPreview(entry.Image, "Failed to dispose evicted preview image"));
+            previewCache = new(MaxCachedPreviews, StringComparer.OrdinalIgnoreCase);
             NotificationItemsControl.ItemsSource = notificationRecords;
             toastHost.ItemsSource = toasts;
             WindowThemeManager.Register(this);
@@ -135,6 +190,7 @@ namespace ModHearth.UI
             manager = new ModHearthManager();
             manager.RequestUIReload += () => Dispatcher.UIThread.Post(async () => await ReloadModpacksFromDisk());
             manager.RequestNotification += (msg, icon) => ShowNotification(msg, icon);
+            manager.WorkshopDownloads.Changed += OnWorkshopDownloadsChanged;
             modListController = new ModListDragDropController(this);
             modListController.Dropped += ModlistDropped;
 
@@ -264,6 +320,7 @@ namespace ModHearth.UI
                 SaveMainWindowGridSplitterRatio();
                 SaveModInfoDockLayout();
                 SaveSearchBarStates();
+                manager.WorkshopDownloads.Changed -= OnWorkshopDownloadsChanged;
                 _workshopDockManager?.Dispose();
                 _updateLogDockManager?.Dispose();
                 _sortRulesDockManager?.Dispose();

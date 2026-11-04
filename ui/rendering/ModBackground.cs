@@ -1,8 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using ModHearth.utilities;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Rendering
 {
     /// <summary>
     /// Renders a 45º diagonal pattern instead of using the buggy and prone to leak VisualBrush.
@@ -61,7 +62,7 @@ namespace ModHearth.UI
 
             double thickness = LineThickness;
             Pen? pen = _cachedPen;
-            if (pen == null || _cachedBrush != brush || _cachedThickness != thickness)
+            if (pen == null || _cachedBrush != brush || !MMath.Equals(_cachedThickness, thickness))
             {
                 pen = new Pen(brush, thickness);
                 _cachedPen = pen;
