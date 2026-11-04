@@ -62,7 +62,6 @@ namespace ModHearth.UI.Behaviors
 
         private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e) => Unhook();
 
-
         private void Hook()
         {
             if (isHooked || isDisposed)
@@ -115,7 +114,6 @@ namespace ModHearth.UI.Behaviors
         private void OnPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e) => ResetState();
 
         private void OnClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => ResetState();
-
 
         public void ApplyBrushes(IBrush normal, IBrush hover, IBrush pressed)
         {

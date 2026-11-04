@@ -240,16 +240,8 @@ namespace ModHearth.UI.ModList
         {
             if (problemCount <= 0 && duplicateCount <= 0)
                 return null;
-            string problemText = problemCount switch
-            {
-                > 0 => $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues",
-                _ => string.Empty,
-            };
-            string duplicateText = duplicateCount switch
-            {
-                > 0 => $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws",
-                _ => string.Empty,
-            };
+            string problemText = problemCount > 0 ? $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues" : string.Empty;
+            string duplicateText = duplicateCount > 0 ? $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws" : string.Empty;
             if (string.IsNullOrEmpty(problemText))
                 return duplicateText;
             if (string.IsNullOrEmpty(duplicateText))

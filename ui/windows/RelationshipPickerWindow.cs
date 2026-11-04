@@ -195,8 +195,6 @@ namespace ModHearth.UI.Windows
             Close(vm.ModReference.ID.Trim());
         }
 
-
-
         private static string LabelFor(ModRelationshipKind kind) => kind switch
         {
             ModRelationshipKind.Before => "Before",

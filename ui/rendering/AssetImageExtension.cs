@@ -14,7 +14,7 @@ using ModHearth.Utilities;
 
 namespace ModHearth.UI.Rendering
 {
-    /// <summary> 
+    /// <summary>
     /// Nifty tool to shorten uri from svg paths
     /// </summary>
     public sealed class AssetImageExtension : MarkupExtension
@@ -44,7 +44,7 @@ namespace ModHearth.UI.Rendering
     /// <summary>
     /// Normalizes image formats from the uri and caches them
     /// </summary>
-    internal static class ImageSourceLoader
+    internal static partial class ImageSourceLoader
     {
         private const string DefaultResourcesBaseUri = "avares://ModHearth/resources/";
         private const string AlternateResourcesBaseUri = "avares://ModHearth/Resources/";
@@ -80,14 +80,17 @@ namespace ModHearth.UI.Rendering
                 using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(svg));
                 return RenderSvgStream(stream);
             }
-            catch
+            catch (Exception ex)
             {
+                LogLoadFailure("missing texture placeholder", ex);
                 return null;
             }
         });
 
         private static IImage? GetMissingTextureImage() => missingTextureImage.Value;
 
+        private static void LogLoadFailure(string what, Exception ex)
+            => AppLogging.LogError($"[ImageLoader] Failed to load {what}: {ex.Message}");
 
         public static IImage? LoadFromAssetUri(string assetUri, Color? tint = null, double? opacity = null)
         {
@@ -129,6 +132,7 @@ namespace ModHearth.UI.Rendering
                         return alternateImage;
                 }
 
+                AppLogging.LogError($"[ImageLoader] Asset not found: {normalized}");
                 return GetMissingTextureImage();
             });
         }
@@ -153,11 +157,7 @@ namespace ModHearth.UI.Rendering
                 if (parts.Length >= 3 && parts[0] == "0" && parts[1] == "0" && parts[2] == "0")
                 {
                     // If alpha channel is specified, ensure it's fully opaque
-                    return parts.Length switch
-                    {
-                        4 => parts[3] is "1" or "1.0" or "100%" or "255",
-                        _ => true,
-                    };
+                    return parts.Length != 4 || parts[3] is "1" or "1.0" or "100%" or "255";
                 }
             }
 
@@ -205,16 +205,12 @@ namespace ModHearth.UI.Rendering
                         if (styleAttr != null)
                         {
                             string val = styleAttr.Value;
-                            val = Regex.Replace(
-                                val,
-                                @"(?<prefix>fill|stroke)\s*:\s*(?<color>[^;]+)",
-                                match =>
+                            val = MyRegex().Replace(val, match =>
                                 {
                                     string prefix = match.Groups["prefix"].Value;
                                     string rawColor = match.Groups["color"].Value;
                                     return IsPureBlack(rawColor) ? $"{prefix}:{hexColor}" : match.Value;
-                                },
-                                RegexOptions.IgnoreCase);
+                                });
 
                             styleAttr.Value = val;
                         }
@@ -232,8 +228,9 @@ namespace ModHearth.UI.Rendering
                 memoryStream.Position = 0;
                 return RenderSvgStream(memoryStream);
             }
-            catch
+            catch (Exception ex)
             {
+                LogLoadFailure($"tinted SVG '{assetUri}'", ex);
                 return null;
             }
         }
@@ -261,8 +258,9 @@ namespace ModHearth.UI.Rendering
 
                 return new Bitmap(fullPath);
             }
-            catch
+            catch (Exception ex)
             {
+                LogLoadFailure($"'{path}'", ex);
                 return null;
             }
         }
@@ -288,8 +286,9 @@ namespace ModHearth.UI.Rendering
 
                 return LoadBitmap(normalizedAssetUri);
             }
-            catch
+            catch (Exception ex)
             {
+                LogLoadFailure($"'{normalizedAssetUri}'", ex);
                 return null;
             }
         }
@@ -328,7 +327,6 @@ namespace ModHearth.UI.Rendering
 
         private static bool IsSvgPath(string path) => RemoveQueryAndFragment(path).EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
 
-
         private static IImage? LoadSvgImage(string uriText)
         {
             if (string.IsNullOrWhiteSpace(uriText))
@@ -349,9 +347,13 @@ namespace ModHearth.UI.Rendering
                 if (File.Exists(uriText))
                     return RenderSvgFile(uriText);
             }
-            catch
+            catch (FileNotFoundException)
             {
-                // Ignore SVG load failures.
+                // probing a missing asset is expected
+            }
+            catch (Exception ex)
+            {
+                LogLoadFailure($"'{uriText}'", ex);
             }
 
             return null;
@@ -381,9 +383,13 @@ namespace ModHearth.UI.Rendering
                 if (File.Exists(assetUri))
                     return new Bitmap(assetUri);
             }
-            catch
+            catch (FileNotFoundException)
             {
-                // Ignore bitmap load failures.
+                // probing a missing asset is expected
+            }
+            catch (Exception ex)
+            {
+                LogLoadFailure($"'{assetUri}'", ex);
             }
 
             return null;
@@ -403,12 +409,8 @@ namespace ModHearth.UI.Rendering
                 queryAndFragment = pathOrUri[queryIndex..];
             }
 
-            int dotIndex = basePart.LastIndexOf('.');
-            return dotIndex switch
-            {
-                < 0 => basePart + newExtension + queryAndFragment,
-                _ => basePart[..dotIndex] + newExtension + queryAndFragment,
-            };
+            string stem = basePart.LastIndexOf('.') is var dot and >= 0 ? basePart[..dot] : basePart;
+            return stem + newExtension + queryAndFragment;
         }
 
         private static string EnsureSvgExtensionIfMissing(string value)
@@ -428,11 +430,7 @@ namespace ModHearth.UI.Rendering
                 return value;
 
             int index = value.IndexOfAny(['?', '#']);
-            return index switch
-            {
-                < 0 => value,
-                _ => value[..index],
-            };
+            return index < 0 ? value : value[..index];
         }
 
         private static IImage? RenderSvgFile(string path)
@@ -442,8 +440,9 @@ namespace ModHearth.UI.Rendering
                 using Stream stream = File.OpenRead(path);
                 return RenderSvgStream(stream);
             }
-            catch
+            catch (Exception ex)
             {
+                LogLoadFailure($"SVG file '{path}'", ex);
                 return null;
             }
         }
@@ -459,14 +458,16 @@ namespace ModHearth.UI.Rendering
                     _ => new SvgImage { Source = source },
                 };
             }
-            catch
+            catch (Exception ex)
             {
+                LogLoadFailure("SVG stream", ex);
                 return null;
             }
         }
 
         public static void ClearCache() => imageCache.Clear();
-
+        [GeneratedRegex(@"(?<prefix>fill|stroke)\s*:\s*(?<color>[^;]+)", RegexOptions.IgnoreCase)]
+        private static partial Regex MyRegex();
     }
     public sealed class TintedAssetConverter : IValueConverter
     {
@@ -476,17 +477,12 @@ namespace ModHearth.UI.Rendering
             if (parameter is not string assetName)
                 return null;
 
-            Color? tint = null;
-            switch (value)
+            Color? tint = value switch
             {
-                case ISolidColorBrush brush:
-                    tint = brush.Color;
-                    break;
-                case Color color:
-                    tint = color;
-                    break;
-            }
-
+                ISolidColorBrush brush => brush.Color,
+                Color color => color,
+                _ => null,
+            };
             return ImageSourceLoader.LoadFromAssetUri(assetName, tint);
         }
 

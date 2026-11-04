@@ -4,7 +4,7 @@ using ModHearth.Utilities;
 namespace ModHearth
 {
     // Uses a raw-file dependency scan (CUT/SELECT/COPY_TAGS_FROM) plus mod-author-declared hints (info.txt before/after/requires, sort rules) to build a dependency graph, then
-    // topologically sorts it. Edges are added in strict priority order: sort rules, then info.txt declarations, then vanilla-conflict structural edges, then raw-scan-derived edges. 
+    // topologically sorts it. Edges are added in strict priority order: sort rules, then info.txt declarations, then vanilla-conflict structural edges, then raw-scan-derived edges.
     // And every edge is checked against the graph as it currently stands before being added, so a lower-priority source can never override or contradict a
     // higher-priority one; it can only fill in relationships nothing else addressed. Coarse trait-based grouping (GetModSortGroup) only breaks ties among mods with no
     // actual graph relationship to anything else.
@@ -197,11 +197,12 @@ namespace ModHearth
         private string? PickBestEffortOrder(ModReference a, ModReference b, Dictionary<string, int> originalIndex)
         {
             int comparison = CompareForBestEffortOrder(a, b, originalIndex);
-            return comparison switch
+            if (comparison == 0)
+                return null;
+            else
             {
-                0 => null,
-                _ => comparison < 0 ? a.ID : b.ID,
-            };
+                return (string?)(comparison < 0 ? a.ID : b.ID);
+            }
         }
 
         public bool ModSortEnabledMods()

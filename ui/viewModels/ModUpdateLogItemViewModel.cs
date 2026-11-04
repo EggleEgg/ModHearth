@@ -158,13 +158,9 @@ namespace ModHearth.UI.ViewModels
 
             string? candidate = context.Mode switch
             {
-                SearchFilterMode.Name => ModName,
                 SearchFilterMode.Id => Entry.ModId,
                 SearchFilterMode.SteamFileId => Entry.SteamId,
-                SearchFilterMode.Regex => throw new NotImplementedException(),
-                SearchFilterMode.Color => throw new NotImplementedException(),
-                SearchFilterMode.ModifiedTime => ModName,
-                _ => ModName
+                _ => ModName,
             };
 
             return context.Contains(candidate) ||

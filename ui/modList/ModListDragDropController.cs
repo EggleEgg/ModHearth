@@ -6,8 +6,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using ModHearth.Models;
 using ModHearth.UI.ViewModels;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI.ModList
 {
@@ -186,11 +186,7 @@ namespace ModHearth.UI.ModList
                 // identifies it as ours, avoiding JSON work proportional to the selection size.
                 data.Add(DataTransferItem.Create(DragDataFormat, InternalDragPayload));
 
-                if (DevMode.IsEnabled)
-                {
-                    double elapsedMs = Stopwatch.GetElapsedTime(dragPointerPressedTimestamp).TotalMilliseconds;
-                    Console.WriteLine($"[ModDragDrop] Started {selected.Count} item drag after {elapsedMs:F1} ms.");
-                }
+                Loggers.Drag.Dev($"Started {selected.Count} item drag after {Stopwatch.GetElapsedTime(dragPointerPressedTimestamp).TotalMilliseconds:F1} ms.");
 
                 // The native OS blocking loop runs here
                 _ = await DragDrop.DoDragDropAsync(dragTriggerEvent, data, DragDropEffects.Move);
@@ -337,7 +333,7 @@ namespace ModHearth.UI.ModList
                 showBelow = false;
             }
 
-            // 2. GUARD CLAUSE: If the highlight target and position are identical to 
+            // 2. GUARD CLAUSE: If the highlight target and position are identical to
             // the previous frame, do nothing. This prevents constant redraw cycles.
             if (lastHighlightedItem == targetItem &&
                 ((showBelow && targetItem.ShowDropBelow) || (!showBelow && targetItem.ShowDropAbove)))
@@ -425,26 +421,15 @@ namespace ModHearth.UI.ModList
         }
 
         private static bool IsPointerOverScrollBar(ListBox list, Point point)
-        {
-            IInputElement? element = list.InputHitTest(point);
-            if (element is not Control control)
-                return false;
-
-            return control switch
-            {
-                ScrollBar => true,
-                _ => control.FindAncestorOfType<ScrollBar>() != null,
-            };
-        }
+            => list.InputHitTest(point) is Control control
+                && (control is ScrollBar || control.FindAncestorOfType<ScrollBar>() != null);
 
         private static List<ModRefViewModel> OrderSelectionByList(ListBox list, IEnumerable<ModRefViewModel> selection)
         {
             HashSet<ModRefViewModel> selectedSet = [.. selection];
-            return list.ItemsSource switch
-            {
-                IEnumerable<ModRefViewModel> items => [.. items.Where(selectedSet.Contains)],
-                _ => [.. selection],
-            };
+            return list.ItemsSource is IEnumerable<ModRefViewModel> items
+                ? [.. items.Where(selectedSet.Contains)]
+                : [.. selection];
         }
 
         private static (int index, bool after) GetDropTarget(ListBox list, Point point)

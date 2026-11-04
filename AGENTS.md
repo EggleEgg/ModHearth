@@ -7,7 +7,7 @@
 
 ## Codebase "do's and don'ts"
 
-- Verbose debugging logs/lines must be locked behind `DevMode.IsEnabled` or their devmode alternatives in utilities\logging. Errors tipically should not be devmode specific
+- Verbose debugging logs/lines should use `Loggers.X.Dev($"...")`. Errors tipically should not be devmode specific
 - `VisualBrush` usage should be avoided and only used as a last resort, instead use tools like `TintedAssetConverter`
 
 ## Codebase help structure

@@ -44,8 +44,8 @@ namespace ModHearth.UI.Dialogs
             {
                 MessageDialogResult.Yes => UnsavedChangesChoice.Save,
                 MessageDialogResult.No => UnsavedChangesChoice.ExitWithoutSaving,
-                MessageDialogResult.Ok => throw new NotImplementedException(),
-                MessageDialogResult.Cancel => throw new NotImplementedException(),
+                MessageDialogResult.Ok => UnsavedChangesChoice.Save,
+                MessageDialogResult.Cancel => UnsavedChangesChoice.Cancel,
                 _ => UnsavedChangesChoice.Cancel
             };
         }

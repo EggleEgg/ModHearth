@@ -102,7 +102,7 @@ namespace ModHearth.UI
                 SelectedProvider = provider;
                 if (provider != null)
                 {
-                    InfoLogger.LogRunDf($"WorkshopDownloaderControl: Provider changed to {provider.Name}");
+                    Loggers.Workshop.Log($"WorkshopDownloaderControl: Provider changed to {provider.Name}");
                     ConfigManager.SetDefaultWorkshopProvider(provider.GetType().Name);
                 }
 
@@ -161,7 +161,7 @@ namespace ModHearth.UI
                     if (string.IsNullOrWhiteSpace(text))
                         return;
 
-                    InfoLogger.LogRunDf($"WorkshopDownloaderControl: Auto-detected clipboard change: {text}");
+                    Loggers.Workshop.Log($"WorkshopDownloaderControl: Auto-detected clipboard change: {text}");
 
                     string currentText = WorkshopUrlTextBox.Text ?? string.Empty;
                     if (!currentText.Contains(text))
@@ -243,7 +243,7 @@ namespace ModHearth.UI
             }
             catch (Exception ex)
             {
-                InfoLogger.LogRunDf($"WorkshopDownloaderControl: Error reading clipboard: {ex.Message}");
+                Loggers.Workshop.Log($"WorkshopDownloaderControl: Error reading clipboard: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -368,15 +368,8 @@ namespace ModHearth.UI
 
         private void Item_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            switch (e.PropertyName)
-            {
-                case nameof(WorkshopDownloadItem.State):
-                case nameof(WorkshopDownloadItem.CanRetry):
-                case nameof(WorkshopDownloadItem.CanCancel):
-                    Dispatcher.UIThread.Post(UpdateQueueActionStates);
-                    break;
-
-            }
+            if (e.PropertyName is nameof(WorkshopDownloadItem.State) or nameof(WorkshopDownloadItem.CanRetry) or nameof(WorkshopDownloadItem.CanCancel))
+                Dispatcher.UIThread.Post(UpdateQueueActionStates);
         }
 
         private void UpdateQueueActionStates()

@@ -194,7 +194,6 @@ namespace ModHearth.UI.ModList
         public void UpdateSelectionStateCore(IEnumerable<T>? items, IList? selectedItems)
         {
 
-
             if (items == null)
             {
 
@@ -211,7 +210,6 @@ namespace ModHearth.UI.ModList
                     item.IsSelected = isCurrentlySelected;
                 }
             }
-
 
         }
 
@@ -309,17 +307,8 @@ namespace ModHearth.UI.ModList
         }
 
         private static bool IsPointerOverScrollBar(IInputElement root, Point point)
-        {
-            IInputElement? element = root.InputHitTest(point);
-            if (element is not Control control)
-                return false;
-
-            return control switch
-            {
-                ScrollBar => true,
-                _ => control.FindAncestorOfType<ScrollBar>() != null,
-            };
-        }
+            => root.InputHitTest(point) is Control control
+                && (control is ScrollBar || control.FindAncestorOfType<ScrollBar>() != null);
 
         private static bool TryFindContextMenu(IInputElement root, Point point, out ContextMenu? menu, out Control? target)
         {

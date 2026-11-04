@@ -4,8 +4,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
-using ModHearth.Models;
 using ModHearth.UI.Update;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
@@ -48,8 +48,7 @@ namespace ModHearth.UI
                     }
                     catch (Exception ex)
                     {
-                        if (DevMode.IsEnabled)
-                            Console.WriteLine($"[UpdateCheck] Startup check failed: {ex.Message}");
+                        Loggers.Updates.Dev($"Startup check failed: {ex.Message}");
                     }
                 });
             }
@@ -75,8 +74,7 @@ namespace ModHearth.UI
             }
             catch (Exception ex)
             {
-                if (DevMode.IsEnabled)
-                    Console.WriteLine($"[UpdateCheck] Quiet check failed: {ex.Message}");
+                Loggers.Updates.Dev($"Quiet check failed: {ex.Message}");
             }
         }
 
@@ -114,8 +112,7 @@ namespace ModHearth.UI
             bool isIgnored = !string.IsNullOrWhiteSpace(ignoredVersion) && UpdateHelpers.IsCurrentVersion(fetchedVersion, ignoredVersion);
             IsUpdateAvailable = isNewer && !isIgnored;
 
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"[UpdateCheck] EvaluateAvailableUpdate: fetchedVersion='{fetchedVersion}', currentBuild='{currentBuild}', ignoredVersion='{ignoredVersion}', isNewer={isNewer}, isIgnored={isIgnored}, IsUpdateAvailable={IsUpdateAvailable}");
+            Loggers.Updates.Dev($"EvaluateAvailableUpdate: fetchedVersion='{fetchedVersion}', currentBuild='{currentBuild}', ignoredVersion='{ignoredVersion}', isNewer={isNewer}, isIgnored={isIgnored}, IsUpdateAvailable={IsUpdateAvailable}");
 
             UpdateIgnoreButtonLabel();
         }
@@ -199,19 +196,13 @@ namespace ModHearth.UI
         private void IgnoreVersionClicked(object? sender, RoutedEventArgs e)
         {
             string ver = latestAvailableVersion ?? ConfigManager.GetIgnoredUpdateVersion();
-            if (DevMode.IsEnabled)
-            {
-                Console.WriteLine($"[UpdateCheck] IgnoreVersionClicked: latestAvailableVersion='{latestAvailableVersion}', configIgnored='{ConfigManager.GetIgnoredUpdateVersion()}', resolvedVer='{ver}'");
-            }
+            Loggers.Updates.Dev($"IgnoreVersionClicked: latestAvailableVersion='{latestAvailableVersion}', configIgnored='{ConfigManager.GetIgnoredUpdateVersion()}', resolvedVer='{ver}'");
 
             if (!string.IsNullOrWhiteSpace(ver))
             {
                 ConfigManager.SetIgnoredUpdateVersion(ver);
                 IsUpdateAvailable = false;
-                if (DevMode.IsEnabled)
-                {
-                    Console.WriteLine($"[UpdateCheck] Ignored version set to '{ver}', IsUpdateAvailable set to false.");
-                }
+                Loggers.Updates.Dev($"Ignored version set to '{ver}', IsUpdateAvailable set to false.");
             }
             updateOptionsFlyout?.Hide();
         }

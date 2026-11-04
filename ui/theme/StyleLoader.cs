@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI.Theme
 {
@@ -9,9 +10,9 @@ namespace ModHearth.UI.Theme
     {
         private static readonly string styleLightPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.light.json");
         private static readonly string styleDarkPath = Path.Combine(AppContext.BaseDirectory, "styles", "style.dark.json");
+        private static readonly JsonSerializerOptions CaseInsensitive = new() { PropertyNameCaseInsensitive = true };
 
         public static Style LoadStyle() => LoadStyle(true);
-
 
         public static Style LoadStyle(bool createLogs)
         {
@@ -40,26 +41,13 @@ namespace ModHearth.UI.Theme
 
         public static string GetStylePathForTheme(int theme) => theme == 0 ? styleLightPath : styleDarkPath;
 
-
         private static bool TryLoadStyleFromPath(string stylePath, out Style style)
         {
             style = null!;
-            if (!File.Exists(stylePath))
+            if (!JsonFileStore.TryLoad(stylePath, "Style", out Style? found, CaseInsensitive) || !found.IsComplete())
                 return false;
-
-            try
-            {
-                JsonSerializerOptions options = new() { PropertyNameCaseInsensitive = true };
-                Style? found = JsonSerializer.Deserialize<Style>(File.ReadAllText(stylePath), options);
-                if (found == null || !found.IsComplete())
-                    return false;
-                style = found;
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            style = found;
+            return true;
         }
     }
 }

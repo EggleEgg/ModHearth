@@ -148,7 +148,6 @@ namespace ModHearth.UI.Docking
 
         private static bool IsHorizontal(DockSide side) => side is DockSide.Left or DockSide.Right;
 
-
         private bool TryGetScreenLayout(out PixelRect workingArea, out PixelPoint parentScreenPos, out double scale)
         {
             workingArea = default;
@@ -181,7 +180,6 @@ namespace ModHearth.UI.Docking
                 (workingArea.Y + workingArea.Height - parentScreenPos.Y) / scale,
             _ => double.MaxValue
         };
-
 
         private bool FitsCrossAxis(DockSide side, PixelRect workingArea, PixelPoint parentScreenPos, double scale)
         {
@@ -315,7 +313,6 @@ namespace ModHearth.UI.Docking
         }
 
         public void ToggleDock() => SetDocked(!IsDocked);
-
 
         public void SetDocked(bool docked)
         {
@@ -504,15 +501,7 @@ namespace ModHearth.UI.Docking
                 ? target.PreviewBorder.Width
                 : target.PreviewBorder.Height);
 
-            switch (snapThreshold)
-            {
-                case <= 0:
-                case > 500:
-                    snapThreshold = 250;
-                    break;
-            }
-
-            return snapThreshold;
+            return snapThreshold is <= 0 or > 500 ? 250 : snapThreshold;
         }
 
         private static bool IsOverSide(
@@ -571,7 +560,6 @@ namespace ModHearth.UI.Docking
                 DockSide.Top => Math.Abs(floatingCenter.Y - parentTopLeft.Y),
                 _ => double.MaxValue
             };
-
 
         private void UpdatePreviewVisibility(DockSide? side)
         {

@@ -616,13 +616,9 @@ namespace ModHearth.UI.ViewModels
 
             string? candidate = context.Mode switch
             {
-                SearchFilterMode.Name => ModReference.Name,
                 SearchFilterMode.Id => ModReference.ID,
                 SearchFilterMode.SteamFileId => ModReference.SteamID,
-                SearchFilterMode.Regex => throw new NotImplementedException(),
-                SearchFilterMode.Color => throw new NotImplementedException(),
-                SearchFilterMode.ModifiedTime => ModReference.Name,
-                _ => ModReference.Name
+                _ => ModReference.Name,
             };
 
             return context.Contains(candidate);
@@ -669,8 +665,7 @@ namespace ModHearth.UI.ViewModels
                 colorUnderlayBrush = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasColorUnderlay));
-                if (DevMode.IsEnabled)
-                    InfoLogger.Log($"changed color {HasColorUnderlay}");
+                Loggers.Diag.Dev($"changed color {HasColorUnderlay}");
             }
         }
         public bool HasColorUnderlay => ColorUnderlayBrush != null;

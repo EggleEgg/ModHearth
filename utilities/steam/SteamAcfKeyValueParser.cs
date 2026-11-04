@@ -39,15 +39,14 @@ namespace ModHearth.Utilities.Steam
                         continue;
                 }
 
-                switch (currentKey)
+                if (currentKey == null)
                 {
-                    case null:
-                        currentKey = token;
-                        break;
-                    default:
-                        current[currentKey] = token;
-                        currentKey = null;
-                        break;
+                    currentKey = token;
+                }
+                else
+                {
+                    current[currentKey] = token;
+                    currentKey = null;
                 }
             }
 

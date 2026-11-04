@@ -2,7 +2,6 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Avalonia.Threading;
 using ModHearth.Models;
-using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities.Workshop
@@ -24,9 +23,7 @@ namespace ModHearth.Utilities.Workshop
 
         public bool CanExecute(object? parameter) => _canExecute == null || _canExecute();
 
-
         public void Execute(object? parameter) => _execute();
-
 
         public event EventHandler? CanExecuteChanged;
         public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
@@ -174,7 +171,6 @@ namespace ModHearth.Utilities.Workshop
                 _reloadTimer.Start();
             });
 
-
         public ObservableCollection<WorkshopDownloadItem> Queue { get; } = [];
         public List<IWorkshopDownloadProvider> Providers { get; } = [];
         public IWorkshopDownloadProvider? SelectedProvider { get; set; }
@@ -270,46 +266,41 @@ namespace ModHearth.Utilities.Workshop
 
         public async Task ResolveAndEnqueueUrlsAsync(string inputUrls, Func<List<WorkshopItemMetadata>, Task>? onCollectionFound)
         {
-            InfoLogger.LogRunDf($"WorkshopQueueManager: Resolving URLs: {inputUrls}");
+            Loggers.Workshop.Log($"WorkshopQueueManager: Resolving URLs: {inputUrls}");
             List<ulong> ids = WorkshopUrlResolver.ParseUrls(inputUrls);
             if (ids.Count == 0)
             {
-                InfoLogger.LogRunDf("WorkshopQueueManager: No valid IDs found in input.");
+                Loggers.Workshop.Log("WorkshopQueueManager: No valid IDs found in input.");
                 return;
             }
 
-            InfoLogger.LogRunDf($"WorkshopQueueManager: Fetching metadata for {ids.Count} IDs...");
+            Loggers.Workshop.Log($"WorkshopQueueManager: Fetching metadata for {ids.Count} IDs...");
             List<WorkshopItemMetadata> metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
 
             if (metadataList.Count == 0)
             {
-                InfoLogger.LogRunDf("WorkshopQueueManager: Steam API returned no metadata for the given IDs.");
+                Loggers.Workshop.Log("WorkshopQueueManager: Steam API returned no metadata for the given IDs.");
                 return;
             }
 
             foreach (WorkshopItemMetadata meta in metadataList)
             {
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Checking if {meta.PublishedFileId} ('{meta.Title}') is a collection...");
+                Loggers.Workshop.Log($"WorkshopQueueManager: Checking if {meta.PublishedFileId} ('{meta.Title}') is a collection...");
                 List<ulong> children = await SteamWebApiClient.GetCollectionDetailsAsync(meta.PublishedFileId);
-                switch (children.Count)
+                if (children.Count > 0)
                 {
-                    case > 0:
-                        {
-                            InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} is a collection with {children.Count} children.");
-                            meta.IsCollection = true;
-                            meta.ChildrenIds = children;
+                    Loggers.Workshop.Log($"WorkshopQueueManager: Item {meta.PublishedFileId} is a collection with {children.Count} children.");
+                    meta.IsCollection = true;
+                    meta.ChildrenIds = children;
 
-                            List<WorkshopItemMetadata> childrenMeta = await _apiClient.GetPublishedFileDetailsAsync(children);
-                            if (onCollectionFound != null)
-                                await onCollectionFound(childrenMeta);
-                            break;
-                        }
-
-                    default:
-                        // Enqueue immediately so the UI populates in real time. May be a performance issue in the future with enough downloads
-                        await Dispatcher.UIThread.InvokeAsync(() => Enqueue(meta));
-                        break;
-
+                    List<WorkshopItemMetadata> childrenMeta = await _apiClient.GetPublishedFileDetailsAsync(children);
+                    if (onCollectionFound != null)
+                        await onCollectionFound(childrenMeta);
+                }
+                else
+                {
+                    // Enqueue immediately so the UI populates in real time. May be a performance issue in the future with enough downloads
+                    await Dispatcher.UIThread.InvokeAsync(() => Enqueue(meta));
                 }
             }
         }
@@ -320,11 +311,11 @@ namespace ModHearth.Utilities.Workshop
             if (ids.Count == 0)
                 return;
 
-            InfoLogger.LogRunDf($"WorkshopQueueManager: Redownloading {ids.Count} workshop items...");
+            Loggers.Workshop.Log($"WorkshopQueueManager: Redownloading {ids.Count} workshop items...");
             List<WorkshopItemMetadata> metadataList = await _apiClient.GetPublishedFileDetailsAsync(ids);
             if (metadataList.Count == 0)
             {
-                InfoLogger.LogRunDf("WorkshopQueueManager: Steam API returned no metadata for redownload IDs.");
+                Loggers.Workshop.Log("WorkshopQueueManager: Steam API returned no metadata for redownload IDs.");
                 return;
             }
 
@@ -350,10 +341,10 @@ namespace ModHearth.Utilities.Workshop
                 return;
             }
 
-            InfoLogger.LogRunDf($"WorkshopQueueManager: Attempting to enqueue {meta.PublishedFileId} ('{meta.Title}')...");
+            Loggers.Workshop.Log($"WorkshopQueueManager: Attempting to enqueue {meta.PublishedFileId} ('{meta.Title}')...");
             if (Queue.Any(i => i.PublishedFileId == meta.PublishedFileId && i.State != DownloadState.Completed && i.State != DownloadState.Failed && i.State != DownloadState.Cancelled))
             {
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} is already in the queue and active. Skipping.");
+                Loggers.Workshop.Log($"WorkshopQueueManager: Item {meta.PublishedFileId} is already in the queue and active. Skipping.");
                 return;
             }
 
@@ -385,7 +376,7 @@ namespace ModHearth.Utilities.Workshop
             }
 
             Queue.Insert(0, item);
-            InfoLogger.LogRunDf($"WorkshopQueueManager: Item {meta.PublishedFileId} added to queue. Queue size: {Queue.Count}");
+            Loggers.Workshop.Log($"WorkshopQueueManager: Item {meta.PublishedFileId} added to queue. Queue size: {Queue.Count}");
             _ = ProcessQueueItemAsync(item);
         }
 
@@ -429,7 +420,7 @@ namespace ModHearth.Utilities.Workshop
             if (ConfigManager.IsAutoRetryAllEnabled() && item.AutoRetryCount < 3)
             {
                 item.AutoRetryCount++;
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Auto-retrying download for {item.PublishedFileId} (attempt {item.AutoRetryCount}/3)...");
+                Loggers.Workshop.Log($"WorkshopQueueManager: Auto-retrying download for {item.PublishedFileId} (attempt {item.AutoRetryCount}/3)...");
                 item.SetState(DownloadState.Waiting);
                 item.SetProgress(0, $"Auto-retrying ({item.AutoRetryCount}/3)...");
                 _ = ProcessQueueItemAsync(item);
@@ -497,30 +488,30 @@ namespace ModHearth.Utilities.Workshop
 
         private async Task ProcessQueueItemAsync(WorkshopDownloadItem item)
         {
-            InfoLogger.LogRunDf($"WorkshopQueueManager: Processing queue item {item.PublishedFileId} ('{item.Title}'). Waiting for semaphore...");
+            Loggers.Workshop.Log($"WorkshopQueueManager: Processing queue item {item.PublishedFileId} ('{item.Title}'). Waiting for semaphore...");
             await _concurrencySemaphore.WaitAsync();
             try
             {
                 if (item.State is DownloadState.Cancelled or not DownloadState.Waiting)
                 {
-                    InfoLogger.LogRunDf($"WorkshopQueueManager: Item {item.PublishedFileId} was cancelled or already processed.");
+                    Loggers.Workshop.Log($"WorkshopQueueManager: Item {item.PublishedFileId} was cancelled or already processed.");
                     return;
                 }
 
                 IWorkshopDownloadProvider? provider = SelectedProvider ?? Providers.FirstOrDefault(p => p.IsAvailable);
                 if (provider == null)
                 {
-                    InfoLogger.LogRunDf($"WorkshopQueueManager: No available download provider found for {item.PublishedFileId}.");
+                    Loggers.Workshop.Log($"WorkshopQueueManager: No available download provider found for {item.PublishedFileId}.");
                     FailOrAutoRetry(item, "No download provider available");
                     return;
                 }
 
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Using provider '{provider.Name}' for {item.PublishedFileId}.");
+                Loggers.Workshop.Log($"WorkshopQueueManager: Using provider '{provider.Name}' for {item.PublishedFileId}.");
 
                 string modsDir = ConfigManager.GetModsPath();
                 if (string.IsNullOrEmpty(modsDir))
                 {
-                    InfoLogger.LogRunDf($"WorkshopQueueManager: Mods folder not configured. Download failed for {item.PublishedFileId}.");
+                    Loggers.Workshop.Log($"WorkshopQueueManager: Mods folder not configured. Download failed for {item.PublishedFileId}.");
                     FailOrAutoRetry(item, "Mods folder not configured");
                     return;
                 }
@@ -531,149 +522,135 @@ namespace ModHearth.Utilities.Workshop
                 }
                 catch (Exception ex)
                 {
-                    InfoLogger.LogRunDf($"WorkshopQueueManager: Failed to create mods folder at '{modsDir}': {ex.Message}");
+                    Loggers.Workshop.Log($"WorkshopQueueManager: Failed to create mods folder at '{modsDir}': {ex.Message}");
                     FailOrAutoRetry(item, "Mods folder creation failed");
                     return;
                 }
 
                 List<WorkshopDownloadItem> batchGroup = [item];
-                switch (provider)
+                if (provider is SteamCmdDownloadProvider)
                 {
-                    case SteamCmdDownloadProvider:
+                    lock (_steamCmdBatchLock)
+                    {
+                        if (item.State != DownloadState.Waiting)
                         {
-                            lock (_steamCmdBatchLock)
-                            {
-                                if (item.State != DownloadState.Waiting)
-                                {
-                                    return;
-                                }
-
-                                List<WorkshopDownloadItem> waitingItems = [.. Queue.Where(i => i.State == DownloadState.Waiting && i != item).Take(9)];
-                                batchGroup.AddRange(waitingItems);
-
-                                foreach (WorkshopDownloadItem batchItem in batchGroup)
-                                {
-                                    batchItem.Cts?.Dispose();
-                                    batchItem.Cts = new CancellationTokenSource();
-                                    batchItem.SetState(DownloadState.Downloading);
-                                    batchItem.SetStatus(batchGroup.Count > 1 ? "Downloading (Batched)..." : "Downloading...");
-                                    batchItem.IsBatched = batchGroup.Count > 1;
-                                }
-                            }
-
-                            break;
+                            return;
                         }
 
-                    default:
-                        item.IsBatched = false;
-                        item.Cts?.Dispose();
-                        item.Cts = new CancellationTokenSource();
-                        item.SetState(DownloadState.Downloading);
-                        item.SetStatus("Downloading...");
-                        break;
+                        List<WorkshopDownloadItem> waitingItems = [.. Queue.Where(i => i.State == DownloadState.Waiting && i != item).Take(9)];
+                        batchGroup.AddRange(waitingItems);
+
+                        foreach (WorkshopDownloadItem batchItem in batchGroup)
+                        {
+                            batchItem.Cts?.Dispose();
+                            batchItem.Cts = new CancellationTokenSource();
+                            batchItem.SetState(DownloadState.Downloading);
+                            batchItem.SetStatus(batchGroup.Count > 1 ? "Downloading (Batched)..." : "Downloading...");
+                            batchItem.IsBatched = batchGroup.Count > 1;
+                        }
+                    }
+                }
+                else
+                {
+                    item.IsBatched = false;
+                    item.Cts?.Dispose();
+                    item.Cts = new CancellationTokenSource();
+                    item.SetState(DownloadState.Downloading);
+                    item.SetStatus("Downloading...");
                 }
 
-                switch (batchGroup.Count)
+                if (batchGroup.Count >= 2 && provider is SteamCmdDownloadProvider steamCmdProvider)
                 {
-                    case >= 2 when provider is SteamCmdDownloadProvider steamCmdProvider:
+                    Loggers.Workshop.Log($"WorkshopQueueManager: Batching {batchGroup.Count} items into single SteamCMD run.");
+
+                    List<BatchDownloadItem> batchItems = [];
+                    List<CancellationTokenSource> ctsList = [.. batchGroup.Select(b => b.Cts!)];
+
+                    foreach (WorkshopDownloadItem batchItem in batchGroup)
+                    {
+                        string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
+                        Progress<DownloadProgress> prog = CreateProgressReporter(batchItem, batched: true);
+
+                        batchItems.Add(new BatchDownloadItem(batchItem.PublishedFileId, targetDir, prog, batchItem.Cts!.Token));
+                    }
+
+                    using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource([.. ctsList.Select(c => c.Token)]);
+                    Dictionary<ulong, bool> results = await steamCmdProvider.DownloadBatchAsync(batchItems, linkedCts.Token);
+
+                    bool anySuccess = false;
+                    foreach (WorkshopDownloadItem batchItem in batchGroup)
+                    {
+                        bool success = results.TryGetValue(batchItem.PublishedFileId, out bool val) && val;
+                        if (success && !batchItem.Cts!.Token.IsCancellationRequested)
                         {
-                            InfoLogger.LogRunDf($"WorkshopQueueManager: Batching {batchGroup.Count} items into single SteamCMD run.");
+                            Loggers.Workshop.Log($"WorkshopQueueManager: Batch download successful for {batchItem.PublishedFileId}.");
+                            batchItem.SetState(DownloadState.Completed);
+                            batchItem.SetProgress(100, "Completed");
+                            anySuccess = true;
 
-                            List<BatchDownloadItem> batchItems = [];
-                            List<CancellationTokenSource> ctsList = [.. batchGroup.Select(b => b.Cts!)];
-
-                            foreach (WorkshopDownloadItem batchItem in batchGroup)
-                            {
-                                string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
-                                Progress<DownloadProgress> prog = CreateProgressReporter(batchItem, batched: true);
-
-                                batchItems.Add(new BatchDownloadItem(batchItem.PublishedFileId, targetDir, prog, batchItem.Cts!.Token));
-                            }
-
-                            using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource([.. ctsList.Select(c => c.Token)]);
-                            Dictionary<ulong, bool> results = await steamCmdProvider.DownloadBatchAsync(batchItems, linkedCts.Token);
-
-                            bool anySuccess = false;
-                            foreach (WorkshopDownloadItem batchItem in batchGroup)
-                            {
-                                bool success = results.TryGetValue(batchItem.PublishedFileId, out bool val) && val;
-                                if (success && !batchItem.Cts!.Token.IsCancellationRequested)
-                                {
-                                    InfoLogger.LogRunDf($"WorkshopQueueManager: Batch download successful for {batchItem.PublishedFileId}.");
-                                    batchItem.SetState(DownloadState.Completed);
-                                    batchItem.SetProgress(100, "Completed");
-                                    anySuccess = true;
-
-                                    string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
-                                    CleanupOldModFolders(batchItem.PublishedFileId, targetDir);
-                                }
-                                else if (batchItem.Cts!.Token.IsCancellationRequested)
-                                {
-                                    batchItem.SetState(DownloadState.Cancelled);
-                                    batchItem.SetStatus("Cancelled");
-                                }
-                                else
-                                {
-                                    InfoLogger.LogRunDf($"WorkshopQueueManager: Batch download failed for {batchItem.PublishedFileId}.");
-                                    FailOrAutoRetry(batchItem, "Download failed");
-                                }
-                            }
-
-                            if (anySuccess)
-                            {
-                                TriggerDebouncedUIReload();
-                            }
-
-                            break;
+                            string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
+                            CleanupOldModFolders(batchItem.PublishedFileId, targetDir);
                         }
-
-                    default:
+                        else if (batchItem.Cts!.Token.IsCancellationRequested)
                         {
-                            CancellationToken token = item.Cts!.Token;
-                            string targetDir = Path.Combine(modsDir, item.PublishedFileId.ToString());
-                            InfoLogger.LogRunDf($"WorkshopQueueManager: Target directory for {item.PublishedFileId}: {targetDir}");
-
-                            Progress<DownloadProgress> progressReporter = CreateProgressReporter(item, batched: false);
-
-                            InfoLogger.LogRunDf($"WorkshopQueueManager: Starting download for {item.PublishedFileId}...");
-                            bool success = await provider.DownloadAsync(item.PublishedFileId, targetDir, progressReporter, token);
-
-                            if (success && !token.IsCancellationRequested)
-                            {
-                                InfoLogger.LogRunDf($"WorkshopQueueManager: Download successful for {item.PublishedFileId}. Triggering mod list reload.");
-                                item.SetState(DownloadState.Completed);
-                                item.SetProgress(100, "Completed");
-
-                                CleanupOldModFolders(item.PublishedFileId, targetDir);
-
-                                TriggerDebouncedUIReload();
-                            }
-                            else if (token.IsCancellationRequested)
-                            {
-                                InfoLogger.LogRunDf($"WorkshopQueueManager: Download cancelled for {item.PublishedFileId}.");
-                                item.SetState(DownloadState.Cancelled);
-                                item.SetStatus("Cancelled");
-                            }
-                            else
-                            {
-                                InfoLogger.LogRunDf($"WorkshopQueueManager: Download failed for {item.PublishedFileId} via {provider.Name}.");
-                                FailOrAutoRetry(item, "Download failed");
-                            }
-
-                            break;
+                            batchItem.SetState(DownloadState.Cancelled);
+                            batchItem.SetStatus("Cancelled");
                         }
+                        else
+                        {
+                            Loggers.Workshop.Log($"WorkshopQueueManager: Batch download failed for {batchItem.PublishedFileId}.");
+                            FailOrAutoRetry(batchItem, "Download failed");
+                        }
+                    }
 
+                    if (anySuccess)
+                    {
+                        TriggerDebouncedUIReload();
+                    }
+                }
+                else
+                {
+                    CancellationToken token = item.Cts!.Token;
+                    string targetDir = Path.Combine(modsDir, item.PublishedFileId.ToString());
+                    Loggers.Workshop.Log($"WorkshopQueueManager: Target directory for {item.PublishedFileId}: {targetDir}");
+
+                    Progress<DownloadProgress> progressReporter = CreateProgressReporter(item, batched: false);
+
+                    Loggers.Workshop.Log($"WorkshopQueueManager: Starting download for {item.PublishedFileId}...");
+                    bool success = await provider.DownloadAsync(item.PublishedFileId, targetDir, progressReporter, token);
+
+                    if (success && !token.IsCancellationRequested)
+                    {
+                        Loggers.Workshop.Log($"WorkshopQueueManager: Download successful for {item.PublishedFileId}. Triggering mod list reload.");
+                        item.SetState(DownloadState.Completed);
+                        item.SetProgress(100, "Completed");
+
+                        CleanupOldModFolders(item.PublishedFileId, targetDir);
+
+                        TriggerDebouncedUIReload();
+                    }
+                    else if (token.IsCancellationRequested)
+                    {
+                        Loggers.Workshop.Log($"WorkshopQueueManager: Download cancelled for {item.PublishedFileId}.");
+                        item.SetState(DownloadState.Cancelled);
+                        item.SetStatus("Cancelled");
+                    }
+                    else
+                    {
+                        Loggers.Workshop.Log($"WorkshopQueueManager: Download failed for {item.PublishedFileId} via {provider.Name}.");
+                        FailOrAutoRetry(item, "Download failed");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Exception during download of {item.PublishedFileId}: {ex.Message}");
+                Loggers.Workshop.Log($"WorkshopQueueManager: Exception during download of {item.PublishedFileId}: {ex.Message}");
                 AppLogging.LogException($"QueueManager error downloading {item.PublishedFileId}", ex);
                 FailOrAutoRetry(item, $"Error: {ex.Message}");
             }
             finally
             {
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Releasing semaphore for {item.PublishedFileId}.");
+                Loggers.Workshop.Log($"WorkshopQueueManager: Releasing semaphore for {item.PublishedFileId}.");
                 _ = _concurrencySemaphore.Release();
             }
         }
@@ -683,13 +660,8 @@ namespace ModHearth.Utilities.Workshop
             string batchedSuffix = batched ? " (Batched)" : string.Empty;
             return new Progress<DownloadProgress>(p =>
             {
-                switch (item.State)
-                {
-                    case DownloadState.Failed:
-                    case DownloadState.Cancelled:
-                    case DownloadState.Completed:
-                        return;
-                }
+                if (item.State is DownloadState.Failed or DownloadState.Cancelled or DownloadState.Completed)
+                    return;
 
                 if (p.Percentage >= 100)
                     item.SetProgress(100, "Download complete");
@@ -720,7 +692,7 @@ namespace ModHearth.Utilities.Workshop
                             if (!string.Equals(canonicalOldPath, canonicalTargetDir, StringComparison.OrdinalIgnoreCase)
                             && ModHearthManager.CanDeleteModFromModsFolder(oldMod) && Manager.DeleteModFromModsFolder(oldMod, out string _))
                             {
-                                InfoLogger.LogRunDf($"WorkshopQueueManager: Deleted old mod folder '{oldMod.Path}' for workshop item {publishedFileId}.");
+                                Loggers.Workshop.Log($"WorkshopQueueManager: Deleted old mod folder '{oldMod.Path}' for workshop item {publishedFileId}.");
                             }
                         }
                     }
@@ -728,7 +700,7 @@ namespace ModHearth.Utilities.Workshop
             }
             catch (Exception ex)
             {
-                InfoLogger.LogRunDf($"WorkshopQueueManager: Error cleaning up old mod folders for {publishedFileId}: {ex.Message}");
+                Loggers.Workshop.Log($"WorkshopQueueManager: Error cleaning up old mod folders for {publishedFileId}: {ex.Message}");
                 AppLogging.LogException($"Error cleaning up old mod folders for {publishedFileId}", ex);
             }
         }

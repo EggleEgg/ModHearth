@@ -199,8 +199,7 @@ namespace ModHearth.Utilities.Steam
                 }
 
                 // Save installation path in config
-                ConfigManager.Config.SteamCmdPath = exe;
-                ConfigManager.SaveConfigFile("SteamCmdPath updated");
+                ConfigManager.SetSteamCmdPath(exe);
 
                 progress.Report("SteamCMD setup completed successfully.");
                 return true;
@@ -236,7 +235,7 @@ namespace ModHearth.Utilities.Steam
                 RedirectStandardError = true
             };
 
-            InfoLogger.LogRunDf($"SteamCmd: Executing {exe} {arguments}");
+            Loggers.Workshop.Log($"SteamCmd: Executing {exe} {arguments}");
 
             using Process process = new() { StartInfo = startInfo };
             try
@@ -270,7 +269,7 @@ namespace ModHearth.Utilities.Steam
                     if (!string.IsNullOrWhiteSpace(line))
                     {
                         progress?.Report(line);
-                        InfoLogger.LogRunDf($"SteamCmd stdout: {line}");
+                        Loggers.Workshop.Log($"SteamCmd stdout: {line}");
                     }
                 }
             }, cancellationToken);
@@ -284,7 +283,7 @@ namespace ModHearth.Utilities.Steam
                     if (!string.IsNullOrWhiteSpace(line))
                     {
                         progress?.Report($"[ERR] {line}");
-                        InfoLogger.LogRunDf($"SteamCmd stderr: {line}");
+                        Loggers.Workshop.Log($"SteamCmd stderr: {line}");
                     }
                 }
             }, cancellationToken);

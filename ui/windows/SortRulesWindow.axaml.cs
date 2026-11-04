@@ -47,8 +47,6 @@ namespace ModHearth.UI
             };
         }
 
-
-
         private bool _disposed;
 
         public void Dispose()

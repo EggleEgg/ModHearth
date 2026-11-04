@@ -8,6 +8,7 @@ using ModHearth.Models;
 using ModHearth.UI.Contracts;
 using ModHearth.UI.ModList;
 using ModHearth.UI.ViewModels;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
@@ -130,14 +131,8 @@ namespace ModHearth.UI
 
         private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            switch (e.PropertyName)
-            {
-                case nameof(ModRefViewModel.RuleBadges):
-                case nameof(ModRefViewModel.RelationshipCount):
-                    UpdateBadgeVisibilities();
-                    break;
-
-            }
+            if (e.PropertyName is nameof(ModRefViewModel.RuleBadges) or nameof(ModRefViewModel.RelationshipCount))
+                UpdateBadgeVisibilities();
         }
 
         private void UpdateBadgeVisibilities()
@@ -254,8 +249,7 @@ namespace ModHearth.UI
                 return;
 
             IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"[ModRefControl] OnContextMenuItemClick - Provider found: {provider != null}");
+            Loggers.Diag.Dev($"OnContextMenuItemClick - Provider found: {provider != null}");
             provider?.OnModRefContextMenuItemClicked(item, vm);
         }
 

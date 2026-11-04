@@ -1,15 +1,14 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
-using ModHearth.Models;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
 using ModHearth.Utilities;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
@@ -96,7 +95,6 @@ namespace ModHearth.UI
 
         public void RefreshStyle() => RefreshStyle(Style.instance);
 
-
         public void RefreshStyle(Style? style)
         {
             IBrush defaultBrush = style != null
@@ -169,8 +167,7 @@ namespace ModHearth.UI
                 return;
             }
 
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"Notification: {message}");
+            Loggers.Diag.Dev($"Notification: {message}");
 
             NotificationRecord record = new()
             {

@@ -8,11 +8,9 @@ namespace ModHearth.App.Tests
     /// An explicit version pin on one native asset package without pinning the managed package (or pinning it to a different version) ships
     /// a native library whose ABI doesn't match what the managed wrapper expects.
     /// </summary>
-    public class PackageVersionConsistencyTests
+    public partial class PackageVersionConsistencyTests
     {
-        private static readonly Regex PackageReferenceRegex = new(
-            @"<PackageReference\s+Include=""(?<id>[^""]+)""\s+Version=""(?<version>[^""]+)""",
-            RegexOptions.Compiled);
+        private static readonly Regex PackageReferenceRegex = MyRegex();
 
         [Fact]
         public void SkiaSharpNativeAssetPackagesMatchManagedSkiaSharpVersion()
@@ -58,5 +56,8 @@ namespace ModHearth.App.Tests
 
             throw new FileNotFoundException("Could not locate ModHearth.csproj by walking up from the test output directory.");
         }
+
+        [GeneratedRegex(@"<PackageReference\s+Include=""(?<id>[^""]+)""\s+Version=""(?<version>[^""]+)""", RegexOptions.Compiled)]
+        private static partial Regex MyRegex();
     }
 }

@@ -78,8 +78,7 @@ namespace ModHearth.UI.Dialogs
             {
                 if (await _steamCmdService.ValidateAsync(path, CancellationToken.None))
                 {
-                    ConfigManager.Config.SteamCmdPath = path;
-                    ConfigManager.SaveConfigFile("SteamCmdPath selected");
+                    ConfigManager.SetSteamCmdPath(path);
                     await DialogService.ShowMessageAsync(this, "SteamCMD location validated and saved.", "Success");
                     Close(true);
                 }

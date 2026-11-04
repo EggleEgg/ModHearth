@@ -101,7 +101,7 @@ namespace ModHearth.Utilities.Logging
                             File.Copy(oldPath, newPath, true);
                             File.Delete(oldPath);
                         }
-                        InfoLogger.Log($"Migrated {fileName} from logs/ to metadata/.");
+                        Loggers.Diag.Log($"Migrated {fileName} from logs/ to metadata/.");
                     }
                     catch (Exception ex)
                     {
@@ -119,25 +119,25 @@ namespace ModHearth.Utilities.Logging
                 {
                     if (!File.Exists(LogPath))
                     {
-                        InfoLogger.LogRunDf($"ModUpdateLogger: Log file does not exist at path: {LogPath}");
+                        Loggers.Diag.Log($"ModUpdateLogger: Log file does not exist at path: {LogPath}");
                         return [];
                     }
 
                     FileInfo fileInfo = new(LogPath);
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Loading log file from '{LogPath}'. Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTimeUtc} UTC");
+                    Loggers.Diag.Log($"ModUpdateLogger: Loading log file from '{LogPath}'. Size: {fileInfo.Length} bytes, LastWrite: {fileInfo.LastWriteTimeUtc} UTC");
 
                     string json = File.ReadAllText(LogPath);
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Read JSON content length: {json.Length} chars");
+                    Loggers.Diag.Log($"ModUpdateLogger: Read JSON content length: {json.Length} chars");
 
                     List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json);
                     int count = entries?.Count ?? 0;
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Successfully deserialized {count} log entries.");
+                    Loggers.Diag.Log($"ModUpdateLogger: Successfully deserialized {count} log entries.");
 
                     return entries ?? [];
                 }
                 catch (Exception ex)
                 {
-                    InfoLogger.LogRunDf($"ModUpdateLogger: Error loading or deserializing log file at '{LogPath}': {ex.Message}");
+                    Loggers.Diag.Log($"ModUpdateLogger: Error loading or deserializing log file at '{LogPath}': {ex.Message}");
                     AppLogging.LogException("ModUpdateLogger failed to load entries", ex);
                     return [];
                 }
@@ -332,9 +332,9 @@ namespace ModHearth.Utilities.Logging
 
                     SaveSnapshot(current);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore logging failures.
+                    AppLogging.LogException("Failed to record mod update changes", ex);
                 }
             }
         }
@@ -600,46 +600,19 @@ namespace ModHearth.Utilities.Logging
 
         private static Dictionary<string, ModUpdateSnapshotEntry> LoadSnapshot()
         {
-            try
-            {
-                if (!File.Exists(SnapshotPath))
-                    return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
-
-                string json = File.ReadAllText(SnapshotPath);
-                List<ModUpdateSnapshotEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateSnapshotEntry>>(json);
-                if (entries == null)
-                    return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
-
-                Dictionary<string, ModUpdateSnapshotEntry> map = new(StringComparer.OrdinalIgnoreCase);
-                foreach (ModUpdateSnapshotEntry entry in entries)
-                {
-                    if (entry == null || string.IsNullOrWhiteSpace(entry.ModId))
-                        continue;
-                    if (!map.ContainsKey(entry.ModId))
-                        map[entry.ModId] = entry;
-                }
-
+            Dictionary<string, ModUpdateSnapshotEntry> map = new(StringComparer.OrdinalIgnoreCase);
+            if (!JsonFileStore.TryLoad(SnapshotPath, "ModUpdateLog", out List<ModUpdateSnapshotEntry>? entries))
                 return map;
-            }
-            catch
+            foreach (ModUpdateSnapshotEntry entry in entries)
             {
-                return new Dictionary<string, ModUpdateSnapshotEntry>(StringComparer.OrdinalIgnoreCase);
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.ModId))
+                    _ = map.TryAdd(entry.ModId, entry);
             }
+            return map;
         }
 
         private static void SaveSnapshot(Dictionary<string, ModUpdateSnapshotEntry> snapshot)
-        {
-            try
-            {
-                List<ModUpdateSnapshotEntry> entries = [.. snapshot.Values];
-                string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(SnapshotPath, json);
-            }
-            catch
-            {
-                // Ignore snapshot failures.
-            }
-        }
+            => _ = JsonFileStore.TrySave(SnapshotPath, snapshot.Values.ToList(), "ModUpdateLog");
 
         private static void AppendEntries(IEnumerable<ModUpdateLogEntry> newEntries)
         {
@@ -684,7 +657,7 @@ namespace ModHearth.Utilities.Logging
             return removedCount;
         }
 
-        private static string SerializeEntries(List<ModUpdateLogEntry> entries) => JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
+        private static string SerializeEntries(List<ModUpdateLogEntry> entries) => JsonFileStore.Serialize(entries);
 
         private static int CountLines(string text)
         {
@@ -708,7 +681,7 @@ namespace ModHearth.Utilities.Logging
         {
             static void LogInfo(string message)
             {
-                SteamConnectionLogger.LogInfo(message);
+                Loggers.Steam.Log(message);
             }
 
             List<ModUpdateLogEntry> entries = [];
@@ -807,7 +780,7 @@ namespace ModHearth.Utilities.Logging
                 }
                 catch (Exception ex)
                 {
-                    SteamConnectionLogger.LogError($"Failed to parse workshop ACF '{path}': {ex.Message}");
+                    Loggers.Steam.LogError($"Failed to parse workshop ACF '{path}': {ex.Message}");
                 }
             }
 
@@ -864,46 +837,21 @@ namespace ModHearth.Utilities.Logging
 
         private static Dictionary<string, long> LoadWorkshopSnapshot()
         {
-            try
-            {
-                if (!File.Exists(WorkshopSnapshotPath))
-                    return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-
-                string json = File.ReadAllText(WorkshopSnapshotPath);
-                List<SteamWorkshopSnapshotEntry>? entries = JsonSerializer.Deserialize<List<SteamWorkshopSnapshotEntry>>(json);
-                if (entries == null)
-                    return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-
-                Dictionary<string, long> map = new(StringComparer.OrdinalIgnoreCase);
-                foreach (SteamWorkshopSnapshotEntry entry in entries)
-                {
-                    if (entry == null || string.IsNullOrWhiteSpace(entry.SteamId))
-                        continue;
-                    if (!map.ContainsKey(entry.SteamId))
-                        map[entry.SteamId] = entry.TimeUpdated;
-                }
-
+            Dictionary<string, long> map = new(StringComparer.OrdinalIgnoreCase);
+            if (!JsonFileStore.TryLoad(WorkshopSnapshotPath, "ModUpdateLog", out List<SteamWorkshopSnapshotEntry>? entries))
                 return map;
-            }
-            catch
+            foreach (SteamWorkshopSnapshotEntry entry in entries)
             {
-                return new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.SteamId))
+                    _ = map.TryAdd(entry.SteamId, entry.TimeUpdated);
             }
+            return map;
         }
 
         private static void SaveWorkshopSnapshot(Dictionary<string, long> snapshot)
-        {
-            try
-            {
-                List<SteamWorkshopSnapshotEntry> entries = [.. snapshot.Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value })];
-                string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(WorkshopSnapshotPath, json);
-            }
-            catch
-            {
-                // Ignore snapshot failures.
-            }
-        }
+            => _ = JsonFileStore.TrySave(WorkshopSnapshotPath,
+                snapshot.Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value }).ToList(),
+                "ModUpdateLog");
 
         private static DateTime? TryConvertUnixTime(long seconds)
         {

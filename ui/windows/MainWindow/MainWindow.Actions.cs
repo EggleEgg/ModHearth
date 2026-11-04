@@ -239,7 +239,6 @@ namespace ModHearth.UI
             InitializeDockingButtons();
         }
 
-
         private async Task OpenWorkshopDownloaderAsync()
         {
             if (_workshopDockManager?.IsOpen == true && _workshopDockManager.IsDocked)
@@ -402,9 +401,9 @@ namespace ModHearth.UI
                 if (!string.IsNullOrWhiteSpace(exePath))
                     _ = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore restart failures.
+                AppLogging.LogException("Failed to restart application", ex);
             }
 
             Close();

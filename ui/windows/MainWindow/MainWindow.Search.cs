@@ -17,12 +17,10 @@ namespace ModHearth.UI
             string rightFilter = rightSearchBar.Text.Trim();
             SearchFilterMode leftMode = leftSearchBar.SearchMode;
             SearchFilterMode rightMode = rightSearchBar.SearchMode;
-            if (DevMode.IsEnabled)
-            {
-                SearchLogging.Log(
-                    $"ApplySearchFilter start left='{TrimForLog(leftFilter)}' leftMode={DescribeSearchMode(leftMode)} " +
-                    $"right='{TrimForLog(rightFilter)}' rightMode={DescribeSearchMode(rightMode)} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
-            }
+
+            Loggers.Search.Dev(
+                $"ApplySearchFilter start left='{TrimForLog(leftFilter)}' leftMode={leftMode} " +
+                $"right='{TrimForLog(rightFilter)}' rightMode={rightMode} leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
 
             bool ensureVisible = ensureSearchResultVisibleOnNextFilter;
 
@@ -57,12 +55,11 @@ namespace ModHearth.UI
                 EnsureFirstVisibleSearchResultInView(leftModlist, inactiveMods, leftFilter, leftSearchBar.HideFiltered);
                 EnsureFirstVisibleSearchResultInView(rightModlist, activeMods, rightFilter, rightSearchBar.HideFiltered);
                 ensureSearchResultVisibleOnNextFilter = false;
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log("ApplySearchFilter ensureSearchResultVisibleOnNextFilter consumed");
+
+                Loggers.Search.Dev($"ApplySearchFilter ensureSearchResultVisibleOnNextFilter consumed");
             }
 
-            if (DevMode.IsEnabled)
-                SearchLogging.Log("ApplySearchFilter end");
+            Loggers.Search.Dev($"ApplySearchFilter end");
             LogVisualFilterState("ApplySearchFilter");
         }
 
@@ -104,13 +101,11 @@ namespace ModHearth.UI
         {
             if (suppressSearchInputEvents)
             {
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log($"OnSearchInputChanged suppressed source={DescribeSearchSender(sender)}");
+                Loggers.Search.Dev($"OnSearchInputChanged suppressed source={DescribeSearchSender(sender)}");
                 return;
             }
 
-            if (DevMode.IsEnabled)
-                SearchLogging.Log($"OnSearchInputChanged source={DescribeSearchSender(sender)} left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}'");
+            Loggers.Search.Dev($"OnSearchInputChanged source={DescribeSearchSender(sender)} left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}'");
             ScheduleSearchFilter();
         }
 
@@ -124,7 +119,7 @@ namespace ModHearth.UI
             => HandleSearchCriteriaChanged(
                 "OnSearchModeChanged",
                 sender,
-                () => $"leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
+                () => $"leftMode={leftSearchBar.SearchMode} rightMode={rightSearchBar.SearchMode}");
 
         // Hide-filtered, search-mode and sort-order changes all use the same apply/ensure-visible
         // pipeline; only the diagnostic line differs.
@@ -132,27 +127,24 @@ namespace ModHearth.UI
         {
             if (suppressSearchInputEvents)
             {
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log($"{eventName} suppressed source={DescribeSearchSender(sender)}");
+
+                Loggers.Search.Dev($"{eventName} suppressed source={DescribeSearchSender(sender)}");
                 return;
             }
 
-            if (DevMode.IsEnabled)
-                SearchLogging.Log($"{eventName} source={DescribeSearchSender(sender)} {describeState()}");
+            Loggers.Search.Dev($"{eventName} source={DescribeSearchSender(sender)} {describeState()}");
 
             if (sender is ModSearchBar searchBar &&
                 searchBar.HideFiltered &&
                 !string.IsNullOrWhiteSpace(searchBar.Text))
             {
                 ensureSearchResultVisibleOnNextFilter = true;
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log($"{eventName} scheduled ensure-visible source={DescribeSearchSender(sender)}");
+
+                Loggers.Search.Dev($"{eventName} scheduled ensure-visible source={DescribeSearchSender(sender)}");
             }
 
             ApplySearchFilterImmediately();
         }
-
-
 
         private void ApplyFilterFlags(
             ObservableCollection<ModRefViewModel> targetCollection,
@@ -175,33 +167,30 @@ namespace ModHearth.UI
                 list,
                 modListController,
                 isSortingEnabled,
-                msg =>
-                {
-                    if (DevMode.IsEnabled)
-                        SearchLogging.Log($"ApplyFilterFlags list={DescribeList(list)} " + msg);
-                }
+                DevMode.IsEnabled
+                    ? msg => Loggers.Search.Dev($"ApplyFilterFlags list={DescribeList(list)} {msg}")
+                    : null
             );
 
         private void ScheduleSearchFilter()
         {
             if (searchDebounceTimer == null)
             {
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log("ScheduleSearchFilter no-debounce -> immediate");
+
+                Loggers.Search.Dev($"ScheduleSearchFilter no-debounce -> immediate");
                 ApplySearchFilter();
                 return;
             }
 
-            if (DevMode.IsEnabled)
-                SearchLogging.Log("ScheduleSearchFilter restart timer");
+            Loggers.Search.Dev($"ScheduleSearchFilter restart timer");
             searchDebounceTimer.Stop();
             searchDebounceTimer.Start();
         }
 
         private void ApplySearchFilterImmediately()
         {
-            if (DevMode.IsEnabled)
-                SearchLogging.Log("ApplySearchFilterImmediately");
+
+            Loggers.Search.Dev($"ApplySearchFilterImmediately");
             searchDebounceTimer?.Stop();
             ApplySearchFilter();
         }
@@ -226,17 +215,6 @@ namespace ModHearth.UI
 
         private static string TrimForLog(string? value) => StringFormatter.TrimForLog(value);
 
-        private static string DescribeSearchMode(SearchFilterMode mode) => mode switch
-        {
-            SearchFilterMode.Name => "name",
-            SearchFilterMode.Regex => "regex",
-            SearchFilterMode.ModifiedTime => "modified_time",
-            SearchFilterMode.Id => "id",
-            SearchFilterMode.SteamFileId => "steam_file_id",
-            SearchFilterMode.Color => throw new NotImplementedException(),
-            _ => "name"
-        };
-
         private void EnsureFirstVisibleSearchResultInView(
             ListBox list,
             IEnumerable<ModRefViewModel> source,
@@ -251,15 +229,16 @@ namespace ModHearth.UI
                 return;
 
             list.ScrollIntoView(firstVisible);
-            if (DevMode.IsEnabled)
-            {
-                SearchLogging.Log(
-                    $"EnsureFirstVisibleSearchResultInView list={DescribeList(list)} targetId='{TrimForLog(firstVisible.ModReference.ID)}'");
-            }
+
+            Loggers.Search.Dev($"EnsureFirstVisibleSearchResultInView list={DescribeList(list)} targetId='{TrimForLog(firstVisible.ModReference.ID)}'");
+
         }
 
         private void LogVisualFilterState(string phase)
         {
+            if (!DevMode.IsEnabled)
+                return;
+
             LogListVisualState(phase, leftModlist, inactiveMods, leftSearchBar.Text, leftSearchBar.SearchMode, leftSearchBar.HideFiltered);
             LogListVisualState(phase, rightModlist, activeMods, rightSearchBar.Text, rightSearchBar.SearchMode, rightSearchBar.HideFiltered);
         }
@@ -272,9 +251,6 @@ namespace ModHearth.UI
             SearchFilterMode mode,
             bool hideFiltered)
         {
-            if (!DevMode.IsEnabled)
-                return;
-
             int total = 0;
             int vmVisible = 0;
             foreach (ModRefViewModel vm in source)
@@ -289,8 +265,8 @@ namespace ModHearth.UI
             int realizedVisible = realizedItems.Count(item => item.IsVisible);
             int realizedHidden = realizedTotal - realizedVisible;
 
-            SearchLogging.Log(
-                $"VisualState phase={phase} list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={DescribeSearchMode(mode)} hideFiltered={hideFiltered} " +
+            Loggers.Search.Dev(
+                $"VisualState phase={phase} list={DescribeList(list)} filter='{TrimForLog(filter)}' mode={mode} hideFiltered={hideFiltered} " +
                 $"vmVisible={vmVisible}/{total} realizedVisible={realizedVisible}/{realizedTotal} realizedHidden={realizedHidden}");
         }
     }

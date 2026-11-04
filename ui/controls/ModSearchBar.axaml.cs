@@ -124,23 +124,17 @@ namespace ModHearth.UI
                 if (clearClickCount >= neededClicks)
                 {
                     clearClickCount = 0;
-                    if (DevMode.IsEnabled)
-                        SearchLogging.Log($"ModSearchBar ClearButton clicked {neededClicks} consecutive times - resetting to default search filter");
+                    Loggers.Search.Dev($"ModSearchBar ClearButton clicked {neededClicks} consecutive times - resetting to default search filter");
                     SearchMode = IsSearchModeAllowed(DefaultSearchMode) ? DefaultSearchMode : GetFirstAllowedSearchMode();
                     ColorPicker.ClearSelection();
                     SearchBox.Text = string.Empty;
                 }
                 else
                 {
-                    switch (SearchMode)
-                    {
-                        case SearchFilterMode.Color when IsColorSearchEnabled:
-                            ColorPicker.ClearSelection();
-                            break;
-                        default:
-                            SearchBox.Text = string.Empty;
-                            break;
-                    }
+                    if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
+                        ColorPicker.ClearSelection();
+                    else
+                        SearchBox.Text = string.Empty;
                 }
             };
 
@@ -160,8 +154,7 @@ namespace ModHearth.UI
                     UpdateSearchModeIcon();
                     UpdateSearchModeButtonTooltip();
 
-                    if (DevMode.IsEnabled)
-                        SearchLogging.Log($"SearchModeChanged = {GetSearchModeLabel(SearchMode)}");
+                    Loggers.Search.Dev($"SearchModeChanged = {GetSearchModeLabel(SearchMode)}");
                     SearchModeChanged?.Invoke(this, EventArgs.Empty);
                 }
                 else if (args.Property == SortDescendingProperty)
@@ -379,24 +372,18 @@ namespace ModHearth.UI
 
         public bool ClearSearchSelection()
         {
-            switch (SearchMode)
+            if (SearchMode == SearchFilterMode.Color && IsColorSearchEnabled)
             {
-                case SearchFilterMode.Color when IsColorSearchEnabled:
-                    {
-                        bool hadSelection = ColorPicker.SelectedColors.Any();
-                        ColorPicker.ClearSelection();
-                        return hadSelection;
-                    }
-
-                default:
-                    {
-                        bool hadSelection = !string.IsNullOrEmpty(SearchBox.SelectedText);
-                        int caret = SearchBox.CaretIndex;
-                        SearchBox.SelectionStart = caret;
-                        SearchBox.SelectionEnd = caret;
-                        return hadSelection;
-                    }
+                bool hadColors = ColorPicker.SelectedColors.Any();
+                ColorPicker.ClearSelection();
+                return hadColors;
             }
+
+            bool hadSelection = !string.IsNullOrEmpty(SearchBox.SelectedText);
+            int caret = SearchBox.CaretIndex;
+            SearchBox.SelectionStart = caret;
+            SearchBox.SelectionEnd = caret;
+            return hadSelection;
         }
 
         public void ApplyStyle(Style style)
@@ -499,72 +486,54 @@ namespace ModHearth.UI
             };
             searchModeLabels[mode] = text;
 
-            Thickness textRightSpacing = new(0, 0, 15, 0);
+            StackPanel content = new() { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 0, 15, 0) };
+            content.Children.Add(CreateSearchModeIcon(mode));
+            content.Children.Add(text);
 
-            switch (mode)
+            if (mode == SearchFilterMode.Regex)
             {
-                case SearchFilterMode.Regex:
+                ToolTip.SetTip(button, "Search includes mod title and description");
+
+                Button helpButton = new()
+                {
+                    Content = "?",
+                    Width = 18,
+                    Height = 18,
+                    Padding = new Thickness(0),
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontSize = 12,
+                    Cursor = new Cursor(StandardCursorType.Hand)
+                };
+
+                ToolTip.SetTip(helpButton, "Click here to view regex documentation");
+
+                helpButton.Click += (_, e) =>
+                {
+                    e.Handled = true;
+
+                    using Process? process = Process.Start(new ProcessStartInfo
                     {
-                        ToolTip.SetTip(button, "Search includes mod title and description");
+                        FileName = "https://regex101.com/",
+                        UseShellExecute = true
+                    });
+                };
 
-                        Grid grid = new()
-                        {
-                            ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto")
-                        };
+                Grid grid = new()
+                {
+                    ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto")
+                };
 
-                        Button helpButton = new()
-                        {
-                            Content = "?",
-                            Width = 18,
-                            Height = 18,
-                            Padding = new Thickness(0),
-                            HorizontalContentAlignment = HorizontalAlignment.Center,
-                            HorizontalAlignment = HorizontalAlignment.Right,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            FontSize = 12,
-                            Cursor = new Cursor(StandardCursorType.Hand)
-                        };
-
-                        ToolTip.SetTip(helpButton, "Click here to view regex documentation");
-
-                        helpButton.Click += (_, e) =>
-                        {
-                            e.Handled = true;
-
-                            using Process? process = Process.Start(new ProcessStartInfo
-                            {
-                                FileName = "https://regex101.com/",
-                                UseShellExecute = true
-                            });
-                        };
-
-                        Image optionIcon = CreateSearchModeIcon(mode);
-                        StackPanel leftContent = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
-                        leftContent.Children.Add(optionIcon);
-                        leftContent.Children.Add(text);
-
-                        leftContent.Margin = textRightSpacing;
-
-                        Grid.SetColumn(leftContent, 0);
-                        Grid.SetColumn(helpButton, 2);
-
-                        grid.Children.Add(leftContent);
-                        grid.Children.Add(helpButton);
-                        button.Content = grid;
-                        break;
-                    }
-
-                default:
-                    {
-                        Image optionIcon = CreateSearchModeIcon(mode);
-                        StackPanel content = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
-                        content.Children.Add(optionIcon);
-                        content.Children.Add(text);
-
-                        content.Margin = textRightSpacing;
-                        button.Content = content;
-                        break;
-                    }
+                Grid.SetColumn(content, 0);
+                Grid.SetColumn(helpButton, 2);
+                grid.Children.Add(content);
+                grid.Children.Add(helpButton);
+                button.Content = grid;
+            }
+            else
+            {
+                button.Content = content;
             }
 
             button.Click += (_, _) =>
@@ -653,7 +622,6 @@ namespace ModHearth.UI
                 _ => "Search by name"
             };
         }
-
 
         public string GetStringState() => $"{Text}|{HideFiltered}|{SearchMode}|{SortDescending}";
 

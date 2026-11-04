@@ -11,7 +11,6 @@ using ModHearth.UI.Helpers;
 using ModHearth.UI.ModList;
 using ModHearth.UI.ViewModels;
 
-
 namespace ModHearth.UI
 {
     public partial class MainWindow : IModRefContextMenuProvider
@@ -29,7 +28,6 @@ namespace ModHearth.UI
         }
 
         public ModHearthManager? GetManager() => manager;
-
 
         public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm)
         {
@@ -186,7 +184,6 @@ namespace ModHearth.UI
                 GetContextMenuSelectedItems(sender),
                 (ModRefViewModel vm) => vm.ModReference);
 
-
         private void ConfigureModColorSubmenu(ContextMenu menu, ModRefViewModel contextVm, List<ModRefViewModel> selected)
         {
             MenuItem? colorRoot = menu.Items
@@ -233,7 +230,7 @@ namespace ModHearth.UI
                 }
                 ModColorMetadataStore.SetModColors(updates);
                 RefreshModColorUnderlays(modReferences);
-                // Closes the whole menu tree, including this open submenu. The submenu itself has no independent "close" concept, 
+                // Closes the whole menu tree, including this open submenu. The submenu itself has no independent "close" concept,
                 // it lives inside the root ContextMenu's popup.
                 ContextMenuCoordinator.DismissActive();
             }

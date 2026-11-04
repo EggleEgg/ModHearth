@@ -15,13 +15,7 @@ namespace ModHearth.UI
         public override object ProvideValue(IServiceProvider serviceProvider) => this;
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        {
-            return value switch
-            {
-                bool b => b ? TrueValue : FalseValue,
-                _ => FalseValue,
-            };
-        }
+            => value is true ? TrueValue : FalseValue;
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
     }

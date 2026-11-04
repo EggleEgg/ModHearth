@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities.Steam
 {
@@ -47,7 +48,7 @@ namespace ModHearth.Utilities.Steam
             string? workerPath = ResolveWorkerPath();
             if (workerPath == null)
             {
-                SteamConnectionLogger.LogError(Message);
+                Loggers.Steam.LogError(Message);
                 return 0;
             }
 
@@ -77,7 +78,7 @@ namespace ModHearth.Utilities.Steam
             string? workerPath = ResolveWorkerPath();
             if (workerPath == null)
             {
-                SteamConnectionLogger.LogError(Message);
+                Loggers.Steam.LogError(Message);
                 return false;
             }
 
@@ -137,7 +138,7 @@ namespace ModHearth.Utilities.Steam
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        SteamConnectionLogger.LogInfo($"ModHearth.SteamWorker '{action} {arg}' cancelled; stopping worker.");
+                        Loggers.Steam.Log($"ModHearth.SteamWorker '{action} {arg}' cancelled; stopping worker.");
                         TryKill(process);
                         return false;
                     }
@@ -151,7 +152,7 @@ namespace ModHearth.Utilities.Steam
 
                 if (!exited)
                 {
-                    SteamConnectionLogger.LogError($"ModHearth.SteamWorker timed out running '{action} {arg}'.");
+                    Loggers.Steam.LogError($"ModHearth.SteamWorker timed out running '{action} {arg}'.");
                     TryKill(process);
                     return false;
                 }
@@ -169,12 +170,12 @@ namespace ModHearth.Utilities.Steam
                 }
 
                 if (!string.IsNullOrWhiteSpace(stdout))
-                    SteamConnectionLogger.LogInfo($"ModHearth.SteamWorker '{action} {arg}' output: {stdout.Trim()}");
+                    Loggers.Steam.Log($"ModHearth.SteamWorker '{action} {arg}' output: {stdout.Trim()}");
 
                 if (process.ExitCode != 0)
                 {
                     if (!string.IsNullOrWhiteSpace(stderr))
-                        SteamConnectionLogger.LogError($"ModHearth.SteamWorker '{action} {arg}' failed: {stderr.Trim()}");
+                        Loggers.Steam.LogError($"ModHearth.SteamWorker '{action} {arg}' failed: {stderr.Trim()}");
                     return false;
                 }
 
@@ -182,7 +183,7 @@ namespace ModHearth.Utilities.Steam
             }
             catch (Exception ex)
             {
-                SteamConnectionLogger.LogError($"Failed to run ModHearth.SteamWorker '{action} {arg}': {ex.Message}");
+                Loggers.Steam.LogError($"Failed to run ModHearth.SteamWorker '{action} {arg}': {ex.Message}");
                 return false;
             }
         }

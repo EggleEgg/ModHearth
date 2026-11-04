@@ -1,3 +1,5 @@
+using ModHearth.Utilities.Logging;
+
 namespace ModHearth.UI.Update
 {
     internal static class UpdateLogger

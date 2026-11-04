@@ -15,7 +15,7 @@ namespace ModHearth.Utilities.Workshop
         private static readonly Regex WorkshopIdRegex = MyRegex();
 
         // Ensures standalone numeric inputs strictly match valid Steam PublishedFileId length bounds
-        private static readonly Regex PlainIdRegex = new(@"^\d{7,20}$", RegexOptions.Compiled);
+        private static readonly Regex PlainIdRegex = MyRegex1();
 
         private static IEnumerable<(ulong Id, string Token)> ExtractEntries(string input)
         {
@@ -48,7 +48,7 @@ namespace ModHearth.Utilities.Workshop
 
         public static List<ulong> ParseUrls(string input)
         {
-            InfoLogger.LogRunDf($"WorkshopUrlResolver: Parsing input: {input}");
+            Loggers.Workshop.Log($"WorkshopUrlResolver: Parsing input: {input}");
             HashSet<ulong> results = [];
 
             foreach ((ulong id, string? token) in ExtractEntries(input))
@@ -56,13 +56,13 @@ namespace ModHearth.Utilities.Workshop
                 if (results.Add(id))
                 {
                     if (PlainIdRegex.IsMatch(token))
-                        InfoLogger.LogRunDf($"WorkshopUrlResolver: Found plain ID: {id}");
+                        Loggers.Workshop.Log($"WorkshopUrlResolver: Found plain ID: {id}");
                     else
-                        InfoLogger.LogRunDf($"WorkshopUrlResolver: Found ID from URL: {id} (Source: {token})");
+                        Loggers.Workshop.Log($"WorkshopUrlResolver: Found ID from URL: {id} (Source: {token})");
                 }
             }
 
-            InfoLogger.LogRunDf($"WorkshopUrlResolver: Total unique IDs found: {results.Count}");
+            Loggers.Workshop.Log($"WorkshopUrlResolver: Total unique IDs found: {results.Count}");
             return [.. results];
         }
 
@@ -84,6 +84,7 @@ namespace ModHearth.Utilities.Workshop
 
         [GeneratedRegex(@"^(?:https?://)?(?:www\.)?(?:steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/(?:changelog/)?(?:\?(?:[^&\s]+&)*id=|/)?|steam://url/CommunityFilePage/)(\d{7,20})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex MyRegex();
-
+        [GeneratedRegex(@"^\d{7,20}$", RegexOptions.Compiled)]
+        private static partial Regex MyRegex1();
     }
 }

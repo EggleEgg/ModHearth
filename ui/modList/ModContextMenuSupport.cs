@@ -53,7 +53,7 @@ namespace ModHearth.UI.ModList
             switch (item.Tag?.ToString())
             {
                 case DeleteTag:
-                    await DeleteLocalModsWithConfirmAsync(owner, manager, [modref]);
+                    _ = await DeleteLocalModsWithConfirmAsync(owner, manager, [modref]);
                     break;
                 case UnsubscribeTag:
                     await UnsubscribeSteamWithConfirmAsync(owner, manager, [modref]);
@@ -111,14 +111,10 @@ namespace ModHearth.UI.ModList
             {
                 // The menu item might inherit DataContext from its parent context menu or placement target.
                 // If the MenuItem itself doesn't have the T, we check if the MenuItem's parent ContextMenu has it.
-                switch (menuItem.Parent)
-                {
-                    case ContextMenu menu when menu.DataContext is T menuContext:
-                        contextItem = menuContext;
-                        break;
-                    default:
-                        return false;
-                }
+                if (menuItem.Parent is ContextMenu menu && menu.DataContext is T menuContext)
+                    contextItem = menuContext;
+                else
+                    return false;
             }
 
             List<T> selected = selectedItems?.Cast<T>().ToList() ?? [];
@@ -260,7 +256,6 @@ namespace ModHearth.UI.ModList
                 ? $"Redownload '{steamTargets.First().Name}' from Steam Workshop?"
                 : $"Redownload {steamTargets.Count} Steam mods?";
 
-
         public static async Task<bool> DeleteLocalModsWithConfirmAsync(
             Window owner,
             ModHearthManager manager,
@@ -376,7 +371,6 @@ namespace ModHearth.UI.ModList
         public static List<string> UnsubscribeSteamMods(ModHearthManager manager, IEnumerable<ModReference> steamTargets) => manager.UnsubscribeSteamMods(steamTargets);
 
         public static List<string> RedownloadSteamMods(ModHearthManager manager, IEnumerable<ModReference> steamTargets) => manager.RedownloadSteamMods(steamTargets);
-
 
         public static async Task OpenFolderAsync(Window owner, ModReference modref)
         {

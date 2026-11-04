@@ -201,7 +201,6 @@ namespace ModHearth.UI
         public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => modTreeList.SelectedItems?.Cast<ModRefViewModel>().Select(vm => vm.ModReference)
                 ?? [];
 
-
         public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
             string? tag = item.Tag?.ToString();
@@ -433,26 +432,22 @@ namespace ModHearth.UI
             descText[!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("MainTextBrush");
             panel.Children.Add(descText);
 
-            switch (ids.Count)
+            if (ids.Count == 0)
             {
-                case 0:
-                    TextBlock emptyText = new()
-                    {
-                        Text = $"No {title.ToLowerInvariant()} mods.",
-                        FontStyle = FontStyle.Italic,
-                        Opacity = 0.65,
-                        Margin = new Thickness(0, 5, 0, 2)
-                    };
-                    emptyText[!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("MainTextBrush");
-                    panel.Children.Add(emptyText);
-                    break;
-                default:
-                    {
-                        foreach (string id in SortIdsForDisplay(ids))
-                            panel.Children.Add(CreateRelationshipRow(kind, id));
-                        break;
-                    }
-
+                TextBlock emptyText = new()
+                {
+                    Text = $"No {title.ToLowerInvariant()} mods.",
+                    FontStyle = FontStyle.Italic,
+                    Opacity = 0.65,
+                    Margin = new Thickness(0, 5, 0, 2)
+                };
+                emptyText[!TextBlock.ForegroundProperty] = new Avalonia.Markup.Xaml.MarkupExtensions.DynamicResourceExtension("MainTextBrush");
+                panel.Children.Add(emptyText);
+            }
+            else
+            {
+                foreach (string id in SortIdsForDisplay(ids))
+                    panel.Children.Add(CreateRelationshipRow(kind, id));
             }
 
             addButton.Click += async (_, _) => await AddRelationshipAsync(kind);
@@ -648,12 +643,8 @@ namespace ModHearth.UI
 
         private void SetSummary(int beforeCount, int afterCount, int requiredCount, int incompatibleCount) => summaryText.Text = $"Before: {beforeCount}   After: {afterCount}   Required: {requiredCount}   Incompatible: {incompatibleCount}";
 
-
-        private static string BuildCountedButtonLabel(string verb, string singularNoun, int count, string zeroLabel) => count switch
-        {
-            <= 0 => zeroLabel,
-            _ => $"{verb} {count} {singularNoun}{(count == 1 ? string.Empty : "s")}",
-        };
+        private static string BuildCountedButtonLabel(string verb, string singularNoun, int count, string zeroLabel)
+            => count <= 0 ? zeroLabel : $"{verb} {count} {singularNoun}{(count == 1 ? string.Empty : "s")}";
 
         private int CountAllRelationships()
         {
@@ -677,7 +668,6 @@ namespace ModHearth.UI
                 ? rule
                 : new ModRelationshipRule();
 
-
         private ModRelationshipRule GetOrCreateRule(string id)
         {
             string key = id.Trim();
@@ -692,7 +682,6 @@ namespace ModHearth.UI
         private IEnumerable<string> SortIdsForDisplay(IEnumerable<string> ids) => ids
                 .OrderBy(id => modIdMap.TryGetValue(id, out ModRefViewModel? vm) ? vm.DisplayName : id, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(id => id, StringComparer.OrdinalIgnoreCase);
-
 
         private ValidationResult ValidateRules(string? filterModId = null)
         {
@@ -826,16 +815,12 @@ namespace ModHearth.UI
             List<Control> allIssues = [.. errors.Concat(warnings).Distinct()];
             if (errors.Count > 0)
                 return new ValidationResult(true, warnings.Count > 0, string.Empty, allIssues);
-            return warnings.Count switch
-            {
-                > 0 => new ValidationResult(false, true, string.Empty, allIssues),
-                _ => new ValidationResult(false, false, "No conflicts detected."),
-            };
-
+            return warnings.Count > 0
+                ? new ValidationResult(false, true, string.Empty, allIssues)
+                : new ValidationResult(false, false, "No conflicts detected.");
         }
 
         private static bool WouldCreateCycle(Dictionary<string, HashSet<string>> graph, string fromId, string toId) => ModHearthManager.WouldCreateCycle(graph, fromId, toId);
-
 
         private TextBlock DisplayLabel(string id)
         {
@@ -895,7 +880,6 @@ namespace ModHearth.UI
             _ => null
         };
 
-
         private readonly record struct ValidationResult(bool HasError, bool HasWarning, string Message, List<Control>? Issues = null);
 
         private async Task ClearAllRelationshipsAsync()
@@ -928,7 +912,6 @@ namespace ModHearth.UI
                 foreach (ModRelationshipKind kind in Enum.GetValues<ModRelationshipKind>())
                     GetOrCreateRule(ownerId!).GetIds(kind).Clear();
             }
-
 
             CommitRulesChanged();
         }
@@ -1000,7 +983,6 @@ namespace ModHearth.UI
                     AddGraphEdge(graph, id, target);
                 }
 
-
                 rule.BeforeIds = validBefore;
 
                 List<string> validAfter = [];
@@ -1011,7 +993,6 @@ namespace ModHearth.UI
                     validAfter.Add(target);
                     AddGraphEdge(graph, target, id);
                 }
-
 
                 rule.AfterIds = validAfter;
             }

@@ -80,7 +80,6 @@ namespace ModHearth.UI
 
         private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
 
-
         private void Color_Tapped(object? sender, TappedEventArgs e)
         {
             if (sender is Border border && border.DataContext is ModColorInfo modColorInfo)
@@ -107,7 +106,6 @@ namespace ModHearth.UI
         }
 
         public void OpenColorPicker() => PickerClicked?.Invoke(this, EventArgs.Empty);
-
 
         public void ClearSelection()
         {

@@ -1,4 +1,6 @@
-﻿namespace ModHearth.Utilities.Steam
+﻿using ModHearth.Utilities.Logging;
+
+namespace ModHearth.Utilities.Steam
 {
     internal static class SteamManifestAuditor
     {
@@ -21,7 +23,7 @@
             if (steamService == null || !steamService.IsAvailable)
                 return;
 
-            SteamConnectionLogger.LogInfo("Starting Steam workshop manifest audit...");
+            Loggers.Steam.Log("Starting Steam workshop manifest audit...");
 
             IEnumerable<string> acfPaths = ConfigManager.GetSteamWorkshopAcfPaths();
             List<ulong> missingItemIds = [];
@@ -34,30 +36,25 @@
                 }
                 catch (Exception ex)
                 {
-                    SteamConnectionLogger.LogError($"Error auditing manifest '{acfPath}': {ex.Message}");
+                    Loggers.Steam.LogError($"Error auditing manifest '{acfPath}': {ex.Message}");
                 }
             }
 
             if (missingItemIds.Count == 0)
             {
-                SteamConnectionLogger.LogInfo("Manifest audit completed. No discrepancies found.");
+                Loggers.Steam.Log("Manifest audit completed. No discrepancies found.");
                 return;
             }
 
-            SteamConnectionLogger.LogWarning(
+            Loggers.Steam.LogWarning(
                 $"Manifest audit found {missingItemIds.Count} missing workshop item(s) across all manifests. Sending wake-up calls.");
 
             int wakeUpCalls = SteamWorkshopService.DownloadMany(missingItemIds);
 
-            switch (wakeUpCalls)
-            {
-                case > 0:
-                    SteamConnectionLogger.LogInfo($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
-                    break;
-                default:
-                    SteamConnectionLogger.LogError("Manifest audit completed. Failed to send any wake-up calls for missing items.");
-                    break;
-            }
+            if (wakeUpCalls > 0)
+                Loggers.Steam.Log($"Manifest audit completed. Sent {wakeUpCalls} wake-up call(s) to Steam.");
+            else
+                Loggers.Steam.LogError("Manifest audit completed. Failed to send any wake-up calls for missing items.");
         }
 
         private static void CollectMissingItems(string acfPath, List<ulong> missingItemIds)
@@ -101,7 +98,7 @@
 
                 if (!Directory.Exists(itemPath) || !Directory.EnumerateFileSystemEntries(itemPath).Any())
                 {
-                    SteamConnectionLogger.LogWarning(
+                    Loggers.Steam.LogWarning(
                         $"Discrepancy found: Workshop item {itemId} is marked as installed in manifest, but local folder is missing or empty.");
                     missingItemIds.Add(itemId);
                 }

@@ -7,7 +7,7 @@ using ModHearth.Utilities.ModRaws;
 namespace ModHearth
 {
     // Orchestrates the raw-file dependency scan: loads the persistent cache, scans only what's stale (in parallel, since each mod folder is fully
-    // independent), saves, and publishes the result for ModSort to read. Deliberately not called from Initialize()/ReloadModpacksFromDisk(). 
+    // independent), saves, and publishes the result for ModSort to read. Deliberately not called from Initialize()/ReloadModpacksFromDisk().
     // This is invoked explicitly from exactly three UI-level call sites (startup, the manual reload button, ModSort) so it doesn't run on every automatic
     // reload from the auto-reload timer or file watcher.
     public partial class ModHearthManager
@@ -70,7 +70,7 @@ namespace ModHearth
             lock (rawDependencyGate)
                 rawDependencyInfoByModId = new Dictionary<string, ModRawDependencyInfo>(resolved, StringComparer.OrdinalIgnoreCase);
 
-            InfoLogger.Log($"Raw dependency scan complete: {resolved.Count} mod(s), {cacheHitCount} cache hit(s), {scannedCount} rescanned.");
+            Loggers.Diag.Log($"Raw dependency scan complete: {resolved.Count} mod(s), {cacheHitCount} cache hit(s), {scannedCount} rescanned.");
         }
 
         private ModRawDependencyInfo? GetRawDependencyInfo(ModReference modref)
@@ -80,17 +80,13 @@ namespace ModHearth
 
             lock (rawDependencyGate)
             {
-                return rawDependencyInfoByModId switch
-                {
-                    null => null,
-                    _ => rawDependencyInfoByModId.TryGetValue(modref.ID, out ModRawDependencyInfo? info) ? info : null,
-                };
+                return rawDependencyInfoByModId is { } map && map.TryGetValue(modref.ID, out ModRawDependencyInfo? info) ? info : null;
             }
         }
 
         private VanillaRawBaseline GetVanillaBaseline()
         {
-            string? vanillaPath = GetVanillaModsPath();
+            string? vanillaPath = ConfigManager.GetVanillaModsPath();
 
             lock (vanillaBaselineGate)
             {

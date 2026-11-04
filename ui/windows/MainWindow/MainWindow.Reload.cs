@@ -51,17 +51,17 @@ namespace ModHearth.UI
         {
             DismissAllNotifications();
 
-            ReloadLogging.Log("ReloadModpacksFromDisk begin");
+            Loggers.Reload.Log("ReloadModpacksFromDisk begin");
             searchDebounceTimer?.Stop();
             ModSelectionSnapshot selectionSnapshot = CaptureSelectionSnapshot();
             SearchFilterStateSnapshot filterStateSnapshot = CaptureSearchFilterStateSnapshot();
             ensureSearchResultVisibleOnNextFilter = true;
-            ReloadLogging.Log("ReloadModpacksFromDisk scheduled ensure-visible on next filter");
+            Loggers.Reload.Log("ReloadModpacksFromDisk scheduled ensure-visible on next filter");
             string? preferredName = manager.modpacks.Count > 0
                 ? manager.SelectedModlist?.Name
                 : null;
 
-            ReloadLogging.Log("Refreshing modlists from disk.");
+            Loggers.Reload.Log("Refreshing modlists from disk.");
             bool didReload;
             try
             {
@@ -86,7 +86,7 @@ namespace ModHearth.UI
 
             if (!didReload)
             {
-                ReloadLogging.Log("ReloadModpacksFromDisk skipped: a reload was already in progress. Queuing retry...");
+                Loggers.Reload.Log("ReloadModpacksFromDisk skipped: a reload was already in progress. Queuing retry...");
                 if (!pendingReloadQueued)
                 {
                     pendingReloadQueued = true;
@@ -109,7 +109,7 @@ namespace ModHearth.UI
             RefreshModpackCombo(selectedIndex);
             lastIndex = selectedIndex;
 
-            ReloadLogging.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
+            Loggers.Reload.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
 
             RestoreSearchFilterStateSnapshot(filterStateSnapshot);
             RefreshModlistPanels();
@@ -118,7 +118,7 @@ namespace ModHearth.UI
 
             await (_updateLogDockManager?.SharedControl?.LoadEntriesAsync() ?? Task.CompletedTask);
 
-            ReloadLogging.Log("ReloadModpacksFromDisk end");
+            Loggers.Reload.Log("ReloadModpacksFromDisk end");
 
             if (!string.IsNullOrWhiteSpace(manager.LastMissingModsMessage))
                 _ = DialogService.ShowMessageAsync(this, manager.LastMissingModsMessage, "Missing Mods");
@@ -315,25 +315,9 @@ namespace ModHearth.UI
         }
 
         private static int ParseAutoReloadSeconds(string? text)
-        {
-            if (!int.TryParse(text, out int parsed))
-                return MinimumAutoReloadSeconds;
-            return parsed switch
-            {
-                < MinimumAutoReloadSeconds => MinimumAutoReloadSeconds,
-                _ => parsed,
-            };
-        }
-
+            => int.TryParse(text, out int parsed) ? Math.Max(parsed, MinimumAutoReloadSeconds) : MinimumAutoReloadSeconds;
         private static int NormalizeAutoReloadIntervalSeconds(int value)
-        {
-            return value switch
-            {
-                < 0 => -1,
-                < MinimumAutoReloadSeconds => MinimumAutoReloadSeconds,
-                _ => value,
-            };
-        }
+            => value < 0 ? -1 : Math.Max(value, MinimumAutoReloadSeconds);
 
         private void ResetModManagerWatcher()
         {

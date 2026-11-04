@@ -40,10 +40,10 @@ namespace ModHearth.Utilities.Workshop
         }
     }
 
-    public class SteamCmdDownloadProvider : IWorkshopDownloadProvider
+    public partial class SteamCmdDownloadProvider : IWorkshopDownloadProvider
     {
-        private static readonly Regex ProgressRegex = new(@"progress:\s+([0-9.]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex DownloadingItemRegex = new(@"Downloading item (\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex ProgressRegex = MyRegex();
+        private static readonly Regex DownloadingItemRegex = MyRegex1();
         private readonly ISteamCmdService _steamCmdService = new SteamCmdService();
 
         public const string SteamApps = "steamapps";
@@ -91,7 +91,7 @@ namespace ModHearth.Utilities.Workshop
 
             if (exitCode != 0)
             {
-                InfoLogger.LogRunDf($"SteamCmd exited with code {exitCode} for {workshopId}; skipping content check.");
+                Loggers.Workshop.Log($"SteamCmd exited with code {exitCode} for {workshopId}; skipping content check.");
                 return false;
             }
 
@@ -127,7 +127,7 @@ namespace ModHearth.Utilities.Workshop
                 }
             }
 
-            InfoLogger.LogRunDf($"SteamCmd completed but no valid mod content was found for {workshopId} under '{nestedContentDir}' or '{workshopSource}'.");
+            Loggers.Workshop.Log($"SteamCmd completed but no valid mod content was found for {workshopId} under '{nestedContentDir}' or '{workshopSource}'.");
             return false;
         }
 
@@ -197,7 +197,7 @@ namespace ModHearth.Utilities.Workshop
                 int exitCode = await _steamCmdService.ExecuteAsync(args, progressProxy, cancellationToken);
 
                 if (exitCode != 0)
-                    InfoLogger.LogRunDf($"SteamCmd exited with code {exitCode} for {itemList.Count} batched elements; skipping content check.");
+                    Loggers.Workshop.Log($"SteamCmd exited with code {exitCode} for {itemList.Count} batched elements; skipping content check.");
 
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -366,5 +366,10 @@ namespace ModHearth.Utilities.Workshop
                 CopyDirectory(subDir, destSubDir);
             }
         }
+
+        [GeneratedRegex(@"progress:\s+([0-9.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+        private static partial Regex MyRegex();
+        [GeneratedRegex(@"Downloading item (\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+        private static partial Regex MyRegex1();
     }
 }

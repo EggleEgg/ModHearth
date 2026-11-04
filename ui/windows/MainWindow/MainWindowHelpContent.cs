@@ -38,9 +38,9 @@ namespace ModHearth.UI
                 if (parts.Count > 0)
                     return MarkdownFormatter.RenderBasicMarkdownToText(string.Join($"{Environment.NewLine}{Environment.NewLine}", parts));
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore README parsing failures and fall back to a short message.
+                AppLogging.LogException("Failed to read README sections", ex);
             }
 
             return "Unable to read README sections. Open README for instructions and shortcuts.";

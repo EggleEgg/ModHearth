@@ -10,6 +10,7 @@ using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
 using ModHearth.Models;
 using ModHearth.UI.Controls.ModInfoDockControl;
+using ModHearth.Utilities.Logging;
 using DockOrientation = Dock.Model.Core.Orientation;
 
 namespace ModHearth.UI
@@ -157,7 +158,6 @@ namespace ModHearth.UI
             };
             _ = knownSplitters.Add(previewSplitter);
 
-
             ProportionalDock outerLayoutDock = new()
             {
                 Id = ModInfoOuterLayoutId,
@@ -250,24 +250,17 @@ namespace ModHearth.UI
 
         private void HookEmptyDockRebalance(ToolDock dock)
         {
-            switch (dock.VisibleDockables)
+            if (dock.VisibleDockables is INotifyCollectionChanged notifyCollection)
             {
-                case INotifyCollectionChanged notifyCollection:
-                    {
-                        notifyCollection.CollectionChanged += (_, _) =>
-                        {
-                            if (DevMode.IsEnabled)
-                                Console.WriteLine($"[DockRebalance] CollectionChanged fired for '{dock.Id}', Count={dock.VisibleDockables?.Count ?? -1}");
-                            RebalanceEmptyToolDock(dock);
-                        };
-                        break;
-                    }
-
-                default:
-                    if (DevMode.IsEnabled)
-                        Console.WriteLine($"[DockRebalance] '{dock.Id}'.VisibleDockables is NOT INotifyCollectionChanged (actual type: {dock.VisibleDockables?.GetType().FullName ?? "null"})");
-
-                    break;
+                notifyCollection.CollectionChanged += (_, _) =>
+                {
+                    Loggers.Dock.Dev($"CollectionChanged fired for '{dock.Id}', Count={dock.VisibleDockables?.Count ?? -1}");
+                    RebalanceEmptyToolDock(dock);
+                };
+            }
+            else
+            {
+                Loggers.Dock.Dev($"'{dock.Id}'.VisibleDockables is NOT INotifyCollectionChanged (actual type: {dock.VisibleDockables?.GetType().FullName ?? "null"})");
             }
         }
 
@@ -279,8 +272,7 @@ namespace ModHearth.UI
 
             if (container == null)
             {
-                if (DevMode.IsEnabled)
-                    Console.WriteLine($"[DockRebalance] '{dock.Id}' -> no matching container found in visual tree.");
+                Loggers.Dock.Dev($"'{dock.Id}' -> no matching container found in visual tree.");
                 return;
             }
 
@@ -290,8 +282,7 @@ namespace ModHearth.UI
 
             if (target == null)
             {
-                if (DevMode.IsEnabled)
-                    Console.WriteLine($"[DockRebalance] '{dock.Id}' -> found DataContext container but no ProportionalStackPanel ancestor.");
+                Loggers.Dock.Dev($"'{dock.Id}' -> found DataContext container but no ProportionalStackPanel ancestor.");
                 return;
             }
 
@@ -315,24 +306,21 @@ namespace ModHearth.UI
         {
             bool isEmptyNow = dock.VisibleDockables == null || dock.VisibleDockables.Count == 0;
             bool wasEmpty = emptyToolDocks.Contains(dock);
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"[DockRebalance] '{dock.Id}' isEmptyNow={isEmptyNow} wasEmpty={wasEmpty} Proportion={dock.Proportion} Owner={dock.Owner?.Id ?? "null"} OwnerType={dock.Owner?.GetType().Name ?? "null"}");
+            Loggers.Dock.Dev($"'{dock.Id}' isEmptyNow={isEmptyNow} wasEmpty={wasEmpty} Proportion={dock.Proportion} Owner={dock.Owner?.Id ?? "null"} OwnerType={dock.Owner?.GetType().Name ?? "null"}");
 
             if (isEmptyNow == wasEmpty)
                 return;
 
             if (dock.Owner is not IDock parent || parent.VisibleDockables == null)
             {
-                if (DevMode.IsEnabled)
-                    Console.WriteLine($"[DockRebalance] '{dock.Id}' bailing: Owner not usable.");
+                Loggers.Dock.Dev($"'{dock.Id}' bailing: Owner not usable.");
                 return;
             }
 
             List<IDock> siblings = [.. parent.VisibleDockables
                 .Where(d => !ReferenceEquals(d, dock) && d is IDock && !knownSplitters.Contains(d))
                 .Cast<IDock>()];
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"[DockRebalance] '{dock.Id}' siblings=[{string.Join(", ", siblings.Select(s => $"{s.Id}:{s.Proportion:F3}"))}]");
+            Loggers.Dock.Dev($"'{dock.Id}' siblings=[{string.Join(", ", siblings.Select(s => $"{s.Id}:{s.Proportion:F3}"))}]");
             if (siblings.Count == 0)
                 return;
 
@@ -349,7 +337,7 @@ namespace ModHearth.UI
                         sibling.Proportion += freed * share;
                     }
                     dock.Proportion = CollapsedToolDockProportion;
-                    if (DevMode.IsEnabled) Console.WriteLine($"[DockRebalance] '{dock.Id}' -> Proportion now {dock.Proportion:F3}");
+                    Loggers.Dock.Dev($"'{dock.Id}' -> Proportion now {dock.Proportion:F3}");
                 }
                 _ = emptyToolDocks.Add(dock);
             }
@@ -366,7 +354,7 @@ namespace ModHearth.UI
                         sibling.Proportion -= needed * share;
                     }
                     dock.Proportion = target;
-                    if (DevMode.IsEnabled) Console.WriteLine($"[DockRebalance] '{dock.Id}' -> Proportion now {dock.Proportion:F3}");
+                    Loggers.Dock.Dev($"'{dock.Id}' -> Proportion now {dock.Proportion:F3}");
                 }
                 _ = emptyToolDocks.Remove(dock);
                 _ = reclaimedToolDockProportions.Remove(dock);
@@ -379,8 +367,7 @@ namespace ModHearth.UI
                 foreach (IDock sibling in siblings)
                     ApplyProportionToVisualTree(sibling, sibling.Proportion, isCollapsed: false);
 
-                if (DevMode.IsEnabled)
-                    Console.WriteLine($"[DockRebalance] '{dock.Id}' applied Proportion+IsCollapsed to visual tree (collapsed={isEmptyNow}).");
+                Loggers.Dock.Dev($"'{dock.Id}' applied Proportion+IsCollapsed to visual tree (collapsed={isEmptyNow}).");
             }, DispatcherPriority.Background);
         }
 

@@ -12,7 +12,6 @@ using ModHearth.UI.Theme;
 using ModHearth.UI.ViewModels;
 using ModHearth.Utilities.Logging;
 
-
 namespace ModHearth.UI
 {
     public partial class MainWindow : Window, INotifyPropertyChanged
@@ -20,7 +19,6 @@ namespace ModHearth.UI
         public new event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
 
         public bool IsAutoSaveEnabled
         {
@@ -61,8 +59,6 @@ namespace ModHearth.UI
                 }
             }
         }
-
-
 
         private readonly BulkObservableCollection<ModRefViewModel> inactiveMods = [];
         private readonly BulkObservableCollection<ModRefViewModel> activeMods = [];
@@ -121,6 +117,8 @@ namespace ModHearth.UI
         public MainWindow()
         {
             InitializeComponent();
+            previewCache = new(MaxCachedPreviews, StringComparer.OrdinalIgnoreCase,
+                (_, entry) => DisposeCachedPreview(entry.Image, "Failed to dispose evicted preview image"));
             NotificationItemsControl.ItemsSource = notificationRecords;
             toastHost.ItemsSource = toasts;
             WindowThemeManager.Register(this);
@@ -177,8 +175,7 @@ namespace ModHearth.UI
             searchDebounceTimer.Tick += (_, _) =>
             {
                 searchDebounceTimer?.Stop();
-                if (DevMode.IsEnabled)
-                    SearchLogging.Log($"DebounceTick left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
+                Loggers.Search.Dev($"DebounceTick left='{TrimForLog(leftSearchBar.Text)}' right='{TrimForLog(rightSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} rightHide={rightSearchBar.HideFiltered}");
                 ApplySearchFilter();
             };
 
@@ -226,8 +223,6 @@ namespace ModHearth.UI
                 notificationSearchBar.SortOrderChanged += (_, _) => ApplyNotificationFilterAndSort();
                 notificationSearchBar.HideFilteredToggled += (_, _) => ApplyNotificationFilterAndSort();
             }
-
-
 
             saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
             saveButton.AddHandler(PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);

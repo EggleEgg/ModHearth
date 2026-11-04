@@ -6,7 +6,7 @@ namespace ModHearth.Utilities
     // <summary>
     // Used to extract usable text from the readme. Unlike the html renderer it does not create new containers/panels
     // </summary>
-    public static class MarkdownFormatter
+    public static partial class MarkdownFormatter
     {
         public static string RenderBasicMarkdownToText(string markdown)
         {
@@ -26,7 +26,7 @@ namespace ModHearth.Utilities
                     continue;
                 }
 
-                Match headingMatch = Regex.Match(trimmed, @"^(?<level>#{1,6})\s+(?<title>.+)$");
+                Match headingMatch = MyRegex().Match(trimmed);
                 if (headingMatch.Success)
                 {
                     string heading = DecodeInlineMarkdown(headingMatch.Groups["title"].Value).Trim();
@@ -44,7 +44,7 @@ namespace ModHearth.Utilities
                     continue;
                 }
 
-                Match numberedMatch = Regex.Match(trimmed, @"^(?<num>\d+)\.\s+(?<text>.+)$");
+                Match numberedMatch = MyRegex1().Match(trimmed);
                 if (numberedMatch.Success)
                 {
                     _ = builder.Append(numberedMatch.Groups["num"].Value);
@@ -67,15 +67,15 @@ namespace ModHearth.Utilities
             string output = text;
 
             // [label](url) -> label (url)
-            output = Regex.Replace(output, @"\[(?<label>[^\]]+)\]\((?<url>[^)]+)\)", "${label} (${url})");
+            output = MyRegex2().Replace(output, "${label} (${url})");
             // `code` -> code
-            output = Regex.Replace(output, @"`([^`]+)`", "$1");
+            output = MyRegex3().Replace(output, "$1");
             // **bold** / __bold__ -> bold
-            output = Regex.Replace(output, @"\*\*(.+?)\*\*", "$1");
-            output = Regex.Replace(output, @"__(.+?)__", "$1");
+            output = MyRegex4().Replace(output, "$1");
+            output = MyRegex5().Replace(output, "$1");
             // *italic* / _italic_ -> italic
-            output = Regex.Replace(output, @"\*(.+?)\*", "$1");
-            output = Regex.Replace(output, @"_(.+?)_", "$1");
+            output = MyRegex6().Replace(output, "$1");
+            output = MyRegex7().Replace(output, "$1");
 
             return output;
         }
@@ -120,5 +120,22 @@ namespace ModHearth.Utilities
 
             return builder.ToString().Trim();
         }
+
+        [GeneratedRegex(@"^(?<level>#{1,6})\s+(?<title>.+)$")]
+        private static partial Regex MyRegex();
+        [GeneratedRegex(@"^(?<num>\d+)\.\s+(?<text>.+)$")]
+        private static partial Regex MyRegex1();
+        [GeneratedRegex(@"\[(?<label>[^\]]+)\]\((?<url>[^)]+)\)")]
+        private static partial Regex MyRegex2();
+        [GeneratedRegex(@"`([^`]+)`")]
+        private static partial Regex MyRegex3();
+        [GeneratedRegex(@"\*\*(.+?)\*\*")]
+        private static partial Regex MyRegex4();
+        [GeneratedRegex(@"__(.+?)__")]
+        private static partial Regex MyRegex5();
+        [GeneratedRegex(@"\*(.+?)\*")]
+        private static partial Regex MyRegex6();
+        [GeneratedRegex(@"_(.+?)_")]
+        private static partial Regex MyRegex7();
     }
 }

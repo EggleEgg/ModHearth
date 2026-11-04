@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ModHearth.Utilities;
 using ModHearth.Models;
+using ModHearth.Utilities.Logging;
 
 /// <summary>
 /// Actually handles the logic from models\ModHearthConfig
@@ -18,9 +19,9 @@ namespace ModHearth
         private static readonly object configGate = new();
 
         private static readonly Regex SteamLibraryPathRegex = MyRegex();
-        private static readonly Regex SteamLibraryLegacyPathRegex = new("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled);
-        private static readonly Regex SteamWorkshopPathRegex = new("/workshop/content/975370/(?<id>\\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex SteamShadowCopyFolderNameRegex = new(@"^(?<id>\d+)(?:\s*\(\d+\))?$", RegexOptions.Compiled);
+        private static readonly Regex SteamLibraryLegacyPathRegex = MyRegex1();
+        private static readonly Regex SteamWorkshopPathRegex = MyRegex2();
+        private static readonly Regex SteamShadowCopyFolderNameRegex = MyRegex3();
         public const string DwarfFortressSteamAppId = "975370";
         private const string Message = "Panel data";
         private static List<string>? _cachedSteamLibraryRoots;
@@ -31,14 +32,12 @@ namespace ModHearth
         private static readonly object _workshopContentPathsLock = new();
         private static List<string>? _cachedEffectiveModRoots;
         private static readonly object _effectiveModRootsLock = new();
-        private static void LogInfo(string message) => SteamConnectionLogger.LogInfo(message);
-
+        private static void LogInfo(string message) => Loggers.Steam.Log(message);
 
         private static string DFHackExeName => OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
         private static readonly string installedMods = "installed_mods", dfString = "Dwarf Fortress", steamString = "Steam", steamApps = "steamapps";
 
         public static void AttemptLoadConfig() => AttemptLoadConfig(true);
-
 
         public static void AttemptLoadConfig(bool createLogs)
         {
@@ -89,20 +88,16 @@ namespace ModHearth
                 if (!string.IsNullOrEmpty(message))
                     Console.WriteLine($"{message} config saved.");
 
-                try
-                {
-                    JsonSerializerOptions options = new()
+                _ = JsonFileStore.TrySave(ConfigPath, Config, "Config");
+            }
+        }
 
-                    {
-                        WriteIndented = true
-                    };
-                    string jsonContent = JsonSerializer.Serialize(Config, options);
-                    File.WriteAllText(ConfigPath, jsonContent);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"An error occurred while saving config: {ex.Message}");
-                }
+        public static void Update(Action<ModHearthConfig> change, string? label = null)
+        {
+            lock (configGate)
+            {
+                change(Config);
+                SaveConfigFile(label);
             }
         }
 
@@ -117,31 +112,17 @@ namespace ModHearth
             }
         }
 
-
-
         public static int GetTheme() => Config.theme;
 
-
-        public static void SetTheme(int theme)
-        {
-            Config.theme = theme;
-            SaveConfigFile("Theme");
-        }
+        public static void SetTheme(int theme) => Update(c => c.theme = theme, "Theme");
 
         public static int GetAutoReloadIntervalSeconds() => Config.AutoReloadIntervalSeconds;
 
-
-        public static void SetAutoReloadIntervalSeconds(int seconds)
-        {
-            Config.AutoReloadIntervalSeconds = seconds;
-            SaveConfigFile("Autoreload");
-        }
+        public static void SetAutoReloadIntervalSeconds(int seconds) => Update(c => c.AutoReloadIntervalSeconds = seconds, "Autoreload");
 
         public static double GetModDataPanelProportion() => Config.ModDataPanelProportion;
 
-
         public static int GetModDataPanelOrientation() => Config.ModDataPanelOrientation;
-
 
         public static bool GetModDataPanelFirst() => Config.ModDataPanelFirst;
 
@@ -155,7 +136,6 @@ namespace ModHearth
 
         public static bool GetModPreviewPanelFirst() => Config.ModPreviewPanelFirst;
 
-
         public static void SetModInfoDockLayout(
             double modDataProportion,
             int modDataOrientation,
@@ -164,99 +144,53 @@ namespace ModHearth
             double infoPanelProportion,
             double previewProportion,
             int previewOrientation,
-            bool previewFirst)
-        {
-            Config.ModDataPanelProportion = modDataProportion;
-            Config.ModDataPanelOrientation = modDataOrientation;
-            Config.ModDataPanelFirst = modDataFirst;
-            Config.ModDescriptionPanelProportion = descriptionProportion;
-            Config.ModInfoPanelProportion = infoPanelProportion;
-            Config.ModPreviewPanelProportion = previewProportion;
-            Config.ModPreviewPanelOrientation = previewOrientation;
-            Config.ModPreviewPanelFirst = previewFirst;
-            SaveConfigFile(Message);
-        }
+            bool previewFirst) => Update(c =>
+            {
+                c.ModDataPanelProportion = modDataProportion;
+                c.ModDataPanelOrientation = modDataOrientation;
+                c.ModDataPanelFirst = modDataFirst;
+                c.ModDescriptionPanelProportion = descriptionProportion;
+                c.ModInfoPanelProportion = infoPanelProportion;
+                c.ModPreviewPanelProportion = previewProportion;
+                c.ModPreviewPanelOrientation = previewOrientation;
+                c.ModPreviewPanelFirst = previewFirst;
+            }, Message);
 
         public static bool IsAutoSaveEnabled() => Config.IsAutoSaveEnabled;
 
-
-        public static void SetAutoSaveEnabled(bool enabled)
-        {
-            Config.IsAutoSaveEnabled = enabled;
-            SaveConfigFile("Autosave");
-        }
+        public static void SetAutoSaveEnabled(bool enabled) => Update(c => c.IsAutoSaveEnabled = enabled, "Autosave");
 
         public static bool IsAutoSortEnabled() => Config.IsAutoSortEnabled;
 
-
-        public static void SetAutoSortEnabled(bool enabled)
-        {
-            Config.IsAutoSortEnabled = enabled;
-            SaveConfigFile("Autosort");
-        }
+        public static void SetAutoSortEnabled(bool enabled) => Update(c => c.IsAutoSortEnabled = enabled, "Autosort");
 
         public static bool IsAutoResolveAndQueueEnabled() => Config.IsAutoResolveAndQueueEnabled;
 
-
-        public static void SetAutoResolveAndQueueEnabled(bool enabled)
-        {
-            Config.IsAutoResolveAndQueueEnabled = enabled;
-            SaveConfigFile("Auto-resolve and queue");
-        }
+        public static void SetAutoResolveAndQueueEnabled(bool enabled) => Update(c => c.IsAutoResolveAndQueueEnabled = enabled, "Auto-resolve and queue");
 
         public static bool IsAutoRetryAllEnabled() => Config.IsAutoRetryAllEnabled;
 
-
-        public static void SetAutoRetryAllEnabled(bool enabled)
-        {
-            Config.IsAutoRetryAllEnabled = enabled;
-            SaveConfigFile("Auto-retry all");
-        }
+        public static void SetAutoRetryAllEnabled(bool enabled) => Update(c => c.IsAutoRetryAllEnabled = enabled, "Auto-retry all");
 
         public static string GetLeftSearchBarState() => Config.LeftSearchBarState;
 
-
-        public static void SetLeftSearchBarState(string state)
-        {
-            Config.LeftSearchBarState = state;
-            SaveConfigFile();
-        }
+        public static void SetLeftSearchBarState(string state) => Update(c => c.LeftSearchBarState = state);
 
         public static string GetRightSearchBarState() => Config.RightSearchBarState;
 
-
-        public static void SetRightSearchBarState(string state)
-        {
-            Config.RightSearchBarState = state;
-            SaveConfigFile();
-        }
+        public static void SetRightSearchBarState(string state) => Update(c => c.RightSearchBarState = state);
 
         public static bool GetOpenSteamInClient() => Config.OpenSteamInClient;
 
-
-        public static void SetOpenSteamInClient(bool openInClient)
-        {
-            Config.OpenSteamInClient = openInClient;
-            SaveConfigFile("Context menu");
-        }
+        public static void SetOpenSteamInClient(bool openInClient) => Update(c => c.OpenSteamInClient = openInClient, "Context menu");
 
         public static bool GetOpenSteamFolder() => Config.OpenSteamFolder;
 
-
-        public static void SetOpenSteamFolder(bool openSteamFolder)
-        {
-            Config.OpenSteamFolder = openSteamFolder;
-            SaveConfigFile("Context menu");
-        }
+        public static void SetOpenSteamFolder(bool openSteamFolder) => Update(c => c.OpenSteamFolder = openSteamFolder, "Context menu");
 
         public static bool GetCopySteamFileId() => Config.CopySteamFileId;
 
-
-        public static void SetCopySteamFileId(bool copySteamFileId)
-        {
-            Config.CopySteamFileId = copySteamFileId;
-            SaveConfigFile("Context menu");
-        }
+        public static void SetCopySteamFileId(bool copySteamFileId) => Update(c => c.CopySteamFileId = copySteamFileId, "Context menu");
 
         public static string GetModsPath()
         {
@@ -326,34 +260,28 @@ namespace ModHearth
             return Path.Combine(Config.DFFolderPath, "dfhack-config", "mod-manager.json");
         }
 
-        public static void SetDwarfFortressExecutablePath(string path)
+        public static void SetDwarfFortressExecutablePath(string path) => Update(c =>
         {
-            Config.DFEXEPath = path;
-            Config.DFFolderPathOverride = string.Empty;
-            Config.ModsPathOverride = string.Empty;
-            SaveConfigFile($"Path resolved: {path},");
-        }
+            c.DFEXEPath = path;
+            c.DFFolderPathOverride = string.Empty;
+            c.ModsPathOverride = string.Empty;
+        }, $"Path resolved: {path},");
 
-        public static void SetDwarfFortressFolderPath(string path)
+        public static void SetDwarfFortressFolderPath(string path) => Update(c =>
         {
-            Config.DFFolderPathOverride = path;
+            c.DFFolderPathOverride = path;
             if (!string.IsNullOrWhiteSpace(path))
-                Config.DFEXEPath = string.Empty;
-            Config.ModsPathOverride = string.Empty;
-            SaveConfigFile($"Path resolved: {path},");
-        }
+                c.DFEXEPath = string.Empty;
+            c.ModsPathOverride = string.Empty;
+        }, $"Path resolved: {path},");
 
-        public static void SetInstalledModsPath(string path)
-        {
-            Config.InstalledModsPath = ResolveExistingDirectoryPath(path) ?? path;
-            SaveConfigFile($"Path resolved: {path},");
-        }
+        public static void SetInstalledModsPath(string path) => Update(c => c.InstalledModsPath = ResolveExistingDirectoryPath(path) ?? path, $"Path resolved: {path},");
 
-        public static void SetDFHackFolderPath(string path)
-        {
-            Config.DFHackFolderPath = ResolveExistingDirectoryPath(path) ?? path;
-            SaveConfigFile($"Path resolved: {path},");
-        }
+        public static void SetDFHackFolderPath(string path) => Update(c => c.DFHackFolderPath = ResolveExistingDirectoryPath(path) ?? path, $"Path resolved: {path},");
+
+        public static void SetSteamCmdPath(string path) => Update(c => c.SteamCmdPath = path, "SteamCmdPath updated");
+
+        public static void SetCommunitySortRulesUrl(string url) => Update(c => c.CommunitySortRulesUrl = url?.Trim() ?? string.Empty, "Url");
 
         public static void AutoDiscoverConfigPaths()
         {
@@ -512,11 +440,7 @@ namespace ModHearth
             }
 
             // 4. Steam library auto-detection.
-            return TryFindExeInDirectory(TryFindSteamDFHackFolder()) switch
-            {
-                { } fromSteam => fromSteam,
-                _ => string.Empty,
-            };
+            return TryFindExeInDirectory(TryFindSteamDFHackFolder()) ?? string.Empty;
         }
 
         private static string? ResolveDwarfFortressFolderCandidate(string candidate)
@@ -735,7 +659,7 @@ namespace ModHearth
         }
 
         /// <summary>
-        /// Use this over NormalizeFileSystemPath when symlinks are present. 
+        /// Use this over NormalizeFileSystemPath when symlinks are present.
         /// Rule of thumb on usage: when the code is about to put a path into a HashSet/dictionary key, compare two paths for equality, or make a security-relevant containment decision
         /// </summary>
         public static string ResolveCanonicalPath(string path)
@@ -793,7 +717,6 @@ namespace ModHearth
         }
 
         public static string? ResolveExistingDirectoryPath(string path) => ResolveExistingPath(path, expectDirectory: true);
-
 
         public static string? ResolveExistingPath(string path, bool expectDirectory)
         {
@@ -1099,19 +1022,15 @@ namespace ModHearth
                     _ = paths.Add(NormalizeFileSystemPath(workshopCandidate));
             }
 
-            switch (paths.Count)
+            if (paths.Count == 0)
             {
-                case 0:
-                    LogInfo("Steam workshop scan completed: no workshop ACF files found.");
-                    break;
-                default:
-                    {
-                        LogInfo($"Steam workshop scan completed: found {paths.Count} workshop ACF file(s).");
-                        foreach (string path in paths.OrderBy(path => path, comparer))
-                            LogInfo($"Steam workshop ACF: {path}");
-                        break;
-                    }
-
+                LogInfo("Steam workshop scan completed: no workshop ACF files found.");
+            }
+            else
+            {
+                LogInfo($"Steam workshop scan completed: found {paths.Count} workshop ACF file(s).");
+                foreach (string path in paths.OrderBy(path => path, comparer))
+                    LogInfo($"Steam workshop ACF: {path}");
             }
 
             LogInfo($"Workshop ACF paths resolved ({paths.Count}): {FormatPathListForLog(paths)}");
@@ -1271,12 +1190,6 @@ namespace ModHearth
             return issues;
         }
 
-        public static IEnumerable<string> EnumerateModRoots()
-        {
-            foreach (string root in GetEffectiveModRoots())
-                yield return root;
-        }
-
         // Thread safe
         public static List<string> GetEffectiveModRoots()
         {
@@ -1332,57 +1245,27 @@ namespace ModHearth
 
         public static double GetMainWindowGridSplitterRatio() => Config.MainWindowGridSplitterRatio;
 
-
-        public static void SetMainWindowGridSplitterRatio(double ratio)
-        {
-            Config.MainWindowGridSplitterRatio = ratio;
-            SaveConfigFile("MainWindow GridSplitter ratio");
-        }
+        public static void SetMainWindowGridSplitterRatio(double ratio) => Update(c => c.MainWindowGridSplitterRatio = ratio, "MainWindow GridSplitter ratio");
 
         public static double GetSortRulesWindowGridSplitterRatio() => Config.SortRulesWindowGridSplitterRatio;
 
-
-        public static void SetSortRulesWindowGridSplitterRatio(double ratio)
-        {
-            Config.SortRulesWindowGridSplitterRatio = ratio;
-            SaveConfigFile("SortRulesWindow GridSplitter ratio");
-        }
+        public static void SetSortRulesWindowGridSplitterRatio(double ratio) => Update(c => c.SortRulesWindowGridSplitterRatio = ratio, "SortRulesWindow GridSplitter ratio");
 
         public static string GetDefaultWorkshopProvider() => Config.DefaultWorkshopProvider;
 
-
-        public static void SetDefaultWorkshopProvider(string providerName)
-        {
-            Config.DefaultWorkshopProvider = providerName;
-            SaveConfigFile("Default Workshop Provider");
-        }
+        public static void SetDefaultWorkshopProvider(string providerName) => Update(c => c.DefaultWorkshopProvider = providerName, "Default Workshop Provider");
 
         public static bool GetIsWorkshopDownloaderDocked() => Config.IsWorkshopDownloaderDocked;
 
-
-        public static void SetIsWorkshopDownloaderDocked(bool docked)
-        {
-            Config.IsWorkshopDownloaderDocked = docked;
-            SaveConfigFile("Workshop downloader docked");
-        }
+        public static void SetIsWorkshopDownloaderDocked(bool docked) => Update(c => c.IsWorkshopDownloaderDocked = docked, "Workshop downloader docked");
 
         public static bool GetIsModUpdateLogDocked() => Config.IsModUpdateLogDocked;
 
-
-        public static void SetIsModUpdateLogDocked(bool docked)
-        {
-            Config.IsModUpdateLogDocked = docked;
-            SaveConfigFile("Mod update log docked");
-        }
+        public static void SetIsModUpdateLogDocked(bool docked) => Update(c => c.IsModUpdateLogDocked = docked, "Mod update log docked");
 
         public static bool GetIsSortRulesDocked() => Config.IsSortRulesDocked;
 
-
-        public static void SetIsSortRulesDocked(bool docked)
-        {
-            Config.IsSortRulesDocked = docked;
-            SaveConfigFile("Sort rules docked");
-        }
+        public static void SetIsSortRulesDocked(bool docked) => Update(c => c.IsSortRulesDocked = docked, "Sort rules docked");
 
         public static double GetDockSplitterProportion(string key, double defaultProportion)
         {
@@ -1393,12 +1276,11 @@ namespace ModHearth
             return defaultProportion;
         }
 
-        public static void SetDockSplitterProportion(string key, double proportion)
+        public static void SetDockSplitterProportion(string key, double proportion) => Update(c =>
         {
-            Config.DockSplitterProportions ??= [];
-            Config.DockSplitterProportions[key] = proportion;
-            SaveConfigFile($"Dock splitter proportion for {key}");
-        }
+            c.DockSplitterProportions ??= [];
+            c.DockSplitterProportions[key] = proportion;
+        }, $"Dock splitter proportion for {key}");
 
         public static int GetDockSide(string key, int defaultSide)
         {
@@ -1409,33 +1291,27 @@ namespace ModHearth
             return defaultSide;
         }
 
-        public static void SetDockSide(string key, int side)
+        public static void SetDockSide(string key, int side) => Update(c =>
         {
-            Config.DockSides ??= [];
-            Config.DockSides[key] = side;
-            SaveConfigFile($"Dock side for {key}");
-        }
+            c.DockSides ??= [];
+            c.DockSides[key] = side;
+        }, $"Dock side for {key}");
 
         public static string GetIgnoredUpdateVersion() => Config.IgnoredUpdateVersion;
 
-
-        public static void SetIgnoredUpdateVersion(string version)
-        {
-            Config.IgnoredUpdateVersion = version ?? string.Empty;
-            SaveConfigFile("Ignored update version");
-        }
+        public static void SetIgnoredUpdateVersion(string version) => Update(c => c.IgnoredUpdateVersion = version ?? string.Empty, "Ignored update version");
 
         public static bool GetAutoCheckForReleasesOnStartup() => Config.AutoCheckForReleasesOnStartup;
 
-
-        public static void SetAutoCheckForReleasesOnStartup(bool autoCheck)
-        {
-            Config.AutoCheckForReleasesOnStartup = autoCheck;
-            SaveConfigFile("Auto check for releases on startup");
-        }
+        public static void SetAutoCheckForReleasesOnStartup(bool autoCheck) => Update(c => c.AutoCheckForReleasesOnStartup = autoCheck, "Auto check for releases on startup");
 
         [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex MyRegex();
-
+        [GeneratedRegex("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled)]
+        private static partial Regex MyRegex1();
+        [GeneratedRegex("/workshop/content/975370/(?<id>\\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+        private static partial Regex MyRegex2();
+        [GeneratedRegex(@"^(?<id>\d+)(?:\s*\(\d+\))?$", RegexOptions.Compiled)]
+        private static partial Regex MyRegex3();
     }
 }

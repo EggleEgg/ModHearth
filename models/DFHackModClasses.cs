@@ -36,14 +36,7 @@ namespace ModHearth.Models
 
         // Just use ==.
 
-        public override bool Equals(object? obj)
-        {
-            return obj switch
-            {
-                DfhMod dfother => this == dfother,
-                _ => false,
-            };
-        }
+        public override bool Equals(object? obj) => obj is DfhMod other && this == other;
     }
 
     /// <summary>

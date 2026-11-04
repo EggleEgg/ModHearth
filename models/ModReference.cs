@@ -75,7 +75,6 @@ namespace ModHearth.Models
             ConflictsWith = [];
         }
 
-
         public ModReference(Dictionary<string, string> modMemoryData)
             : this(modMemoryData, modInfoText: null)
         {

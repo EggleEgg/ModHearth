@@ -9,10 +9,10 @@ namespace ModHearth.Utilities.ModRaws
     /// CUT as generic operations, so it works with new or modded object types without
     /// an explicit whitelist.
     /// </summary>
-    internal static class ModRawObjectScanner
+    internal static partial class ModRawObjectScanner
     {
         // Matches a bracketed raw tag: [TAG_NAME] or [TAG_NAME:arg1:arg2:...]
-        private static readonly Regex TagRegex = new(@"\[([A-Za-z_][A-Za-z0-9_]*)(?::([^\]]*))?\]", RegexOptions.Compiled);
+        private static readonly Regex TagRegex = MyRegex();
 
         /// <summary>
         /// Parses the objects/ folder under <paramref name="modPath"/> into a
@@ -144,5 +144,8 @@ namespace ModHearth.Utilities.ModRaws
 
             return new RawDatabase(sourceMod, objects, isCutter, hasGraphics);
         }
+
+        [GeneratedRegex(@"\[([A-Za-z_][A-Za-z0-9_]*)(?::([^\]]*))?\]", RegexOptions.Compiled)]
+        private static partial Regex MyRegex();
     }
 }

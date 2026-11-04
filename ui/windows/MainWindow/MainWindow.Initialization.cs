@@ -128,7 +128,7 @@ namespace ModHearth.UI
         {
             while (true)
             {
-                IReadOnlyList<ModHearthManager.ConfigIssue> issues = ModHearthManager.GetConfigIssues();
+                IReadOnlyList<ModHearthManager.ConfigIssue> issues = ConfigManager.GetConfigIssues();
                 if (issues.Count == 0)
                     return true;
 

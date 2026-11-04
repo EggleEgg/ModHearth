@@ -20,35 +20,15 @@ namespace ModHearth.UI.Converters
                 paramStr = paramStr[1..];
             }
 
-            switch (value)
+            if (value is not SearchFilterMode currentMode)
+                return true; // no usable mode: visible regardless of the parameter
+
+            bool matches = parameter switch
             {
-                case SearchFilterMode currentMode:
-                    {
-                        bool matches;
-                        switch (parameter)
-                        {
-                            case SearchFilterMode targetMode:
-                                matches = currentMode == targetMode;
-                                break;
-                            default:
-                                if (paramStr != null && Enum.TryParse(paramStr, out SearchFilterMode parsedMode))
-                                {
-                                    matches = currentMode == parsedMode;
-                                }
-                                else
-                                {
-                                    matches = true;
-                                }
-
-                                break;
-                        }
-
-                        return invert ? !matches : matches;
-                    }
-
-                default:
-                    return true; // Default to true if conversion fails or no parameter provided
-            } // Default to true if conversion fails or no parameter provided
+                SearchFilterMode targetMode => currentMode == targetMode,
+                _ => paramStr == null || !Enum.TryParse(paramStr, out SearchFilterMode parsedMode) || currentMode == parsedMode,
+            };
+            return invert ? !matches : matches;
         }
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();

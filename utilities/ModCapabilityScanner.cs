@@ -9,14 +9,12 @@ namespace ModHearth.Utilities
     /// out of ModRawObjectScanner's existing per-mod scan (RawDatabase.DefinedObjects / HasGraphics), so
     /// callers pass those in rather than this class re-walking objects/ or graphics/ a second time.
     /// </summary>
-    internal static class ModCapabilityScanner
+    internal static partial class ModCapabilityScanner
     {
         // DFHack-specific Lua require()/API usage. A .lua file merely existing under a generic scripts/
         // folder isn't a DFHack signal by itself -- community mods can use that folder for arbitrary
         // purposes -- but actually calling into DFHack's Lua API is conclusive.
-        private static readonly Regex DfHackLuaApiRegex = new(
-            @"require\s*\(\s*['""](?:df|dfhack|utils|gui(?:\.\w+)?|plugins)['""]\s*\)|\bdfhack\.\w+|\bdf\.\w+",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex DfHackLuaApiRegex = MyRegex();
 
         // Checked regardless of host OS: a mod package can ship plugin binaries for platforms other than
         // the one ModHearth is currently running on, and that's still meaningful "this is DFHack-native"
@@ -122,5 +120,8 @@ namespace ModHearth.Utilities
 
             return (hasLua, false);
         }
+
+        [GeneratedRegex(@"require\s*\(\s*['""](?:df|dfhack|utils|gui(?:\.\w+)?|plugins)['""]\s*\)|\bdfhack\.\w+|\bdf\.\w+", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+        private static partial Regex MyRegex();
     }
 }

@@ -9,13 +9,7 @@ namespace ModHearth.UI.Converters
         public static ColorToBrushConverter Instance { get; } = new ColorToBrushConverter();
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        {
-            return value switch
-            {
-                Color color => BrushCache.GetBrush(color),
-                _ => null,
-            };
-        }
+            => value is Color color ? BrushCache.GetBrush(color) : null;
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotImplementedException();
     }

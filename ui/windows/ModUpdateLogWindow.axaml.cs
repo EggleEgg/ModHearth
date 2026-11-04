@@ -21,6 +21,5 @@ namespace ModHearth.UI
             Content = control ?? new ModUpdateLogControl(manager);
         }
 
-
     }
 }

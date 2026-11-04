@@ -2,12 +2,12 @@ using System.Collections;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using ModHearth.Models;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities
 {
-    /// <summary> 
-    /// For more information on the source visit https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp 
+    /// <summary>
+    /// For more information on the source visit https://github.com/DFHack/dfhack/blob/develop/library/RemoteServer.cpp
     /// </summary>
     internal static class DFHackRpcClient
     {
@@ -24,8 +24,7 @@ namespace ModHearth.Utilities
             int port = ResolveDFHackPort(dfFolderPath);
 
             // This will be spammed if modhearth modlist changes exist but DF is not yet in the world creation screen
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"DFHackRpcClient: Attempting RPC connection to 127.0.0.1:{port} for command \'{command}\'");
+            Loggers.Diag.Dev($"Attempting RPC connection to 127.0.0.1:{port} for command '{command}'");
 
             try
             {
@@ -59,7 +58,7 @@ namespace ModHearth.Utilities
                     Console.WriteLine($"DFHackRpcClient: {error}");
                     return null;
                 }
-                LogRpcClient($"Handshake successful. Magic: {magic}, Version: {version}");
+                Loggers.Diag.Dev($"Handshake successful. Magic: {magic}, Version: {version}");
 
                 // 2. Serialize RunCommand request payload (CoreRunCommandRequest protobuf)
                 byte[] rpcPayload = SerializeRunCommandRequest(command, args);
@@ -75,7 +74,7 @@ namespace ModHearth.Utilities
                 {
                     stream.Write(rpcPayload, 0, rpcPayload.Length);
                 }
-                LogRpcClient($"Sent RunCommand request. Command: {command}, Args: {string.Join(", ", args)}");
+                Loggers.Diag.Dev($"Sent RunCommand request. Command: {command}, Args: {string.Join(", ", args)}");
 
                 // 4. Read response loop
                 StringBuilder outputSb = new();
@@ -91,11 +90,11 @@ namespace ModHearth.Utilities
                     {
                         string text = DecodeTextNotification(payload);
                         _ = outputSb.Append(text);
-                        LogRpcClient($"Received text fragment: {text.TrimEnd()}");
+                        Loggers.Diag.Dev($"Received text fragment: {text.TrimEnd()}");
                     }
                     else if (id == -1) // RPC_REPLY_RESULT (success / completion)
                     {
-                        LogRpcClient("Received RPC_REPLY_RESULT (Success).");
+                        Loggers.Diag.Dev($"Received RPC_REPLY_RESULT (Success).");
                         break;
                     }
                     else if (id == -2) // RPC_REPLY_FAIL
@@ -304,7 +303,7 @@ namespace ModHearth.Utilities
             string? envPort = Environment.GetEnvironmentVariable("DFHACK_PORT");
             if (!string.IsNullOrWhiteSpace(envPort) && int.TryParse(envPort, out int p))
             {
-                LogRpcClient($"Resolved port from env var DFHACK_PORT: {p}");
+                Loggers.Diag.Dev($"Resolved port from env var DFHACK_PORT: {p}");
                 return p;
             }
 
@@ -327,18 +326,12 @@ namespace ModHearth.Utilities
                 }
                 catch (Exception ex)
                 {
-                    LogRpcClient($"Error reading {remoteServerJsonPath}: {ex.Message}");
+                    Loggers.Diag.Dev($"Error reading {remoteServerJsonPath}: {ex.Message}");
                     // Ignore parsing errors and fallback
                 }
             }
-            LogRpcClient(" Falling back to default port 5000.");
+            Loggers.Diag.Dev($"Falling back to default port 5000.");
             return 5000;
-        }
-
-        private static void LogRpcClient(string message)
-        {
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"DFHackRpcClient: {message}");
         }
     }
 

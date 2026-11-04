@@ -123,7 +123,6 @@ namespace ModHearth.UI
 
         public void LoadEntries() => _ = LoadEntriesAsync();
 
-
         public async Task LoadEntriesAsync()
         {
             if (!await loadGate.WaitAsync(0))
@@ -161,8 +160,7 @@ namespace ModHearth.UI
             HashSet<string> activeIds, int knownCount, bool wasEmpty)
         {
             IReadOnlyList<ModUpdateLogEntry> rawEntries = ModUpdateLogger.LoadEntries();
-            if (DevMode.IsEnabled)
-                Console.WriteLine($"[ModUpdateLog] Total number of entries: {rawEntries.Count}");
+            Loggers.Diag.Dev($"Total number of entries: {rawEntries.Count}");
             bool needsFullRebuild = wasEmpty || rawEntries.Count < knownCount;
 
             List<ModUpdateLogEntry> toMaterialize = [.. needsFullRebuild ? rawEntries : rawEntries.Skip(knownCount)];
@@ -193,21 +191,17 @@ namespace ModHearth.UI
                 results[i] = new ModUpdateLogItemViewModel(entry, modref, brush, selectedBrush, isActive);
             }
 
-            switch (rawEntries.Count)
+            if (rawEntries.Count > ParallelThreshold)
             {
-                case > ParallelThreshold:
-                    _ = Parallel.For(0, rawEntries.Count, new ParallelOptions
-                    {
-                        MaxDegreeOfParallelism = Environment.ProcessorCount
-                    }, Build);
-                    break;
-                default:
-                    {
-                        for (int i = 0; i < rawEntries.Count; i++)
-                            Build(i);
-                        break;
-                    }
-
+                _ = Parallel.For(0, rawEntries.Count, new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount
+                }, Build);
+            }
+            else
+            {
+                for (int i = 0; i < rawEntries.Count; i++)
+                    Build(i);
             }
 
             return [.. results];
@@ -287,7 +281,6 @@ namespace ModHearth.UI
                         DoSort();
                     }
 
-
                     logList.AttachedToVisualTree += handler;
                 }
             });
@@ -346,7 +339,6 @@ namespace ModHearth.UI
         public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => logList.SelectedItems?.Cast<ModUpdateLogItemViewModel>().Select(item => item.ModReference)
                 ?? [];
 
-
         public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
             if (manager == null)
@@ -366,8 +358,10 @@ namespace ModHearth.UI
                 BackgroundProperty,
                 BackgroundBrushBinding);
 
-            if (e.Row.DataContext is ModUpdateLogItemViewModel vm && DevMode.IsEnabled)
-                Console.WriteLine($"[ModUpdateLog] Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
+            if (e.Row.DataContext is ModUpdateLogItemViewModel vm)
+            {
+                Loggers.Diag.Dev($"Loading row for '{vm.ModName}' - Change: {vm.Entry.ChangeType}, Active: {vm.IsActive}, RowBrush: {vm.RowBrush}");
+            }
         }
 
         public void ApplyCustomStyle(Style style)

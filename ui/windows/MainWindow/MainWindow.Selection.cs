@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using ModHearth.Utilities.Logging;
-using ModHearth.Models;
 using ModHearth.UI.ViewModels;
 using ModHearth.UI.ModList;
 
@@ -70,24 +69,18 @@ namespace ModHearth.UI
                 rightSearchBar.Text ?? string.Empty,
                 rightSearchBar.HideFiltered,
                 rightSearchBar.SearchMode);
-            if (DevMode.IsEnabled)
-            {
-                SearchLogging.Log(
-                    $"CaptureSearchFilterStateSnapshot left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
-                    $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
-            }
+            Loggers.Search.Dev(
+                $"CaptureSearchFilterStateSnapshot left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={snapshot.LeftMode} " +
+                $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={snapshot.RightMode}");
 
             return snapshot;
         }
 
         private void RestoreSearchFilterStateSnapshot(SearchFilterStateSnapshot snapshot)
         {
-            if (DevMode.IsEnabled)
-            {
-                SearchLogging.Log(
-                    $"RestoreSearchFilterStateSnapshot begin left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={DescribeSearchMode(snapshot.LeftMode)} " +
-                    $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={DescribeSearchMode(snapshot.RightMode)}");
-            }
+            Loggers.Search.Dev(
+                $"RestoreSearchFilterStateSnapshot begin left='{TrimForLog(snapshot.LeftText)}' leftHide={snapshot.LeftHideFiltered} leftMode={snapshot.LeftMode} " +
+                $"right='{TrimForLog(snapshot.RightText)}' rightHide={snapshot.RightHideFiltered} rightMode={snapshot.RightMode}");
 
             suppressSearchInputEvents = true;
             searchDebounceTimer?.Stop();
@@ -111,12 +104,9 @@ namespace ModHearth.UI
             {
                 suppressSearchInputEvents = false;
             }
-            if (DevMode.IsEnabled)
-            {
-                SearchLogging.Log(
-                    $"RestoreSearchFilterStateSnapshot end left='{TrimForLog(leftSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} leftMode={DescribeSearchMode(leftSearchBar.SearchMode)} " +
-                    $"right='{TrimForLog(rightSearchBar.Text)}' rightHide={rightSearchBar.HideFiltered} rightMode={DescribeSearchMode(rightSearchBar.SearchMode)}");
-            }
+            Loggers.Search.Dev(
+                $"RestoreSearchFilterStateSnapshot end left='{TrimForLog(leftSearchBar.Text)}' leftHide={leftSearchBar.HideFiltered} leftMode={leftSearchBar.SearchMode} " +
+                $"right='{TrimForLog(rightSearchBar.Text)}' rightHide={rightSearchBar.HideFiltered} rightMode={rightSearchBar.SearchMode}");
         }
 
         private void RestoreSelectionSnapshot(ModSelectionSnapshot snapshot)

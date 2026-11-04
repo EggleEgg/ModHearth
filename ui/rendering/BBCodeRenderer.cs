@@ -21,7 +21,7 @@ namespace ModHearth.UI.Rendering
     ///   Table      : [table] [tr] [th] [td]
     ///   Misc       : [hr]
     /// </summary>
-    public static class BBCodeRenderer
+    public static partial class BBCodeRenderer
     {
         // Avalonia.HtmlRenderer has a rendering quirk where the document's true first line gets correct positioning, but every line after it; 
         // whether from a literal newline or the engine's own automatic word- wrap. Renders with an unwanted left offset. Confirmed via testing
@@ -33,9 +33,7 @@ namespace ModHearth.UI.Rendering
         private static readonly BBCodeParser Parser = BuildParser();
 
         // Matches pre-existing protected blocks (Capture Group 1) OR unformatted raw URLs (Capture Group 2)
-        private static readonly Regex AutoLinkRegex = new(
-            @"(\[url[=\]].*?\[/url\]|\[img\].*?\[/img\]|\[code\].*?\[/code\]|\[noparse\].*?\[/noparse\])|((?:https?|steam)://[^\s[\]<>""']+(?<![.,:;?!)]))",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        private static readonly Regex AutoLinkRegex = MyRegex();
 
         private static BBCodeParser BuildParser()
         {
@@ -231,5 +229,8 @@ namespace ModHearth.UI.Rendering
         </body>
         </html>";
         }
+
+        [GeneratedRegex(@"(\[url[=\]].*?\[/url\]|\[img\].*?\[/img\]|\[code\].*?\[/code\]|\[noparse\].*?\[/noparse\])|((?:https?|steam)://[^\s[\]<>""']+(?<![.,:;?!)]))", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline)]
+        private static partial Regex MyRegex();
     }
 }

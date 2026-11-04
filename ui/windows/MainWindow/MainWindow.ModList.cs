@@ -88,8 +88,6 @@ namespace ModHearth.UI
                 clearModlistButton.IsEnabled = activeCount > 0;
         }
 
-
-
         private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (isApplyingSearchFilter || isBatchSelecting)
@@ -110,7 +108,6 @@ namespace ModHearth.UI
                 rightModlist.SelectedItems?.Clear();
             if (sender == rightModlist && rightModlist.SelectedItems?.Count > 0)
                 leftModlist.SelectedItems?.Clear();
-
 
             if (sender is ListBox changedList)
                 modListController.UpdateSelectionState(changedList);

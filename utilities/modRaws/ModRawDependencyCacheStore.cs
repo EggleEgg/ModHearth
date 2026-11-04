@@ -1,4 +1,3 @@
-using System.Text.Json;
 using ModHearth.Models;
 
 namespace ModHearth.Utilities.ModRaws
@@ -19,51 +18,25 @@ namespace ModHearth.Utilities.ModRaws
         {
             lock (gate)
             {
-                try
-                {
-                    if (!File.Exists(CachePath))
-                        return new Dictionary<string, ModRawDependencyInfo>(StringComparer.OrdinalIgnoreCase);
-
-                    string json = File.ReadAllText(CachePath);
-                    CacheFile? file = JsonSerializer.Deserialize<CacheFile>(json);
-                    if (file == null || file.SchemaVersion != CurrentSchemaVersion || file.Entries == null)
-                        return new Dictionary<string, ModRawDependencyInfo>(StringComparer.OrdinalIgnoreCase);
-
-                    Dictionary<string, ModRawDependencyInfo> map = new(StringComparer.OrdinalIgnoreCase);
-                    foreach (ModRawDependencyInfo entry in file.Entries)
-                    {
-                        if (entry == null || string.IsNullOrWhiteSpace(entry.ModId))
-                            continue;
-                        map[BuildKey(entry.ModId, entry.NumericVersion)] = entry;
-                    }
+                Dictionary<string, ModRawDependencyInfo> map = new(StringComparer.OrdinalIgnoreCase);
+                if (!JsonFileStore.TryLoad(CachePath, "ModRawCache", out CacheFile? file)
+                    || file.SchemaVersion != CurrentSchemaVersion || file.Entries == null)
                     return map;
-                }
-                catch
+
+                foreach (ModRawDependencyInfo entry in file.Entries)
                 {
-                    return new Dictionary<string, ModRawDependencyInfo>(StringComparer.OrdinalIgnoreCase);
+                    if (entry == null || string.IsNullOrWhiteSpace(entry.ModId))
+                        continue;
+                    map[BuildKey(entry.ModId, entry.NumericVersion)] = entry;
                 }
+                return map;
             }
         }
 
         public static void Save(IEnumerable<ModRawDependencyInfo> entries)
         {
             lock (gate)
-            {
-                try
-                {
-                    string? directory = Path.GetDirectoryName(CachePath);
-                    if (!string.IsNullOrWhiteSpace(directory))
-                        _ = Directory.CreateDirectory(directory);
-
-                    CacheFile file = new() { SchemaVersion = CurrentSchemaVersion, Entries = [.. entries] };
-                    string json = JsonSerializer.Serialize(file, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(CachePath, json);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[ModRawCache] ERROR: Failed to write '{CachePath}': {ex.Message}");
-                }
-            }
+                _ = JsonFileStore.TrySave(CachePath, new CacheFile { SchemaVersion = CurrentSchemaVersion, Entries = [.. entries] }, "ModRawCache");
         }
 
         public static string BuildKey(string modId, string numericVersion) => $"{modId}|{numericVersion}";

@@ -56,7 +56,6 @@ namespace ModHearth.UI
             }
         }
 
-
         private bool dfSteamLaunched = false;
         private bool dfLaunched = false;
 

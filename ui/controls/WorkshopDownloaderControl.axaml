@@ -201,7 +201,7 @@
                           FontWeight="SemiBold"
                           FontStyle="Italic"
                           Tag="IgnoreTheme"
-                          ToolTip.Tip="Batching eliminates SteamCmd process overhead and reuses tcp connections. Network download speed limits may still apply."/>
+                          ToolTip.Tip="Batching eliminates SteamCmd process overhead and reuses tcp connections."/>
                       </Border>
                       <TextBlock
                         Grid.Column="1"

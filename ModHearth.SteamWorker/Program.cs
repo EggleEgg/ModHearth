@@ -66,7 +66,6 @@ namespace ModHearth.SteamWorker
             }
         }
 
-
         private static int RunSubscribe(PublishedFileId_t id) => RunSubscriptionAction<RemoteStorageSubscribePublishedFileResult_t>(
             SteamUGC.SubscribeItem(id),
             "Subscribe",

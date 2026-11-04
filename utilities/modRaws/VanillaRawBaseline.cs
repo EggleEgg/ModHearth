@@ -57,8 +57,9 @@ namespace ModHearth.Utilities.ModRaws
 
                 return new VanillaRawBaseline(keys);
             }
-            catch
+            catch (Exception ex)
             {
+                AppLogging.LogException("Failed to load vanilla raw baseline", ex);
                 return Empty;
             }
         }

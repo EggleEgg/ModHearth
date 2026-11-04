@@ -14,13 +14,13 @@ namespace ModHearth.UI
     public partial class MainWindow
     {
         // Preview state belongs to the window: sharing it statically leaked images across window lifetimes.
-        private readonly object previewCacheGate = new();
-        private readonly LinkedList<string> previewCacheOrder = new();
-        private readonly Dictionary<string, (DateTime StampUtc, IImage Image, LinkedListNode<string> Node)> previewCache
-            = new(StringComparer.OrdinalIgnoreCase);
+        private sealed record CachedPreview(DateTime StampUtc, IImage Image);
 
         // Limits to cached previews are important to not hog memory on large modlists
         private const int MaxCachedPreviews = 24;
+
+        // Assigned in the constructor: eviction consults this window's currentPreview to decide what is safe to dispose.
+        private readonly BoundedLruCache<string, CachedPreview> previewCache;
 
         // Fallback previews are shared, so they must never be disposed while a window can still show them.
         private static readonly BoundedLruCache<string, IImage> fallbackPreviewCache = new(4, StringComparer.OrdinalIgnoreCase);
@@ -28,47 +28,20 @@ namespace ModHearth.UI
 
         private bool TryGetCachedPreview(string path, out IImage? image)
         {
-            lock (previewCacheGate)
+            if (previewCache.TryGetValue(path, out CachedPreview entry)
+                && File.Exists(path) && File.GetLastWriteTimeUtc(path) == entry.StampUtc)
             {
-                if (previewCache.TryGetValue(path, out (DateTime StampUtc, IImage Image, LinkedListNode<string> Node) entry) &&
-                    File.Exists(path) && File.GetLastWriteTimeUtc(path) == entry.StampUtc)
-                {
-                    previewCacheOrder.Remove(entry.Node);
-                    previewCacheOrder.AddFirst(entry.Node);
-                    image = entry.Image;
-                    return true;
-                }
+                image = entry.Image;
+                return true;
             }
             image = null;
             return false;
         }
 
         private void CachePreview(string path, IImage image)
-        {
-            DateTime stamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
-            lock (previewCacheGate)
-            {
-                if (previewCache.TryGetValue(path, out (DateTime StampUtc, IImage Image, LinkedListNode<string> Node) existing))
-                {
-                    previewCacheOrder.Remove(existing.Node);
-                    if (!ReferenceEquals(existing.Image, image))
-                        DisposeCachedPreview(existing.Image, "Failed to dispose replaced preview image");
-                }
+            => previewCache.Set(path, new CachedPreview(File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue, image));
 
-                LinkedListNode<string> node = previewCacheOrder.AddFirst(path);
-                previewCache[path] = (stamp, image, node);
-
-                while (previewCache.Count > MaxCachedPreviews && previewCacheOrder.Last is LinkedListNode<string> last)
-                {
-                    previewCacheOrder.RemoveLast();
-                    if (previewCache.TryGetValue(last.Value, out (DateTime StampUtc, IImage Image, LinkedListNode<string> Node) evicted))
-                    {
-                        DisposeCachedPreview(evicted.Image, "Failed to dispose evicted preview image");
-                        _ = previewCache.Remove(last.Value);
-                    }
-                }
-            }
-        }
+        private bool IsPreviewCached(IImage image) => previewCache.Any(entry => ReferenceEquals(entry.Image, image));
 
         /// <summary>
         /// Disposes a cache-owned preview unless it is still displayed or shared as a fallback.
@@ -88,14 +61,7 @@ namespace ModHearth.UI
 
         public void ClearPreviewCache()
         {
-            lock (previewCacheGate)
-            {
-                foreach ((_, IImage Image, _) in previewCache.Values)
-                    DisposeCachedPreview(Image, "Failed to dispose cached preview image");
-
-                previewCache.Clear();
-                previewCacheOrder.Clear();
-            }
+            previewCache.Clear(); // the removal callback disposes whatever isn't still displayed or shared
             ImageSourceLoader.ClearCache();
         }
 
@@ -123,7 +89,7 @@ namespace ModHearth.UI
 
             if (!string.IsNullOrWhiteSpace(sanitizedBBCode))
             {
-                sanitizedBBCode = Regex.Replace(sanitizedBBCode, @"\[[a-zA-Z0-9_]+(?![^\]]*\])$", "", RegexOptions.RightToLeft);
+                sanitizedBBCode = MyRegex().Replace(sanitizedBBCode, "");
             }
 
             modDescriptionPanelViewModel.DescriptionHtml = BBCodeRenderer.ToHtml(
@@ -223,24 +189,14 @@ namespace ModHearth.UI
             DisposePreviewImage(previous);
         }
 
-        private bool IsPreviewCached(IImage image)
-        {
-            lock (previewCacheGate)
-            {
-                foreach ((_, IImage Image, _) in previewCache.Values)
-                {
-                    if (ReferenceEquals(Image, image))
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
         private static void DisposePreviewImage(IImage? image)
         {
             if (image is IDisposable disposable)
                 disposable.Dispose();
         }
+
+        [GeneratedRegex(@"\[[a-zA-Z0-9_]+(?![^\]]*\])$", RegexOptions.RightToLeft)]
+        private static partial Regex MyRegex();
+
     }
 }

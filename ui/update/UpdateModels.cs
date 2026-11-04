@@ -109,7 +109,6 @@ namespace ModHearth.UI.Update
             if (!string.IsNullOrWhiteSpace(release.TagName))
                 return release.TagName;
 
-
             return $"Build {index + 1}";
         }
 

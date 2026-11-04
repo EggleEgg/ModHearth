@@ -1,6 +1,5 @@
 using System.Text.Json;
 using ModHearth.Utilities.Logging;
-using ModHearth.Models;
 
 namespace ModHearth.Utilities.Workshop
 {
@@ -36,19 +35,18 @@ namespace ModHearth.Utilities.Workshop
 
             try
             {
-                InfoLogger.LogRunDf($"SteamWebApiClient: Fetching details for {idList.Count} IDs...");
+                Loggers.Workshop.Log($"SteamWebApiClient: Fetching details for {idList.Count} IDs...");
                 HttpResponseMessage response = await HttpClient.PostAsync(PublishedFileDetailsUrl, content);
                 _ = response.EnsureSuccessStatusCode();
                 string json = await response.Content.ReadAsStringAsync();
 
-                if (DevMode.IsEnabled)
-                    InfoLogger.LogRunDf($"SteamWebApiClient: Received JSON: {json}");
+                Loggers.Workshop.Dev($"SteamWebApiClient: Received JSON: {json}");
 
                 using JsonDocument doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement.GetProperty("response");
                 if (!root.TryGetProperty("publishedfiledetails", out JsonElement detailsArray))
                 {
-                    InfoLogger.LogRunDf("SteamWebApiClient: No 'publishedfiledetails' property found in response.");
+                    Loggers.Workshop.Log("SteamWebApiClient: No 'publishedfiledetails' property found in response.");
                     return [];
                 }
 
@@ -59,7 +57,7 @@ namespace ModHearth.Utilities.Workshop
                     if (resultValue != 1)
                     {
                         ulong rawId = GetUlongProperty(detail, "publishedfileid");
-                        InfoLogger.LogRunDf($"SteamWebApiClient: Item {rawId} returned result {resultValue}");
+                        Loggers.Workshop.Log($"SteamWebApiClient: Item {rawId} returned result {resultValue}");
                         continue;
                     }
 
@@ -73,21 +71,21 @@ namespace ModHearth.Utilities.Workshop
                         Description = detail.TryGetProperty("description", out JsonElement d) ? d.GetString() ?? string.Empty : string.Empty,
                         IsCollection = false
                     };
-                    InfoLogger.LogRunDf($"SteamWebApiClient: Parsed metadata for '{meta.Title}' ({meta.PublishedFileId})");
+                    Loggers.Workshop.Log($"SteamWebApiClient: Parsed metadata for '{meta.Title}' ({meta.PublishedFileId})");
                     results.Add(meta);
                 }
                 return results;
             }
             catch (Exception ex)
             {
-                InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching file details: {ex.Message}");
+                Loggers.Workshop.Log($"SteamWebApiClient: Error fetching file details: {ex.Message}");
                 return [];
             }
         }
 
         public static async Task<List<ulong>> GetCollectionDetailsAsync(ulong collectionId)
         {
-            InfoLogger.LogRunDf($"SteamWebApiClient: Fetching collection details for {collectionId}...");
+            Loggers.Workshop.Log($"SteamWebApiClient: Fetching collection details for {collectionId}...");
             FormUrlEncodedContent content = new(
                 [
                     new KeyValuePair<string, string>("collectioncount", "1"),
@@ -100,26 +98,26 @@ namespace ModHearth.Utilities.Workshop
                 _ = response.EnsureSuccessStatusCode();
                 string json = await response.Content.ReadAsStringAsync();
 
-                InfoLogger.LogRunDf($"SteamWebApiClient: Collection JSON: {json}");
+                Loggers.Workshop.Log($"SteamWebApiClient: Collection JSON: {json}");
 
                 using JsonDocument doc = JsonDocument.Parse(json);
                 JsonElement root = doc.RootElement.GetProperty("response");
                 if (!root.TryGetProperty("collectiondetails", out JsonElement collections))
                 {
-                    InfoLogger.LogRunDf("SteamWebApiClient: No 'collectiondetails' property found in response.");
+                    Loggers.Workshop.Log("SteamWebApiClient: No 'collectiondetails' property found in response.");
                     return [];
                 }
 
                 JsonElement collection = collections.EnumerateArray().FirstOrDefault();
                 if (collection.ValueKind == JsonValueKind.Undefined || GetIntProperty(collection, "result") != 1)
                 {
-                    InfoLogger.LogRunDf($"SteamWebApiClient: Collection {collectionId} result is not 1 or undefined.");
+                    Loggers.Workshop.Log($"SteamWebApiClient: Collection {collectionId} result is not 1 or undefined.");
                     return [];
                 }
 
                 if (!collection.TryGetProperty("children", out JsonElement children))
                 {
-                    InfoLogger.LogRunDf($"SteamWebApiClient: Collection {collectionId} has no children.");
+                    Loggers.Workshop.Log($"SteamWebApiClient: Collection {collectionId} has no children.");
                     return [];
                 }
 
@@ -127,12 +125,12 @@ namespace ModHearth.Utilities.Workshop
                     .Select(c => GetUlongProperty(c, "publishedfileid"))
                     .Where(id => id != 0)];
 
-                InfoLogger.LogRunDf($"SteamWebApiClient: Found {childrenIds.Count} children for collection {collectionId}");
+                Loggers.Workshop.Log($"SteamWebApiClient: Found {childrenIds.Count} children for collection {collectionId}");
                 return childrenIds;
             }
             catch (Exception ex)
             {
-                InfoLogger.LogRunDf($"SteamWebApiClient: Error fetching collection details: {ex.Message}");
+                Loggers.Workshop.Log($"SteamWebApiClient: Error fetching collection details: {ex.Message}");
                 return [];
             }
         }

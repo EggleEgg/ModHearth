@@ -33,7 +33,6 @@ namespace ModHearth.UI.Theme
 
         public static void ApplyToOpenWindows() => ApplyToOpenWindows(Style.instance);
 
-
         public static void ApplyToOpenWindows(Style? style)
         {
             if (style == null)
@@ -71,7 +70,6 @@ namespace ModHearth.UI.Theme
         private static void OnWindowClosed(object? sender, EventArgs e) => Cleanup();
 
         private static void Cleanup() => _ = registered.RemoveAll(weak => !weak.TryGetTarget(out _));
-
 
         public static void ApplyToWindow(Window? window, Style? style)
         {
@@ -209,33 +207,23 @@ namespace ModHearth.UI.Theme
             }
 
             // 1. ModSearchBar styling context
-            switch (visual)
+            if (visual is ModSearchBar searchBar)
             {
-                case ModSearchBar searchBar:
-                    searchBar.ApplyStyle(style);
-                    inSearchBar = true;
-                    break;
-                default:
-                    if (inSearchBar)
-                        // ModSearchBar (and nested ModColorPicker) manage their own internal styling
-                        return;
-
-                    break;
+                searchBar.ApplyStyle(style);
+                inSearchBar = true;
+            }
+            else if (inSearchBar)
+            {
+                // ModSearchBar (and nested ModColorPicker) manage their own internal styling
+                return;
             }
 
             // 2. Dock chrome / host context calculation
             string typeName = visual.GetType().Name;
-            switch (visual)
-            {
-                case Control ctrl when ctrl.Name == "PART_ContentPresenter" || typeName == "DeferredContentPresenter":
-                    inDockHeader = false; // Reset when entering dock body content host
-                    break;
-                default:
-                    if (typeName is "ToolChromeControl" or "ToolDockControl" or "DockControl" || (visual is Control grip && grip.Name == "PART_Grip"))
-                        inDockHeader = true; // Set when inside dock title/header
-
-                    break;
-            }
+            if (visual is Control ctrl && (ctrl.Name == "PART_ContentPresenter" || typeName == "DeferredContentPresenter"))
+                inDockHeader = false; // Reset when entering dock body content host
+            else if (typeName is "ToolChromeControl" or "ToolDockControl" or "DockControl" || visual is Control { Name: "PART_Grip" })
+                inDockHeader = true; // Set when inside dock title/header
 
             // 4. Element-specific styling
             switch (visual)
@@ -288,7 +276,6 @@ namespace ModHearth.UI.Theme
         }
 
         private static bool HasThemedForeground(TextBlock textBlock) => textBlock.DataContext is IThemedViewModel;
-
 
         private static bool IsDark(SimpleColor color)
         {

@@ -20,6 +20,5 @@ namespace ModHearth.UI
             Content = control ?? new WorkshopDownloaderControl(manager);
         }
 
-
     }
 }

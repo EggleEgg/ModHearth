@@ -2,6 +2,7 @@
 using Avalonia.Platform.Storage;
 using ModHearth.Models;
 using ModHearth.UI.Dialogs;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI
 {
@@ -370,8 +371,7 @@ namespace ModHearth.UI
 
             try
             {
-                JsonSerializerOptions options = new() { WriteIndented = true };
-                string exportString = JsonSerializer.Serialize(manager.SelectedModlist, options);
+                string exportString = JsonFileStore.Serialize(manager.SelectedModlist);
                 await File.WriteAllTextAsync(filePath, exportString);
                 await DialogService.ShowMessageAsync(this, "File saved successfully.", "Success");
             }

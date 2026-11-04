@@ -4,6 +4,7 @@ using ModHearth.Models;
 using ModHearth.UI.Theme;
 using ModHearth.UI.Update;
 using ModHearth.UI.ViewModels;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
@@ -52,7 +53,6 @@ namespace ModHearth.UI
                 .Select((release, index) => ReleaseEntry.FromRelease(release, index, _currentBuild))
                 .ToList();
 
-
         private async void ChannelSwitchClicked(object? sender, RoutedEventArgs e)
         {
             _isBleedingEdge = !_isBleedingEdge;
@@ -69,8 +69,7 @@ namespace ModHearth.UI
             catch (Exception ex)
             {
                 HeaderText.Text = $"Failed to fetch builds: {ex.Message}";
-                if (DevMode.IsEnabled)
-                    Console.WriteLine($"[UpdateDialog] Channel switch failed: {ex.Message}");
+                Loggers.Updates.Dev($"Channel switch failed: {ex.Message}");
             }
             finally
             {

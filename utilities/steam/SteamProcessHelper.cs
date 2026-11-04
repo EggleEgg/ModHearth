@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities
 {
@@ -49,7 +50,7 @@ namespace ModHearth.Utilities
             }
             catch (Exception ex)
             {
-                SteamConnectionLogger.LogError($"Steam process detection failed: {ex.Message}");
+                Loggers.Steam.LogError($"Steam process detection failed: {ex.Message}");
             }
 
             return runningProcesses.Count > 0;

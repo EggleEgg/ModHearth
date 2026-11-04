@@ -13,13 +13,12 @@ namespace ModHearth
         private static readonly TimeSpan SteamResubscribeSubscribeWait = TimeSpan.FromSeconds(2);
         private static int workshopAuditInProgress;
 
-
         // To avoid spamming audit calls on autoreload
         public static void AuditWorkshopManifests()
         {
             if (Interlocked.CompareExchange(ref workshopAuditInProgress, 1, 0) != 0)
             {
-                SteamConnectionLogger.LogInfo("Workshop manifest audit skipped: a previous audit is still running.");
+                Loggers.Steam.Log("Workshop manifest audit skipped: a previous audit is still running.");
                 return;
             }
 
@@ -113,7 +112,7 @@ namespace ModHearth
                     return failures;
                 }
 
-                SteamConnectionLogger.LogInfo($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
+                Loggers.Steam.Log($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
                 ConcurrentBag<string> failureBag = [];
                 ConcurrentBag<ulong> successBag = [];
@@ -139,7 +138,7 @@ namespace ModHearth
                     else
                     {
                         successBag.Add(workshopId);
-                        SteamConnectionLogger.LogInfo($"Requested Steam API unsubscribe for workshop item {steamItemId}.");
+                        Loggers.Steam.Log($"Requested Steam API unsubscribe for workshop item {steamItemId}.");
 
                         // Attempt to delete the mod folder
                         if (!string.IsNullOrWhiteSpace(modrefToDelete.Path) && Directory.Exists(modrefToDelete.Path))
@@ -149,7 +148,7 @@ namespace ModHearth
                                 Directory.Delete(modrefToDelete.Path, true);
                                 string sourceFolder = Path.GetDirectoryName(modrefToDelete.Path) ?? string.Empty;
                                 ModDeletionNotifier.NotifyDeleted((msg, icon) => ShowNotification(msg, icon), modrefToDelete.Path, sourceFolder);
-                                SteamConnectionLogger.LogInfo($"Deleted mod folder: {modrefToDelete.Path}");
+                                Loggers.Steam.Log($"Deleted mod folder: {modrefToDelete.Path}");
 
                                 if (!string.IsNullOrWhiteSpace(modrefToDelete.ID))
                                 {
@@ -162,12 +161,12 @@ namespace ModHearth
                             catch (Exception ex)
                             {
                                 failureBag.Add($"Failed to delete mod folder '{modrefToDelete.Path}': {ex.Message}");
-                                SteamConnectionLogger.LogError($"Failed to delete mod folder '{modrefToDelete.Path}': {ex.Message}");
+                                Loggers.Steam.LogError($"Failed to delete mod folder '{modrefToDelete.Path}': {ex.Message}");
                             }
                         }
                         else
                         {
-                            SteamConnectionLogger.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.Path}");
+                            Loggers.Steam.LogWarning($"Mod folder not found or path is invalid for workshop item {steamItemId}: {modrefToDelete.Path}");
                         }
                     }
                 });
@@ -175,7 +174,7 @@ namespace ModHearth
                 failures.AddRange(failureBag);
                 List<ulong> successfullyUnsubscribedIds = [.. successBag];
 
-                SteamConnectionLogger.LogInfo($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+                Loggers.Steam.Log($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
 
                 if (successfullyUnsubscribedIds.Count > 0)
                 {
@@ -228,7 +227,7 @@ namespace ModHearth
                 return failures;
             }
 
-            SteamConnectionLogger.LogInfo($"Steam resubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
+            Loggers.Steam.Log($"Steam resubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
             List<ulong> workshopIds = [];
             foreach (string steamItemId in steamItemIds)
@@ -249,7 +248,7 @@ namespace ModHearth
                 _ = SteamWorkshopService.UnsubscribeMany(workshopIds);
                 foreach (string steamItemId in steamItemIds)
                 {
-                    SteamConnectionLogger.LogInfo($"Unsubscribed workshop item {steamItemId} (resubscribe stage).");
+                    Loggers.Steam.Log($"Unsubscribed workshop item {steamItemId} (resubscribe stage).");
                     lock (installedCacheGate)
                     {
                         // Since we are unsubscribing, it's effectively deleted from the installed mods for now.
@@ -263,7 +262,7 @@ namespace ModHearth
                 _ = SteamWorkshopService.SubscribeMany(workshopIds);
                 foreach (string steamItemId in steamItemIds)
                 {
-                    SteamConnectionLogger.LogInfo($"Subscribed to workshop item {steamItemId} (resubscribe stage).");
+                    Loggers.Steam.Log($"Subscribed to workshop item {steamItemId} (resubscribe stage).");
                 }
 
                 Thread.Sleep(SteamResubscribeSubscribeWait);
@@ -272,11 +271,11 @@ namespace ModHearth
                 _ = SteamWorkshopService.DownloadMany(workshopIds);
                 foreach (string steamItemId in steamItemIds)
                 {
-                    SteamConnectionLogger.LogInfo($"Requested Steam download/validation for workshop item {steamItemId}.");
+                    Loggers.Steam.Log($"Requested Steam download/validation for workshop item {steamItemId}.");
                 }
             }
 
-            SteamConnectionLogger.LogInfo($"Steam resubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
+            Loggers.Steam.Log($"Steam resubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
 
             if (failures.Count == 0)
             {
@@ -331,18 +330,17 @@ namespace ModHearth
         {
             if (TryDetectSteamProcess(out List<string> processNames))
             {
-                SteamConnectionLogger.LogInfo($"Steam session detected. Active process(es): {string.Join(", ", processNames)}.");
+                Loggers.Steam.Log($"Steam session detected. Active process(es): {string.Join(", ", processNames)}.");
                 return true;
             }
 
             const string message = "Steam session not detected. Open Steam and keep it running, then retry.";
             failures.Add(message);
-            SteamConnectionLogger.LogError(message);
+            Loggers.Steam.LogError(message);
             return false;
         }
 
         private static bool TryDetectSteamProcess(out List<string> processNames) => SteamProcessHelper.TryDetectSteamProcess(out processNames);
-
 
         private static bool TryAddLocalActionableMod(
             ModReference modref,
@@ -388,8 +386,6 @@ namespace ModHearth
 
             return modref.ID?.Trim() ?? string.Empty;
         }
-
-        public void ShowNotification(string message, string icon) => TriggerNotification(message, icon);
 
     }
 }

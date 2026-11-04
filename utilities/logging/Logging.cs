@@ -1,31 +1,18 @@
-﻿using ModHearth.Models;
-
 namespace ModHearth.Utilities.Logging
 {
-    /// <summary>
-    /// Logging for debugging search actions
-    /// </summary>
-    public static class SearchLogging
+    /// Every channel is a Logger: Log/LogWarning/LogError always print; Dev(...) prints only in dev mode
+    /// and never builds its message otherwise, so call sites need no `if (DevMode.IsEnabled)` guard.
+    internal static class Loggers
     {
-        public static void Log(string message)
-        {
-            if (!DevMode.IsEnabled)
-                return;
-            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [SearchFlow] {message}");
-        }
+        public static readonly Logger Diag = new("DIAG", Console.WriteLine);
+        public static readonly Logger DfRunner = new("DfRunner", Console.WriteLine);
+        public static readonly Logger Workshop = new("Workshop", Console.WriteLine);
+        public static readonly Logger Steam = new("Steam", Console.WriteLine);
+        public static readonly Logger Reload = new("ReloadManager", Console.WriteLine);
+        public static readonly Logger Dock = new("DockRebalance", Console.WriteLine);
+        public static readonly Logger Drag = new("ModDragDrop", Console.WriteLine);
+        public static readonly Logger Updates = new("UpdateCheck", Console.WriteLine);
+        public static readonly Logger Search = new("SearchFlow",
+            line => Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {line}"));
     }
-    /// <summary>
-    /// Mostly used for UI logging
-    /// </summary>
-    internal static class InfoLogger
-    {
-        public static void Log(string message) => Console.WriteLine($"[DIAG] {message}");
-
-        public static void LogRunDf(string message) => Console.WriteLine($"[DfRunner] {message}");
-    }
-    public static class ReloadLogging
-    {
-        public static void Log(string message) => Console.WriteLine($"[ReloadManager] {message}");
-    }
-
 }
