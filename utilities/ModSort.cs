@@ -220,8 +220,16 @@ namespace ModHearth
                 idMap = new Dictionary<string, ModReference>(modrefMap.Count, StringComparer.OrdinalIgnoreCase);
                 foreach (ModReference modref in modrefMap.Values)
                 {
-                    _ = idMap.TryAdd(modref.ID, modref);
+                    // When the same id is registered as both a real folder and an installed_mods
+                    // cache copy, sorting should work against the real folder.
+                    if (idMap.TryGetValue(modref.ID, out ModReference? existing))
+                    {
+                        if (existing.IsIgnored && !modref.IsIgnored)
+                            idMap[modref.ID] = modref;
+                        continue;
+                    }
 
+                    idMap[modref.ID] = modref;
                 }
 
                 enabledModsSnapshot = [.. enabledMods];

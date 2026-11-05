@@ -202,8 +202,9 @@ namespace ModHearth.UI
                     ControlCreator = () =>
                     {
                         List<ModReference> modRefs = [.. manager.modPool
-                            .Select(mod => manager.GetRefFromDFHMod(mod))
-                            .Where(modref => modref != null && !string.IsNullOrWhiteSpace(modref.ID))];
+                            .Select(manager.FindModRef)
+                            .OfType<ModReference>()
+                            .Where(modref => !string.IsNullOrWhiteSpace(modref.ID))];
 
                         SortRulesControl ctrl = new(
                             manager.GetModRelationshipRules(),
@@ -220,7 +221,7 @@ namespace ModHearth.UI
                     },
                     WindowCreator = control => new SortRulesWindow(
                         manager.GetModRelationshipRules(),
-                        manager.modPool.Select(mod => manager.GetRefFromDFHMod(mod)).Where(m => m != null && !string.IsNullOrWhiteSpace(m.ID)),
+                        manager.modPool.Select(manager.FindModRef).OfType<ModReference>().Where(m => !string.IsNullOrWhiteSpace(m.ID)),
                         ModHearthManager.GetModRelationshipRulesPath(),
                         rules =>
                         {

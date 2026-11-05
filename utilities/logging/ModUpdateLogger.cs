@@ -129,7 +129,7 @@ namespace ModHearth.Utilities.Logging
                     string json = File.ReadAllText(LogPath);
                     Loggers.Diag.Log($"ModUpdateLogger: Read JSON content length: {json.Length} chars");
 
-                    List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json);
+                    List<ModUpdateLogEntry>? entries = JsonSerializer.Deserialize<List<ModUpdateLogEntry>>(json, JsonFileStore.CaseInsensitive);
                     int count = entries?.Count ?? 0;
                     Loggers.Diag.Log($"ModUpdateLogger: Successfully deserialized {count} log entries.");
 

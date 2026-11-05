@@ -111,9 +111,18 @@ namespace ModHearth
         // Get a ModReference given a string key.
         public ModReference GetModRef(string key) => modrefMap[key];
 
+        // Non-throwing lookup for callers that iterate a snapshot (modPool, enabledMods,
+        // disabledMods) which a concurrent or later scan may no longer fully contain. A mod can
+        // legitimately disappear from the scan (e.g. a cache-only mod DF no longer reports, or the
+        // DFHack memory scan being replaced by a disk scan), while the modlist still references it.
+        public ModReference? FindModRef(string key)
+            => modrefMap.TryGetValue(key, out ModReference? modref) ? modref : null;
+
         // Get a ModReference given a DFHMod key.
 
         public ModReference GetRefFromDFHMod(DfhMod dfmod) => modrefMap[dfmod.ToString()];
+
+        public ModReference? FindModRef(DfhMod dfmod) => FindModRef(dfmod.ToString());
 
         public IReadOnlyDictionary<string, List<ModReference>> GetDuplicateModRefs() => filteredDuplicateModRefs;
 
@@ -434,7 +443,7 @@ namespace ModHearth
                 }
 
                 string jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                List<ModSortRule>? loadedRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent);
+                List<ModSortRule>? loadedRules = JsonSerializer.Deserialize<List<ModSortRule>>(jsonContent, JsonFileStore.CaseInsensitive);
                 communitySortRules = NormalizeSortRules(loadedRules);
                 return true;
             }
@@ -522,7 +531,7 @@ namespace ModHearth
             try
             {
                 string json = File.ReadAllText(path);
-                List<DfhModpack>? parsed = JsonSerializer.Deserialize<List<DfhModpack>>(json);
+                List<DfhModpack>? parsed = JsonSerializer.Deserialize<List<DfhModpack>>(json, JsonFileStore.CaseInsensitive);
                 if (parsed == null)
                 {
                     error = "Modpack file could not be parsed.";
@@ -727,7 +736,7 @@ namespace ModHearth
                 candidateDirs.AddRange(EnumerateModDirectoriesWithInfo(root));
             }
 
-            // A plain membership set has no "which duplicate wins" concern (unlike BuildModIdPathMap's
+            // A plain membership set has no "which duplicate wins" concern (unlike BuildModPathIndex's
             // dir-per-id map), so a ConcurrentDictionary-backed set is enough
             ConcurrentDictionary<string, byte> ids = new(StringComparer.OrdinalIgnoreCase);
             _ = Parallel.ForEach(candidateDirs, new ParallelOptions
@@ -803,7 +812,7 @@ namespace ModHearth
             }
 
             Console.WriteLine($"DFHack memory mod entries received: {modData.Count}.");
-            Dictionary<string, string> modIdPathMap = BuildModIdPathMap();
+            ModPathIndex pathIndex = BuildModPathIndex();
 
             // Enumerate. Pin down an explicit order, so the parallel compute and sequential merge phases below are deterministic
             List<Dictionary<string, string>> modDataList = [.. modData];
@@ -820,7 +829,7 @@ namespace ModHearth
             }, i =>
             {
                 Dictionary<string, string> modDataEntry = modDataList[i];
-                modDataEntry[scrDir] = ResolveModPath(modDataEntry, modIdPathMap);
+                modDataEntry[scrDir] = ResolveModPath(modDataEntry, pathIndex);
 
                 // Mod setup and registry.
                 ModReference modRef = new(modDataEntry)
@@ -828,15 +837,11 @@ namespace ModHearth
                     LastModifiedTime = GetLatestModifiedTimestampCached(modDataEntry["src_dir"])
                 };
 
+                // Classify (which flags installed_mods cache paths) but keep the ref: a mod that only
+                // exists in DF's cache must still be visible in the UI. Cache refs are merged in a
+                // second, low-priority pass below.
                 _ = ModSourceClassifier.Classify(modRef, sourceContext);
-                if (modRef.IsIgnored)
-                {
-                    results[i] = null; // Mark as null to be filtered out later
-                }
-                else
-                {
-                    results[i] = modRef;
-                }
+                results[i] = modRef;
             });
 
             // Sequential merge. Preserves "first occurrence wins" for duplicates, same as before.
@@ -844,12 +849,18 @@ namespace ModHearth
             Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
             HashSet<DfhMod> newModPool = [];
 
+            // Real source folders first, so a cache copy can never shadow them or be reported as a
+            // duplicate; then cache-only mods as a low-priority fallback.
             foreach (ModReference? modRef in results)
             {
-                if (modRef == null)
-                    continue;
+                if (modRef is { IsIgnored: false })
+                    _ = TryAddScannedModReference(modRef, newModrefMap, newDuplicateModRefs, newModPool);
+            }
 
-                _ = TryAddScannedModReference(modRef, newModrefMap, newDuplicateModRefs, newModPool);
+            foreach (ModReference? modRef in results)
+            {
+                if (modRef is { IsIgnored: true })
+                    _ = TryAddCacheModReference(modRef, newModrefMap, newModPool);
             }
 
             PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs, sourceContext);
@@ -893,11 +904,13 @@ namespace ModHearth
             int candidateCount = 0;
             int addedCount = 0;
             int duplicateCount = 0;
+            int cacheCount = 0;
+            List<ModReference> cacheOnlyRefs = [];
 
             void FlushRootDiagnostics()
             {
                 if (currentRoot != null)
-                    Loggers.Diag.Log($"Disk mod scan root: '{NormalizeFileSystemPath(currentRoot)}' candidates: {candidateCount}, added: {addedCount}, duplicates: {duplicateCount}, total registered: {newModrefMap.Count}.");
+                    Loggers.Diag.Log($"Disk mod scan root: '{NormalizeFileSystemPath(currentRoot)}' candidates: {candidateCount}, added: {addedCount}, duplicates: {duplicateCount}, cache-only: {cacheCount}, total registered: {newModrefMap.Count}.");
             }
 
             for (int i = 0; i < candidates.Count; i++)
@@ -910,12 +923,22 @@ namespace ModHearth
                     candidateCount = 0;
                     addedCount = 0;
                     duplicateCount = 0;
+                    cacheCount = 0;
                 }
 
                 candidateCount++;
                 ModReference? modRef = results[i];
                 if (modRef == null)
                     continue;
+
+                // Defer installed_mods cache refs: they are a low-priority fallback and must be
+                // merged only after every canonical root has had a chance to register.
+                if (modRef.IsIgnored)
+                {
+                    cacheOnlyRefs.Add(modRef);
+                    cacheCount++;
+                    continue;
+                }
 
                 if (TryAddScannedModReference(modRef, newModrefMap, newDuplicateModRefs, newModPool))
                     addedCount++;
@@ -924,6 +947,16 @@ namespace ModHearth
             }
 
             FlushRootDiagnostics();
+
+            int registeredFromCache = 0;
+            foreach (ModReference cacheRef in cacheOnlyRefs)
+            {
+                if (TryAddCacheModReference(cacheRef, newModrefMap, newModPool))
+                    registeredFromCache++;
+            }
+
+            if (registeredFromCache > 0)
+                Loggers.Diag.Log($"Registered {registeredFromCache} cache-only mod(s) from the installed_mods fallback.");
 
             PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs, sourceContext);
 
@@ -947,10 +980,8 @@ namespace ModHearth
                 LastModifiedTime = GetLatestModifiedTimestampCached(dir)
             };
 
+            // Keep installed_mods refs; the merge phase registers them as a low-priority fallback.
             _ = ModSourceClassifier.Classify(modRef, sourceContext);
-            if (modRef.IsIgnored)
-                return null;
-
             return modRef;
         }
 
@@ -967,6 +998,11 @@ namespace ModHearth
             string key = modRef.DFHackCompatibleString();
             if (newModrefMap.TryGetValue(key, out ModReference? value))
             {
+                // Two DFHack rows can resolve to the same physical folder (e.g. a cache row remapped
+                // onto its real source). That is the same mod folder, not a duplicate installation.
+                if (PathHelper.PathsEqual(value.Path, modRef.Path))
+                    return false;
+
                 if (!newDuplicateModRefs.TryGetValue(key, out List<ModReference>? list))
                 {
                     list = [value];
@@ -977,6 +1013,27 @@ namespace ModHearth
             }
 
             Console.WriteLine($"   Mod found + registered: {modRef.Name}.");
+            newModrefMap.Add(key, modRef);
+            _ = newModPool.Add(modRef.ToDFHMod());
+            return true;
+        }
+
+        /// <summary>
+        /// Registers a mod that only exists in DF's installed_mods cache. Never records a duplicate:
+        /// the cache is a disposable copy that may coexist with a real source folder, and a cached
+        /// copy must never shadow (or be reported as a conflict with) the real one.
+        /// Returns false when the id/version is already registered from a higher-priority source.
+        /// </summary>
+        internal static bool TryAddCacheModReference(
+            ModReference modRef,
+            Dictionary<string, ModReference> newModrefMap,
+            HashSet<DfhMod> newModPool)
+        {
+            string key = modRef.DFHackCompatibleString();
+            if (newModrefMap.ContainsKey(key))
+                return false;
+
+            Console.WriteLine($"   Mod found (cache-only) + registered: {modRef.Name}.");
             newModrefMap.Add(key, modRef);
             _ = newModPool.Add(modRef.ToDFHMod());
             return true;
@@ -995,6 +1052,11 @@ namespace ModHearth
             {
                 List<ModReference> nonSteamLocalList = [.. kvp.Value.Where(m =>
                 {
+                    // installed_mods is DF's disposable cache; a cached copy is never a real second
+                    // installation, so it must not surface as a duplicate-mod warning.
+                    if (m.IsIgnored || ConfigManager.IsInstalledModsPath(m.Path))
+                        return false;
+
                     (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(m, sourceContext);
                     return !isSteamLocal;
                 })];
@@ -1257,7 +1319,19 @@ namespace ModHearth
             return match.Success ? match.Value : null;
         }
 
-        private static Dictionary<string, string> BuildModIdPathMap()
+        /// <summary>
+        /// Index of the canonical (non-cache) mod folders discovered on disk. <see cref="ById"/>
+        /// preserves the historical "first occurrence across roots wins" id lookup.
+        /// <see cref="ByReferenceKey"/> is keyed exactly like <see cref="Models.DfhMod.ToString"/>
+        /// (id|version) so a disposable installed_mods folder can be mapped back to the real source.
+        /// </summary>
+        private sealed record ModPathIndex(
+            Dictionary<string, string> ById,
+            Dictionary<string, string> ByReferenceKey);
+
+        private sealed record ModIdentity(string Id, string ReferenceKey);
+
+        private static ModPathIndex BuildModPathIndex()
         {
             // Enumerate phase: preserve root/dir order so the merge below reproduces the original "first occurrence wins" semantics.
             List<string> candidateDirs = [];
@@ -1266,38 +1340,117 @@ namespace ModHearth
                 if (!Directory.Exists(root))
                     continue;
 
+                if (ConfigManager.IsInstalledModsPath(root))
+                    continue;
+
                 foreach (string dir in EnumerateModDirectoriesWithInfo(root))
                     candidateDirs.Add(dir);
             }
 
             // Parallel-compute phase: reading + regex-matching each info.txt is independent per directory.
-            (string? Id, string Dir)?[] results = new (string?, string)?[candidateDirs.Count];
+            ModIdentity?[] results = new ModIdentity?[candidateDirs.Count];
             _ = Parallel.For(0, candidateDirs.Count, new ParallelOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, i =>
             {
-                string dir = candidateDirs[i];
-                string? id = TryReadModIdFromInfo(ResolveInfoFilePath(dir));
-                if (id != null)
-                    results[i] = (id, dir);
+                results[i] = TryReadModIdentityFromInfo(ResolveInfoFilePath(candidateDirs[i]));
             });
 
             // Sequential-merge phase: same "first occurrence across roots/dirs wins" as the original loop.
-            Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
-            foreach ((string? Id, string Dir)? entry in results)
+            Dictionary<string, string> byId = new(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, string> byReferenceKey = new(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < results.Length; i++)
             {
-                if (entry == null || string.IsNullOrEmpty(entry.Value.Id))
+                ModIdentity? identity = results[i];
+                if (identity == null)
                     continue;
-                if (!map.ContainsKey(entry.Value.Id))
-                    map[entry.Value.Id] = entry.Value.Dir;
+
+                _ = byId.TryAdd(identity.Id, candidateDirs[i]);
+                _ = byReferenceKey.TryAdd(identity.ReferenceKey, candidateDirs[i]);
             }
 
-            Loggers.Diag.Log($"Mod ID path map entries: {map.Count}.");
-            return map;
+            Loggers.Diag.Log($"Mod ID path map entries: {byId.Count}. Mod reference path map entries: {byReferenceKey.Count}.");
+            return new ModPathIndex(byId, byReferenceKey);
         }
 
-        private static string ResolveModPath(Dictionary<string, string> modDataEntry, Dictionary<string, string> modIdPathMap)
+        /// <summary>
+        /// Reads the [ID] and numeric version tags needed to build a mod reference key, mirroring
+        /// <see cref="BuildModMemoryDataFromInfo"/>'s version fallbacks. Null when unreadable or id-less.
+        /// </summary>
+        private static ModIdentity? TryReadModIdentityFromInfo(string? infoPath)
+        {
+            if (string.IsNullOrWhiteSpace(infoPath))
+                return null;
+
+            try
+            {
+                Dictionary<string, string> tags = ParseInfoTags(File.ReadAllText(infoPath));
+                string id = GetInfoTag(tags, "ID")?.Trim() ?? string.Empty;
+                if (string.IsNullOrEmpty(id))
+                    return null;
+
+                string numericVersion = GetInfoTag(tags, "NUMERIC_VERSION")
+                    ?? ExtractNumericVersion(GetInfoTag(tags, "DISPLAYED_VERSION") ?? GetInfoTag(tags, "VERSION") ?? string.Empty)
+                    ?? "1";
+
+                string? referenceKey = TryBuildModReferenceKey(id, numericVersion);
+                return referenceKey == null ? null : new ModIdentity(id, referenceKey);
+            }
+            catch (Exception ex)
+            {
+                Loggers.Diag.Dev($"Failed to read mod identity from '{infoPath}': {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Builds the same "id|version" key DFHack's mod manager uses (see <see cref="Models.DfhMod.ToString"/>).
+        /// Null when the version is not numeric, matching what DfhMod's constructor would reject.
+        /// </summary>
+        internal static string? TryBuildModReferenceKey(string? id, string? numericVersion)
+        {
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(numericVersion))
+                return null;
+
+            string compactVersion = numericVersion.Replace(".", string.Empty).Trim();
+            return int.TryParse(compactVersion, out int version) ? id.Trim() + "|" + version : null;
+        }
+
+        private static string ResolveModPath(Dictionary<string, string> modDataEntry, ModPathIndex pathIndex)
+            => TryRemapInstalledModsPath(
+                ResolveModPathCore(modDataEntry, pathIndex.ById),
+                modDataEntry,
+                pathIndex.ByReferenceKey);
+
+        /// <summary>
+        /// Dwarf Fortress reports src_dir as a folder inside its installed_mods cache for enabled
+        /// mods. When a real source folder with the same id/version is known, prefer it so the
+        /// ModReference points at the folder the user actually installs, updates or deletes.
+        /// </summary>
+        internal static string TryRemapInstalledModsPath(
+            string resolvedPath,
+            Dictionary<string, string> modDataEntry,
+            Dictionary<string, string> canonicalByReferenceKey)
+        {
+            if (string.IsNullOrWhiteSpace(resolvedPath) || !ConfigManager.IsInstalledModsPath(resolvedPath))
+                return resolvedPath;
+
+            string? referenceKey = TryBuildModReferenceKey(
+                modDataEntry.GetValueOrDefault("id"),
+                modDataEntry.GetValueOrDefault("numeric_version"));
+
+            if (referenceKey == null ||
+                !canonicalByReferenceKey.TryGetValue(referenceKey, out string? canonicalPath) ||
+                string.IsNullOrWhiteSpace(canonicalPath))
+            {
+                return resolvedPath;
+            }
+
+            return ResolveExistingDirectoryPath(canonicalPath) ?? canonicalPath;
+        }
+
+        private static string ResolveModPathCore(Dictionary<string, string> modDataEntry, Dictionary<string, string> modIdPathMap)
         {
             string rawSrcDir = modDataEntry.TryGetValue(scrDir, out string? srcDirValue)
                 ? srcDirValue ?? string.Empty
@@ -1658,13 +1811,16 @@ namespace ModHearth
         // Save the DFHModpack list to the active backend file.
         public ModpackSaveResult SaveAllModpacks() => SaveAllModpacks(requestLiveReload: true);
 
-        private ModpackSaveResult SaveAllModpacks(bool requestLiveReload)
+        private ModpackSaveResult SaveAllModpacks(bool requestLiveReload, bool backUpExistingFile = false)
         {
             Console.WriteLine("Modlists saved.");
 
             ResolveActiveModpackStorage();
             ModpackStorageBackend backend = activeModpackBackend;
             string path = activeModpackPath;
+
+            if (backUpExistingFile)
+                TryBackUpModpackFile(path);
 
             try
             {
@@ -1711,6 +1867,31 @@ namespace ModHearth
                 savingModpacksCooldownUntilUtc = DateTime.UtcNow.AddSeconds(2);
 
             File.WriteAllText(path, modlistJson);
+        }
+
+        /// <summary>
+        /// Copies the current modpack file to "&lt;path&gt;.bak" before a load-time repair overwrites it.
+        /// A load-time repair can be caused by a parse/compatibility problem rather than by the user,
+        /// so the previous contents must stay recoverable. Never clobbers an existing backup.
+        /// </summary>
+        private static void TryBackUpModpackFile(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return;
+
+            string backupPath = path + ".bak";
+            if (File.Exists(backupPath))
+                return;
+
+            try
+            {
+                File.Copy(path, backupPath);
+                Loggers.Diag.Log($"Backed up modpack file '{path}' to '{backupPath}' before rewriting it.");
+            }
+            catch (Exception ex)
+            {
+                AppLogging.LogException($"Failed to back up modpack file '{path}'", ex);
+            }
         }
 
         ///<summary> Only used for local and live modpack saving, not ui or mods</summary>
@@ -2103,7 +2284,16 @@ namespace ModHearth
             for (int i = 0; i < enabledMods.Count; i++)
             {
                 DfhMod currentDFM = enabledMods[i];
-                ModReference currentMod = GetRefFromDFHMod(currentDFM);
+                ModReference? currentMod = FindModRef(currentDFM);
+                if (currentMod == null)
+                {
+                    // The modlist can reference a mod the current catalog no longer contains (e.g. a
+                    // cache-only mod that a later disk scan could not rediscover). Nothing to scan.
+                    Loggers.Diag.Dev($"Skipping problem scan for enabled mod '{currentDFM}': no ModReference registered.");
+                    _ = scannedModIDs.Add(currentDFM.Id);
+                    _ = unscannedModIDs.Remove(currentDFM.Id);
+                    continue;
+                }
 
                 void ReportIds(
                     IEnumerable<string> ids,
@@ -2588,7 +2778,7 @@ namespace ModHearth
             {
                 try
                 {
-                    _ = SaveAllModpacks(requestLiveReload: false);
+                    _ = SaveAllModpacks(requestLiveReload: false, backUpExistingFile: true);
                 }
                 catch (Exception ex)
                 {

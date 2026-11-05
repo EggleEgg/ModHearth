@@ -17,9 +17,9 @@ namespace ModHearth.Metadata
         private static readonly string MetadataPath = Path.Combine(MetadataDir, "mod_colors.json");
         private static readonly object FileLock = new();
         private static readonly JsonSerializerOptions SerializerOptions = new()
-
         {
             WriteIndented = true,
+            PropertyNameCaseInsensitive = true,
             Converters = { new JsonStringEnumConverter() }
         };
 

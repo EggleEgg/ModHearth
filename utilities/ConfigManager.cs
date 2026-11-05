@@ -46,7 +46,7 @@ namespace ModHearth
                     {
                         if (createLogs) Console.WriteLine("Config file found.");
                         string jsonContent = File.ReadAllText(ConfigPath);
-                        ModHearthConfig? loadedConfig = JsonSerializer.Deserialize<ModHearthConfig>(jsonContent);
+                        ModHearthConfig? loadedConfig = JsonSerializer.Deserialize<ModHearthConfig>(jsonContent, JsonFileStore.CaseInsensitive);
                         Config = loadedConfig ?? new ModHearthConfig();
 
                         if (loadedConfig == null)
@@ -231,6 +231,21 @@ namespace ModHearth
             }
 
             return resolved;
+        }
+
+        /// <summary>
+        /// True when <paramref name="path"/> lives inside Dwarf Fortress's disposable installed_mods
+        /// cache. Pure path inspection (no config read/write, no disk access), so it is safe to call
+        /// from parallel scan loops.
+        /// </summary>
+        public static bool IsInstalledModsPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            return path
+                .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
+                .Any(segment => string.Equals(segment, installedMods, StringComparison.OrdinalIgnoreCase));
         }
 
         public static string GetVanillaModsPath()
@@ -1221,6 +1236,8 @@ namespace ModHearth
         // FindAllModsFromDisk's "first occurrence wins" duplicate handling means whichever root is enumerated first becomes the one visible ModReference for that mod,
         // and ModSourceClassifier.Classify's result comes from THAT copy's path. The local Mods\ copy is what Dwarf Fortress actually loads in that situation,
         // so it must win the primacy slot; enumerating it before the workshop content paths accomplishes that without needing a special-cased duplicate-resolution pass elsewhere.
+        // installed_mods comes last on purpose: it is DF's disposable cache, only usable as a low-priority fallback for
+        // mods whose real source folder is gone, and must never shadow a canonical Mods\/workshop copy.
         public static IEnumerable<string> EnumerateConfiguredModRoots()
         {
             string modsPath = GetModsPath();
@@ -1237,6 +1254,11 @@ namespace ModHearth
                 if (!string.IsNullOrWhiteSpace(vanillaPath))
                     yield return vanillaPath;
             }
+
+            string installedModsPath = GetInstalledModsPath();
+            string? resolvedInstalledModsPath = ResolveExistingDirectoryPath(installedModsPath);
+            if (!string.IsNullOrWhiteSpace(resolvedInstalledModsPath))
+                yield return resolvedInstalledModsPath;
         }
 
         public static double GetMainWindowGridSplitterRatio() => Config.MainWindowGridSplitterRatio;

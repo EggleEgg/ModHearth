@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace ModHearth.Models
 {
     /// <summary>
@@ -7,7 +9,12 @@ namespace ModHearth.Models
     /// </summary>
     public class DfhMod(string id, int version)
     {
+        // DFHack's mod-manager.json uses lowercase keys; pins the on-disk shape regardless of
+        // the CLR property names.
+        [JsonPropertyName("id")]
         public string Id { get; init; } = id;
+
+        [JsonPropertyName("version")]
         public int Version { get; init; } = version;
         private string? cachedKey;
         private static readonly StringComparer IdComparer = StringComparer.OrdinalIgnoreCase;
@@ -46,8 +53,13 @@ namespace ModHearth.Models
     /// </summary>
     public class DfhModpack(bool @default, List<DfhMod> modlist, string name)
     {
+        [JsonPropertyName("default")]
         public bool Default { get; set; } = @default;
+
+        [JsonPropertyName("modlist")]
         public List<DfhMod> Modlist { get; set; } = modlist;
+
+        [JsonPropertyName("name")]
         public string Name { get; set; } = name;
     }
 }

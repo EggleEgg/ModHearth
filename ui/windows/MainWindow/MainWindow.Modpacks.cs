@@ -326,7 +326,7 @@ namespace ModHearth.UI
             try
             {
                 string importedString = await File.ReadAllTextAsync(filePath);
-                DfhModpack? importedList = JsonSerializer.Deserialize<DfhModpack>(importedString) ?? throw new InvalidOperationException("Invalid modpack file.");
+                DfhModpack? importedList = JsonSerializer.Deserialize<DfhModpack>(importedString, JsonFileStore.CaseInsensitive) ?? throw new InvalidOperationException("Invalid modpack file.");
                 for (int i = 0; i < manager.modpacks.Count; i++)
                 {
                     DfhModpack otherModlist = manager.modpacks[i];

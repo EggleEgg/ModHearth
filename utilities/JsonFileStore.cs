@@ -10,6 +10,12 @@ namespace ModHearth.Utilities
     {
         public static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
 
+        /// <summary>
+        /// Lenient read options. Older builds (and hand-edited files) may use PascalCase keys where
+        /// the on-disk contract is lowercase, so reads accept either casing.
+        /// </summary>
+        public static readonly JsonSerializerOptions CaseInsensitive = new() { PropertyNameCaseInsensitive = true };
+
         public static string Serialize<T>(T value, JsonSerializerOptions? options = null)
             => JsonSerializer.Serialize(value, options ?? Indented);
 
@@ -22,7 +28,7 @@ namespace ModHearth.Utilities
 
             try
             {
-                value = JsonSerializer.Deserialize<T>(File.ReadAllText(path), options);
+                value = JsonSerializer.Deserialize<T>(File.ReadAllText(path), options ?? CaseInsensitive);
                 return !Equals(value, default(T));
             }
             catch (Exception ex)

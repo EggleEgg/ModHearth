@@ -14,7 +14,10 @@ namespace ModHearth.Models
 
             string path = modref.Path?.Trim() ?? string.Empty;
 
-            modref.IsIgnored = IsPathIgnored(path);
+            // installed_mods is DF's disposable cache of enabled mods, not a real source folder.
+            // Keep the ref usable (cache-only mods must stay visible in the UI) but flag it so
+            // update tracking and delete/unsubscribe actions ignore it.
+            modref.IsIgnored = ConfigManager.IsInstalledModsPath(path);
             if (modref.IsIgnored)
             {
                 return (false, false, false, false);
@@ -53,14 +56,5 @@ namespace ModHearth.Models
             => Classify(modref, sourceContext.ModsFolderPath, sourceContext.VanillaFolderPath);
 
         public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamLocal) Classify(ModReference modref, string? modsFolderPath) => Classify(modref, modsFolderPath, null);
-
-        private static bool IsPathIgnored(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return false;
-
-            return path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
-                .Any(segment => string.Equals(segment, "installed_mods", StringComparison.OrdinalIgnoreCase));
-        }
     }
 }

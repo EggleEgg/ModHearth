@@ -24,7 +24,10 @@ namespace ModHearth.UI.ModList
             {
                 DfhMod dfm = modList[i];
                 string key = dfm.ToString();
-                ModReference modref = manager.GetModRef(key);
+                ModReference? modref = manager.FindModRef(key);
+                if (modref == null)
+                    return; // catalog changed concurrently; the next refresh will pick it up
+
                 results[i] = (key, CreateViewModel(modref, modsFolderPath, vanillaFolderPath));
             });
 
@@ -92,6 +95,8 @@ namespace ModHearth.UI.ModList
 
         private static int CollapsingRank(ModRefViewModel vm)
         {
+            // installed_mods cache copies are a fallback, never a reason to hide the real folder.
+            if (vm.ModReference.IsIgnored) return -1;
             if (vm.IsSteamLocalModSource) return 3;
             if (vm.IsLocalModSource) return 2;
             if (vm.IsSteamModSource) return 1;
@@ -103,7 +108,7 @@ namespace ModHearth.UI.ModList
             IReadOnlyDictionary<string, ModRefViewModel> modViewMap)
         {
             List<ModRefViewModel> vms = [.. manager.disabledMods
-                .OrderBy(m => manager.GetRefFromDFHMod(m).Name ?? string.Empty)
+                .OrderBy(m => manager.FindModRef(m)?.Name ?? string.Empty)
                 .Select(m => modViewMap.TryGetValue(m.ToString(), out ModRefViewModel? vm) ? vm : null)
                 .Where(vm => vm != null)
                 .Cast<ModRefViewModel>()];
