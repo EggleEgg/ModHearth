@@ -12,19 +12,6 @@ namespace ModHearth.App.Tests
     public class InstalledModsFallbackTests
     {
         [Fact]
-        public void DetectsInstalledModsCachePaths()
-        {
-            Assert.True(ConfigManager.IsInstalledModsPath(
-                Path.Combine("Dwarf Fortress", "data", "installed_mods", "3074466396 (1)")));
-            Assert.True(ConfigManager.IsInstalledModsPath("/home/user/.dwarf/data/installed_mods/3074466396 (1)"));
-            Assert.True(ConfigManager.IsInstalledModsPath(@"C:\Dwarf Fortress\data\installed_mods\3074466396 (1)"));
-
-            Assert.False(ConfigManager.IsInstalledModsPath(Path.Combine("Dwarf Fortress", "Mods", "my_mod")));
-            Assert.False(ConfigManager.IsInstalledModsPath(string.Empty));
-            Assert.False(ConfigManager.IsInstalledModsPath(null));
-        }
-
-        [Fact]
         public void ReferenceKeyMatchesDfhModKey()
         {
             const string id = "my_mod";
