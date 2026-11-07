@@ -340,6 +340,7 @@ namespace ModHearth.UI
 
             InitializeDfHackStatusTimer();
             InitializeAutoReloadTimer();
+            InitializeRestartGuards();
         }
     }
 }

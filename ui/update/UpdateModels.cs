@@ -65,6 +65,34 @@ namespace ModHearth.UI.Update
             return v.Trim();
         }
 
+        /// <summary>
+        /// Build version of a release, falling back to the cleaned tag when it is not a "build-..." tag.
+        /// </summary>
+        public static string GetReleaseVersion(GitHubRelease release) =>
+            TryGetBuildNumber(release) ?? CleanVersionString(release.TagName);
+
+        /// <summary>
+        /// Compares two build versions by their numeric parts, so "51.10" sorts after "51.9" even
+        /// though ordinal text comparison would place it before. Returns a positive value when
+        /// <paramref name="left"/> is newer, a negative value when it is older, and zero when equal.
+        /// </summary>
+        public static int CompareVersions(string? left, string? right)
+        {
+            string cleanLeft = CleanVersionString(left);
+            string cleanRight = CleanVersionString(right);
+
+            if (int.TryParse(cleanLeft, out int leftNumber) && int.TryParse(cleanRight, out int rightNumber))
+                return leftNumber.CompareTo(rightNumber);
+
+            if (Version.TryParse(cleanLeft, out Version? leftVersion) &&
+                Version.TryParse(cleanRight, out Version? rightVersion))
+            {
+                return leftVersion.CompareTo(rightVersion);
+            }
+
+            return string.Compare(cleanLeft, cleanRight, StringComparison.OrdinalIgnoreCase);
+        }
+
         public static bool IsNewerVersion(string? fetched, string? current)
         {
             if (string.IsNullOrWhiteSpace(fetched))
@@ -78,20 +106,54 @@ namespace ModHearth.UI.Update
                 return !string.IsNullOrWhiteSpace(CleanVersionString(fetched));
             }
 
-            string cleanFetched = CleanVersionString(fetched);
-            string cleanCurrent = CleanVersionString(current);
+            return CompareVersions(fetched, current) > 0;
+        }
 
-            if (int.TryParse(cleanFetched, out int fNum) && int.TryParse(cleanCurrent, out int cNum))
+        /// <summary>
+        /// Returns the release with the highest build version, regardless of the order the GitHub API
+        /// returned it in (the API sorts by creation time, not by build number). Releases without a
+        /// usable version are only used as a fallback when no versioned release exists.
+        /// </summary>
+        public static GitHubRelease? SelectLatestRelease(IEnumerable<GitHubRelease>? releases)
+        {
+            if (releases == null)
+                return null;
+
+            GitHubRelease? latest = null;
+            string latestVersion = string.Empty;
+            GitHubRelease? firstUnversioned = null;
+
+            foreach (GitHubRelease release in releases)
             {
-                return fNum > cNum;
+                string version = GetReleaseVersion(release);
+                if (string.IsNullOrWhiteSpace(version))
+                {
+                    firstUnversioned ??= release;
+                    continue;
+                }
+
+                if (latest == null || CompareVersions(version, latestVersion) > 0)
+                {
+                    latest = release;
+                    latestVersion = version;
+                }
             }
 
-            if (Version.TryParse(cleanFetched, out Version? fVer) && Version.TryParse(cleanCurrent, out Version? cVer))
-            {
-                return fVer > cVer;
-            }
+            return latest ?? firstUnversioned;
+        }
 
-            return string.Compare(cleanFetched, cleanCurrent, StringComparison.OrdinalIgnoreCase) > 0;
+        /// <summary>
+        /// Orders releases newest-first by build version. LINQ's ordering is stable, so releases with
+        /// equal versions keep the order the API returned them in.
+        /// </summary>
+        public static List<GitHubRelease> OrderByNewest(IEnumerable<GitHubRelease> releases) =>
+            [.. releases.OrderByDescending(GetReleaseVersion, VersionComparer.Instance)];
+
+        private sealed class VersionComparer : IComparer<string>
+        {
+            public static readonly VersionComparer Instance = new();
+
+            public int Compare(string? x, string? y) => CompareVersions(x, y);
         }
 
         public static bool IsCurrentVersion(string? buildNumber, string? currentBuild)

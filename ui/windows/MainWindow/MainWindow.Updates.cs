@@ -90,7 +90,7 @@ namespace ModHearth.UI
             string currentBuild = ModHearthManager.GetBuildVersionString().Trim();
             string ignoredVersion = ConfigManager.GetIgnoredUpdateVersion().Trim();
 
-            GitHubRelease? latestRelease = releases.FirstOrDefault();
+            GitHubRelease? latestRelease = UpdateHelpers.SelectLatestRelease(releases);
             if (latestRelease == null)
             {
                 IsUpdateAvailable = false;
@@ -98,7 +98,7 @@ namespace ModHearth.UI
                 return;
             }
 
-            string fetchedVersion = UpdateHelpers.TryGetBuildNumber(latestRelease) ?? latestRelease.TagName ?? string.Empty;
+            string fetchedVersion = UpdateHelpers.GetReleaseVersion(latestRelease);
             if (string.IsNullOrWhiteSpace(fetchedVersion))
             {
                 IsUpdateAvailable = false;

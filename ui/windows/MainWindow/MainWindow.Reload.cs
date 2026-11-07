@@ -199,10 +199,10 @@ namespace ModHearth.UI
                 Padding = new Thickness(0, 4),
                 Margin = new Thickness(0, 6, 0, 0)
             };
-            restartButton.Click += (_, _) =>
+            restartButton.Click += async (_, _) =>
             {
                 reloadOptionsFlyout?.Hide();
-                RestartApplication();
+                _ = await RestartApplicationAsync();
             };
             panel.Children.Add(restartButton);
 

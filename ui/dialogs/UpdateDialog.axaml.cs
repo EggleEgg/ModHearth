@@ -49,9 +49,14 @@ namespace ModHearth.UI
 
         private void UpdateChannelButtonState() => ChannelSwitchButton.Content = "Switch to " + (_isBleedingEdge ? "Main" : "Bleeding Edge");
 
-        private void RefreshReleaseList() => ReleaseList.ItemsSource = _releases
+        private void RefreshReleaseList()
+        {
+            // Show the newest builds first even if the API returned them out of build order.
+            _releases = UpdateHelpers.OrderByNewest(_releases);
+            ReleaseList.ItemsSource = _releases
                 .Select((release, index) => ReleaseEntry.FromRelease(release, index, _currentBuild))
                 .ToList();
+        }
 
         private async void ChannelSwitchClicked(object? sender, RoutedEventArgs e)
         {

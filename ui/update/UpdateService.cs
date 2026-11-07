@@ -28,6 +28,10 @@ namespace ModHearth.UI.Update
     internal static class UpdateService
     {
         private const int RecentBuildCount = 5;
+        // GitHub's release API sorts by creation time, which is not build order (and the build repo
+        // shares one creation timestamp across many builds). Scan full pages and rank by version.
+        private const int ReleasesPerPage = 100;
+        private const int MaxReleaseScanPages = 5;
         private const string UpdateRepoOwner = "EggleEgg";
         private const string UpdateRepoName = "ModHearth";
         private const string BleedingEdgeRepoOwner = "EggleEgg";
@@ -135,7 +139,24 @@ namespace ModHearth.UI.Update
             string owner = bleeding ? BleedingEdgeRepoOwner : UpdateRepoOwner;
             string repo = bleeding ? BleedingEdgeRepoName : UpdateRepoName;
 
-            string url = $"https://api.github.com/repos/{owner}/{repo}/releases?per_page={count}";
+            List<GitHubRelease> releases = [];
+            for (int page = 1; page <= MaxReleaseScanPages; page++)
+            {
+                string url = $"https://api.github.com/repos/{owner}/{repo}/releases?per_page={ReleasesPerPage}&page={page}";
+                List<GitHubRelease> pageReleases = await FetchReleasePageAsync(url);
+                releases.AddRange(pageReleases);
+
+                if (pageReleases.Count < ReleasesPerPage)
+                    break;
+            }
+
+            // GitHub orders releases by creation time, which does not match build order (build-51.10
+            // can appear below build-51.9), so rank by parsed build version before truncating.
+            return [.. UpdateHelpers.OrderByNewest(releases).Take(count)];
+        }
+
+        private static async Task<List<GitHubRelease>> FetchReleasePageAsync(string url)
+        {
             using HttpRequestMessage request = new(HttpMethod.Get, url);
             using HttpResponseMessage response = await UpdateHttpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)

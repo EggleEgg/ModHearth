@@ -411,24 +411,13 @@ namespace ModHearth.UI
             if (!confirm)
                 return;
 
-            ConfigManager.DestroyConfig();
-            RestartApplication();
-        }
-
-        private void RestartApplication()
-        {
-            try
+            // Destroy the config only after the restart guards approve, so cancelling the
+            // unsaved-changes prompt leaves the existing config untouched.
+            _ = await RestartApplicationAsync(() =>
             {
-                string? exePath = Environment.ProcessPath;
-                if (!string.IsNullOrWhiteSpace(exePath))
-                    _ = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                AppLogging.LogException("Failed to restart application", ex);
-            }
-
-            Close();
+                ConfigManager.DestroyConfig();
+                return Task.CompletedTask;
+            });
         }
 
         private async Task CheckForUpdatesAsync()
