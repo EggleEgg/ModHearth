@@ -95,77 +95,53 @@ namespace ModHearth.Utilities.ModRaws
         private const int MaxTrackedObjectsPerIssue = 24;
         private const int MaxTrackedFilesPerIssue = 8;
 
+        // Read the log in bounded blocks so a pathological errorlog cannot force the whole file into
+        // memory. Within a block, lines are grouped into segments whose file/object context cannot
+        // change (structural "***" lines split them) and large segments are subdivided so the
+        // regex-heavy classification can run across cores.
+        private const int LinesPerBlock = 16 * 1024;
+        private const int MaxLinesPerSegment = 4 * 1024;
+        private const int MinLinesForParallelism = 2 * 1024;
+
         public static ModErrorLogAnalysis Analyze(
             string errorLogPath,
             IReadOnlyCollection<ModReference> mods,
             IEnumerable<ModRawDependencyInfo> rawInfos)
         {
             ModLookup lookup = ModLookup.Build(mods, rawInfos);
-            Dictionary<string, IssueBuilder> builders = new(StringComparer.OrdinalIgnoreCase);
+            IssueAccumulator accumulator = new();
 
-            int consideredLines = 0;
-            int attributedLines = 0;
-            int unattributedLines = 0;
-
+            // Context carried from one block (and one segment) to the next.
             string? currentFile = null;
             ObjectHint? currentObject = null;
+            List<string> block = new(LinesPerBlock);
 
-            foreach (string rawLine in File.ReadLines(errorLogPath))
+            using (StreamReader reader = new(errorLogPath))
             {
-                string line = rawLine.Trim();
-                if (line.Length == 0)
-                    continue;
-
-                if (line.StartsWith("***", StringComparison.Ordinal))
+                while (true)
                 {
-                    if (TryParseFileHeader(line, out string? file))
+                    block.Clear();
+                    while (block.Count < LinesPerBlock)
                     {
-                        currentFile = file;
-                        currentObject = null;
-                    }
-                    else if (TryParseFinalizingObject(line, out ObjectHint? finalizingObject))
-                    {
-                        currentObject = finalizingObject;
+                        string? rawLine = reader.ReadLine();
+                        if (rawLine == null)
+                            break;
+
+                        block.Add(rawLine);
                     }
 
-                    // Other structural lines (most notably "Duplicate Object") are handled by the
-                    // dedicated duplicate-raw pipeline and must not be classified as runtime errors.
-                    continue;
-                }
+                    if (block.Count == 0)
+                        break;
 
-                ParsedLine parsed = Classify(line, currentObject);
-                if (parsed.Skip)
-                    continue;
+                    List<LineSegment> segments = BuildSegments(block, ref currentFile, ref currentObject);
+                    ProcessSegments(segments, block, lookup, accumulator);
 
-                consideredLines++;
-
-                IReadOnlyCollection<string> modIds = lookup.Resolve(parsed, currentFile);
-                if (modIds.Count == 0)
-                {
-                    unattributedLines++;
-                    continue;
-                }
-
-                attributedLines++;
-                foreach (string modId in modIds)
-                {
-                    string key = modId + "\u001f" + parsed.Category + "\u001f" + parsed.Detail;
-                    if (!builders.TryGetValue(key, out IssueBuilder? builder))
-                    {
-                        builder = new IssueBuilder(modId, parsed.Category, parsed.Detail);
-                        builders[key] = builder;
-                    }
-
-                    builder.Count++;
-                    if (!string.IsNullOrWhiteSpace(parsed.ObjectId))
-                        _ = builder.Objects.Add(parsed.ObjectId);
-
-                    if (!string.IsNullOrWhiteSpace(currentFile))
-                        _ = builder.SourceFiles.Add(Path.GetFileName(currentFile));
+                    if (block.Count < LinesPerBlock)
+                        break;
                 }
             }
 
-            List<ModErrorLogIssue> issues = [.. builders.Values
+            List<ModErrorLogIssue> issues = [.. accumulator.Builders.Values
                 .Select(builder => builder.Build())
                 .OrderBy(issue => issue.ModId, StringComparer.OrdinalIgnoreCase)
                 .ThenByDescending(issue => issue.Count)
@@ -174,10 +150,129 @@ namespace ModHearth.Utilities.ModRaws
 
             return new ModErrorLogAnalysis(
                 issues,
-                consideredLines,
-                attributedLines,
-                unattributedLines,
+                accumulator.ConsideredLineCount,
+                accumulator.AttributedLineCount,
+                accumulator.UnattributedLineCount,
                 File.GetLastWriteTimeUtc(errorLogPath));
+        }
+
+        /// <summary>
+        /// Splits one block into runs of lines that share the same file/object context. Structural
+        /// lines update the carried context and are not part of any segment.
+        /// </summary>
+        private static List<LineSegment> BuildSegments(
+            List<string> lines,
+            ref string? currentFile,
+            ref ObjectHint? currentObject)
+        {
+            List<LineSegment> segments = [];
+            int start = 0;
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string line = lines[i].Trim();
+                if (!line.StartsWith("***", StringComparison.Ordinal))
+                    continue;
+
+                AddSegments(segments, start, i, currentFile, currentObject);
+
+                if (TryParseFileHeader(line, out string? file))
+                {
+                    currentFile = file;
+                    currentObject = null;
+                }
+                else if (TryParseFinalizingObject(line, out ObjectHint? finalizingObject))
+                {
+                    currentObject = finalizingObject;
+                }
+
+                // Other structural lines (most notably "Duplicate Object") are handled by the
+                // dedicated duplicate-raw pipeline and must not be classified as runtime errors.
+                start = i + 1;
+            }
+
+            AddSegments(segments, start, lines.Count, currentFile, currentObject);
+            return segments;
+        }
+
+        private static void AddSegments(
+            List<LineSegment> segments,
+            int start,
+            int end,
+            string? currentFile,
+            ObjectHint? currentObject)
+        {
+            while (start < end)
+            {
+                int segmentEnd = Math.Min(start + MaxLinesPerSegment, end);
+                segments.Add(new LineSegment(start, segmentEnd, currentFile, currentObject));
+                start = segmentEnd;
+            }
+        }
+
+        private static void ProcessSegments(
+            List<LineSegment> segments,
+            List<string> lines,
+            ModLookup lookup,
+            IssueAccumulator accumulator)
+        {
+            if (segments.Count < 2 || lines.Count < MinLinesForParallelism)
+            {
+                foreach (LineSegment segment in segments)
+                    ProcessSegment(segment, lines, lookup, accumulator);
+                return;
+            }
+
+            object mergeGate = new();
+            _ = Parallel.ForEach(
+                segments,
+                () => new IssueAccumulator(),
+                (segment, _, local) =>
+                {
+                    ProcessSegment(segment, lines, lookup, local);
+                    return local;
+                },
+                local =>
+                {
+                    lock (mergeGate)
+                        accumulator.MergeFrom(local);
+                });
+        }
+
+        private static void ProcessSegment(
+            LineSegment segment,
+            IReadOnlyList<string> lines,
+            ModLookup lookup,
+            IssueAccumulator accumulator)
+        {
+            // The file context is constant for the whole segment, so resolve its display name once.
+            string? sourceFileName = string.IsNullOrWhiteSpace(segment.File)
+                ? null
+                : Path.GetFileName(segment.File);
+
+            for (int i = segment.Start; i < segment.End; i++)
+            {
+                string line = lines[i].Trim();
+                if (line.Length == 0)
+                    continue;
+
+                ParsedLine parsed = Classify(line, segment.Object);
+                if (parsed.Skip)
+                    continue;
+
+                accumulator.ConsideredLineCount++;
+
+                HashSet<string> modIds = lookup.Resolve(parsed, segment.File);
+                if (modIds.Count == 0)
+                {
+                    accumulator.UnattributedLineCount++;
+                    continue;
+                }
+
+                accumulator.AttributedLineCount++;
+                foreach (string modId in modIds)
+                    accumulator.Add(modId, parsed, sourceFileName);
+            }
         }
 
         private static ParsedLine Classify(string line, ObjectHint? currentObject)
@@ -473,7 +568,13 @@ namespace ModHearth.Utilities.ModRaws
 
         private readonly record struct ObjectHint(string? Type, string Id);
 
-        private sealed record ParsedLine(
+        private readonly record struct LineSegment(
+            int Start,
+            int End,
+            string? File,
+            ObjectHint? Object);
+
+        private readonly record struct ParsedLine(
             string Category,
             string Detail,
             string? ObjectId,
@@ -495,6 +596,13 @@ namespace ModHearth.Utilities.ModRaws
             public HashSet<string> Objects { get; } = new(StringComparer.OrdinalIgnoreCase);
             public HashSet<string> SourceFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+            public void MergeFrom(IssueBuilder other)
+            {
+                Count += other.Count;
+                Objects.UnionWith(other.Objects);
+                SourceFiles.UnionWith(other.SourceFiles);
+            }
+
             public ModErrorLogIssue Build()
                 => new(
                     ModId,
@@ -503,6 +611,53 @@ namespace ModHearth.Utilities.ModRaws
                     Count,
                     [.. Objects.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).Take(MaxTrackedObjectsPerIssue)],
                     [.. SourceFiles.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).Take(MaxTrackedFilesPerIssue)]);
+        }
+
+        /// <summary>
+        /// Per-worker aggregation state. Parallel workers never share an instance; they are merged
+        /// under a lock once their segment range is complete, so no builder is mutated concurrently.
+        /// </summary>
+        private sealed class IssueAccumulator
+        {
+            public Dictionary<string, IssueBuilder> Builders { get; } = new(StringComparer.OrdinalIgnoreCase);
+            public int ConsideredLineCount { get; set; }
+            public int AttributedLineCount { get; set; }
+            public int UnattributedLineCount { get; set; }
+
+            public void Add(string modId, ParsedLine parsed, string? sourceFileName)
+            {
+                string key = modId + "\u001f" + parsed.Category + "\u001f" + parsed.Detail;
+                if (!Builders.TryGetValue(key, out IssueBuilder? builder))
+                {
+                    builder = new IssueBuilder(modId, parsed.Category, parsed.Detail);
+                    Builders[key] = builder;
+                }
+
+                builder.Count++;
+                if (!string.IsNullOrWhiteSpace(parsed.ObjectId))
+                    _ = builder.Objects.Add(parsed.ObjectId);
+
+                if (!string.IsNullOrWhiteSpace(sourceFileName))
+                    _ = builder.SourceFiles.Add(sourceFileName);
+            }
+
+            public void MergeFrom(IssueAccumulator other)
+            {
+                ConsideredLineCount += other.ConsideredLineCount;
+                AttributedLineCount += other.AttributedLineCount;
+                UnattributedLineCount += other.UnattributedLineCount;
+
+                foreach ((string key, IssueBuilder otherBuilder) in other.Builders)
+                {
+                    if (!Builders.TryGetValue(key, out IssueBuilder? builder))
+                    {
+                        builder = new IssueBuilder(otherBuilder.ModId, otherBuilder.Category, otherBuilder.Detail);
+                        Builders[key] = builder;
+                    }
+
+                    builder.MergeFrom(otherBuilder);
+                }
+            }
         }
 
         private sealed class ModLookup
@@ -556,7 +711,7 @@ namespace ModHearth.Utilities.ModRaws
                 return lookup;
             }
 
-            public IReadOnlyCollection<string> Resolve(ParsedLine line, string? currentFile)
+            public HashSet<string> Resolve(ParsedLine line, string? currentFile)
             {
                 if (!string.IsNullOrWhiteSpace(line.ExplicitModId)
                     && ResolveModId(line.ExplicitModId) is { Count: > 0 } explicitMatches)
@@ -572,7 +727,7 @@ namespace ModHearth.Utilities.ModRaws
 
                 if (line.Object is { } hint)
                 {
-                    IReadOnlyCollection<string> objectMatches = ResolveObject(hint);
+                    HashSet<string> objectMatches = ResolveObject(hint);
                     if (objectMatches.Count > 0)
                         return objectMatches;
                 }
@@ -608,7 +763,7 @@ namespace ModHearth.Utilities.ModRaws
                 return patchByObjectId.TryGetValue(hint.Id, out HashSet<string>? patchById) ? patchById : [];
             }
 
-            private IReadOnlyCollection<string> ResolveFile(string file)
+            private HashSet<string> ResolveFile(string file)
             {
                 if (string.IsNullOrWhiteSpace(file) || !Path.IsPathRooted(file))
                     return [];
@@ -624,7 +779,7 @@ namespace ModHearth.Utilities.ModRaws
                 if (installedModsIndex >= 0 && installedModsIndex + 1 < segments.Length)
                 {
                     string folder = VersionSuffixRegex().Replace(segments[installedModsIndex + 1], string.Empty).Trim();
-                    IReadOnlyCollection<string> byFolder = ResolveModId(folder);
+                    HashSet<string> byFolder = ResolveModId(folder);
                     if (byFolder.Count > 0)
                         return byFolder;
                 }

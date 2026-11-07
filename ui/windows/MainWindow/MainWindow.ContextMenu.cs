@@ -84,7 +84,7 @@ namespace ModHearth.UI
             await DeleteSelectedModsAsync(modReferences);
         }
 
-        private async Task DeleteSelectedModsAsync(IReadOnlyList<ModReference> modReferences)
+        private async Task DeleteSelectedModsAsync(List<ModReference> modReferences)
         {
             if (modReferences == null || modReferences.Count == 0)
                 return;

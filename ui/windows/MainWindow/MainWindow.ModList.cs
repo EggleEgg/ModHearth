@@ -188,7 +188,7 @@ namespace ModHearth.UI
         // find where a displayed/filtered index actually falls within the true,
         // unfiltered backing order.
         private static int MapFilteredToMasterIndex(
-            IList<ModRefViewModel> filtered,
+            BulkObservableCollection<ModRefViewModel> filtered,
             List<ModRefViewModel> master,
             int filteredIndex)
         {

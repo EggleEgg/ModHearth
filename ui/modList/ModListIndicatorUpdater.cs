@@ -225,7 +225,7 @@ namespace ModHearth.UI.ModList
         private static void AppendCategory(
             StringBuilder builder,
             string title,
-            IReadOnlyList<string> ids,
+            List<string> ids,
             IReadOnlyDictionary<string, ModRefViewModel> byId)
         {
             if (ids.Count == 0)

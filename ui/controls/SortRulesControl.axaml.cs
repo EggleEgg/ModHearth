@@ -358,7 +358,7 @@ namespace ModHearth.UI
             }
         }
 
-        private Border CreateSection(ModRelationshipKind kind, string title, string description, IReadOnlyList<string> ids)
+        private Border CreateSection(ModRelationshipKind kind, string title, string description, List<string> ids)
         {
             StackPanel panel = new() { Spacing = 6 };
             Border border = new()

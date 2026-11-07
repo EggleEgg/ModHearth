@@ -2267,9 +2267,26 @@ namespace ModHearth
             string installedModsPath = GetInstalledModsPath();
             bool hasInstalledModsPath = !string.IsNullOrWhiteSpace(installedModsPath);
 
-            foreach (DfhMod dfm in modPool) //works with both lists, not just the active mods
+            // Snapshot every shared collection under the same lock the writers use. Without this a
+            // concurrent SetActiveMods/MoveMods could replace enabledMods between the Count check and
+            // the indexer and throw, or make dependency checks mix two different modpack states.
+            List<DfhMod> modPoolSnapshot;
+            List<DfhMod> enabledModsSnapshot;
+            Dictionary<string, List<ModReference>> duplicateModRefsSnapshot;
+            Dictionary<string, ModRelationshipRule> relationshipRulesSnapshot;
+            Dictionary<string, ModReference> modrefMapSnapshot;
+            lock (stateGate)
             {
-                if (duplicateModRefs.TryGetValue(dfm.ToString(), out List<ModReference>? duplicates))
+                modPoolSnapshot = [.. modPool];
+                enabledModsSnapshot = [.. enabledMods];
+                duplicateModRefsSnapshot = duplicateModRefs;
+                relationshipRulesSnapshot = relationshipRules;
+                modrefMapSnapshot = modrefMap;
+            }
+
+            foreach (DfhMod dfm in modPoolSnapshot) //works with both lists, not just the active mods
+            {
+                if (duplicateModRefsSnapshot.TryGetValue(dfm.ToString(), out List<ModReference>? duplicates))
                 {
                     List<ModReference> relevantDuplicates = [.. duplicates.Where(m =>
                     {
@@ -2297,16 +2314,16 @@ namespace ModHearth
             HashSet<string> scannedModIDs = new(StringComparer.OrdinalIgnoreCase);
             HashSet<string> unscannedModIDs = new(StringComparer.OrdinalIgnoreCase);
 
-            foreach (DfhMod dfm in enabledMods)
+            foreach (DfhMod dfm in enabledModsSnapshot)
                 _ = unscannedModIDs.Add(dfm.Id);
 
             HashSet<string> allEnabledIDs = new(unscannedModIDs, StringComparer.OrdinalIgnoreCase);
             string modNeedIsStr = " needs mod: ";
 
-            for (int i = 0; i < enabledMods.Count; i++)
+            for (int i = 0; i < enabledModsSnapshot.Count; i++)
             {
-                DfhMod currentDFM = enabledMods[i];
-                ModReference? currentMod = FindModRef(currentDFM);
+                DfhMod currentDFM = enabledModsSnapshot[i];
+                _ = modrefMapSnapshot.TryGetValue(currentDFM.ToString(), out ModReference? currentMod);
                 if (currentMod == null)
                 {
                     // The modlist can reference a mod the current catalog no longer contains (e.g. a
@@ -2362,7 +2379,7 @@ namespace ModHearth
                         "Problem found: missing required mod with ID: ");
                 }
 
-                if (relationshipRules.TryGetValue(currentDFM.Id, out ModRelationshipRule? customRule))
+                if (relationshipRulesSnapshot.TryGetValue(currentDFM.Id, out ModRelationshipRule? customRule))
                 {
                     ReportIds(
                         customRule.BeforeIds,
@@ -2390,7 +2407,7 @@ namespace ModHearth
                 _ = unscannedModIDs.Remove(currentDFM.Id);
             }
 
-            AppendErrorLogProblems(newModProblems);
+            AppendErrorLogProblems(modPoolSnapshot, newModProblems);
 
             lock (stateGate)
                 modproblems = newModProblems;

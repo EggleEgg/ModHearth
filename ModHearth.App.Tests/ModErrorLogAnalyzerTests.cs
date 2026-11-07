@@ -319,6 +319,74 @@ namespace ModHearth.App.Tests
         }
 
         [Fact]
+        public void ParallelAnalysisKeepsContextAcrossBlockAndSegmentBoundaries()
+        {
+            const int graphicsErrors = 1000;
+            const int objectErrors = 17_000;
+            string graphicsFile = Path.Combine(
+                TestRoot,
+                "Dwarf Fortress",
+                "data",
+                "installed_mods",
+                "gfx_mod (1)",
+                "graphics",
+                "graphics_test.txt");
+
+            using TempErrorLog log = new(
+            [
+                $"*** Error(s) found in the file \"{graphicsFile}\"",
+                .. Enumerable.Repeat("Unrecognized Graphics Token: LAYER", graphicsErrors),
+                "*** Error(s) finalizing the entity SUCCUBUS",
+                .. Enumerable.Repeat("Unrecognized permitted building token: MAGMA_DREDGER", objectErrors)
+            ]);
+
+            ModErrorLogAnalysis analysis = ModErrorLogAnalyzer.Analyze(
+                log.Path,
+                [Mod("gfx_mod"), Mod("succubus_dungeon")],
+                [Info("succubus_dungeon", "ENTITY:SUCCUBUS")]);
+
+            // The log spans multiple read blocks (and many parallel segments); a header's context
+            // must still apply to every line that follows it.
+            Assert.Equal(graphicsErrors + objectErrors, analysis.ConsideredLineCount);
+            Assert.Equal(graphicsErrors + objectErrors, analysis.AttributedLineCount);
+            Assert.Equal(0, analysis.UnattributedLineCount);
+
+            ModErrorLogIssue graphicsIssue = Assert.Single(analysis.Issues, issue => issue.ModId == "gfx_mod");
+            Assert.Equal("Unrecognized graphics token", graphicsIssue.Category);
+            Assert.Equal(graphicsErrors, graphicsIssue.Count);
+
+            ModErrorLogIssue objectIssue = Assert.Single(analysis.Issues, issue => issue.ModId == "succubus_dungeon");
+            Assert.Equal("Unrecognized permitted building token", objectIssue.Category);
+            Assert.Equal(objectErrors, objectIssue.Count);
+        }
+
+        [Fact]
+        public void ConcurrentAnalysesProduceIdenticalResults()
+        {
+            const int errorCount = 10_000;
+            using TempErrorLog log = new(
+            [
+                "*** Error(s) finalizing the entity SUCCUBUS",
+                .. Enumerable.Repeat("Unrecognized permitted building token: MAGMA_DREDGER", errorCount)
+            ]);
+
+            ModReference[] mods = [Mod("succubus_dungeon")];
+            ModRawDependencyInfo[] infos = [Info("succubus_dungeon", "ENTITY:SUCCUBUS")];
+            int[] issueCounts = new int[8];
+            int[] consideredCounts = new int[8];
+
+            _ = Parallel.For(0, issueCounts.Length, index =>
+            {
+                ModErrorLogAnalysis analysis = ModErrorLogAnalyzer.Analyze(log.Path, mods, infos);
+                issueCounts[index] = analysis.Issues.Single().Count;
+                consideredCounts[index] = analysis.ConsideredLineCount;
+            });
+
+            Assert.All(issueCounts, count => Assert.Equal(errorCount, count));
+            Assert.All(consideredCounts, count => Assert.Equal(errorCount, count));
+        }
+
+        [Fact]
         public void DisplayStringAggregatesContextAndOccurrences()
         {
             ModErrorLogIssue issue = new(

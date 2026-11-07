@@ -295,7 +295,7 @@ namespace ModHearth
         /// Downloads the given workshop items through the Steam client, reporting per-item progress to
         /// <see cref="WorkshopDownloads"/> so the main window can show it.
         /// </summary>
-        private int DownloadSteamItemsWithProgress(IReadOnlyList<ulong> workshopIds, List<string> failures)
+        private int DownloadSteamItemsWithProgress(List<ulong> workshopIds, List<string> failures)
         {
             ConcurrentBag<string> failureBag = [];
             int successCount = 0;

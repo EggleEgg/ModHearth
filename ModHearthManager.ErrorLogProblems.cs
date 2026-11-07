@@ -20,7 +20,7 @@ namespace ModHearth
         private Dictionary<string, ModReference>? errorLogProblemModSnapshot;
         private DateTime errorLogProblemRawCacheWriteUtc = DateTime.MinValue;
 
-        private void AppendErrorLogProblems(List<ModProblem> problems)
+        private void AppendErrorLogProblems(IEnumerable<DfhMod> mods, List<ModProblem> problems)
         {
             EnsureErrorLogProblemCache();
 
@@ -28,7 +28,7 @@ namespace ModHearth
             if (map.Count == 0)
                 return;
 
-            foreach (DfhMod mod in modPool)
+            foreach (DfhMod mod in mods)
             {
                 if (map.TryGetValue(mod.Id, out List<ModProblem>? modProblems))
                     problems.AddRange(modProblems);
@@ -134,7 +134,7 @@ namespace ModHearth
             }
         }
 
-        private static string BuildErrorLogProblemText(IReadOnlyList<ModErrorLogIssue> issues)
+        private static string BuildErrorLogProblemText(List<ModErrorLogIssue> issues)
         {
             int totalCount = issues.Sum(issue => issue.Count);
             StringBuilder builder = new("Dwarf Fortress errorlog: ");
