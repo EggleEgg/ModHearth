@@ -55,18 +55,103 @@ namespace ModHearth.UI
                 ToolTip.SetTip(warningIssuesButton, tooltip);
             }
 
-            if (!hasIssues || warningIssuesIcon == null)
+            if (hasIssues && warningIssuesIcon != null)
+            {
+                string iconName;
+                if (hasProblems && hasDuplicates)
+                    iconName = "warningErrorIcon.svg";
+                else if (hasProblems)
+                    iconName = "errorIcon.svg";
+                else iconName = "warningIcon.svg";
+
+                warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
+                    ?? warningIssuesIcon.Source;
+            }
+
+            UpdateModIssuesOverlay();
+        }
+
+        private readonly IssueJumpCursors inactiveIssueCursors = new();
+        private readonly IssueJumpCursors activeIssueCursors = new();
+
+        private void UpdateModIssuesOverlay()
+        {
+            UpdateListIssuesOverlay(inactiveMods, modIssuesOverlayLeft);
+            UpdateListIssuesOverlay(activeMods, modIssuesOverlayRight);
+        }
+
+        private static void UpdateListIssuesOverlay(IEnumerable<ModRefViewModel> mods, ModIssuesOverlay overlay)
+        {
+            List<ModRefViewModel> modList = [.. mods];
+            overlay.UpdateCounts(
+                modList.Count(m => m.IssueTier == ModIssueTier.Error),
+                modList.Count(m => m.IssueTier == ModIssueTier.Warning),
+                modList.Count(m => m.IssueTier == ModIssueTier.Info));
+        }
+
+        // Per-list jump position for each tier. Kept in one object so the severity buttons only
+        // need a tier, not a separate callback and ref field each.
+        private sealed class IssueJumpCursors
+        {
+            private int errorIndex;
+            private int warningIndex;
+            private int infoIndex;
+
+            public int Next(ModIssueTier tier, int count)
+            {
+                if (count <= 0)
+                    return 0;
+
+                int index = tier switch
+                {
+                    ModIssueTier.Error => errorIndex,
+                    ModIssueTier.Warning => warningIndex,
+                    ModIssueTier.Info => infoIndex,
+                    _ => 0
+                };
+
+                if (index >= count)
+                    index = 0;
+
+                int next = (index + 1) % count;
+                switch (tier)
+                {
+                    case ModIssueTier.Error:
+                        errorIndex = next;
+                        break;
+                    case ModIssueTier.Warning:
+                        warningIndex = next;
+                        break;
+                    case ModIssueTier.Info:
+                        infoIndex = next;
+                        break;
+                }
+
+                return index;
+            }
+        }
+
+        private void JumpToNextIssueTier(
+            IEnumerable<ModRefViewModel> mods,
+            ListBox targetList,
+            ModIssueTier tier,
+            IssueJumpCursors cursors)
+        {
+            List<ModRefViewModel> matchingMods = [.. mods.Where(m => m.IssueTier == tier)];
+            if (matchingMods.Count == 0)
                 return;
 
-            string iconName;
-            if (hasProblems && hasDuplicates)
-                iconName = "warningErrorIcon.svg";
-            else if (hasProblems)
-                iconName = "errorIcon.svg";
-            else iconName = "warningIcon.svg";
+            ModRefViewModel vm = matchingMods[cursors.Next(tier, matchingMods.Count)];
 
-            warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
-                ?? warningIssuesIcon.Source;
+            if (currentJumpHighlighted != null)
+                currentJumpHighlighted.IsJumpHighlighted = false;
+
+            vm.IsJumpHighlighted = true;
+            currentJumpHighlighted = vm;
+            targetList.SelectedItems?.Clear();
+            _ = (targetList.SelectedItems?.Add(vm));
+            targetList.ScrollIntoView(vm);
+            ShowModInfo(vm.ModReference);
         }
 
         private ModRefViewModel? currentJumpHighlighted;

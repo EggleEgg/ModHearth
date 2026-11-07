@@ -12,6 +12,8 @@ namespace ModHearth.App.Tests
     /// </summary>
     public class ModErrorLogAnalyzerTests
     {
+        private static string TestRoot => OperatingSystem.IsWindows() ? "C:\\" : "/";
+
         [Fact]
         public void AttributesObjectPrefixedErrorsThroughDirectDefinitions()
         {
@@ -64,7 +66,7 @@ namespace ModHearth.App.Tests
         public void AttributesGraphicsErrorsThroughInstalledModsPath()
         {
             string graphicsFile = Path.Combine(
-                "C:",
+                TestRoot,
                 "Dwarf Fortress",
                 "data",
                 "installed_mods",
@@ -79,7 +81,7 @@ namespace ModHearth.App.Tests
 
             ModErrorLogAnalysis analysis = ModErrorLogAnalyzer.Analyze(
                 log.Path,
-                [Mod("topples_cv_orc", Path.Combine("C:", "Mods", "topples_cv_orc"))],
+                [Mod("topples_cv_orc", Path.Combine(TestRoot, "Mods", "topples_cv_orc"))],
                 []);
 
             ModErrorLogIssue issue = Assert.Single(analysis.Issues);
@@ -94,7 +96,7 @@ namespace ModHearth.App.Tests
         public void PrefersGraphicsFileOverCreatureDefinitionForCasteGraphicsErrors()
         {
             string graphicsFile = Path.Combine(
-                "C:",
+                TestRoot,
                 "Dwarf Fortress",
                 "data",
                 "installed_mods",
@@ -198,7 +200,7 @@ namespace ModHearth.App.Tests
         public void DoesNotAttributeHeaderlessTokensThroughAStaleGraphicsFileHeader()
         {
             string graphicsFile = Path.Combine(
-                "C:",
+                TestRoot,
                 "Dwarf Fortress",
                 "data",
                 "installed_mods",
@@ -214,7 +216,7 @@ namespace ModHearth.App.Tests
 
             ModErrorLogAnalysis analysis = ModErrorLogAnalyzer.Analyze(
                 log.Path,
-                [Mod("sm_cv_valkyrie_adventure", Path.Combine("C:", "Mods", "sm_cv_valkyrie_adventure"))],
+                [Mod("sm_cv_valkyrie_adventure", Path.Combine(TestRoot, "Mods", "sm_cv_valkyrie_adventure"))],
                 [Info("sm_cv_valkyrie_adventure")]);
 
             // The tile page error is genuinely file-bound and belongs to the graphics mod. The
@@ -257,7 +259,7 @@ namespace ModHearth.App.Tests
 
             ModErrorLogAnalysis analysis = ModErrorLogAnalyzer.Analyze(
                 log.Path,
-                [Mod("the_mau", Path.Combine("C:", "Mods", "the_mau"))],
+                [Mod("the_mau", Path.Combine(TestRoot, "Mods", "the_mau"))],
                 [Info("the_mau")]);
 
             // DF leaves the previous file header in place while finalizing unrelated vanilla objects.

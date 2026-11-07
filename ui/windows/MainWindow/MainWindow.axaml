@@ -319,14 +319,17 @@
 
             <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1" />
 
-            <ListBox
-              x:Name="leftModlist"
-              Grid.Row="2"
-              SelectionMode="Multiple"
-              AutoScrollToSelectedItem="False"
-              Margin="0,6,0,0"
-              ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
-            </ListBox>
+            <Grid Grid.Row="2">
+              <ListBox
+                x:Name="leftModlist"
+                SelectionMode="Multiple"
+                AutoScrollToSelectedItem="False"
+                Margin="0,6,0,0"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
+              </ListBox>
+
+              <ui:ModIssuesOverlay x:Name="modIssuesOverlayLeft" />
+            </Grid>
           </Grid>
 
           <Grid Grid.Column="1" RowDefinitions="22,30,*">
@@ -338,14 +341,17 @@
 
             <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1" />
 
-            <ListBox
-              x:Name="rightModlist"
-              Grid.Row="2"
-              SelectionMode="Multiple"
-              AutoScrollToSelectedItem="False"
-              Margin="0,6,0,0"
-              ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
-            </ListBox>
+            <Grid Grid.Row="2">
+              <ListBox
+                x:Name="rightModlist"
+                SelectionMode="Multiple"
+                AutoScrollToSelectedItem="False"
+                Margin="0,6,0,0"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
+              </ListBox>
+
+              <ui:ModIssuesOverlay x:Name="modIssuesOverlayRight" />
+            </Grid>
           </Grid>
 
           <Grid Grid.Column="2"></Grid>

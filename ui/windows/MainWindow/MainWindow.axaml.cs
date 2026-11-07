@@ -300,6 +300,10 @@ namespace ModHearth.UI
             clearModlistButton.Click += async (_, _) => await ClearModlistAsync();
 
             warningIssuesButton.Click += (_, _) => JumpToNextProblem();
+            modIssuesOverlayLeft.JumpRequested += (_, tier) =>
+                JumpToNextIssueTier(inactiveMods, leftModlist, tier, inactiveIssueCursors);
+            modIssuesOverlayRight.JumpRequested += (_, tier) =>
+                JumpToNextIssueTier(activeMods, rightModlist, tier, activeIssueCursors);
             redoConfigButton.Click += async (_, _) => await RedoConfigAsync();
             updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
             updateLogButton.Click += async (_, _) => await OpenModUpdateLog();

@@ -1,0 +1,79 @@
+<UserControl
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
+  x:Class="ModHearth.UI.ModIssuesOverlay"
+  HorizontalAlignment="Right"
+  VerticalAlignment="Bottom"
+  IsVisible="False">
+  <Border
+    HorizontalAlignment="Right"
+    VerticalAlignment="Bottom"
+    Margin="0,0,12,0"
+    Padding="4,4,4,0"
+    Background="{DynamicResource BackgroundBrush}"
+    CornerRadius="4,0"
+    ClipToBounds="True">
+    <StackPanel
+      Orientation="Horizontal"
+      Spacing="6">
+      <Button
+        x:Name="errorIssueCountButton"
+        Background="{DynamicResource PanelBrush}"
+        Foreground="#FF0000"
+        ToolTip.Tip="Jump to next error issue"
+        Padding="6,0"
+        Click="OnErrorIssueClick">
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Image Source="{Binding $parent[Button].Foreground, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=cancelCircleFullIcon.svg}" Width="18" Height="18" />
+          <render:OutlinedTextBlock
+            x:Name="errorIssueCountText"
+            Text="0"
+            Foreground="{Binding $parent[Button].Foreground}"
+            FontWeight="Black"
+            StrokeThickness="0.5"
+            VerticalAlignment="Center"
+            FontSize="16"/>
+        </StackPanel>
+      </Button>
+      <Button
+        x:Name="warningIssueCountButton"
+        Background="{DynamicResource PanelBrush}"
+        Foreground="#FF9632"
+        ToolTip.Tip="Jump to next warning issue"
+        Padding="6,0"
+        Click="OnWarningIssueClick">
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Image Source="{Binding $parent[Button].Foreground, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=attentionFullIcon.svg}" Width="18" Height="18" />
+          <render:OutlinedTextBlock
+            x:Name="warningIssueCountText"
+            Text="0"
+            Foreground="{Binding $parent[Button].Foreground}"
+            FontWeight="Black"
+            StrokeThickness="0.5"
+            VerticalAlignment="Center"
+            FontSize="16"/>
+        </StackPanel>
+      </Button>
+      <Button
+        x:Name="infoIssueCountButton"
+        Background="{DynamicResource PanelBrush}"
+        Foreground="#FFD246"
+        ToolTip.Tip="Jump to next info issue"
+        Padding="6,0"
+        Click="OnInfoIssueClick">
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+          <Image Source="{Binding $parent[Button].Foreground, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=infoCircleFullIcon.svg}" Width="18" Height="18" />
+          <render:OutlinedTextBlock
+            x:Name="infoIssueCountText"
+            Text="0"
+            Foreground="{Binding $parent[Button].Foreground}"
+            FontWeight="Black"
+            StrokeThickness="0.5"
+            VerticalAlignment="Center"
+            FontSize="16"/>
+        </StackPanel>
+      </Button>
+    </StackPanel>
+  </Border>
+</UserControl>
