@@ -167,9 +167,7 @@ namespace ModHearth.UI
                 list,
                 modListController,
                 isSortingEnabled,
-                DevMode.IsEnabled
-                    ? msg => Loggers.Search.Dev($"ApplyFilterFlags list={DescribeList(list)} {msg}")
-                    : null
+                DevMode.IsEnabled ? msg => Loggers.Search.Dev($"ApplyFilterFlags list={DescribeList(list)} {msg}") : null
             );
 
         private void ScheduleSearchFilter()

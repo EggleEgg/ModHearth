@@ -79,8 +79,9 @@ namespace ModHearth.UI.Theme
         public SimpleColor ModRefHighlightDarkColor { get; set; } = null!;
         public SimpleColor ModRefJumpHighlightColor { get; set; } = null!;
         public SimpleColor ModRefCacheBarColor { get; set; } = null!;
-        public SimpleColor ModRefTextBadColor { get; set; } = null!;
-        public SimpleColor ModRefTextWarningColor { get; set; } = null!;
+        public SimpleColor ModRefIssueErrorColor { get; set; } = null!;
+        public SimpleColor ModRefIssueWarningColor { get; set; } = null!;
+        public SimpleColor ModRefIssueInfoColor { get; set; } = null!;
         public SimpleColor ModRefTextFilteredColor { get; set; } = null!;
         public SimpleColor SearchBorderColor { get; set; } = null!;
         public SimpleColor SearchButtonColor { get; set; } = null!;

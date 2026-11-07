@@ -77,13 +77,19 @@
     "B": 0,
     "A": 70
   },
-  "modRefTextBadColor": {
+  "modRefIssueErrorColor": {
     "R": 255,
     "G": 0,
     "B": 0,
     "A": 255
   },
-  "modRefTextWarningColor": {
+  "modRefIssueWarningColor": {
+    "R": 255,
+    "G": 150,
+    "B": 50,
+    "A": 255
+  },
+  "modRefIssueInfoColor": {
     "R": 255,
     "G": 210,
     "B": 70,

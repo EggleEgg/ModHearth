@@ -14,7 +14,11 @@ using static ModHearth.ConfigManager;
 namespace ModHearth
 {
     [Serializable]
-    public struct ModProblem(string problemThrowerID, string problemID, ModProblem.ProblemType problemType)
+    public struct ModProblem(
+        string problemThrowerID,
+        string problemID,
+        ModProblem.ProblemType problemType,
+        ModIssueTier tier = ModIssueTier.None)
     {
         public string problemThrowerID = problemThrowerID;
         public string problemID = problemID;
@@ -25,10 +29,23 @@ namespace ModHearth
             MissingAfter,
             ConflictPresent,
             DuplicateMod,
-            MissingRequired
+            MissingRequired,
+            ErrorLogIssue
         };
 
         public ProblemType problemType = problemType;
+
+        /// <summary>
+        /// Guaranteed severity used by the mod-list indicator. Potential-only warnings use
+        /// <see cref="ModIssueTier.None"/> so they keep their tooltip without showing an icon.
+        /// </summary>
+        public ModIssueTier tier = tier;
+
+        /// <summary>
+        /// True when this problem means the mod must be left out of the active list when sorting.
+        /// Mirrors <see cref="ModSortExclusion.Excludes"/> so callers do not duplicate the rule.
+        /// </summary>
+        public readonly bool IsSortExcluded => ModSortExclusion.Excludes(this);
 
         public override readonly string ToString() => problemType switch
         {
@@ -37,6 +54,7 @@ namespace ModHearth
             ProblemType.ConflictPresent => $"Mod '{problemThrowerID}' is incompatible with mod '{problemID}'.",
             ProblemType.DuplicateMod => $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}).\n\nPlease remove one to avoid issues.",
             ProblemType.MissingRequired => $"Mod '{problemThrowerID}' requires mod '{problemID}' to be enabled.",
+            ProblemType.ErrorLogIssue => problemID,
             _ => "",
         };
     }
@@ -1054,7 +1072,7 @@ namespace ModHearth
                 {
                     // installed_mods is DF's disposable cache; a cached copy is never a real second
                     // installation, so it must not surface as a duplicate-mod warning.
-                    if (m.IsIgnored || ConfigManager.IsInstalledModsPath(m.Path))
+                    if (m.IsIgnored || IsInstalledModsPath(m.Path))
                         return false;
 
                     (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(m, sourceContext);
@@ -1322,7 +1340,7 @@ namespace ModHearth
         /// <summary>
         /// Index of the canonical (non-cache) mod folders discovered on disk. <see cref="ById"/>
         /// preserves the historical "first occurrence across roots wins" id lookup.
-        /// <see cref="ByReferenceKey"/> is keyed exactly like <see cref="Models.DfhMod.ToString"/>
+        /// <see cref="ByReferenceKey"/> is keyed exactly like <see cref="DfhMod.ToString"/>
         /// (id|version) so a disposable installed_mods folder can be mapped back to the real source.
         /// </summary>
         private sealed record ModPathIndex(
@@ -1340,7 +1358,7 @@ namespace ModHearth
                 if (!Directory.Exists(root))
                     continue;
 
-                if (ConfigManager.IsInstalledModsPath(root))
+                if (IsInstalledModsPath(root))
                     continue;
 
                 foreach (string dir in EnumerateModDirectoriesWithInfo(root))
@@ -1405,7 +1423,7 @@ namespace ModHearth
         }
 
         /// <summary>
-        /// Builds the same "id|version" key DFHack's mod manager uses (see <see cref="Models.DfhMod.ToString"/>).
+        /// Builds the same "id|version" key DFHack's mod manager uses (see <see cref="DfhMod.ToString"/>).
         /// Null when the version is not numeric, matching what DfhMod's constructor would reject.
         /// </summary>
         internal static string? TryBuildModReferenceKey(string? id, string? numericVersion)
@@ -1433,7 +1451,7 @@ namespace ModHearth
             Dictionary<string, string> modDataEntry,
             Dictionary<string, string> canonicalByReferenceKey)
         {
-            if (string.IsNullOrWhiteSpace(resolvedPath) || !ConfigManager.IsInstalledModsPath(resolvedPath))
+            if (string.IsNullOrWhiteSpace(resolvedPath) || !IsInstalledModsPath(resolvedPath))
                 return resolvedPath;
 
             string? referenceKey = TryBuildModReferenceKey(
@@ -2249,7 +2267,7 @@ namespace ModHearth
             string installedModsPath = GetInstalledModsPath();
             bool hasInstalledModsPath = !string.IsNullOrWhiteSpace(installedModsPath);
 
-            foreach (DfhMod dfm in modPool)
+            foreach (DfhMod dfm in modPool) //works with both lists, not just the active mods
             {
                 if (duplicateModRefs.TryGetValue(dfm.ToString(), out List<ModReference>? duplicates))
                 {
@@ -2267,7 +2285,11 @@ namespace ModHearth
                     if (relevantDuplicates.Count > 1)
                     {
                         string paths = string.Join(", ", relevantDuplicates.Select(m => $"'{m.Path}'"));
-                        newModProblems.Add(new ModProblem(dfm.Id, paths, ModProblem.ProblemType.DuplicateMod));
+                        newModProblems.Add(new ModProblem(
+                            dfm.Id,
+                            paths,
+                            ModProblem.ProblemType.DuplicateMod,
+                            ModIssueClassifier.ForProblemType(ModProblem.ProblemType.DuplicateMod)));
                     }
                 }
             }
@@ -2307,7 +2329,11 @@ namespace ModHearth
                         if (string.IsNullOrWhiteSpace(trimmedId) || !isViolation(trimmedId))
                             continue;
 
-                        newModProblems.Add(new ModProblem(currentDFM.Id, trimmedId, problemType));
+                        newModProblems.Add(new ModProblem(
+                            currentDFM.Id,
+                            trimmedId,
+                            problemType,
+                            ModIssueClassifier.ForProblemType(problemType)));
                         Loggers.Diag.Dev($"{logPrefix}{trimmedId}{modNeedIsStr}{currentDFM.Id}");
                     }
                 }
@@ -2363,6 +2389,8 @@ namespace ModHearth
                 _ = scannedModIDs.Add(currentDFM.Id);
                 _ = unscannedModIDs.Remove(currentDFM.Id);
             }
+
+            AppendErrorLogProblems(newModProblems);
 
             lock (stateGate)
                 modproblems = newModProblems;

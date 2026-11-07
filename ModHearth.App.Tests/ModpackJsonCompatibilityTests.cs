@@ -27,7 +27,7 @@ namespace ModHearth.App.Tests
             string json = """[{"Default": true, "Modlist": [{"Id": "vanilla", "Version": 51}], "Name": "Old"}]""";
             List<DfhModpack> packs = JsonSerializer.Deserialize<List<DfhModpack>>(json, JsonFileStore.CaseInsensitive)!;
             Assert.Equal("Old", packs[0].Name);
-            Assert.Single(packs[0].Modlist);
+            _ = Assert.Single(packs[0].Modlist);
         }
 
         [Fact]

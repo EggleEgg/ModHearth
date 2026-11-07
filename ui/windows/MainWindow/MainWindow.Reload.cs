@@ -190,6 +190,22 @@ namespace ModHearth.UI
             panel.Children.Add(autoReloadEnabledCheckBox);
             panel.Children.Add(secondsRow);
 
+            Button restartButton = new()
+            {
+                Content = "Restart ModHearth",
+                Tag = "Themed", //TODO why is this not being styled?
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                Padding = new Thickness(0, 4),
+                Margin = new Thickness(0, 6, 0, 0)
+            };
+            restartButton.Click += (_, _) =>
+            {
+                reloadOptionsFlyout?.Hide();
+                RestartApplication();
+            };
+            panel.Children.Add(restartButton);
+
             reloadOptionsFlyout = new Flyout
             {
                 FlyoutPresenterClasses = { "compact-flyout" },

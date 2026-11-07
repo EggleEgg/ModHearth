@@ -84,6 +84,20 @@ namespace ModHearth
             }
         }
 
+        // Errorlog attribution may run before the first scan in a session (or after the in-memory
+        // map was cleared), so fall back to the persisted cache instead of silently losing all
+        // object -> mod mappings.
+        private IReadOnlyCollection<ModRawDependencyInfo> GetRawDependencyInfoSnapshot()
+        {
+            lock (rawDependencyGate)
+            {
+                if (rawDependencyInfoByModId is { Count: > 0 } map)
+                    return [.. map.Values];
+            }
+
+            return [.. ModRawDependencyCacheStore.Load().Values];
+        }
+
         private VanillaRawBaseline GetVanillaBaseline()
         {
             string? vanillaPath = ConfigManager.GetVanillaModsPath();

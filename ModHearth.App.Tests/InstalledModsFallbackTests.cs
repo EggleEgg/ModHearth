@@ -1,5 +1,4 @@
 using ModHearth.Models;
-using ModHearth.Utilities;
 using Xunit;
 
 namespace ModHearth.App.Tests

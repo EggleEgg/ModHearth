@@ -78,7 +78,7 @@ namespace ModHearth.UI.ModList
             {
                 foreach (ModRefViewModel vm in viewModels)
                 {
-                    vm.IsProblem = false;
+                    vm.ProblemTier = ModIssueTier.None;
                     vm.ProblemTooltip = null;
                 }
 
@@ -97,18 +97,18 @@ namespace ModHearth.UI.ModList
                 list.Add(problem);
             }
 
-            List<DfhMod> problemMods = [.. manager.enabledMods.Where(m => problemMap.ContainsKey(m.Id))];
+            List<DfhMod> problemMods = [.. manager.enabledMods.Where(m => problemMap.TryGetValue(m.Id, out List<ModProblem>? problems) && problems.Max(p => p.tier) >= ModIssueTier.Warning)];
 
             foreach (ModRefViewModel vm in viewModels)
             {
                 if (problemMap.TryGetValue(vm.DfMod.Id, out List<ModProblem>? problems))
                 {
-                    vm.IsProblem = true;
+                    vm.ProblemTier = problems.Max(problem => problem.tier);
                     vm.ProblemTooltip = BuildProblemTooltip(problems);
                 }
                 else
                 {
-                    vm.IsProblem = false;
+                    vm.ProblemTier = ModIssueTier.None;
                     vm.ProblemTooltip = null;
                 }
             }
@@ -129,12 +129,15 @@ namespace ModHearth.UI.ModList
                 if (duplicateMap.TryGetValue(vm.ModReference.ID, out List<string>? duplicates) &&
                     duplicates.Count > 0)
                 {
+                    bool foundInErrorLog = manager.HasErrorLogDuplicateWarning(vm.ModReference.ID);
                     vm.IsDuplicateWarning = true;
-                    vm.DuplicateWarningTooltip = BuildDuplicateWarningTooltip(manager, vm.ModReference.ID, duplicates);
+                    vm.DuplicateWarningTier = ModIssueClassifier.ForErrorLogDuplicateWarning(foundInErrorLog);
+                    vm.DuplicateWarningTooltip = BuildDuplicateWarningTooltip(manager, vm.ModReference.ID, foundInErrorLog, duplicates);
                 }
                 else
                 {
                     vm.IsDuplicateWarning = false;
+                    vm.DuplicateWarningTier = ModIssueTier.None;
                     vm.DuplicateWarningTooltip = null;
                 }
             }
@@ -145,17 +148,20 @@ namespace ModHearth.UI.ModList
         public static string BuildProblemTooltip(List<ModProblem> problems)
         {
             StringBuilder builder = new("Problems:");
-            foreach (ModProblem problem in problems)
+            foreach (ModProblem problem in problems.OrderByDescending(problem => problem.tier))
                 _ = builder.AppendLine().Append(problem.ToString());
             return builder.ToString();
         }
 
-        public static string BuildDuplicateWarningTooltip(ModHearthManager? manager, string modId, IEnumerable<string> duplicates)
+        public static string BuildDuplicateWarningTooltip(
+            ModHearthManager? manager,
+            string modId,
+            bool hasErrorLog,
+            IEnumerable<string> duplicates)
         {
             StringBuilder builder = new();
 
             bool hasCache = duplicates.Any(d => d.Contains("[Cache]"));
-            bool hasErrorLog = manager != null && manager.HasErrorLogDuplicateWarning(modId);
 
             if (hasErrorLog)
             {
@@ -240,8 +246,22 @@ namespace ModHearth.UI.ModList
         {
             if (problemCount <= 0 && duplicateCount <= 0)
                 return null;
-            string problemText = problemCount > 0 ? $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues" : string.Empty;
-            string duplicateText = duplicateCount > 0 ? $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws" : string.Empty;
+            string problemText;
+            if (problemCount > 0)
+                problemText = $"{problemCount} mod{(problemCount == 1 ? string.Empty : "s")} with issues";
+            else
+            {
+                problemText = string.Empty;
+            }
+
+            string duplicateText;
+            if (duplicateCount > 0)
+                duplicateText = $"{duplicateCount} mod{(duplicateCount == 1 ? string.Empty : "s")} with duplicate raws";
+            else
+            {
+                duplicateText = string.Empty;
+            }
+
             if (string.IsNullOrEmpty(problemText))
                 return duplicateText;
             if (string.IsNullOrEmpty(duplicateText))
@@ -249,6 +269,7 @@ namespace ModHearth.UI.ModList
 
             return $"{problemText}{Environment.NewLine}{duplicateText}";
         }
+
         public static IBrush RelationshipBrush(ModRelationshipKind kind) => kind switch
         {
             ModRelationshipKind.Before => BrushCache.GetBrush(Color.Parse("#3B82F6")),

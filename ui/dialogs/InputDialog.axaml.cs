@@ -15,7 +15,7 @@ namespace ModHearth.UI
 
             Opened += (_, _) =>
             {
-                InputBox.Focus();
+                _ = InputBox.Focus();
                 InputBox.SelectAll();
             };
         }
@@ -29,7 +29,7 @@ namespace ModHearth.UI
             };
             dialog.PromptText.Text = prompt;
             dialog.InputBox.Text = defaultValue ?? string.Empty;
-            dialog.InputBox.Focus();
+            _ = dialog.InputBox.Focus();
             dialog.InputBox.SelectAll();
 
             return await dialog.ShowDialog<string?>(owner);

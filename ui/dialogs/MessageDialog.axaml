@@ -1,17 +1,29 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="ModHearth.UI.MessageDialog"
-        SizeToContent="WidthAndHeight"
-        WindowStartupLocation="CenterOwner"
-        CanResize="False"
-        Title="Message">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock x:Name="MessageText" Width="360" TextWrapping="Wrap" />
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+<Window
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  x:Class="ModHearth.UI.MessageDialog"
+  SizeToContent="WidthAndHeight"
+  MaxHeight="550"
+  WindowStartupLocation="CenterOwner"
+  CanResize="False"
+  Title="Message">
+  <Grid RowDefinitions="*,Auto" Margin="16">
+    <ScrollViewer
+      Grid.Row="0"
+      VerticalScrollBarVisibility="Auto"
+      HorizontalScrollBarVisibility="Disabled"
+      Margin="0,0,0,12">
+      <TextBlock x:Name="MessageText" Width="360" TextWrapping="Wrap" />
+    </ScrollViewer>
+    <StackPanel
+      Grid.Row="1"
+      Orientation="Horizontal"
+      HorizontalAlignment="Right"
+      Spacing="8">
       <Button x:Name="OkButton" Content="OK" IsVisible="False" />
       <Button x:Name="YesButton" Content="Yes" IsVisible="False" />
       <Button x:Name="NoButton" Content="No" IsVisible="False" />
       <Button x:Name="CancelButton" Content="Cancel" IsVisible="False" />
     </StackPanel>
-  </StackPanel>
+  </Grid>
 </Window>

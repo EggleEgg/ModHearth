@@ -12,8 +12,7 @@ namespace ModHearth.UI.Docking
     {
         Left,
         Right,
-        //TODO Fully implement this side
-        Top,
+        Top, //TODO Fully implement this side
         Bottom
     }
 

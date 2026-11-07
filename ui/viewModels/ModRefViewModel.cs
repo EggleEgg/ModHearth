@@ -15,7 +15,8 @@ namespace ModHearth.UI.ViewModels
     public sealed record RuleBadgeInfo(IImage? Icon, int Count);
     public class ModRefViewModel : ObservableObject, ISelectableItem, IThemedViewModel
     {
-        private bool isProblem;
+        private ModIssueTier problemTier;
+        private ModIssueTier duplicateWarningTier;
         private bool isDuplicateWarning;
         private bool isFilteredOut;
         private bool isVisible = true;
@@ -36,6 +37,7 @@ namespace ModHearth.UI.ViewModels
 
         private IBrush backgroundBrush = Brushes.Transparent;
         private IBrush textBrush = Brushes.Black;
+        private IBrush issueBrush = Brushes.Transparent;
         private IBrush cacheBarBrush = Brushes.Transparent;
         private IBrush dropHighlightBrush = Brushes.Transparent;
         private TextDecorationCollection? textDecorations;
@@ -59,18 +61,51 @@ namespace ModHearth.UI.ViewModels
 
         public DateTime? LastModifiedTime => ModReference.LastModifiedTime;
 
-        public bool IsProblem
+        /// <summary>
+        /// Highest tier among guaranteed problems reported for this mod (load-order rules,
+        /// duplicate folders, error-log issues). <see cref="ModIssueTier.None"/> means none.
+        /// </summary>
+        public ModIssueTier ProblemTier
         {
-            get => isProblem;
+            get => problemTier;
             set
             {
-                if (isProblem == value)
+                if (problemTier == value)
                     return;
-                isProblem = value;
-                RefreshTextStyle();
+                problemTier = value;
                 OnPropertyChanged();
+                OnProblemSeverityChanged();
             }
         }
+
+        /// <summary>
+        /// Tier for duplicate-raw warnings. Error-log duplicates are guaranteed and get a tier;
+        /// cache-only "potential" duplicates use <see cref="ModIssueTier.None"/> so they stay
+        /// tooltip-only and never show a severity icon.
+        /// </summary>
+        public ModIssueTier DuplicateWarningTier
+        {
+            get => duplicateWarningTier;
+            set
+            {
+                if (duplicateWarningTier == value)
+                    return;
+                duplicateWarningTier = value;
+                OnPropertyChanged();
+                OnProblemSeverityChanged();
+            }
+        }
+
+        /// <summary>
+        /// Effective severity shown in the row. Combining here keeps the two problem sources
+        /// independent while guaranteeing the worst tier wins.
+        /// </summary>
+        public ModIssueTier IssueTier => (ModIssueTier)Math.Max((int)problemTier, (int)duplicateWarningTier);
+
+        public bool HasGuaranteedIssue => IssueTier != ModIssueTier.None;
+        public bool IsErrorIssue => IssueTier == ModIssueTier.Error;
+        public bool IsWarningIssue => IssueTier == ModIssueTier.Warning;
+        public bool IsInfoIssue => IssueTier == ModIssueTier.Info;
 
         public bool IsDuplicateWarning
         {
@@ -276,6 +311,22 @@ namespace ModHearth.UI.ViewModels
                 if (Equals(textBrush, value))
                     return;
                 textBrush = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
+        /// Tint for the severity icon. Kept in sync with <see cref="TextBrush"/> so the icon and
+        /// label always communicate the same tier.
+        /// </summary>
+        public IBrush IssueBrush
+        {
+            get => issueBrush;
+            private set
+            {
+                if (Equals(issueBrush, value))
+                    return;
+                issueBrush = value;
                 OnPropertyChanged();
             }
         }
@@ -521,25 +572,24 @@ namespace ModHearth.UI.ViewModels
             {
                 color = style.ModRefTextFilteredColor.ToAvaloniaColor();
             }
-            else if (IsDuplicateWarning)
-            {
-                color = IsProblem
-                ? style.ModRefTextBadColor.ToAvaloniaColor()
-                : style.ModRefTextWarningColor.ToAvaloniaColor();
-            }
             else
             {
-                color = IsProblem
-                ? style.ModRefTextBadColor.ToAvaloniaColor()
-                : style.TextColor.ToAvaloniaColor();
+                color = IssueTier switch
+                {
+                    ModIssueTier.Error => style.ModRefIssueErrorColor.ToAvaloniaColor(),
+                    ModIssueTier.Warning => style.ModRefIssueWarningColor.ToAvaloniaColor(),
+                    ModIssueTier.Info => style.ModRefIssueInfoColor.ToAvaloniaColor(),
+
+                    // Potential-only duplicate warnings stay at the mildest tint but have no icon.
+                    _ => IsDuplicateWarning
+                        ? style.ModRefIssueInfoColor.ToAvaloniaColor()
+                        : style.TextColor.ToAvaloniaColor()
+                };
             }
 
             IBrush newBrush = BrushCache.GetBrush(color);
-            if (textBrush != newBrush)
-            {
-                textBrush = newBrush;
-                OnPropertyChanged(nameof(TextBrush));
-            }
+            TextBrush = newBrush;
+            IssueBrush = newBrush;
 
             if (filterIconColor != color)
             {
@@ -553,6 +603,16 @@ namespace ModHearth.UI.ViewModels
                 textDecorations = targetDecoration;
                 OnPropertyChanged(nameof(TextDecorations));
             }
+        }
+
+        private void OnProblemSeverityChanged()
+        {
+            RefreshTextStyle();
+            OnPropertyChanged(nameof(IssueTier));
+            OnPropertyChanged(nameof(HasGuaranteedIssue));
+            OnPropertyChanged(nameof(IsErrorIssue));
+            OnPropertyChanged(nameof(IsWarningIssue));
+            OnPropertyChanged(nameof(IsInfoIssue));
         }
 
         private void RefreshAuxStyles(Style style)

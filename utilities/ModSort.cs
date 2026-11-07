@@ -1,5 +1,6 @@
 using ModHearth.Models;
 using ModHearth.Utilities;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth
 {
@@ -8,16 +9,20 @@ namespace ModHearth
     // And every edge is checked against the graph as it currently stands before being added, so a lower-priority source can never override or contradict a
     // higher-priority one; it can only fill in relationships nothing else addressed. Coarse trait-based grouping (GetModSortGroup) only breaks ties among mods with no
     // actual graph relationship to anything else.
+    // Mods with a fatal problem (see ModSortExclusion) are removed from the active set before the graph is built, so neither rules nor dependency closure can
+    // reactivate them; SetActiveMods then moves them to the inactive list.
     public partial class ModHearthManager
     {
         private static bool IsVanillaBaseMod(ModReference modref, ModSourceContext sourceContext)
             => modref != null && ModSourceClassifier.Classify(modref, sourceContext).IsVanilla;
 
         // Sort rules implicitly enable the mod they require, even when it is not currently enabled.
+        // Excluded mods are skipped: a fatal problem must not let a rule reactivate a broken mod.
         private static void AddRequiredMods(
             List<ModSortRule> rules,
             Dictionary<string, ModReference> idMap,
-            HashSet<string> enabledIds)
+            HashSet<string> enabledIds,
+            HashSet<string> excludedIds)
         {
             foreach (ModSortRule rule in rules)
             {
@@ -26,6 +31,8 @@ namespace ModHearth
 
                 string requiredId = rule.RequiresId?.Trim() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(requiredId))
+                    continue;
+                if (excludedIds.Contains(requiredId))
                     continue;
                 if (!idMap.TryGetValue(requiredId, out ModReference? requiredRef) || requiredRef == null)
                     continue;
@@ -207,6 +214,13 @@ namespace ModHearth
 
         public bool ModSortEnabledMods()
         {
+            // Refresh first so exclusions reflect the current mod set and error log rather than
+            // a previous scan. Fatal mods are then left out of the active list entirely.
+            FindModlistProblems();
+            HashSet<string> sortExcludedIds = ModSortExclusion.CollectExcludedModIds(modproblems);
+            foreach (string excludedId in sortExcludedIds)
+                Loggers.Diag.Dev($"Excluding mod '{excludedId}' from sort: it has a fatal problem.");
+
             Dictionary<string, ModReference> idMap;
             Dictionary<string, int> originalIndex = new(StringComparer.OrdinalIgnoreCase);
             List<ModReference> enabledRefs = [];
@@ -246,6 +260,9 @@ namespace ModHearth
             {
                 if (idMap.TryGetValue(enabledModsSnapshot[i].Id, out ModReference? modref) && modref != null)
                 {
+                    if (sortExcludedIds.Contains(modref.ID))
+                        continue;
+
                     enabledRefs.Add(modref);
                     if (!originalIndex.ContainsKey(modref.ID))
                         originalIndex[modref.ID] = i;
@@ -256,14 +273,14 @@ namespace ModHearth
 
             foreach (ModReference modref in idMap.Values)
             {
-                if (IsVanillaBaseMod(modref, sourceContext))
+                if (IsVanillaBaseMod(modref, sourceContext) && !sortExcludedIds.Contains(modref.ID))
                 {
                     _ = enabledIds.Add(modref.ID);
                 }
             }
 
-            AddRequiredMods(sortRulesSnapshot, idMap, enabledIds);
-            AddRequiredMods(communitySortRulesSnapshot, idMap, enabledIds);
+            AddRequiredMods(sortRulesSnapshot, idMap, enabledIds, sortExcludedIds);
+            AddRequiredMods(communitySortRulesSnapshot, idMap, enabledIds, sortExcludedIds);
 
             Queue<ModReference> queue = new();
             foreach (string enabledId in enabledIds)
@@ -290,6 +307,8 @@ namespace ModHearth
                     if (string.IsNullOrEmpty(depId))
                         continue;
                     if (enabledIds.Contains(depId))
+                        continue;
+                    if (sortExcludedIds.Contains(depId))
                         continue;
                     if (idMap.TryGetValue(depId, out ModReference? depRef) && depRef != null)
                     {
@@ -581,7 +600,6 @@ namespace ModHearth
 
             // Direct definition conflicts
             List<string> conflictingKeys = [];
-            HashSet<string> activeModIds = new(enabledModsSnapshot.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
             foreach (KeyValuePair<string, List<string>> kvp in directDefiners)
             {
                 if (kvp.Value.Count <= 1)
@@ -601,7 +619,7 @@ namespace ModHearth
                 if (anyCutRelationship)
                     continue;
 
-                if (kvp.Value.Count(activeModIds.Contains) > 1)
+                if (kvp.Value.Count(enabledIds.Contains) > 1)
                     conflictingKeys.Add(kvp.Key);
 
                 List<ModReference> definers = [.. kvp.Value

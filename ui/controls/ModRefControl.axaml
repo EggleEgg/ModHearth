@@ -134,43 +134,74 @@
                             UnderlayBrush="{Binding #Root.((viewmodels:ModRefViewModel)DataContext).ColorUnderlayBrush}" />
     </Grid>
 
-    <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="2,0,5,0">
+    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="2,0,5,0">
 
       <Grid.Styles>
-        <Style Selector="Image">
-          <Setter Property="Margin" Value="0,0,4,0" />
+        <Style Selector="Grid > Image">
           <Setter Property="Width" Value="14" />
           <Setter Property="Height" Value="14" />
           <Setter Property="VerticalAlignment" Value="Center" />
           <Setter Property="Stretch" Value="Uniform" />
-          <Setter Property="Grid.Column" Value="1" />
+          <Style Selector="^.issue">
+            <Setter Property="Margin" Value="1,0,0,0" />
+          </Style>
+          <Style Selector="^.type">
+            <Setter Property="Margin" Value="0,0,4,0" />
+          </Style>
         </Style>
       </Grid.Styles>
-
       <Border
+        Grid.Column="0"
         Width="2"
         Background="{Binding CacheBarBrush}"
         IsVisible="{Binding IsCached}"
         ZIndex="2" />
       <Image
+        Grid.Column="2"
+        Classes="type"
         Source="{render:AssetImage dwarfIcon}"
         IsVisible="{Binding IsVanillaModSource}"
         ToolTip.Tip="Vanilla source mod"/>
       <Image
+        Grid.Column="2"
+        Classes="type"
         Source="{render:AssetImage steamFolderIcon}"
         IsVisible="{Binding IsSteamLocalModSource}"
         ToolTip.Tip="Steam and local mod"/>
       <Image
+        Grid.Column="2"
+        Classes="type"
         Source="{render:AssetImage folderIcon}"
         IsVisible="{Binding IsLocalModSource}"
         ToolTip.Tip="Local mod"/>
       <Image
+        Grid.Column="2"
+        Classes="type"
         Source="{render:AssetImage steamIcon}"
         IsVisible="{Binding IsSteamModSource}"
         ToolTip.Tip="Steam mod"/>
 
+      <!-- Guaranteed issue tier: error / warning / info. Potential-only warnings show no icon. -->
+      <Image
+        Grid.Column="1"
+        Classes="issue"
+        Source="{Binding IssueBrush, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=cancelCircleIcon.svg}"
+        IsVisible="{Binding IsErrorIssue}"
+        ToolTip.Tip="{Binding HoverTooltip}"/>
+      <Image
+        Grid.Column="1"
+        Classes="issue"
+        Source="{Binding IssueBrush, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=attentionIcon.svg}"
+        IsVisible="{Binding IsWarningIssue}"
+        ToolTip.Tip="{Binding HoverTooltip}"/>
+      <Image
+        Grid.Column="1"
+        Classes="issue"
+        Source="{Binding IssueBrush, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=infoCircleIcon.svg}"
+        IsVisible="{Binding IsInfoIssue}"
+        ToolTip.Tip="{Binding HoverTooltip}"/>
       <TextBlock
-        Grid.Column="2"
+        Grid.Column="3"
         Text="{Binding DisplayName}"
         Foreground="{Binding TextBrush}"
         TextTrimming="CharacterEllipsis"
@@ -197,7 +228,7 @@
       </TextBlock>
       <ItemsControl
         x:Name="DetailedBadgesControl"
-        Grid.Column="3"
+        Grid.Column="4"
         ItemsSource="{Binding RuleBadges}"
         ToolTip.Tip="{Binding RuleBadgesTooltip}"
         Foreground="{Binding TextBrush}"
@@ -231,7 +262,7 @@
       </ItemsControl>
       <StackPanel
         x:Name="SimpleBadgeControl"
-        Grid.Column="3"
+        Grid.Column="4"
         Orientation="Horizontal"
         Spacing="1.5"
         VerticalAlignment="Center"
