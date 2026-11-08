@@ -30,6 +30,19 @@ namespace ModHearth
         private static readonly object _effectiveModRootsLock = new();
         private static void LogInfo(string message) => Loggers.Steam.Log(message);
 
+        /// <summary>
+        /// Returns the cached path list, building it once under <paramref name="gate"/> on first use.
+        /// All Steam/mod-root discovery lists share this so the lock + cache shell cannot drift.
+        /// </summary>
+        private static List<string> GetOrCreateCached(ref List<string>? cache, object gate, Func<List<string>> factory)
+        {
+            lock (gate)
+            {
+                cache ??= factory();
+                return cache;
+            }
+        }
+
         private static string DFHackExeName => OperatingSystem.IsWindows() ? "dfhack-run.exe" : "dfhack-run";
         private static readonly string installedMods = "installed_mods", dfString = "Dwarf Fortress", steamString = "Steam", steamApps = "steamapps";
 
@@ -205,13 +218,7 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(resolved))
                 return configuredPath;
 
-            if (!string.Equals(Config.ModsPathOverride, resolved, PathHelper.Comparison))
-            {
-                Config.ModsPathOverride = resolved;
-                SaveConfigFile($"Path resolved: {resolved},");
-            }
-
-            return resolved;
+            return PersistResolvedPath(resolved, Config.ModsPathOverride, value => Config.ModsPathOverride = value);
         }
 
         public static string GetInstalledModsPath()
@@ -224,13 +231,22 @@ namespace ModHearth
             if (string.IsNullOrWhiteSpace(resolved))
                 return normalizedConfigured;
 
-            if (!string.Equals(Config.InstalledModsPath, resolved, PathHelper.Comparison))
+            return PersistResolvedPath(resolved, Config.InstalledModsPath, value => Config.InstalledModsPath = value);
+        }
+
+        /// <summary>
+        /// Persists a path that discovery resolved to a canonical form, but only when it differs from
+        /// what is already configured, so ordinary lookups don't rewrite config.json.
+        /// </summary>
+        private static string PersistResolvedPath(string resolvedPath, string currentValue, Action<string> assign)
+        {
+            if (!string.Equals(currentValue, resolvedPath, PathHelper.Comparison))
             {
-                Config.InstalledModsPath = resolved;
-                SaveConfigFile($"Path resolved: {resolved},");
+                assign(resolvedPath);
+                SaveConfigFile($"Path resolved: {resolvedPath},");
             }
 
-            return resolved;
+            return resolvedPath;
         }
 
         /// <summary>
@@ -244,8 +260,11 @@ namespace ModHearth
                 return false;
 
             return path
-                .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
+#pragma warning disable IDE0300 //simplified collection fails wsl builds (for some reason)
+                .Split(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries)
                 .Any(segment => string.Equals(segment, installedMods, StringComparison.OrdinalIgnoreCase));
+#pragma warning restore IDE0300
+
         }
 
         public static string GetVanillaModsPath()
@@ -475,13 +494,8 @@ namespace ModHearth
 
         public static IEnumerable<string> EnumerateSteamLibraryRoots()
         {
-            lock (_steamLibraryRootsLock)
+            return GetOrCreateCached(ref _cachedSteamLibraryRoots, _steamLibraryRootsLock, () =>
             {
-                if (_cachedSteamLibraryRoots != null)
-                {
-                    return _cachedSteamLibraryRoots;
-                }
-
                 HashSet<string> libraries = new(
                     PathHelper.Comparer);
                 List<string> candidateRoots = [.. GetSteamRootCandidates().Where(root => !string.IsNullOrWhiteSpace(root))];
@@ -524,9 +538,8 @@ namespace ModHearth
                 }
 
                 LogInfo($"Steam library roots discovered ({libraries.Count}): {FormatPathListForLog(libraries)}");
-                _cachedSteamLibraryRoots = [.. libraries]; // Cache the result
-                return _cachedSteamLibraryRoots;
-            }
+                return [.. libraries];
+            });
         }
 
         private static IEnumerable<string> GetSteamRootCandidates()
@@ -760,9 +773,10 @@ namespace ModHearth
                 return null;
 
             string remainder = fullPath[root.Length..];
+#pragma warning disable IDE0300 //simplified collection fails wsl builds (for some reason)
             string[] segments = remainder.Split(
-                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries);
+                new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+#pragma warning restore IDE0300
             if (segments.Length == 0)
             {
                 if (expectDirectory && Directory.Exists(root))
@@ -787,35 +801,7 @@ namespace ModHearth
         }
 
         private static string? ResolveChildPathSegment(string parent, string name, bool expectDirectory)
-        {
-            if (string.IsNullOrWhiteSpace(parent) || string.IsNullOrWhiteSpace(name) || !Directory.Exists(parent))
-                return null;
-
-            string candidate = Path.Combine(parent, name);
-            if (expectDirectory)
-            {
-                if (Directory.Exists(candidate))
-                    return candidate;
-            }
-            else
-            {
-                if (File.Exists(candidate))
-                    return candidate;
-            }
-
-            try
-            {
-                IEnumerable<string> entries = expectDirectory
-                    ? Directory.EnumerateDirectories(parent)
-                    : Directory.EnumerateFiles(parent);
-                return entries.FirstOrDefault(entry =>
-                    string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                return null;
-            }
-        }
+            => PathHelper.ResolveChild(parent, name, expectDirectory);
 
         public static string? ResolveInfoFilePath(string modDirectory)
         {
@@ -943,15 +929,9 @@ namespace ModHearth
 
         public static IEnumerable<string> EnumerateSteamAppsRoots()
         {
-            lock (_steamAppsRootsLock)
+            return GetOrCreateCached(ref _cachedSteamAppsRoots, _steamAppsRootsLock, () =>
             {
-                if (_cachedSteamAppsRoots != null)
-                {
-                    return _cachedSteamAppsRoots;
-                }
-
-                StringComparer comparer = PathHelper.Comparer;
-                HashSet<string> steamAppsRoots = new(comparer);
+                HashSet<string> steamAppsRoots = new(PathHelper.Comparer);
 
                 foreach (string libraryRoot in EnumerateSteamLibraryRoots())
                 {
@@ -969,22 +949,15 @@ namespace ModHearth
                 }
 
                 LogInfo($"SteamApps roots ({steamAppsRoots.Count}): {FormatPathListForLog(steamAppsRoots)}");
-                _cachedSteamAppsRoots = [.. steamAppsRoots];
-                return _cachedSteamAppsRoots;
-            }
+                return [.. steamAppsRoots];
+            });
         }
 
         public static IEnumerable<string> GetSteamWorkshopContentPaths()
         {
-            lock (_workshopContentPathsLock)
+            return GetOrCreateCached(ref _cachedWorkshopContentPaths, _workshopContentPathsLock, () =>
             {
-                if (_cachedWorkshopContentPaths != null)
-                {
-                    return _cachedWorkshopContentPaths;
-                }
-
-                StringComparer comparer = PathHelper.Comparer;
-                HashSet<string> paths = new(comparer);
+                HashSet<string> paths = new(PathHelper.Comparer);
                 List<string> steamAppsRoots = [.. EnumerateSteamAppsRoots()];
                 LogInfo($"Workshop content scan starting. SteamApps roots input ({steamAppsRoots.Count}).");
                 foreach (string steamAppsRoot in steamAppsRoots)
@@ -1006,9 +979,8 @@ namespace ModHearth
                 }
 
                 LogInfo($"Workshop content paths discovered ({paths.Count}): {FormatPathListForLog(paths)}");
-                _cachedWorkshopContentPaths = [.. paths];
-                return _cachedWorkshopContentPaths;
-            }
+                return [.. paths];
+            });
         }
 
         public static IEnumerable<string> GetSteamWorkshopAcfPaths()
@@ -1204,15 +1176,9 @@ namespace ModHearth
         // Thread safe
         public static List<string> GetEffectiveModRoots()
         {
-            lock (_effectiveModRootsLock)
+            return GetOrCreateCached(ref _cachedEffectiveModRoots, _effectiveModRootsLock, () =>
             {
-                if (_cachedEffectiveModRoots != null)
-                {
-                    return _cachedEffectiveModRoots;
-                }
-
-                StringComparer comparer = PathHelper.Comparer;
-                HashSet<string> seen = new(comparer);
+                HashSet<string> seen = new(PathHelper.Comparer);
                 List<string> resolvedRoots = [];
 
                 IEnumerable<string> configuredRoots = EnumerateConfiguredModRoots();
@@ -1227,9 +1193,8 @@ namespace ModHearth
                 }
 
                 LogInfo($"Effective mod roots ({resolvedRoots.Count}): {FormatPathListForLog(resolvedRoots)}");
-                _cachedEffectiveModRoots = resolvedRoots;
-                return _cachedEffectiveModRoots;
-            }
+                return resolvedRoots;
+            });
         }
 
         // IMPORTANT: order matters here. When the same mod (same id, same numeric_version) exists both as a Steam Workshop subscription and as a shadow/manual copy under the local Mods\ folder

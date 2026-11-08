@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using ModHearth.Utilities.Logging;
 
@@ -5,6 +6,10 @@ namespace ModHearth.Utilities.Workshop
 {
     public static partial class WorkshopUrlResolver
     {
+
+        [SuppressMessage("Style", "IDE0300:Use collection expression for array")] //simplified collection fails wsl builds (for some reason)
+        private static readonly char[] separator = new char[] { '\r', '\n', ' ', '\t', ',', '|', ';' };
+
         // Improved regex to handle various Steam Workshop URL formats:
         // - https://steamcommunity.com/sharedfiles/filedetails/?id=3445635304
         // - https://steamcommunity.com/workshop/filedetails/?id=3445635304
@@ -16,7 +21,7 @@ namespace ModHearth.Utilities.Workshop
             if (string.IsNullOrWhiteSpace(input))
                 yield break;
 
-            string[] lines = input.Split(['\r', '\n', ' ', '\t', ',', '|', ';'], StringSplitOptions.RemoveEmptyEntries);
+            string[] lines = input.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (string line in lines)
             {

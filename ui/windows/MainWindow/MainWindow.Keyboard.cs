@@ -97,14 +97,7 @@ namespace ModHearth.UI
             visualRowIndex = Math.Clamp(visualRowIndex, 0, targetVisible.Count - 1);
             ModRefViewModel targetVm = targetVisible[visualRowIndex];
 
-            leftModlist.SelectedItems?.Clear();
-            rightModlist.SelectedItems?.Clear();
-            _ = targetList.SelectedItems?.Add(targetVm);
-            modListController.UpdateSelectionState(leftModlist);
-            modListController.UpdateSelectionState(rightModlist);
-            targetList.ScrollIntoView(targetVm);
-            TrackSelectedMod(targetVm);
-            ShowModInfo(targetVm.ModReference);
+            ApplyListSelection(targetList, [targetVm], targetVm);
             _ = targetList.Focus();
 
             return true;

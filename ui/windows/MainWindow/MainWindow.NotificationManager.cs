@@ -8,12 +8,16 @@ using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
 using ModHearth.Utilities;
+using ModHearth.utilities;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
     public class NotificationRecord : ObservableObject, IThemedViewModel
     {
+        // Sub-milliscale opacity changes are visually identical; ignore them so the row is not re-rendered.
+        private static readonly IEqualityComparer<double> OpacityComparer = new MMath.ToleranceComparer(0.001);
+
         private bool isFilteredOut;
         private bool isVisible = true;
         private TextDecorationCollection? textDecorations;
@@ -37,60 +41,34 @@ namespace ModHearth.UI
             get => isFilteredOut;
             set
             {
-                if (isFilteredOut == value)
+                if (!SetField(ref isFilteredOut, value))
                     return;
-                isFilteredOut = value;
                 RefreshStyle();
-                OnPropertyChanged();
             }
         }
 
         public bool IsVisible
         {
             get => isVisible;
-            set
-            {
-                if (isVisible == value)
-                    return;
-                isVisible = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isVisible, value);
         }
 
         public TextDecorationCollection? TextDecorations
         {
             get => textDecorations;
-            private set
-            {
-                if (Equals(textDecorations, value))
-                    return;
-                textDecorations = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref textDecorations, value);
         }
 
         public IBrush MessageForeground
         {
             get => messageForeground;
-            private set
-            {
-                if (Equals(messageForeground, value))
-                    return;
-                messageForeground = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref messageForeground, value);
         }
 
         public double ItemOpacity
         {
             get => itemOpacity;
-            private set
-            {
-                if (Math.Abs(itemOpacity - value) < 0.001)
-                    return;
-                itemOpacity = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref itemOpacity, value, OpacityComparer);
         }
 
         public void RefreshStyle() => RefreshStyle(Style.instance);
@@ -136,9 +114,7 @@ namespace ModHearth.UI
 
             foreach (NotificationRecord r in allNotificationRecords)
             {
-                bool match = !context.HasFilter || (mode == SearchFilterMode.Regex
-                    ? context.MatchesRegex(r.Message)
-                    : context.Contains(r.Message));
+                bool match = context.MatchesText(r.Message);
 
                 r.IsFilteredOut = context.HasFilter && !match;
                 r.IsVisible = !hideFiltered || match;

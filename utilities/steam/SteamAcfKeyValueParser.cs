@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace ModHearth.Utilities.Steam
@@ -52,6 +53,29 @@ namespace ModHearth.Utilities.Steam
 
             return root;
         }
+
+        /// <summary>
+        /// Fetches a brace-nested section from a parsed ACF, returning false when the key is missing or
+        /// holds a scalar instead of a section.
+        /// </summary>
+        public static bool TryGetSection(
+            Dictionary<string, object> root,
+            string name,
+            [NotNullWhen(true)] out Dictionary<string, object>? section)
+        {
+            section = null;
+            if (root == null || !root.TryGetValue(name, out object? value))
+                return false;
+
+            section = value as Dictionary<string, object>;
+            return section != null;
+        }
+
+        /// <summary>Fetches the usual <c>AppWorkshop</c> root section.</summary>
+        public static bool TryGetAppWorkshop(
+            Dictionary<string, object> root,
+            [NotNullWhen(true)] out Dictionary<string, object>? appWorkshop)
+            => TryGetSection(root, "AppWorkshop", out appWorkshop);
 
         private static IEnumerable<string> Tokenize(string content)
         {

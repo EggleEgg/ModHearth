@@ -69,14 +69,8 @@ namespace ModHearth.Utilities.Workshop
 
             Progress<string> progressProxy = new(line =>
             {
-                if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
-                    return;
-
-                Match match = ProgressRegex().Match(line);
-                if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
-                {
+                if (TryParseProgressPercent(line, out double pct))
                     progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
-                }
             });
 
             int exitCode = await _steamCmdService.ExecuteAsync(args, progressProxy, cancellationToken);
@@ -94,36 +88,12 @@ namespace ModHearth.Utilities.Workshop
             }
 
             string nestedContentDir = Path.Combine(fullDownloadPath, SteamApps, Workshop, Content, appId, workshopId.ToString());
-            FlattenNestedContent(nestedContentDir, fullDownloadPath);
-
-            if (HasModContent(fullDownloadPath))
-            {
-                progress.Report(new DownloadProgress(100, 100, 100));
-                return true;
-            }
-
-            // Fallback: some steamcmd invocations (persistent installs without a per-item
-            // force_install_dir) place content relative to steamcmd's own install directory instead.
             string workshopSource = ResolveWorkshopSource(GetSteamCmdInstallDirectory(), appId, workshopId);
 
-            if (Directory.Exists(workshopSource))
-            {
-                try
-                {
-                    MoveOrCopyDirectory(workshopSource, fullDownloadPath);
-                }
-                catch (Exception ex)
-                {
-                    AppLogging.LogException($"SteamCmd copy failed from {workshopSource} to {fullDownloadPath}", ex);
-                    return false;
-                }
-
-                if (HasModContent(fullDownloadPath))
-                {
-                    progress.Report(new DownloadProgress(100, 100, 100));
-                    return true;
-                }
-            }
+            // Fallback only matters when steamcmd ignored +force_install_dir and placed content relative
+            // to its own install directory instead.
+            if (TryFinalizeDownload(nestedContentDir, fullDownloadPath, workshopSource, progress))
+                return true;
 
             Loggers.Workshop.Log($"SteamCmd completed but no valid mod content was found for {workshopId} under '{nestedContentDir}' or '{workshopSource}'.");
             return false;
@@ -158,7 +128,7 @@ namespace ModHearth.Utilities.Workshop
             catch (Exception ex)
             {
                 AppLogging.LogException($"Failed to write SteamCMD batch script at {scriptPath}", ex);
-                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch (Exception cleanupEx) { AppLogging.LogException($"Failed to delete staging directory at {stagingPath}", cleanupEx); }
+                TryDeleteDirectory(stagingPath, "staging directory");
                 return result;
             }
 
@@ -176,17 +146,12 @@ namespace ModHearth.Utilities.Workshop
                         currentlyDownloadingId = id;
                 }
 
-                if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
+                if (!TryParseProgressPercent(line, out double pct))
                     return;
 
-                Match match = ProgressRegex().Match(line);
-                if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))
+                if (currentlyDownloadingId != 0 && itemLookup.TryGetValue(currentlyDownloadingId, out BatchDownloadItem? activeItem))
                 {
-                    DownloadProgress prog = new((long)(pct * 1000), 100000, pct);
-                    if (currentlyDownloadingId != 0 && itemLookup.TryGetValue(currentlyDownloadingId, out BatchDownloadItem? activeItem))
-                    {
-                        activeItem.Progress.Report(prog);
-                    }
+                    activeItem.Progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
                 }
             });
 
@@ -209,39 +174,15 @@ namespace ModHearth.Utilities.Workshop
                     _ = Directory.CreateDirectory(fullDownloadPath);
 
                     string nestedContentDir = Path.Combine(stagingPath, SteamApps, Workshop, Content, appId, workshopId.ToString());
-                    FlattenNestedContent(nestedContentDir, fullDownloadPath);
-
-                    if (HasModContent(fullDownloadPath))
-                    {
-                        item.Progress.Report(new DownloadProgress(100, 100, 100));
-                        result[workshopId] = true;
-                        continue;
-                    }
-
                     string workshopSource = ResolveWorkshopSource(GetSteamCmdInstallDirectory(), appId, workshopId);
 
-                    if (Directory.Exists(workshopSource))
-                    {
-                        try
-                        {
-                            MoveOrCopyDirectory(workshopSource, fullDownloadPath);
-                        }
-                        catch (Exception ex)
-                        {
-                            AppLogging.LogException($"SteamCmd copy failed from {workshopSource} to {fullDownloadPath}", ex);
-                        }
-
-                        if (HasModContent(fullDownloadPath))
-                        {
-                            item.Progress.Report(new DownloadProgress(100, 100, 100));
-                            result[workshopId] = true;
-                        }
-                    }
+                    if (TryFinalizeDownload(nestedContentDir, fullDownloadPath, workshopSource, item.Progress))
+                        result[workshopId] = true;
                 }
             }
             finally
             {
-                try { if (Directory.Exists(stagingPath)) Directory.Delete(stagingPath, true); } catch (Exception cleanupEx) { AppLogging.LogException($"Failed to delete staging directory at {stagingPath}", cleanupEx); }
+                TryDeleteDirectory(stagingPath, "staging directory");
             }
 
             return result;
@@ -324,6 +265,66 @@ namespace ModHearth.Utilities.Workshop
         }
 
         private static bool HasModContent(string path) => !string.IsNullOrWhiteSpace(ConfigManager.ResolveInfoFilePath(path));
+
+        /// <summary>
+        /// Flattens steamcmd's nested library layout into <paramref name="targetPath"/>, then falls back
+        /// to copying from steamcmd's own install directory when +force_install_dir was ignored. Reports
+        /// 100% and returns true only when valid mod content ends up in the target folder.
+        /// </summary>
+        private static bool TryFinalizeDownload(
+            string nestedContentDir,
+            string targetPath,
+            string workshopSource,
+            IProgress<DownloadProgress> progress)
+        {
+            FlattenNestedContent(nestedContentDir, targetPath);
+
+            if (!HasModContent(targetPath))
+            {
+                if (!Directory.Exists(workshopSource))
+                    return false;
+
+                try
+                {
+                    MoveOrCopyDirectory(workshopSource, targetPath);
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException($"SteamCmd copy failed from {workshopSource} to {targetPath}", ex);
+                    return false;
+                }
+
+                if (!HasModContent(targetPath))
+                    return false;
+            }
+
+            progress.Report(new DownloadProgress(100, 100, 100));
+            return true;
+        }
+
+        private static void TryDeleteDirectory(string path, string description)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
+            }
+            catch (Exception ex)
+            {
+                AppLogging.LogException($"Failed to delete {description} at {path}", ex);
+            }
+        }
+
+        private static bool TryParseProgressPercent(string line, out double percent)
+        {
+            percent = 0;
+            if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            Match match = ProgressRegex().Match(line);
+            return match.Success
+                && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out percent);
+        }
 
         private static void MoveOrCopyDirectory(string sourceDir, string destinationDir)
         {

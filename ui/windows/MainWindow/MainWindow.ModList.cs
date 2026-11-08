@@ -47,27 +47,7 @@ namespace ModHearth.UI
                 .Where(vm => vm != null)
                 .Cast<ModRefViewModel>()];
 
-            isBatchSelecting = true;
-            try
-            {
-                list.SelectedItems?.Clear();
-                foreach (ModRefViewModel vm in toSelect)
-                    _ = (list.SelectedItems?.Add(vm));
-            }
-            finally
-            {
-                isBatchSelecting = false;
-            }
-
-            modListController.UpdateSelectionState(list);
-
-            ModRefViewModel? primary = toSelect.FirstOrDefault();
-            if (primary != null)
-            {
-                list.ScrollIntoView(primary);
-                TrackSelectedMod(primary);
-                ShowModInfo(primary.ModReference);
-            }
+            ApplyListSelection(list, toSelect, toSelect.FirstOrDefault(), suppressSelectionEvents: true);
         }
 
         private void UpdateModlistHeaders()
@@ -140,6 +120,17 @@ namespace ModHearth.UI
                 ? context.InsertIndex
                 : MapFilteredToMasterIndex(activeMods, BuildEnabledOrderViewModels(), context.InsertIndex);
 
+            await ApplyModMoveAsync(mods, insertIndex, sourceLeft, destinationLeft);
+            if (sourceLeft != destinationLeft)
+                SelectModsInList(destinationLeft, mods);
+        }
+
+        /// <summary>
+        /// Applies a cross-panel move and runs the shared post-move pipeline: rebuild the displayed
+        /// collections immediately, then analyze problems off the UI thread before committing changes.
+        /// </summary>
+        private async Task ApplyModMoveAsync(List<DfhMod> mods, int insertIndex, bool sourceLeft, bool destinationLeft)
+        {
             // Keep the pointer/drop path short: update the displayed lists before the potentially
             // expensive problem analysis, which runs below without occupying the UI thread.
             manager.MoveMods(mods, insertIndex, sourceLeft, destinationLeft, refreshProblems: false);
@@ -150,8 +141,6 @@ namespace ModHearth.UI
             bool sorted = await SetAndMarkChangesAsync(true);
             if (!sorted)
                 RefreshModlistPanels(updateCache: false, updateColors: false);
-            if (sourceLeft != destinationLeft)
-                SelectModsInList(destinationLeft, mods);
         }
 
         // Problem analysis must see the latest manager state, but it should not run while the user
@@ -217,14 +206,7 @@ namespace ModHearth.UI
             List<ModRefViewModel> selected = [.. source.SelectedItems.Cast<ModRefViewModel>()];
             List<DfhMod> mods = [.. selected.Select(vm => vm.DfMod)];
             int index = manager.enabledMods.Count;
-            manager.MoveMods(mods, index, sourceLeft, !sourceLeft, refreshProblems: false);
-            RebuildPanelCollectionsFromManager();
-            ApplySearchFilter();
-
-            await RunPostDropProcessingAsync();
-            bool sorted = await SetAndMarkChangesAsync(true);
-            if (!sorted)
-                RefreshModlistPanels(updateCache: false, updateColors: false);
+            await ApplyModMoveAsync(mods, index, sourceLeft, !sourceLeft);
             SelectModsInList(!sourceLeft, mods);
 
             // Async focus to target ListBox and its selected container

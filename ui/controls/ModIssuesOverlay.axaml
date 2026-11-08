@@ -31,7 +31,7 @@
             Text="0"
             Foreground="{Binding $parent[Button].Foreground}"
             FontWeight="Black"
-            StrokeThickness="0.5"
+            StrokeThickness="0.35"
             VerticalAlignment="Center"
             FontSize="16"/>
         </StackPanel>
@@ -50,7 +50,7 @@
             Text="0"
             Foreground="{Binding $parent[Button].Foreground}"
             FontWeight="Black"
-            StrokeThickness="0.5"
+            StrokeThickness="0.35"
             VerticalAlignment="Center"
             FontSize="16"/>
         </StackPanel>
@@ -69,7 +69,7 @@
             Text="0"
             Foreground="{Binding $parent[Button].Foreground}"
             FontWeight="Black"
-            StrokeThickness="0.5"
+            StrokeThickness="0.35"
             VerticalAlignment="Center"
             FontSize="16"/>
         </StackPanel>

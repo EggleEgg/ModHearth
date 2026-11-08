@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -73,24 +74,40 @@ namespace ModHearth.UI.Rendering
         private static readonly BoundedLruCache<string, IImage?> imageCache = new(MaxCachedImages, StringComparer.Ordinal);
 
         private static readonly Lazy<IImage?> missingTextureImage = new(() =>
-        {
-            try
+            TryLoad("missing texture placeholder", () =>
             {
                 string svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><rect width=\"16\" height=\"16\" fill=\"#FF00FF\"/></svg>";
                 using MemoryStream stream = new(System.Text.Encoding.UTF8.GetBytes(svg));
                 return RenderSvgStream(stream);
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure("missing texture placeholder", ex);
-                return null;
-            }
-        });
+            }));
+        [SuppressMessage("Style", "IDE0300:Use collection expression for array")] //simplified collection fails wsl builds (for some reason)
+        internal static readonly char[] separator = new char[] { ',', ' ' };
 
         private static IImage? GetMissingTextureImage() => missingTextureImage.Value;
 
         private static void LogLoadFailure(string what, Exception ex)
             => AppLogging.LogError($"[ImageLoader] Failed to load {what}: {ex.Message}");
+
+        /// <summary>
+        /// Runs an image load, logging and returning null on failure. Missing-file probes can opt out
+        /// of logging because they are an expected part of asset fallback chains.
+        /// </summary>
+        private static T? TryLoad<T>(string what, Func<T?> load, bool ignoreMissingFile = false) where T : class
+        {
+            try
+            {
+                return load();
+            }
+            catch (FileNotFoundException) when (ignoreMissingFile)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LogLoadFailure(what, ex);
+                return null;
+            }
+        }
 
         public static IImage? LoadFromAssetUri(string assetUri, Color? tint = null, double? opacity = null)
         {
@@ -153,7 +170,7 @@ namespace ModHearth.UI.Rendering
             if (val.StartsWith("rgb", StringComparison.Ordinal))
             {
                 string cleaned = val.Replace("rgba(", "").Replace("rgb(", "").Replace(")", "").Trim();
-                string[] parts = cleaned.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries);
+                string[] parts = cleaned.Split(separator, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length >= 3 && parts[0] == "0" && parts[1] == "0" && parts[2] == "0")
                 {
                     // If alpha channel is specified, ensure it's fully opaque
@@ -165,8 +182,7 @@ namespace ModHearth.UI.Rendering
         }
 
         private static SvgImage? LoadTintedSvg(string assetUri, Color? tint = null, double? opacity = null)
-        {
-            try
+            => TryLoad($"tinted SVG '{assetUri}'", () =>
             {
                 Uri uri = new(assetUri, UriKind.Absolute);
                 using Stream stream = AssetLoader.Open(uri);
@@ -227,13 +243,7 @@ namespace ModHearth.UI.Rendering
                 xdoc.Save(memoryStream);
                 memoryStream.Position = 0;
                 return RenderSvgStream(memoryStream);
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure($"tinted SVG '{assetUri}'", ex);
-                return null;
-            }
-        }
+            });
 
         public static IImage? LoadFromAssetUriUncached(string assetUri)
         {
@@ -250,24 +260,18 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return null;
 
-            try
+            return TryLoad<IImage>($"'{path}'", () =>
             {
                 string fullPath = Path.GetFullPath(path);
                 if (IsSvgPath(path))
                     return LoadSvgImage(new Uri(fullPath, UriKind.Absolute).ToString());
 
                 return new Bitmap(fullPath);
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure($"'{path}'", ex);
-                return null;
-            }
+            });
         }
 
         private static IImage? LoadFromNormalizedAssetUri(string normalizedAssetUri)
-        {
-            try
+            => TryLoad<IImage>($"'{normalizedAssetUri}'", () =>
             {
                 if (IsSvgPath(normalizedAssetUri))
                 {
@@ -285,13 +289,7 @@ namespace ModHearth.UI.Rendering
                     return svgCandidateImage;
 
                 return LoadBitmap(normalizedAssetUri);
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure($"'{normalizedAssetUri}'", ex);
-                return null;
-            }
-        }
+            });
 
         private static string? TrySwapResourcesBase(string normalizedAssetUri)
         {
@@ -332,7 +330,7 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(uriText))
                 return null;
 
-            try
+            return TryLoad<SvgImage>($"'{uriText}'", () =>
             {
                 if (uriText.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -346,17 +344,9 @@ namespace ModHearth.UI.Rendering
 
                 if (File.Exists(uriText))
                     return RenderSvgFile(uriText);
-            }
-            catch (FileNotFoundException)
-            {
-                // probing a missing asset is expected
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure($"'{uriText}'", ex);
-            }
 
-            return null;
+                return null;
+            }, ignoreMissingFile: true);
         }
 
         private static Bitmap? LoadBitmap(string assetUri)
@@ -364,7 +354,7 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(assetUri))
                 return null;
 
-            try
+            return TryLoad<Bitmap>($"'{assetUri}'", () =>
             {
                 if (assetUri.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -382,17 +372,9 @@ namespace ModHearth.UI.Rendering
 
                 if (File.Exists(assetUri))
                     return new Bitmap(assetUri);
-            }
-            catch (FileNotFoundException)
-            {
-                // probing a missing asset is expected
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure($"'{assetUri}'", ex);
-            }
 
-            return null;
+                return null;
+            }, ignoreMissingFile: true);
         }
 
         private static string ReplaceExtension(string pathOrUri, string newExtension)
@@ -434,22 +416,14 @@ namespace ModHearth.UI.Rendering
         }
 
         private static SvgImage? RenderSvgFile(string path)
-        {
-            try
+            => TryLoad($"SVG file '{path}'", () =>
             {
                 using Stream stream = File.OpenRead(path);
                 return RenderSvgStream(stream);
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure($"SVG file '{path}'", ex);
-                return null;
-            }
-        }
+            });
 
         private static SvgImage? RenderSvgStream(Stream stream)
-        {
-            try
+            => TryLoad("SVG stream", () =>
             {
                 SvgSource? source = SvgSource.LoadFromStream(stream, null);
                 return source switch
@@ -457,13 +431,7 @@ namespace ModHearth.UI.Rendering
                     null => null,
                     _ => new SvgImage { Source = source },
                 };
-            }
-            catch (Exception ex)
-            {
-                LogLoadFailure("SVG stream", ex);
-                return null;
-            }
-        }
+            });
 
         public static void ClearCache() => imageCache.Clear();
         [GeneratedRegex(@"(?<prefix>fill|stroke)\s*:\s*(?<color>[^;]+)", RegexOptions.IgnoreCase)]

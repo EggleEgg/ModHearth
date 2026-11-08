@@ -79,6 +79,13 @@ namespace ModHearth.UI.Helpers
                 && candidate.Contains(Filter, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Text match that honours <see cref="SearchFilterMode.Regex"/> and falls back to
+        /// <see cref="Contains"/> for every other mode.
+        /// </summary>
+        public bool MatchesText(string? target)
+            => Mode == SearchFilterMode.Regex ? MatchesRegex(target) : Contains(target);
+
         private static Regex? TryCompileRegex(string pattern)
         {
             try

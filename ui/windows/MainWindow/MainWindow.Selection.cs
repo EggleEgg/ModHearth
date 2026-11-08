@@ -35,15 +35,47 @@ namespace ModHearth.UI
             if (list?.SelectedItems == null)
                 return false;
 
-            leftModlist.SelectedItems?.Clear();
-            rightModlist.SelectedItems?.Clear();
-            _ = list.SelectedItems.Add(vm);
+            ApplyListSelection(list, [vm], vm);
+            return true;
+        }
+
+        /// <summary>
+        /// Clears both panels, selects <paramref name="items"/> in <paramref name="targetList"/>, refreshes
+        /// selection visuals, and optionally scrolls to / tracks / shows info for <paramref name="primary"/>.
+        /// </summary>
+        private void ApplyListSelection(
+            ListBox targetList,
+            IEnumerable<ModRefViewModel> items,
+            ModRefViewModel? primary,
+            bool trackSelection = true,
+            bool suppressSelectionEvents = false)
+        {
+            if (suppressSelectionEvents)
+                isBatchSelecting = true;
+
+            try
+            {
+                leftModlist.SelectedItems?.Clear();
+                rightModlist.SelectedItems?.Clear();
+                foreach (ModRefViewModel vm in items)
+                    _ = (targetList.SelectedItems?.Add(vm));
+            }
+            finally
+            {
+                if (suppressSelectionEvents)
+                    isBatchSelecting = false;
+            }
+
             modListController.UpdateSelectionState(leftModlist);
             modListController.UpdateSelectionState(rightModlist);
-            list.ScrollIntoView(vm);
-            TrackSelectedMod(vm);
-            ShowModInfo(vm.ModReference);
-            return true;
+
+            if (primary == null)
+                return;
+
+            targetList.ScrollIntoView(primary);
+            if (trackSelection)
+                TrackSelectedMod(primary);
+            ShowModInfo(primary.ModReference);
         }
 
         private ModSelectionSnapshot CaptureSelectionSnapshot()
@@ -145,20 +177,11 @@ namespace ModHearth.UI
             ModRefViewModel primary = restored.FirstOrDefault(vm =>
                 string.Equals(vm.ModReference.ID, targetId, StringComparison.OrdinalIgnoreCase)) ?? restored[0];
 
-            leftModlist.SelectedItems?.Clear();
-            rightModlist.SelectedItems?.Clear();
-            _ = (targetList.SelectedItems?.Add(primary));
-            foreach (ModRefViewModel? vm in restored.Where(vm => !ReferenceEquals(vm, primary)))
-            {
-                _ = (targetList.SelectedItems?.Add(vm));
-            }
+            List<ModRefViewModel> orderedSelection = [primary, .. restored.Where(vm => !ReferenceEquals(vm, primary))];
+            ApplyListSelection(targetList, orderedSelection, primary, trackSelection: false);
 
-            modListController.UpdateSelectionState(leftModlist);
-            modListController.UpdateSelectionState(rightModlist);
-            targetList.ScrollIntoView(primary);
             currentSelectedModId = primary.ModReference.ID?.Trim();
             previousSelectedModId = snapshot.PreviousSelectedId;
-            ShowModInfo(primary.ModReference);
         }
 
         private bool HasActiveHideFilter(ListBox list)

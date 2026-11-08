@@ -95,16 +95,11 @@ namespace ModHearth.UI
 
         private void RefreshModpackCombo(IReadOnlyList<string> names, int index)
         {
-            modifyingComboBox = true;
-            try
+            WithComboGuard(() =>
             {
                 modpackComboBox.ItemsSource = names;
                 modpackComboBox.SelectedIndex = index;
-            }
-            finally
-            {
-                modifyingComboBox = false;
-            }
+            });
         }
 
         /// <summary>
@@ -112,10 +107,18 @@ namespace ModHearth.UI
         /// </summary>
         private void SetModpackComboIndex(int index)
         {
+            WithComboGuard(() => modpackComboBox.SelectedIndex = index);
+        }
+
+        /// <summary>
+        /// Runs a combo mutation with SelectionChanged side effects suppressed.
+        /// </summary>
+        private void WithComboGuard(Action mutate)
+        {
             modifyingComboBox = true;
             try
             {
-                modpackComboBox.SelectedIndex = index;
+                mutate();
             }
             finally
             {
@@ -323,7 +326,7 @@ namespace ModHearth.UI
             if (string.IsNullOrWhiteSpace(filePath))
                 return;
 
-            try
+            _ = await DialogService.TryRunFileActionAsync(this, async () =>
             {
                 string importedString = await File.ReadAllTextAsync(filePath);
                 DfhModpack? importedList = JsonSerializer.Deserialize<DfhModpack>(importedString, JsonFileStore.CaseInsensitive) ?? throw new InvalidOperationException("Invalid modpack file.");
@@ -352,11 +355,7 @@ namespace ModHearth.UI
                 }
 
                 await RegisterNewModpackAsync(importedList);
-            }
-            catch (Exception ex)
-            {
-                await DialogService.ShowMessageAsync(this, "Error: " + ex.Message, "Error");
-            }
+            });
         }
 
         private async Task ExportModpackAsync()
@@ -369,16 +368,11 @@ namespace ModHearth.UI
             if (string.IsNullOrWhiteSpace(filePath))
                 return;
 
-            try
+            _ = await DialogService.TryRunFileActionAsync(this, async () =>
             {
                 string exportString = JsonFileStore.Serialize(manager.SelectedModlist);
                 await File.WriteAllTextAsync(filePath, exportString);
-                await DialogService.ShowMessageAsync(this, "File saved successfully.", "Success");
-            }
-            catch (Exception ex)
-            {
-                await DialogService.ShowMessageAsync(this, "Error: " + ex.Message, "Error");
-            }
+            }, successMessage: "File saved successfully.");
         }
 
         private async Task ClearModlistAsync()

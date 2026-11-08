@@ -56,21 +56,32 @@ namespace ModHearth.Utilities
         /// or file is missing/unreadable.
         /// </summary>
         public static string? ResolveFile(string? directory, string fileName)
+            => ResolveChild(directory, fileName, expectDirectory: false);
+
+        /// <summary>
+        /// Resolves a single child entry (<paramref name="name"/>) inside <paramref name="parent"/>,
+        /// falling back to a case-insensitive scan when the exact name is not present. Set
+        /// <paramref name="expectDirectory"/> when the child must be a folder rather than a file.
+        /// Returns null when the parent is missing or nothing matches.
+        /// </summary>
+        public static string? ResolveChild(string? parent, string name, bool expectDirectory)
         {
-            if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName))
+            if (string.IsNullOrWhiteSpace(parent) || string.IsNullOrWhiteSpace(name))
                 return null;
-            if (!Directory.Exists(directory))
+            if (!Directory.Exists(parent))
                 return null;
 
-            string exactPath = Path.Combine(directory, fileName);
-            if (File.Exists(exactPath))
+            string exactPath = Path.Combine(parent, name);
+            if (expectDirectory ? Directory.Exists(exactPath) : File.Exists(exactPath))
                 return exactPath;
 
             try
             {
-                return Directory.EnumerateFiles(directory)
-                    .FirstOrDefault(file =>
-                        string.Equals(Path.GetFileName(file), fileName, StringComparison.OrdinalIgnoreCase));
+                IEnumerable<string> entries = expectDirectory
+                    ? Directory.EnumerateDirectories(parent)
+                    : Directory.EnumerateFiles(parent);
+                return entries.FirstOrDefault(entry =>
+                    string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase));
             }
             catch
             {

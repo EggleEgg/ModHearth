@@ -21,6 +21,26 @@ namespace ModHearth.UI.Dialogs
             return result == MessageDialogResult.Yes;
         }
 
+        /// <summary>
+        /// Runs a file import/export action, reporting any exception through the standard error dialog
+        /// and optionally showing a success message. Returns whether the action completed.
+        /// </summary>
+        public static async Task<bool> TryRunFileActionAsync(Window owner, Func<Task> action, string? successMessage = null)
+        {
+            try
+            {
+                await action();
+                if (!string.IsNullOrWhiteSpace(successMessage))
+                    await ShowMessageAsync(owner, successMessage, "Success");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await ShowMessageAsync(owner, "Error: " + ex.Message, "Error");
+                return false;
+            }
+        }
+
         public static async Task<UnsavedChangesChoice> ShowUnsavedChangesPromptAsync(
             Window owner,
             string? subjectName,

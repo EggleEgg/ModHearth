@@ -13,13 +13,7 @@ namespace ModHearth.UI.Controls.ModInfoDockControl
         public IBrush Background
         {
             get => background;
-            set
-            {
-                if (Equals(background, value))
-                    return;
-                background = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref background, value);
         }
     }
 }

@@ -241,7 +241,7 @@ namespace ModHearth.Utilities.ModRaws
 
         private static void ProcessSegment(
             LineSegment segment,
-            IReadOnlyList<string> lines,
+            List<string> lines,
             ModLookup lookup,
             IssueAccumulator accumulator)
         {
@@ -769,8 +769,9 @@ namespace ModHearth.Utilities.ModRaws
                     return [];
 
                 string[] segments = file.Split(
-                    [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                    StringSplitOptions.RemoveEmptyEntries);
+#pragma warning disable IDE0300 //simplified collection fails wsl builds (for some reason)
+                    new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+#pragma warning restore IDE0300
 
                 int installedModsIndex = Array.FindIndex(
                     segments,

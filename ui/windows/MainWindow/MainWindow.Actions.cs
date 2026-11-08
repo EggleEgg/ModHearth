@@ -28,31 +28,33 @@ namespace ModHearth.UI
             }
         }
 
-        private async Task OpenSortRulesAsync()
+        private Task OpenSortRulesAsync() => ToggleDockAsync(_sortRulesDockManager);
+
+        private Task OpenModUpdateLog()
+            => ToggleDockAsync(_updateLogDockManager, control => control.LoadEntriesAsync());
+
+        /// <summary>
+        /// Closes a docked panel when it is open, otherwise opens it and runs an optional load step on
+        /// the shared control.
+        /// </summary>
+        private static async Task ToggleDockAsync<TControl, TWindow>(
+            DockingManager<TControl, TWindow>? dockManager,
+            Func<TControl, Task>? onOpened = null)
+            where TControl : UserControl
+            where TWindow : Window
         {
-            if (_sortRulesDockManager?.IsOpen == true && _sortRulesDockManager.IsDocked)
+            if (dockManager == null)
+                return;
+
+            if (dockManager.IsOpen && dockManager.IsDocked)
             {
-                _sortRulesDockManager.Close();
+                dockManager.Close();
                 return;
             }
 
-            _sortRulesDockManager?.Open();
-            await Task.CompletedTask;
-        }
-
-        private async Task OpenModUpdateLog()
-        {
-            if (_updateLogDockManager?.IsOpen == true && _updateLogDockManager.IsDocked)
-            {
-                _updateLogDockManager.Close();
-                return;
-            }
-
-            _updateLogDockManager?.Open();
-            if (_updateLogDockManager?.SharedControl != null)
-            {
-                await _updateLogDockManager.SharedControl.LoadEntriesAsync();
-            }
+            dockManager.Open();
+            if (onOpened != null && dockManager.SharedControl != null)
+                await onOpened(dockManager.SharedControl);
         }
 
         private Dictionary<DockSide, DockingTarget> CreateDockSideTargets() => new()
@@ -261,20 +263,8 @@ namespace ModHearth.UI
             IsWorkshopDownloadActive = tracker.ActiveDownloadCount > 0;
         }
 
-        private async Task OpenWorkshopDownloaderAsync()
-        {
-            if (_workshopDockManager?.IsOpen == true && _workshopDockManager.IsDocked)
-            {
-                _workshopDockManager.Close();
-                return;
-            }
-
-            _workshopDockManager?.Open();
-            if (_workshopDockManager?.SharedControl != null)
-            {
-                await _workshopDockManager.SharedControl.CheckProviderSetupAsync();
-            }
-        }
+        private Task OpenWorkshopDownloaderAsync()
+            => ToggleDockAsync(_workshopDockManager, control => control.CheckProviderSetupAsync());
 
         private async Task ModSortAsync()
         {

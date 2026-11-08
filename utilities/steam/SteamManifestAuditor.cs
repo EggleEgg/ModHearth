@@ -65,14 +65,11 @@ namespace ModHearth.Utilities.Steam
             string content = File.ReadAllText(acfPath);
             Dictionary<string, object> root = SteamAcfKeyValueParser.Parse(content);
 
-            if (!root.TryGetValue("AppWorkshop", out object? appObj) || appObj is not Dictionary<string, object> appDict)
+            if (!SteamAcfKeyValueParser.TryGetAppWorkshop(root, out Dictionary<string, object>? appDict))
                 return;
 
-            if (!appDict.TryGetValue("WorkshopItemsInstalled", out object? installedObj) ||
-                installedObj is not Dictionary<string, object> installedDict)
-            {
+            if (!SteamAcfKeyValueParser.TryGetSection(appDict, "WorkshopItemsInstalled", out Dictionary<string, object>? installedDict))
                 return;
-            }
 
             // The ACF is usually in steamapps/ or steamapps/workshop/
             // The content is in steamapps/workshop/content/975370/

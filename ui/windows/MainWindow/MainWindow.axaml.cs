@@ -20,6 +20,16 @@ namespace ModHearth.UI
 
         protected virtual void NotifyOfPropertyChange([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
+        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value))
+                return false;
+
+            field = value;
+            NotifyOfPropertyChange(propertyName);
+            return true;
+        }
+
         private double _workshopDownloadProgress;
         /// <summary>Overall Steam workshop download progress (0-100) across the current run.</summary>
         public double WorkshopDownloadProgress
@@ -27,6 +37,7 @@ namespace ModHearth.UI
             get => _workshopDownloadProgress;
             private set
             {
+                // Ignore sub-percent jitter so the progress bar is not re-rendered for noise.
                 if (Math.Abs(_workshopDownloadProgress - value) < 0.01)
                     return;
                 _workshopDownloadProgress = value;
@@ -39,13 +50,7 @@ namespace ModHearth.UI
         public bool IsWorkshopDownloadActive
         {
             get => _isWorkshopDownloadActive;
-            private set
-            {
-                if (_isWorkshopDownloadActive == value)
-                    return;
-                _isWorkshopDownloadActive = value;
-                NotifyOfPropertyChange();
-            }
+            private set => SetField(ref _isWorkshopDownloadActive, value);
         }
 
         private int _workshopActiveDownloadCount;
@@ -53,13 +58,7 @@ namespace ModHearth.UI
         public int WorkshopActiveDownloadCount
         {
             get => _workshopActiveDownloadCount;
-            private set
-            {
-                if (_workshopActiveDownloadCount == value)
-                    return;
-                _workshopActiveDownloadCount = value;
-                NotifyOfPropertyChange();
-            }
+            private set => SetField(ref _workshopActiveDownloadCount, value);
         }
 
         private string _workshopDownloadStatusText = string.Empty;
@@ -67,13 +66,7 @@ namespace ModHearth.UI
         public string WorkshopDownloadStatusText
         {
             get => _workshopDownloadStatusText;
-            private set
-            {
-                if (string.Equals(_workshopDownloadStatusText, value, StringComparison.Ordinal))
-                    return;
-                _workshopDownloadStatusText = value;
-                NotifyOfPropertyChange();
-            }
+            private set => SetField(ref _workshopDownloadStatusText, value);
         }
 
         public bool IsAutoSaveEnabled

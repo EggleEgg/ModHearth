@@ -48,24 +48,12 @@ namespace ModHearth.UI.ViewModels
         public IBrush RowBrush
         {
             get => rowBrush;
-            private set
-            {
-                if (Equals(rowBrush, value))
-                    return;
-                rowBrush = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref rowBrush, value);
         }
         public IBrush BackgroundBrush
         {
             get => backgroundBrush;
-            private set
-            {
-                if (Equals(backgroundBrush, value))
-                    return;
-                backgroundBrush = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref backgroundBrush, value);
         }
         public string DateText { get; }
         public string ModName { get; }
@@ -88,11 +76,9 @@ namespace ModHearth.UI.ViewModels
             get => isSelected;
             set
             {
-                if (isSelected == value)
+                if (!SetField(ref isSelected, value))
                     return;
-                isSelected = value;
                 BackgroundBrush = isSelected ? selectedBackgroundBrush : defaultBackgroundBrush;
-                OnPropertyChanged();
             }
         }
 
@@ -101,37 +87,23 @@ namespace ModHearth.UI.ViewModels
             get => isFilteredOut;
             set
             {
-                if (isFilteredOut == value)
+                if (!SetField(ref isFilteredOut, value))
                     return;
-                isFilteredOut = value;
                 if (Style.instance != null)
                     RefreshStyle(Style.instance);
-                OnPropertyChanged();
             }
         }
 
         public bool IsVisible
         {
             get => isVisible;
-            set
-            {
-                if (isVisible == value)
-                    return;
-                isVisible = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isVisible, value);
         }
 
         public TextDecorationCollection? TextDecorations
         {
             get => textDecorations;
-            private set
-            {
-                if (Equals(textDecorations, value))
-                    return;
-                textDecorations = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref textDecorations, value);
         }
 
         private string? searchTargetCache;

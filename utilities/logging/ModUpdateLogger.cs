@@ -599,20 +599,39 @@ namespace ModHearth.Utilities.Logging
         }
 
         private static Dictionary<string, ModUpdateSnapshotEntry> LoadSnapshot()
+            => LoadSnapshotMap<ModUpdateSnapshotEntry, ModUpdateSnapshotEntry>(
+                SnapshotPath, entry => entry.ModId, entry => entry);
+
+        private static void SaveSnapshot(Dictionary<string, ModUpdateSnapshotEntry> snapshot)
+            => SaveSnapshotFile(SnapshotPath, snapshot.Values);
+
+        /// <summary>
+        /// Shared loader for the two mod-update snapshot files: JSON list in, case-insensitive map out.
+        /// </summary>
+        private static Dictionary<string, TValue> LoadSnapshotMap<TEntry, TValue>(
+            string path,
+            Func<TEntry, string> keySelector,
+            Func<TEntry, TValue> valueSelector)
         {
-            Dictionary<string, ModUpdateSnapshotEntry> map = new(StringComparer.OrdinalIgnoreCase);
-            if (!JsonFileStore.TryLoad(SnapshotPath, "ModUpdateLog", out List<ModUpdateSnapshotEntry>? entries))
+            Dictionary<string, TValue> map = new(StringComparer.OrdinalIgnoreCase);
+            if (!JsonFileStore.TryLoad(path, "ModUpdateLog", out List<TEntry>? entries))
                 return map;
-            foreach (ModUpdateSnapshotEntry entry in entries)
+
+            foreach (TEntry entry in entries)
             {
-                if (entry != null && !string.IsNullOrWhiteSpace(entry.ModId))
-                    _ = map.TryAdd(entry.ModId, entry);
+                if (entry is null)
+                    continue;
+
+                string key = keySelector(entry);
+                if (!string.IsNullOrWhiteSpace(key))
+                    _ = map.TryAdd(key, valueSelector(entry));
             }
+
             return map;
         }
 
-        private static void SaveSnapshot(Dictionary<string, ModUpdateSnapshotEntry> snapshot)
-            => _ = JsonFileStore.TrySave(SnapshotPath, snapshot.Values.ToList(), "ModUpdateLog");
+        private static void SaveSnapshotFile<TEntry>(string path, IEnumerable<TEntry> entries)
+            => _ = JsonFileStore.TrySave(path, entries.ToList(), "ModUpdateLog");
 
         private static void AppendEntries(IEnumerable<ModUpdateLogEntry> newEntries)
         {
@@ -772,7 +791,7 @@ namespace ModHearth.Utilities.Logging
                 {
                     string content = File.ReadAllText(path);
                     Dictionary<string, object> root = SteamAcfKeyValueParser.Parse(content);
-                    if (!root.TryGetValue("AppWorkshop", out object? appObj) || appObj is not Dictionary<string, object> appDict)
+                    if (!SteamAcfKeyValueParser.TryGetAppWorkshop(root, out Dictionary<string, object>? appDict))
                         continue;
 
                     MergeWorkshopSection(appDict, "WorkshopItemsInstalled", updates);
@@ -792,11 +811,8 @@ namespace ModHearth.Utilities.Logging
             string sectionName,
             Dictionary<string, long> updates)
         {
-            if (!appDict.TryGetValue(sectionName, out object? sectionObj) ||
-                sectionObj is not Dictionary<string, object> sectionDict)
-            {
+            if (!SteamAcfKeyValueParser.TryGetSection(appDict, sectionName, out Dictionary<string, object>? sectionDict))
                 return;
-            }
 
             foreach (KeyValuePair<string, object> kvp in sectionDict)
             {
@@ -836,22 +852,12 @@ namespace ModHearth.Utilities.Logging
         }
 
         private static Dictionary<string, long> LoadWorkshopSnapshot()
-        {
-            Dictionary<string, long> map = new(StringComparer.OrdinalIgnoreCase);
-            if (!JsonFileStore.TryLoad(WorkshopSnapshotPath, "ModUpdateLog", out List<SteamWorkshopSnapshotEntry>? entries))
-                return map;
-            foreach (SteamWorkshopSnapshotEntry entry in entries)
-            {
-                if (entry != null && !string.IsNullOrWhiteSpace(entry.SteamId))
-                    _ = map.TryAdd(entry.SteamId, entry.TimeUpdated);
-            }
-            return map;
-        }
+            => LoadSnapshotMap<SteamWorkshopSnapshotEntry, long>(
+                WorkshopSnapshotPath, entry => entry.SteamId, entry => entry.TimeUpdated);
 
         private static void SaveWorkshopSnapshot(Dictionary<string, long> snapshot)
-            => _ = JsonFileStore.TrySave(WorkshopSnapshotPath,
-                snapshot.Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value }).ToList(),
-                "ModUpdateLog");
+            => SaveSnapshotFile(WorkshopSnapshotPath,
+                snapshot.Select(kv => new SteamWorkshopSnapshotEntry { SteamId = kv.Key, TimeUpdated = kv.Value }));
 
         private static DateTime? TryConvertUnixTime(long seconds)
         {

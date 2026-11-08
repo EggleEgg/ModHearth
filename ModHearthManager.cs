@@ -863,25 +863,23 @@ namespace ModHearth
             });
 
             // Sequential merge. Preserves "first occurrence wins" for duplicates, same as before.
-            Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
-            HashSet<DfhMod> newModPool = [];
+            ModCatalogBuilder catalog = new();
 
             // Real source folders first, so a cache copy can never shadow them or be reported as a
             // duplicate; then cache-only mods as a low-priority fallback.
             foreach (ModReference? modRef in results)
             {
                 if (modRef is { IsIgnored: false })
-                    _ = TryAddScannedModReference(modRef, newModrefMap, newDuplicateModRefs, newModPool);
+                    _ = catalog.TryAddScanned(modRef);
             }
 
             foreach (ModReference? modRef in results)
             {
                 if (modRef is { IsIgnored: true })
-                    _ = TryAddCacheModReference(modRef, newModrefMap, newModPool);
+                    _ = catalog.TryAddCache(modRef);
             }
 
-            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs, sourceContext);
+            catalog.Publish(this, sourceContext);
         }
 
         /// <summary>
@@ -914,9 +912,7 @@ namespace ModHearth
                 results[i] = TryBuildModReferenceFromDirectory(candidates[i].Dir, sourceContext);
             });
 
-            Dictionary<string, ModReference> newModrefMap = new(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, List<ModReference>> newDuplicateModRefs = new(StringComparer.OrdinalIgnoreCase);
-            HashSet<DfhMod> newModPool = [];
+            ModCatalogBuilder catalog = new();
 
             string? currentRoot = null;
             int candidateCount = 0;
@@ -928,7 +924,7 @@ namespace ModHearth
             void FlushRootDiagnostics()
             {
                 if (currentRoot != null)
-                    Loggers.Diag.Log($"Disk mod scan root: '{NormalizeFileSystemPath(currentRoot)}' candidates: {candidateCount}, added: {addedCount}, duplicates: {duplicateCount}, cache-only: {cacheCount}, total registered: {newModrefMap.Count}.");
+                    Loggers.Diag.Log($"Disk mod scan root: '{NormalizeFileSystemPath(currentRoot)}' candidates: {candidateCount}, added: {addedCount}, duplicates: {duplicateCount}, cache-only: {cacheCount}, total registered: {catalog.ModrefMap.Count}.");
             }
 
             for (int i = 0; i < candidates.Count; i++)
@@ -958,7 +954,7 @@ namespace ModHearth
                     continue;
                 }
 
-                if (TryAddScannedModReference(modRef, newModrefMap, newDuplicateModRefs, newModPool))
+                if (catalog.TryAddScanned(modRef))
                     addedCount++;
                 else
                     duplicateCount++;
@@ -969,16 +965,16 @@ namespace ModHearth
             int registeredFromCache = 0;
             foreach (ModReference cacheRef in cacheOnlyRefs)
             {
-                if (TryAddCacheModReference(cacheRef, newModrefMap, newModPool))
+                if (catalog.TryAddCache(cacheRef))
                     registeredFromCache++;
             }
 
             if (registeredFromCache > 0)
                 Loggers.Diag.Log($"Registered {registeredFromCache} cache-only mod(s) from the installed_mods fallback.");
 
-            PublishModCatalog(newModrefMap, newModPool, newDuplicateModRefs, sourceContext);
+            catalog.Publish(this, sourceContext);
 
-            Loggers.Diag.Log($"Disk mod scan completed. Total registered mods: {newModrefMap.Count}.");
+            Loggers.Diag.Log($"Disk mod scan completed. Total registered mods: {catalog.ModrefMap.Count}.");
         }
 
         // Parallel safe
@@ -1001,6 +997,26 @@ namespace ModHearth
             // Keep installed_mods refs; the merge phase registers them as a low-priority fallback.
             _ = ModSourceClassifier.Classify(modRef, sourceContext);
             return modRef;
+        }
+
+        /// <summary>
+        /// Accumulates one scan's catalog collections and applies the shared merge rules (canonical
+        /// sources first, then installed_mods cache fallbacks) before publishing the snapshot.
+        /// </summary>
+        private sealed class ModCatalogBuilder
+        {
+            public Dictionary<string, ModReference> ModrefMap { get; } = new(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, List<ModReference>> DuplicateModRefs { get; } = new(StringComparer.OrdinalIgnoreCase);
+            public HashSet<DfhMod> ModPool { get; } = [];
+
+            public bool TryAddScanned(ModReference modRef)
+                => TryAddScannedModReference(modRef, ModrefMap, DuplicateModRefs, ModPool);
+
+            public bool TryAddCache(ModReference modRef)
+                => TryAddCacheModReference(modRef, ModrefMap, ModPool);
+
+            public void Publish(ModHearthManager owner, ModSourceContext sourceContext)
+                => owner.PublishModCatalog(ModrefMap, ModPool, DuplicateModRefs, sourceContext);
         }
 
         /// <summary>

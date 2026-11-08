@@ -90,7 +90,8 @@ namespace ModHearth
         // True if adding fromId -> toId would create a cycle given the edges already in the graph (i.e. toId can already reach fromId). This is
         // what makes tiered priority work: since tiers are added in priority order, a lower-priority edge that contradicts a higher-priority one
         // always fails this check and gets dropped, never the reverse.
-        internal static bool WouldCreateCycle(Dictionary<string, List<string>> edges, string fromId, string toId)
+        internal static bool WouldCreateCycle<TEdges>(IReadOnlyDictionary<string, TEdges> edges, string fromId, string toId)
+            where TEdges : IEnumerable<string>
         {
             if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -111,38 +112,7 @@ namespace ModHearth
                 if (string.Equals(current, fromId, StringComparison.OrdinalIgnoreCase))
                     return true;
 
-                if (edges.TryGetValue(current, out List<string>? destinations))
-                {
-                    foreach (string dest in destinations)
-                        stack.Push(dest);
-                }
-            }
-
-            return false;
-        }
-
-        internal static bool WouldCreateCycle(Dictionary<string, HashSet<string>> edges, string fromId, string toId)
-        {
-            if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            if (!edges.ContainsKey(toId))
-                return false;
-
-            HashSet<string> visited = new(StringComparer.OrdinalIgnoreCase);
-            Stack<string> stack = new();
-            stack.Push(toId);
-
-            while (stack.Count > 0)
-            {
-                string current = stack.Pop();
-                if (!visited.Add(current))
-                    continue;
-
-                if (string.Equals(current, fromId, StringComparison.OrdinalIgnoreCase))
-                    return true;
-
-                if (edges.TryGetValue(current, out HashSet<string>? destinations))
+                if (edges.TryGetValue(current, out TEdges? destinations) && destinations != null)
                 {
                     foreach (string dest in destinations)
                         stack.Push(dest);

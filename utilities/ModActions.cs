@@ -96,23 +96,8 @@ namespace ModHearth
         {
             using (BeginDeletionBatch())
             {
-                List<string> failures = [];
-                Dictionary<string, ModReference> steamModRefs = ResolveUniqueSteamWorkshopItemIds(mods, failures);
-
-                List<string> steamItemIds = [.. steamModRefs.Keys];
-                if (steamItemIds.Count == 0)
+                if (!TryPrepareSteamBatch(mods, "unsubscribe", out List<string> failures, out Dictionary<string, ModReference> steamModRefs, out List<string> steamItemIds))
                     return failures;
-
-                if (!TryEnsureSteamSession(failures))
-                    return failures;
-
-                if (!SteamWorkshopService.IsAvailable)
-                {
-                    failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
-                    return failures;
-                }
-
-                Loggers.Steam.Log($"Steam unsubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
                 ConcurrentBag<string> failureBag = [];
                 ConcurrentBag<ulong> successBag = [];
@@ -174,8 +159,6 @@ namespace ModHearth
                 failures.AddRange(failureBag);
                 List<ulong> successfullyUnsubscribedIds = [.. successBag];
 
-                Loggers.Steam.Log($"Steam unsubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
-
                 if (successfullyUnsubscribedIds.Count > 0)
                 {
                     SteamManifestAuditor.MarkAsUnsubscribed(successfullyUnsubscribedIds);
@@ -196,37 +179,14 @@ namespace ModHearth
                     }
                 }
 
-                if (failures.Count == 0)
-                {
-                    // Reload mod manager if all unsubscriptions and deletions were successful
-                    _ = TryRequestModManagerReload(out _, out _);
-                    TriggerUIReload();
-                }
-
-                ShowNotification($"Unsubscribed {steamItemIds.Count} workshop items. {failures.Count} failure(s).", "steamRemoveIcon.svg");
-                return failures;
+                return CompleteSteamBatch("unsubscribe", "Unsubscribed", "steamRemoveIcon.svg", steamItemIds.Count, failures);
             }
         }
 
         public List<string> RedownloadSteamMods(IEnumerable<ModReference>? mods)
         {
-            List<string> failures = [];
-            Dictionary<string, ModReference> steamModRefs = ResolveUniqueSteamWorkshopItemIds(mods, failures);
-
-            List<string> steamItemIds = [.. steamModRefs.Keys];
-            if (steamItemIds.Count == 0)
+            if (!TryPrepareSteamBatch(mods, "resubscribe", out List<string> failures, out Dictionary<string, ModReference> steamModRefs, out List<string> steamItemIds))
                 return failures;
-
-            if (!TryEnsureSteamSession(failures))
-                return failures;
-
-            if (!SteamWorkshopService.IsAvailable)
-            {
-                failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
-                return failures;
-            }
-
-            Loggers.Steam.Log($"Steam resubscribe started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
 
             List<ulong> workshopIds = [];
             foreach (string steamItemId in steamItemIds)
@@ -270,8 +230,6 @@ namespace ModHearth
                 _ = DownloadSteamItemsWithProgress(workshopIds, failures);
             }
 
-            Loggers.Steam.Log($"Steam resubscribe completed for {steamItemIds.Count} workshop item(s) with {failures.Count} failure(s).");
-
             if (failures.Count == 0)
             {
                 List<ModReference> successfullyRedownloadedMods = [.. steamModRefs.Values];
@@ -280,14 +238,63 @@ namespace ModHearth
                     HashSet<string> activeIds = new(enabledMods.Select(m => m.Id), StringComparer.OrdinalIgnoreCase);
                     ModUpdateLogger.LogRedownload(successfullyRedownloadedMods, activeIds);
                 }
+            }
 
-                // Reload mod manager if all redownloads were successful
+            return CompleteSteamBatch("resubscribe", "Resubscribed", "steamReloadIcon.svg", steamItemIds.Count, failures);
+        }
+
+        /// <summary>
+        /// Resolves the requested mods to unique workshop ids and verifies that Steam is ready. Logs the
+        /// batch start on success. Returns false (with <paramref name="failures"/> populated) when there is
+        /// nothing to do or Steam is unavailable.
+        /// </summary>
+        private static bool TryPrepareSteamBatch(
+            IEnumerable<ModReference>? mods,
+            string verb,
+            out List<string> failures,
+            out Dictionary<string, ModReference> steamModRefs,
+            out List<string> steamItemIds)
+        {
+            failures = [];
+            steamModRefs = ResolveUniqueSteamWorkshopItemIds(mods, failures);
+            steamItemIds = [.. steamModRefs.Keys];
+
+            if (steamItemIds.Count == 0)
+                return false;
+
+            if (!TryEnsureSteamSession(failures))
+                return false;
+
+            if (!SteamWorkshopService.IsAvailable)
+            {
+                failures.Add("Steamworks API could not be initialized. Ensure Steam is running.");
+                return false;
+            }
+
+            Loggers.Steam.Log($"Steam {verb} started for {steamItemIds.Count} workshop item(s): {string.Join(", ", steamItemIds)}.");
+            return true;
+        }
+
+        /// <summary>
+        /// Logs batch completion, triggers the shared reload when nothing failed, and shows the result
+        /// notification. Returns <paramref name="failures"/> for the caller to hand back.
+        /// </summary>
+        private List<string> CompleteSteamBatch(
+            string logVerb,
+            string notificationVerb,
+            string icon,
+            int itemCount,
+            List<string> failures)
+        {
+            Loggers.Steam.Log($"Steam {logVerb} completed for {itemCount} workshop item(s) with {failures.Count} failure(s).");
+
+            if (failures.Count == 0)
+            {
                 _ = TryRequestModManagerReload(out _, out _);
                 TriggerUIReload();
             }
 
-            ShowNotification($"Resubscribed {steamItemIds.Count} workshop items. {failures.Count} failure(s).", "steamReloadIcon.svg");
-
+            ShowNotification($"{notificationVerb} {itemCount} workshop items. {failures.Count} failure(s).", icon);
             return failures;
         }
 

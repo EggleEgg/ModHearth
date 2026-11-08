@@ -70,11 +70,8 @@ namespace ModHearth.UI.ViewModels
             get => problemTier;
             set
             {
-                if (problemTier == value)
-                    return;
-                problemTier = value;
-                OnPropertyChanged();
-                OnProblemSeverityChanged();
+                if (SetField(ref problemTier, value))
+                    OnProblemSeverityChanged();
             }
         }
 
@@ -88,11 +85,8 @@ namespace ModHearth.UI.ViewModels
             get => duplicateWarningTier;
             set
             {
-                if (duplicateWarningTier == value)
-                    return;
-                duplicateWarningTier = value;
-                OnPropertyChanged();
-                OnProblemSeverityChanged();
+                if (SetField(ref duplicateWarningTier, value))
+                    OnProblemSeverityChanged();
             }
         }
 
@@ -112,11 +106,8 @@ namespace ModHearth.UI.ViewModels
             get => isDuplicateWarning;
             set
             {
-                if (isDuplicateWarning == value)
-                    return;
-                isDuplicateWarning = value;
-                RefreshTextStyle();
-                OnPropertyChanged();
+                if (SetField(ref isDuplicateWarning, value))
+                    RefreshTextStyle();
             }
         }
 
@@ -125,36 +116,21 @@ namespace ModHearth.UI.ViewModels
             get => isFilteredOut;
             set
             {
-                if (isFilteredOut == value)
-                    return;
-                isFilteredOut = value;
-                RefreshTextStyle();
-                OnPropertyChanged();
+                if (SetField(ref isFilteredOut, value))
+                    RefreshTextStyle();
             }
         }
 
         public bool IsVisible
         {
             get => isVisible;
-            set
-            {
-                if (isVisible == value)
-                    return;
-                isVisible = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isVisible, value);
         }
 
         public bool IsCached
         {
             get => isCached;
-            set
-            {
-                if (isCached == value)
-                    return;
-                isCached = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isCached, value);
         }
 
         public bool IsSelected
@@ -162,11 +138,8 @@ namespace ModHearth.UI.ViewModels
             get => isSelected;
             set
             {
-                if (isSelected == value)
-                    return;
-                isSelected = value;
-                RefreshBackground();
-                OnPropertyChanged();
+                if (SetField(ref isSelected, value))
+                    RefreshBackground();
             }
         }
 
@@ -175,11 +148,8 @@ namespace ModHearth.UI.ViewModels
             get => isJumpHighlighted;
             set
             {
-                if (isJumpHighlighted == value)
-                    return;
-                isJumpHighlighted = value;
-                RefreshBackground();
-                OnPropertyChanged();
+                if (SetField(ref isJumpHighlighted, value))
+                    RefreshBackground();
             }
         }
 
@@ -188,96 +158,51 @@ namespace ModHearth.UI.ViewModels
             get => isDragging;
             set
             {
-                if (isDragging == value)
-                    return;
-                isDragging = value;
-                RefreshBackground();
-                OnPropertyChanged();
+                if (SetField(ref isDragging, value))
+                    RefreshBackground();
             }
         }
 
         public bool IsLocalModSource
         {
             get => isLocalModSource;
-            set
-            {
-                if (isLocalModSource == value)
-                    return;
-                isLocalModSource = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isLocalModSource, value);
         }
 
         public bool IsVanillaModSource
         {
             get => isVanillaModSource;
-            set
-            {
-                if (isVanillaModSource == value)
-                    return;
-                isVanillaModSource = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isVanillaModSource, value);
         }
 
         public bool IsSteamModSource
         {
             get => isSteamModSource;
-            set
-            {
-                if (isSteamModSource == value)
-                    return;
-                isSteamModSource = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isSteamModSource, value);
         }
 
         public bool IsSteamLocalModSource
         {
             get => isSteamLocalModSource;
-            set
-            {
-                if (isSteamLocalModSource == value)
-                    return;
-                isSteamLocalModSource = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref isSteamLocalModSource, value);
         }
 
         public bool ShowDropAbove
         {
             get => showDropAbove;
-            set
-            {
-                if (showDropAbove == value)
-                    return;
-                showDropAbove = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref showDropAbove, value);
         }
 
         public bool ShowDropBelow
         {
             get => showDropBelow;
-            set
-            {
-                if (showDropBelow == value)
-                    return;
-                showDropBelow = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref showDropBelow, value);
         }
 
         public IBrush BackgroundBrush
         {
             get => backgroundBrush;
-            private set
-            {
-                if (Equals(backgroundBrush, value))
-                    return;
-                backgroundBrush = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref backgroundBrush, value);
         }
 
         // Filter icons are tinted per text color; a handful of theme colors is all we should ever hold.
@@ -306,13 +231,7 @@ namespace ModHearth.UI.ViewModels
         public IBrush TextBrush
         {
             get => textBrush;
-            private set
-            {
-                if (Equals(textBrush, value))
-                    return;
-                textBrush = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref textBrush, value);
         }
 
         /// <summary>
@@ -322,49 +241,25 @@ namespace ModHearth.UI.ViewModels
         public IBrush IssueBrush
         {
             get => issueBrush;
-            private set
-            {
-                if (Equals(issueBrush, value))
-                    return;
-                issueBrush = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref issueBrush, value);
         }
 
         public IBrush CacheBarBrush
         {
             get => cacheBarBrush;
-            private set
-            {
-                if (Equals(cacheBarBrush, value))
-                    return;
-                cacheBarBrush = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref cacheBarBrush, value);
         }
 
         public IBrush DropHighlightBrush
         {
             get => dropHighlightBrush;
-            private set
-            {
-                if (Equals(dropHighlightBrush, value))
-                    return;
-                dropHighlightBrush = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref dropHighlightBrush, value);
         }
 
         public TextDecorationCollection? TextDecorations
         {
             get => textDecorations;
-            private set
-            {
-                if (Equals(textDecorations, value))
-                    return;
-                textDecorations = value;
-                OnPropertyChanged();
-            }
+            private set => SetField(ref textDecorations, value);
         }
 
         public string? ProblemTooltip
@@ -372,11 +267,8 @@ namespace ModHearth.UI.ViewModels
             get => problemTooltip;
             set
             {
-                if (problemTooltip == value)
-                    return;
-                problemTooltip = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(HoverTooltip));
+                if (SetField(ref problemTooltip, value))
+                    OnPropertyChanged(nameof(HoverTooltip));
             }
         }
 
@@ -385,11 +277,8 @@ namespace ModHearth.UI.ViewModels
             get => duplicateWarningTooltip;
             set
             {
-                if (duplicateWarningTooltip == value)
-                    return;
-                duplicateWarningTooltip = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(HoverTooltip));
+                if (SetField(ref duplicateWarningTooltip, value))
+                    OnPropertyChanged(nameof(HoverTooltip));
             }
         }
 
@@ -408,24 +297,15 @@ namespace ModHearth.UI.ViewModels
         public string? RuleBadgesTooltip
         {
             get => ruleBadgesTooltip;
-            set
-            {
-                if (ruleBadgesTooltip == value)
-                    return;
-                ruleBadgesTooltip = value;
-                OnPropertyChanged();
-            }
+            set => SetField(ref ruleBadgesTooltip, value);
         }
         public IEnumerable<RuleBadgeInfo> RuleBadges
         {
             get => ruleBadges;
             set
             {
-                if (ruleBadges == value)
-                    return;
-                ruleBadges = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(HasRuleBadges));
+                if (SetField(ref ruleBadges, value))
+                    OnPropertyChanged(nameof(HasRuleBadges));
             }
         }
         public bool HasRuleBadges => RuleBadges.Any();
@@ -441,11 +321,8 @@ namespace ModHearth.UI.ViewModels
             get => relationshipCount;
             set
             {
-                if (relationshipCount == value)
-                    return;
-                relationshipCount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(HasRelationships));
+                if (SetField(ref relationshipCount, value))
+                    OnPropertyChanged(nameof(HasRelationships));
             }
         }
 
@@ -454,11 +331,8 @@ namespace ModHearth.UI.ViewModels
             get => beforeCount;
             set
             {
-                if (beforeCount == value)
-                    return;
-                beforeCount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(RelationshipTooltipText));
+                if (SetField(ref beforeCount, value))
+                    OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
 
@@ -467,11 +341,8 @@ namespace ModHearth.UI.ViewModels
             get => afterCount;
             set
             {
-                if (afterCount == value)
-                    return;
-                afterCount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(RelationshipTooltipText));
+                if (SetField(ref afterCount, value))
+                    OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
 
@@ -480,11 +351,8 @@ namespace ModHearth.UI.ViewModels
             get => requiredCount;
             set
             {
-                if (requiredCount == value)
-                    return;
-                requiredCount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(RelationshipTooltipText));
+                if (SetField(ref requiredCount, value))
+                    OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
 
@@ -493,11 +361,8 @@ namespace ModHearth.UI.ViewModels
             get => incompatibleCount;
             set
             {
-                if (incompatibleCount == value)
-                    return;
-                incompatibleCount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(RelationshipTooltipText));
+                if (SetField(ref incompatibleCount, value))
+                    OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
 
@@ -720,12 +585,11 @@ namespace ModHearth.UI.ViewModels
             get => colorUnderlayBrush;
             set
             {
-                if (Equals(colorUnderlayBrush, value))
-                    return;
-                colorUnderlayBrush = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(HasColorUnderlay));
-                Loggers.Diag.Dev($"changed color {HasColorUnderlay}");
+                if (SetField(ref colorUnderlayBrush, value))
+                {
+                    OnPropertyChanged(nameof(HasColorUnderlay));
+                    Loggers.Diag.Dev($"changed color {HasColorUnderlay}");
+                }
             }
         }
         public bool HasColorUnderlay => ColorUnderlayBrush != null;
