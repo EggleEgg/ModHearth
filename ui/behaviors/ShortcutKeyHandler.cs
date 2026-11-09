@@ -28,15 +28,13 @@ namespace ModHearth.UI.Behaviors
 
         public void Attach(InputElement element)
         {
-            if (element == null)
-                throw new ArgumentNullException(nameof(element));
+            ArgumentNullException.ThrowIfNull(element);
             element.AddHandler(InputElement.KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         }
 
         public void Detach(InputElement element)
         {
-            if (element == null)
-                throw new ArgumentNullException(nameof(element));
+            ArgumentNullException.ThrowIfNull(element);
             element.RemoveHandler(InputElement.KeyDownEvent, OnKeyDown);
         }
 

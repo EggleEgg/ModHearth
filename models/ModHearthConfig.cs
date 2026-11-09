@@ -43,13 +43,15 @@ namespace ModHearth.Models
         public string InstalledModsPath { get; set; } = string.Empty;
 
         // Should this be in lightmode?
-        public int theme { get; set; } //TODO Fix naming rule
+        [System.Text.Json.Serialization.JsonPropertyName("theme")]
+        public int Theme { get; set; } //TODO Fix naming rule
 
         // Auto-reload interval for modlists in seconds. -1 means disabled by checkbox.
         public int AutoReloadIntervalSeconds { get; set; } = -1;
 
         // Hide console logs on startup. This setting does nothing on Linux
-        public bool showConsole { get; set; } = true; //TODO Fix naming rule
+        [System.Text.Json.Serialization.JsonPropertyName("showConsole")]
+        public bool ShowConsole { get; set; } = true; //TODO Fix naming rule
 
         // Path to the DFHack folder (e.g., etc/steamapps/common/DFHack).
         public string DFHackFolderPath { get; set; } = string.Empty;

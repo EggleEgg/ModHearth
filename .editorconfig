@@ -2,7 +2,6 @@
 indent_style = space
 indent_size = 4
 trim_trailing_whitespace = true
-insert_final_newline = true
 charset = utf-8
 end_of_line = lf
 
@@ -61,6 +60,7 @@ dotnet_diagnostic.SYSLIB1014.severity = warning
 dotnet_diagnostic.SYSLIB1015.severity = warning
 
 dotnet_diagnostic.CA2000.severity = warning
+dotnet_diagnostic.CA1051.severity = none
 
 
 

@@ -59,7 +59,9 @@ namespace ModHearth.UI.Theme
     {
         // Only ever set explicitly, from ConfigManager.LoadStyle, once the object is fully populated and validated via IsComplete(). volatile ensures a
         // thread reading this after a theme swap on another thread sees the new reference promptly rather than a cached stale one.
+#pragma warning disable CA2211
         public static volatile Style? instance;
+#pragma warning restore CA2211
 
         private static readonly PropertyInfo[] RequiredColorProperties = [.. typeof(Style)
             .GetProperties(BindingFlags.Instance | BindingFlags.Public)

@@ -1,6 +1,7 @@
 using ModHearth.Utilities;
+using ModHearth.Utilities.Logging;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Windows.MainWindow
 {
     /// <summary>
     /// Provides content for MainWindow default description, extracted from the README.md file.

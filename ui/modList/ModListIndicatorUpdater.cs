@@ -166,12 +166,12 @@ namespace ModHearth.UI.ModList
             if (hasErrorLog)
             {
                 string errorLogPath = ConfigManager.GetErrorLogPath() ?? "errorlog.txt";
-                _ = builder.Append($"Duplicate raw definitions ({errorLogPath}):");
+                _ = builder.Append("Duplicate raw definitions (").Append(errorLogPath).Append("):");
             }
             else if (hasCache)
             {
                 string cachePath = ModRawDependencyCacheStore.trimmedCachePath ?? "mod_raw_dependency_cache.json";
-                _ = builder.Append($"Potential duplicate raw definitions ({cachePath}):");
+                _ = builder.Append("Potential duplicate raw definitions (").Append(cachePath).Append("):");
             }
 
             _ = builder.AppendLine().AppendLine();

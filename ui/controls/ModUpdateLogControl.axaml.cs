@@ -17,7 +17,7 @@ using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
-    public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, IModRefContextMenuProvider
+    public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, IModRefContextMenuProvider, IDisposable
     {
         private readonly ModHearthManager? manager;
         private readonly List<ModUpdateLogItemViewModel> allEntries = [];
@@ -375,6 +375,27 @@ namespace ModHearth.UI
         }
 
         private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                loadGate?.Dispose();
+            }
+
+            _disposed = true;
+        }
 
     }
 }

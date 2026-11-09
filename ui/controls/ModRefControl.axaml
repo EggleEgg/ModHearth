@@ -2,6 +2,7 @@
 
 <UserControl
   xmlns="https://github.com/avaloniaui"
+  xmlns:converters="using:ModHearth.UI.Converters"
   xmlns:modlist="using:ModHearth.UI.ModList"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:ui="clr-namespace:ModHearth.UI"
@@ -14,9 +15,9 @@
   MinHeight="20">
 
   <UserControl.Resources>
-    <ui:BoolToTextConverter x:Key="SteamTextConverter" TrueValue="Open URL in steam" FalseValue="Open URL in browser" />
-    <ui:BoolToTextConverter x:Key="FolderTextConverter" TrueValue="Open Steam Folder" FalseValue="Open Local Folder" />
-    <ui:BoolToTextConverter x:Key="IdTextConverter" TrueValue="Copy Steam File ID" FalseValue="Copy Mod ID" />
+    <converters:BoolToTextConverter x:Key="SteamTextConverter" TrueValue="Open URL in steam" FalseValue="Open URL in browser" />
+    <converters:BoolToTextConverter x:Key="FolderTextConverter" TrueValue="Open Steam Folder" FalseValue="Open Local Folder" />
+    <converters:BoolToTextConverter x:Key="IdTextConverter" TrueValue="Copy Steam File ID" FalseValue="Copy Mod ID" />
   </UserControl.Resources>
 
   <UserControl.ContextMenu>

@@ -1,3 +1,5 @@
+using ModHearth.Utilities.Logging;
+
 namespace ModHearth.Utilities
 {
     /// <summary>
@@ -172,8 +174,14 @@ namespace ModHearth.Utilities
 
             foreach ((TKey key, TValue value) in removed)
             {
-                try { onRemoved(key, value); }
-                catch (Exception ex) { AppLogging.LogException("BoundedLruCache removal callback failed", ex); }
+                try
+                {
+                    onRemoved(key, value);
+                }
+                catch (Exception ex)
+                {
+                    AppLogging.LogException("BoundedLruCache removal callback failed", ex);
+                }
             }
         }
     }

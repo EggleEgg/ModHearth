@@ -1,132 +1,136 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <ApplicationIcon>resources\\modhearth_icon_v2.ico</ApplicationIcon>
-    <IsPublishing>true</IsPublishing>
-    <PublishDir>artifacts\\$(RuntimeIdentifier)\\</PublishDir>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <ApplicationIcon>resources\\modhearth_icon_v2.ico</ApplicationIcon>
+        <IsPublishing>true</IsPublishing>
+        <PublishDir>artifacts\\$(RuntimeIdentifier)\\</PublishDir>
 
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <DebugType>embedded</DebugType>
+        <NoWarn>$(NoWarn);EnableGenerateDocumentationFile</NoWarn>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <DebugType>embedded</DebugType>
 
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
 
-    <!-- Not worth the hassle -->
-    <PublishTrimmed>false</PublishTrimmed>
-    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
-  </PropertyGroup>
+        <!-- Not worth the hassle -->
+        <PublishTrimmed>false</PublishTrimmed>
+        <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    </PropertyGroup>
 
-  <PropertyGroup>
-    <!-- Always use the latest analyzer rules shipped with the SDK -->
-    <AnalysisLevel>latest</AnalysisLevel>
+    <PropertyGroup>
+        <!-- Always use the latest analyzer rules shipped with the SDK -->
+        <AnalysisLevel>latest</AnalysisLevel>
 
-    <!-- Choose how aggressive the default analyzer set should be (e.g., Recommended or All) -->
-    <AnalysisMode>Recommended</AnalysisMode>
+        <!-- Choose how aggressive the default analyzer set should be (e.g., Recommended or All) -->
+        <AnalysisMode>Recommended</AnalysisMode>
 
-    <!-- Enforce strict nullability to prevent NullReferenceExceptions at compile time -->
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+        <!-- 3. Enforce code-style rules (IDEXXXX) as build diagnostics, not just IDE warnings -->
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
-  <ItemGroup>
-    <Compile Remove="ModHearth.App.Tests\\**\\*.cs" />
-    <Compile Remove="ModHearth.SteamWorker\\**\\*.cs" />
-  </ItemGroup>
+        <!-- Enforce strict nullability to prevent NullReferenceExceptions at compile time -->
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.0.5" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
-    <PackageReference Include="Dock.Controls.DeferredContentControl" Version="12.0.0.2" />
-    <PackageReference Include="Dock.Model.Mvvm" Version="12.0.0.2" />
-    <PackageReference Include="SkiaSharp" Version="4.150.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.150.0" />
-    <PackageReference Include="Dock.Avalonia" Version="12.0.0.2" />
-    <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.0.0.2" />
-    <PackageReference Include="Dock.Model.Avalonia" Version="12.0.0.2" />
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
-    <PackageReference Include="Avalonia.HtmlRenderer" Version="12.0.0" />
-    <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.13" />
-    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
-
-    <PackageReference Include="CodeKicker.BBCode" Version="5.0.0">
-      <NoWarn>NU1701</NoWarn>
-    </PackageReference>
-
-    <ProjectReference Include="ModHearth.SteamWorker\ModHearth.SteamWorker.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>ModHearth.App.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
-
-  <ItemGroup>
-    <AvaloniaResource Include="resources\\**" />
-    <AvaloniaResource Include="resources\\modhearth_icon_v2.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="styles\\style.light.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <None Update="styles\\style.dark.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <None Update="config.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <None Update="steam_appid.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <None Update="README.md">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <!-- Unsafe for embedding due to how dfhack works -->
-    <None Update="lua\\GetModMemoryData.lua">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <None Update="lua\\ReloadModManager.lua">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <!-- Icon is embedded as AvaloniaResource; no need to copy to output/publish. -->
-  </ItemGroup>
-
-  <Target Name="CleanOutputDirectories" AfterTargets="Clean">
-    <Delete Files="$(OutputPath)config.json" />
-    <Delete Files="$(IntermediateOutputPath)config.json" />
     <ItemGroup>
-      <OutputSubDirs Include="$(OutputPath)*" />
-      <IntermediateSubDirs Include="$(IntermediateOutputPath)*" />
+        <Compile Remove="ModHearth.App.Tests\\**\\*.cs" />
+        <Compile Remove="ModHearth.SteamWorker\\**\\*.cs" />
     </ItemGroup>
-    <RemoveDir Directories="@(OutputSubDirs)" />
-    <RemoveDir Directories="@(IntermediateSubDirs)" />
-  </Target>
 
-  <Target Name="ChmodExecutable" AfterTargets="Publish" Condition="'$(OS)' != 'Windows_NT'">
-    <Exec Command="chmod +x &quot;$(PublishDir)$(AssemblyName)&quot;" />
-  </Target>
-
-  <Target Name="RemoveExtraArtifacts" AfterTargets="Build;Publish">
     <ItemGroup>
-      <ExtraArtifacts Include="$(OutputPath)*SkiaSharp*.pdb;$(OutputPath)*HarfBuzzSharp*.pdb" />
-      <ExtraArtifacts Include="$(PublishDir)*SkiaSharp*.pdb;$(PublishDir)*HarfBuzzSharp*.pdb" />
-      <ExtraArtifacts
-        Include="$(PublishDir)ModHearth.SteamWorker.runtimeconfig.json;$(PublishDir)ModHearth.SteamWorker.deps.json" />
+        <PackageReference Include="Avalonia" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+        <PackageReference Include="Dock.Controls.DeferredContentControl" Version="12.0.0.2" />
+        <PackageReference Include="Dock.Model.Mvvm" Version="12.0.0.2" />
+        <PackageReference Include="SkiaSharp" Version="4.150.0" />
+        <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.150.0" />
+        <PackageReference Include="Dock.Avalonia" Version="12.0.0.2" />
+        <PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.0.0.2" />
+        <PackageReference Include="Dock.Model.Avalonia" Version="12.0.0.2" />
+        <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.1" />
+        <PackageReference Include="Avalonia.HtmlRenderer" Version="12.0.0" />
+        <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.13" />
+        <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
+
+        <PackageReference Include="CodeKicker.BBCode" Version="5.0.0">
+            <NoWarn>NU1701</NoWarn>
+        </PackageReference>
+
+        <ProjectReference Include="ModHearth.SteamWorker\ModHearth.SteamWorker.csproj" />
     </ItemGroup>
-    <Delete Files="@(ExtraArtifacts)" />
-  </Target>
+
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>ModHearth.App.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="resources\\**" />
+        <AvaloniaResource Include="resources\\modhearth_icon_v2.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="styles\\style.light.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+        <None Update="styles\\style.dark.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+        <None Update="config.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+        <None Update="steam_appid.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+        <None Update="README.md">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+        <!-- Unsafe for embedding due to how dfhack works -->
+        <None Update="lua\\GetModMemoryData.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+        <None Update="lua\\ReloadModManager.lua">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        </None>
+        <!-- Icon is embedded as AvaloniaResource; no need to copy to output/publish. -->
+    </ItemGroup>
+
+    <Target Name="CleanOutputDirectories" AfterTargets="Clean">
+        <Delete Files="$(OutputPath)config.json" />
+        <Delete Files="$(IntermediateOutputPath)config.json" />
+        <ItemGroup>
+            <OutputSubDirs Include="$(OutputPath)*" />
+            <IntermediateSubDirs Include="$(IntermediateOutputPath)*" />
+        </ItemGroup>
+        <RemoveDir Directories="@(OutputSubDirs)" />
+        <RemoveDir Directories="@(IntermediateSubDirs)" />
+    </Target>
+
+    <Target Name="ChmodExecutable" AfterTargets="Publish" Condition="'$(OS)' != 'Windows_NT'">
+        <Exec Command="chmod +x &quot;$(PublishDir)$(AssemblyName)&quot;" />
+    </Target>
+
+    <Target Name="RemoveExtraArtifacts" AfterTargets="Build;Publish">
+        <ItemGroup>
+            <ExtraArtifacts Include="$(OutputPath)*SkiaSharp*.pdb;$(OutputPath)*HarfBuzzSharp*.pdb" />
+            <ExtraArtifacts Include="$(PublishDir)*SkiaSharp*.pdb;$(PublishDir)*HarfBuzzSharp*.pdb" />
+            <ExtraArtifacts
+                Include="$(PublishDir)ModHearth.SteamWorker.runtimeconfig.json;$(PublishDir)ModHearth.SteamWorker.deps.json" />
+        </ItemGroup>
+        <Delete Files="@(ExtraArtifacts)" />
+    </Target>
 
 </Project>

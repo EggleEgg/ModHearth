@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Formats.Tar;
+using System.Globalization;
 using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -506,7 +507,6 @@ namespace ModHearth.UI.Update
 
         private static bool TryStartUpdateScript(string sourceDir, string destinationDir, string? configBackup, int pid, bool needsElevation, out string? error)
         {
-            error = null;
             int pidVal = pid;
             if (OperatingSystem.IsWindows())
                 return StartWindowsUpdateScript(sourceDir, destinationDir, configBackup, pidVal, needsElevation, out error);
@@ -525,11 +525,11 @@ namespace ModHearth.UI.Update
                         continue;
 
                     string winPath = path.Replace('/', '\\');
-                    _ = script.AppendLine($"if exist \"%{destVarName}%\\{winPath}\" (");
+                    _ = script.AppendLine(CultureInfo.InvariantCulture, $"if exist \"%{destVarName}%\\{winPath}\" (");
                     if (isDir)
-                        _ = script.AppendLine($"  rmdir /s /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
+                        _ = script.AppendLine(CultureInfo.InvariantCulture, $"  rmdir /s /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
                     else
-                        _ = script.AppendLine($"  del /f /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
+                        _ = script.AppendLine(CultureInfo.InvariantCulture, $"  del /f /q \"%{destVarName}%\\{winPath}\" >>\"%LOG%\" 2>&1");
                     _ = script.AppendLine("  if errorlevel 1 set \"UPDATE_FAILED=1\"");
                     _ = script.AppendLine(")");
                 }
@@ -543,7 +543,7 @@ namespace ModHearth.UI.Update
                         continue;
 
                     string unixPath = path.Replace('\\', '/');
-                    _ = script.AppendLine($"rm -rf \"${destVarName}/{unixPath}\" >> \"$LOG\" 2>&1");
+                    _ = script.AppendLine(CultureInfo.InvariantCulture, $"rm -rf \"${destVarName}/{unixPath}\" >> \"$LOG\" 2>&1");
                     _ = script.AppendLine("if [ $? -ne 0 ]; then");
                     _ = script.AppendLine("  UPDATE_FAILED=1");
                     _ = script.AppendLine("fi");
@@ -564,10 +564,10 @@ namespace ModHearth.UI.Update
                 StringBuilder script = new();
                 _ = script.AppendLine("@echo off");
                 _ = script.AppendLine("setlocal");
-                _ = script.AppendLine($"set \"PID={pid}\"");
-                _ = script.AppendLine($"set \"SRC={sourceDirTrimmed}\"");
-                _ = script.AppendLine($"set \"DEST={destinationDirTrimmed}\"");
-                _ = script.AppendLine($"set \"EXE={exePath}\"");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"set \"PID={pid}\"");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"set \"SRC={sourceDirTrimmed}\"");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"set \"DEST={destinationDirTrimmed}\"");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"set \"EXE={exePath}\"");
                 _ = script.AppendLine("set \"LOG=%DEST%\\logs\\updatelog.txt\"");
                 _ = script.AppendLine("set \"STATUS_FILE=%DEST%\\logs\\update_status.txt\"");
                 _ = script.AppendLine("if not exist \"%DEST%\\logs\" mkdir \"%DEST%\\logs\"");
@@ -588,7 +588,7 @@ namespace ModHearth.UI.Update
 
                 if (!string.IsNullOrWhiteSpace(configBackup))
                 {
-                    _ = script.AppendLine($"copy /Y \"{configBackup}\" \"%DEST%\\config.json\" >>\"%LOG%\" 2>&1");
+                    _ = script.AppendLine(CultureInfo.InvariantCulture, $"copy /Y \"{configBackup}\" \"%DEST%\\config.json\" >>\"%LOG%\" 2>&1");
                     _ = script.AppendLine("if errorlevel 1 set \"UPDATE_FAILED=1\"");
                 }
 
@@ -652,12 +652,12 @@ namespace ModHearth.UI.Update
 
                 StringBuilder script = new();
                 _ = script.AppendLine("#!/bin/sh");
-                _ = script.AppendLine($"PID={pid}");
-                _ = script.AppendLine($"SRC=\"{sourceDir}\"");
-                _ = script.AppendLine($"DEST=\"{destinationDir}\"");
-                _ = script.AppendLine($"EXE=\"{exePath}\"");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"PID={pid}");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"SRC=\"{sourceDir}\"");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"DEST=\"{destinationDir}\"");
+                _ = script.AppendLine(CultureInfo.InvariantCulture, $"EXE=\"{exePath}\"");
                 if (!string.IsNullOrWhiteSpace(configBackup))
-                    _ = script.AppendLine($"CONFIG_BACKUP=\"{configBackup}\"");
+                    _ = script.AppendLine(CultureInfo.InvariantCulture, $"CONFIG_BACKUP=\"{configBackup}\"");
                 _ = script.AppendLine("LOG=\"$DEST/logs/updatelog.txt\"");
                 _ = script.AppendLine("STATUS_FILE=\"$DEST/logs/update_status.txt\"");
                 _ = script.AppendLine("mkdir -p \"$DEST/logs\"");

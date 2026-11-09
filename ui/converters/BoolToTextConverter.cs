@@ -2,7 +2,7 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Markup.Xaml;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Converters
 {
     /// <summary>
     /// Used for changing text dynamically in a context menu

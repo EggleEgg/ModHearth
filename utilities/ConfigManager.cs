@@ -84,7 +84,7 @@ namespace ModHearth
             AttemptLoadConfig();
             AutoDiscoverConfigPaths();
 
-            if (!Config.showConsole && !DevMode.IsEnabled)
+            if (!Config.ShowConsole && !DevMode.IsEnabled)
             {
                 RuntimeBootstrap.HideConsole();
             }
@@ -121,9 +121,9 @@ namespace ModHearth
             }
         }
 
-        public static int GetTheme() => Config.theme;
+        public static int GetTheme() => Config.Theme;
 
-        public static void SetTheme(int theme) => Update(c => c.theme = theme, "Theme");
+        public static void SetTheme(int theme) => Update(c => c.Theme = theme, "Theme");
 
         public static int GetAutoReloadIntervalSeconds() => Config.AutoReloadIntervalSeconds;
 

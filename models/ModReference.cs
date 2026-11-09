@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using ModHearth.Metadata;
 using ModHearth.Utilities;
 
@@ -157,7 +158,7 @@ namespace ModHearth.Models
             }
 
             // DFHack does this to version, visible in the JSON file.
-            DfhMod mod = new(id, int.Parse(numeric.Replace(".", "")));
+            DfhMod mod = new(id, int.Parse(numeric.Replace(".", ""), CultureInfo.InvariantCulture));
             dfModSnapshot = new DfModSnapshot(id, numeric, mod);
             return mod;
         }

@@ -1,6 +1,6 @@
 using Dock.Model.Mvvm.Controls;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Controls.ModInfoDockControl
 {
     public sealed class ModDescriptionPanelViewModel : Tool
     {

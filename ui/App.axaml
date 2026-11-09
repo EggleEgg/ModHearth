@@ -1,122 +1,122 @@
 <Application
-  xmlns="https://github.com/avaloniaui"
-  xmlns:modinfodockcontrol="using:ModHearth.UI.Controls.ModInfoDockControl"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:ui="clr-namespace:ModHearth.UI"
-  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
-  xmlns:viewmodels="using:ModHearth.UI.ViewModels"
-  x:Class="ModHearth.UI.App">
+    xmlns="https://github.com/avaloniaui"
+    xmlns:modinfodockcontrol="using:ModHearth.UI.Controls.ModInfoDockControl"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="clr-namespace:ModHearth.UI"
+    xmlns:render="clr-namespace:ModHearth.UI.Rendering"
+    xmlns:viewmodels="using:ModHearth.UI.ViewModels"
+    x:Class="ModHearth.UI.App">
 
-  <!-- Stick default style replacements in here -->
+    <!-- Stick default style replacements in here -->
 
-  <Application.Styles>
-    <FluentTheme />
-    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
-    <DockFluentTheme />
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <DockFluentTheme />
 
-    <Style Selector="Button">
-      <Setter Property="BorderThickness" Value="0" />
-    </Style>
-    <Style Selector="Button Image">
-      <Setter Property="Margin" Value="4" />
-    </Style>
-    <Style Selector="MenuItem.color-grid">
-      <Setter Property="Template">
-        <ControlTemplate>
-          <Border Background="{TemplateBinding Background}"
-                  Padding="4">
-            <ContentPresenter Content="{TemplateBinding Header}"
-                              HorizontalAlignment="Stretch"
-                              VerticalAlignment="Stretch"/>
-          </Border>
-        </ControlTemplate>
-      </Setter>
-    </Style>
-    <Style Selector="ui|ModSearchBar">
-      <Setter Property="Margin" Value="-2,0,-2,0" />
-      <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlElevationBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-    </Style>
-    <Style Selector="GridSplitter.VerticalSplitter">
-      <Setter Property="Width" Value="10" />
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="CornerRadius" Value="3" />
-      <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
-      <Setter Property="HorizontalAlignment" Value="Center" />
-      <Setter Property="VerticalAlignment" Value="Stretch" />
-      <Setter Property="Template">
-        <ControlTemplate>
-          <Border
-            Background="{TemplateBinding Background}"
-            CornerRadius="{TemplateBinding CornerRadius}"
-            ClipToBounds="True"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch">
-            <Border
-              Width="2"
-              Background="{DynamicResource StrongPanelBrush}"
-              Margin="0,6"
-              HorizontalAlignment="Center"
-              VerticalAlignment="Stretch" />
-          </Border>
-        </ControlTemplate>
-      </Setter>
-    </Style>
-    <Style Selector="GridSplitter.VerticalSplitter:pressed">
-      <Setter Property="Background" Value="{DynamicResource LowAlphaModRefHighlightBrush}" />
-    </Style>
+        <Style Selector="Button">
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button Image">
+            <Setter Property="Margin" Value="4" />
+        </Style>
+        <Style Selector="MenuItem.color-grid">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            Padding="4">
+                        <ContentPresenter Content="{TemplateBinding Header}"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="ui|ModSearchBar">
+            <Setter Property="Margin" Value="-2,0,-2,0" />
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlElevationBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="GridSplitter.VerticalSplitter">
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        ClipToBounds="True"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch">
+                        <Border
+                            Width="2"
+                            Background="{DynamicResource StrongPanelBrush}"
+                            Margin="0,6"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Stretch" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="GridSplitter.VerticalSplitter:pressed">
+            <Setter Property="Background" Value="{DynamicResource LowAlphaModRefHighlightBrush}" />
+        </Style>
 
-    <!-- Used for small submenus. By default, the padding is 12px -->
-    <Style Selector="FlyoutPresenter.compact-flyout">
-      <Setter Property="Padding" Value="2"/>
-      <Setter Property="MinWidth" Value="0"/>
-    </Style>
+        <!-- Used for small submenus. By default, the padding is 12px -->
+        <Style Selector="FlyoutPresenter.compact-flyout">
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="MinWidth" Value="0"/>
+        </Style>
 
-    <Style Selector="ProgressBar">
-      <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource PanelBrushDark}" />
-      <Setter Property="BorderThickness" Value="0.5" />
-      <Setter Property="Foreground" Value="{DynamicResource ModRefHighlightBrush}" />
-      <Setter Property="Template">
-        <ControlTemplate TargetType="ProgressBar">
-          <Border
-            Name="PART_Track"
-            Background="{TemplateBinding Background}"
-            BorderBrush="{TemplateBinding BorderBrush}"
-            BorderThickness="{TemplateBinding BorderThickness}"
-            CornerRadius="4"
-            ClipToBounds="True">
-            <Border Margin="1" CornerRadius="3" ClipToBounds="True">
-              <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left">
-                <render:ModBackground UnderlayBrush="{DynamicResource ModRefHighlightBrush}" IsHitTestVisible="False"/>
-              </Border>
-            </Border>
-          </Border>
-        </ControlTemplate>
-      </Setter>
-    </Style>
+        <Style Selector="ProgressBar">
+            <Setter Property="Background" Value="{DynamicResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBrushDark}" />
+            <Setter Property="BorderThickness" Value="0.5" />
+            <Setter Property="Foreground" Value="{DynamicResource ModRefHighlightBrush}" />
+            <Setter Property="Template">
+                <ControlTemplate TargetType="ProgressBar">
+                    <Border
+                        Name="PART_Track"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="4"
+                        ClipToBounds="True">
+                        <Border Margin="1" CornerRadius="3" ClipToBounds="True">
+                            <Border Name="PART_Indicator" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left">
+                                <render:ModBackground UnderlayBrush="{DynamicResource ModRefHighlightBrush}" IsHitTestVisible="False"/>
+                            </Border>
+                        </Border>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
 
-  </Application.Styles>
+    </Application.Styles>
 
-  <Application.DataTemplates>
-    <DataTemplate DataType="viewmodels:ModRefViewModel" x:DataType="viewmodels:ModRefViewModel">
-      <ui:ModRefControl
-        ShowColorUnderlay="True"
-        Padding="0"
-        Margin="0,0,-3,0"
-        HorizontalAlignment="Stretch"
-        ToolTip.Tip="{Binding HoverTooltip}" />
-    </DataTemplate>
-    <DataTemplate DataType="ui:ModPreviewPanelViewModel" x:DataType="ui:ModPreviewPanelViewModel">
-      <ui:ModPreviewPanelView />
-    </DataTemplate>
-    <DataTemplate DataType="modinfodockcontrol:ModDataPanelViewModel" x:DataType="modinfodockcontrol:ModDataPanelViewModel">
-      <ui:ModDataPanelView />
-    </DataTemplate>
-    <DataTemplate DataType="ui:ModDescriptionPanelViewModel" x:DataType="ui:ModDescriptionPanelViewModel">
-      <ui:ModDescriptionPanelView />
-    </DataTemplate>
-  </Application.DataTemplates>
+    <Application.DataTemplates>
+        <DataTemplate DataType="viewmodels:ModRefViewModel" x:DataType="viewmodels:ModRefViewModel">
+            <ui:ModRefControl
+                ShowColorUnderlay="True"
+                Padding="0"
+                Margin="0,0,-3,0"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="{Binding HoverTooltip}" />
+        </DataTemplate>
+        <DataTemplate DataType="modinfodockcontrol:ModPreviewPanelViewModel" x:DataType="modinfodockcontrol:ModPreviewPanelViewModel">
+            <ui:ModPreviewPanelView />
+        </DataTemplate>
+        <DataTemplate DataType="modinfodockcontrol:ModDataPanelViewModel" x:DataType="modinfodockcontrol:ModDataPanelViewModel">
+            <ui:ModDataPanelView />
+        </DataTemplate>
+        <DataTemplate DataType="modinfodockcontrol:ModDescriptionPanelViewModel" x:DataType="modinfodockcontrol:ModDescriptionPanelViewModel">
+            <ui:ModDescriptionPanelView />
+        </DataTemplate>
+    </Application.DataTemplates>
 
 </Application>

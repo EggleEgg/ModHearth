@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -384,7 +385,7 @@ namespace ModHearth.UI
         /// </summary>
         private static ModReference CreateQueueItemReference(WorkshopDownloadItem item)
         {
-            string workshopId = item.PublishedFileId.ToString();
+            string workshopId = item.PublishedFileId.ToString(CultureInfo.InvariantCulture);
             return new ModReference
             {
                 ID = workshopId,

@@ -15,7 +15,7 @@ using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public partial class MainWindow : Window, INotifyPropertyChanged, IDisposable
     {
         public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -195,7 +195,7 @@ namespace ModHearth.UI
                 UndoChangesAsync,
                 () => redoAvailable,
                 RedoListChangesAsync,
-                saveAsync: () => SaveCurrentModpackAsync(),
+                saveAsync: SaveCurrentModpackAsync,
                 moveLeftAsync: () => MoveSelectedBetweenListsAsync(false),
                 moveRightAsync: () => MoveSelectedBetweenListsAsync(true));
             shortcutKeyHandler.Attach(this);
@@ -329,22 +329,47 @@ namespace ModHearth.UI
                 SaveModInfoDockLayout();
                 SaveSearchBarStates();
                 manager.WorkshopDownloads.Changed -= OnWorkshopDownloadsChanged;
-                _workshopDockManager?.Dispose();
-                _updateLogDockManager?.Dispose();
-                _sortRulesDockManager?.Dispose();
-                modManagerWatcher?.Dispose();
-                modManagerReloadTimer?.Stop();
-                dfHackStatusTimer?.Stop();
-                autoReloadTimer?.Stop();
-                searchDebounceTimer?.Stop();
-                searchStateSaveTimer?.Stop();
-                SetPreviewImage(null);
-                ClearPreviewCache();
+                Dispose();
             };
 
             InitializeDfHackStatusTimer();
             InitializeAutoReloadTimer();
             InitializeRestartGuards();
+        }
+
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                _workshopDockManager?.Dispose();
+                _updateLogDockManager?.Dispose();
+                _sortRulesDockManager?.Dispose();
+                modManagerWatcher?.Dispose();
+                autoActionGate?.Dispose();
+                dropProcessingGate?.Dispose();
+
+                modManagerReloadTimer?.Stop();
+                dfHackStatusTimer?.Stop();
+                autoReloadTimer?.Stop();
+                searchDebounceTimer?.Stop();
+                searchStateSaveTimer?.Stop();
+
+                SetPreviewImage(null);
+                ClearPreviewCache();
+            }
+
+            _disposed = true;
         }
     }
 }

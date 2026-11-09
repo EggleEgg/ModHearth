@@ -17,7 +17,7 @@ namespace ModHearth
     public struct ModProblem(
         string problemThrowerID,
         string problemID,
-        ModProblem.ProblemType problemType,
+        ModProblem.ProblemType type,
         ModIssueTier tier = ModIssueTier.None)
     {
         public string problemThrowerID = problemThrowerID;
@@ -33,7 +33,7 @@ namespace ModHearth
             ErrorLogIssue
         };
 
-        public ProblemType problemType = problemType;
+        public ProblemType issueType = type;
 
         /// <summary>
         /// Guaranteed severity used by the mod-list indicator. Potential-only warnings use
@@ -47,7 +47,7 @@ namespace ModHearth
         /// </summary>
         public readonly bool IsSortExcluded => ModSortExclusion.Excludes(this);
 
-        public override readonly string ToString() => problemType switch
+        public override readonly string ToString() => issueType switch
         {
             ProblemType.MissingBefore => $"Mod '{problemThrowerID}' requires mod '{problemID}' to be loaded before it.",
             ProblemType.MissingAfter => $"Mod '{problemThrowerID}' requires mod '{problemID}' to be loaded after it.",
@@ -1961,7 +1961,6 @@ namespace ModHearth
         private bool TryRequestModManagerReload(out bool deferred, out string message)
         {
             deferred = false;
-            message = string.Empty;
 
             if (activeModpackBackend != ModpackStorageBackend.DFHackConfig)
             {

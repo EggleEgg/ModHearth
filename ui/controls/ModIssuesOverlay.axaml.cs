@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using ModHearth.Models;
@@ -26,9 +27,9 @@ namespace ModHearth.UI
         /// </summary>
         public void UpdateCounts(int errorCount, int warningCount, int infoCount)
         {
-            errorIssueCountText.Text = errorCount.ToString();
-            warningIssueCountText.Text = warningCount.ToString();
-            infoIssueCountText.Text = infoCount.ToString();
+            errorIssueCountText.Text = errorCount.ToString(CultureInfo.InvariantCulture);
+            warningIssueCountText.Text = warningCount.ToString(CultureInfo.InvariantCulture);
+            infoIssueCountText.Text = infoCount.ToString(CultureInfo.InvariantCulture);
 
             errorIssueCountButton.IsVisible = errorCount > 0;
             warningIssueCountButton.IsVisible = warningCount > 0;

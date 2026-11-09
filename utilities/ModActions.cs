@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Globalization;
 using ModHearth.Models;
 using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
@@ -166,7 +167,7 @@ namespace ModHearth
                     List<ModReference> successfullyUnsubscribedMods = [];
                     foreach (ulong workshopId in successfullyUnsubscribedIds)
                     {
-                        if (steamModRefs.TryGetValue(workshopId.ToString(), out ModReference? modref))
+                        if (steamModRefs.TryGetValue(workshopId.ToString(CultureInfo.InvariantCulture), out ModReference? modref))
                         {
                             successfullyUnsubscribedMods.Add(modref);
                         }

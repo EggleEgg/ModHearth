@@ -24,13 +24,13 @@
         HorizontalAlignment="Stretch"
         ToolTip.Tip="{Binding HoverTooltip}" />
     </DataTemplate>
-    <DataTemplate DataType="ui:ModPreviewPanelViewModel" x:DataType="ui:ModPreviewPanelViewModel">
+    <DataTemplate DataType="modinfodockcontrol:ModPreviewPanelViewModel" x:DataType="modinfodockcontrol:ModPreviewPanelViewModel">
       <ui:ModPreviewPanelView />
     </DataTemplate>
     <DataTemplate DataType="modinfodockcontrol:ModDataPanelViewModel" x:DataType="modinfodockcontrol:ModDataPanelViewModel">
       <ui:ModDataPanelView />
     </DataTemplate>
-    <DataTemplate DataType="ui:ModDescriptionPanelViewModel" x:DataType="ui:ModDescriptionPanelViewModel">
+    <DataTemplate DataType="modinfodockcontrol:ModDescriptionPanelViewModel" x:DataType="modinfodockcontrol:ModDescriptionPanelViewModel">
       <ui:ModDescriptionPanelView />
     </DataTemplate>
   </Window.DataTemplates>

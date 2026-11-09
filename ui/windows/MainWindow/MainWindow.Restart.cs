@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ModHearth.UI.Dialogs;
 using ModHearth.UI.Helpers;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {

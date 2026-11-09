@@ -1,5 +1,7 @@
+using System.Globalization;
 using Avalonia.Media;
 using ModHearth.Models;
+using ModHearth.UI.Contracts;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Theme;
 using ModHearth.Utilities;
@@ -32,7 +34,7 @@ namespace ModHearth.UI.ViewModels
             defaultBackgroundBrush = Brushes.Transparent;
             backgroundBrush = defaultBackgroundBrush;
 
-            DateText = entry.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+            DateText = entry.TimestampUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
             ModName = string.IsNullOrWhiteSpace(entry.ModName) ? entry.ModId : entry.ModName;
             SourceType = entry.SourceType;
             StateText = entry.ChangeType.ToString();

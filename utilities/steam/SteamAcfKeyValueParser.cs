@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 
 namespace ModHearth.Utilities.Steam
@@ -113,7 +114,7 @@ namespace ModHearth.Utilities.Steam
                     {
                         case '{':
                         case '}':
-                            yield return c.ToString();
+                            yield return c.ToString(CultureInfo.InvariantCulture);
                             i++;
                             continue;
                         case '"':

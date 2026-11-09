@@ -2,6 +2,7 @@ using Avalonia;
 using ModHearth.Models;
 using ModHearth.UI;
 using ModHearth.UI.Theme;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth
 {
@@ -29,7 +30,7 @@ namespace ModHearth
                 // Ignore early style load failures
             }
 
-            if (OperatingSystem.IsLinux() && !ConfigManager.Config.showConsole)
+            if (OperatingSystem.IsLinux() && !ConfigManager.Config.ShowConsole)
             {
                 Console.SetOut(TextWriter.Null);
                 Console.SetError(TextWriter.Null);

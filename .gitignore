@@ -16,3 +16,4 @@
 /.external.zip
 /.external
 .vscode/settings.json
+sonar-project.properties

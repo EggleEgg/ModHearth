@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows.Input;
 using Avalonia.Threading;
 using ModHearth.Models;
@@ -215,7 +216,7 @@ namespace ModHearth.Utilities.Workshop
 
         public ModStatusClassification ClassifyMod(ulong id, List<ulong>? allSelectedIds = null)
         {
-            string idStr = id.ToString();
+            string idStr = id.ToString(CultureInfo.InvariantCulture);
 
             // Check for duplicates in current selection/checklist
             if (IsDuplicateSelection(id, allSelectedIds))
@@ -238,7 +239,7 @@ namespace ModHearth.Utilities.Workshop
 
         public ModStatusClassification ClassifyModWithMetadata(WorkshopItemMetadata meta, List<ulong> allIds)
         {
-            string idStr = meta.PublishedFileId.ToString();
+            string idStr = meta.PublishedFileId.ToString(CultureInfo.InvariantCulture);
 
             // Duplicate check
             if (IsDuplicateSelection(meta.PublishedFileId, allIds))
@@ -262,7 +263,7 @@ namespace ModHearth.Utilities.Workshop
             {
                 foreach (ulong childId in meta.ChildrenIds)
                 {
-                    bool isInstalled = installedMods.Any(m => string.Equals(m.SteamID, childId.ToString(), StringComparison.OrdinalIgnoreCase));
+                    bool isInstalled = installedMods.Any(m => string.Equals(m.SteamID, childId.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase));
                     bool isQueued = allIds.Contains(childId);
                     if (!isInstalled && !isQueued)
                     {
@@ -728,7 +729,7 @@ namespace ModHearth.Utilities.Workshop
 
                     foreach (WorkshopDownloadItem batchItem in batchGroup)
                     {
-                        string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
+                        string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString(CultureInfo.InvariantCulture));
                         Progress<DownloadProgress> prog = CreateProgressReporter(batchItem, batched: true);
 
                         batchItems.Add(new BatchDownloadItem(batchItem.PublishedFileId, targetDir, prog, batchItem.Cts!.Token));
@@ -748,7 +749,7 @@ namespace ModHearth.Utilities.Workshop
                             batchItem.SetProgress(100, "Completed");
                             anySuccess = true;
 
-                            string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString());
+                            string targetDir = Path.Combine(modsDir, batchItem.PublishedFileId.ToString(CultureInfo.InvariantCulture));
                             CleanupOldModFolders(batchItem.PublishedFileId, targetDir);
                         }
                         else if (batchItem.Cts!.Token.IsCancellationRequested)
@@ -771,7 +772,7 @@ namespace ModHearth.Utilities.Workshop
                 else
                 {
                     CancellationToken token = item.Cts!.Token;
-                    string targetDir = Path.Combine(modsDir, item.PublishedFileId.ToString());
+                    string targetDir = Path.Combine(modsDir, item.PublishedFileId.ToString(CultureInfo.InvariantCulture));
                     Loggers.Workshop.Log($"WorkshopQueueManager: Target directory for {item.PublishedFileId}: {targetDir}");
 
                     Progress<DownloadProgress> progressReporter = CreateProgressReporter(item, batched: false);
@@ -834,7 +835,7 @@ namespace ModHearth.Utilities.Workshop
         {
             try
             {
-                string idStr = publishedFileId.ToString();
+                string idStr = publishedFileId.ToString(CultureInfo.InvariantCulture);
                 string canonicalTargetDir = ConfigManager.ResolveCanonicalPath(targetDir);
 
                 List<ModReference> existingMods = [.. Manager.LoadedMods.Where(m =>

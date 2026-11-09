@@ -1,6 +1,7 @@
+using System.Globalization;
 using System.Text;
 
-namespace ModHearth
+namespace ModHearth.Utilities.Logging
 {
     /// <summary>
     /// Handles application-wide logging, including unhandled exceptions and console output redirection to log files.
@@ -14,6 +15,8 @@ namespace ModHearth
         private static TextWriter? originalStdErr;
         private static StreamWriter? logFileWriter;
         private static StreamWriter? errorFileWriter;
+        private static TextWriter? teeStdOut;
+        private static TextWriter? teeStdErr;
 
         public static void Initialize()
         {
@@ -39,8 +42,11 @@ namespace ModHearth
                     logFileWriter = new StreamWriter(logPath, append: false) { AutoFlush = true };
                     errorFileWriter = new StreamWriter(errPath, append: false) { AutoFlush = true };
 
-                    Console.SetOut(new TeeTextWriter(originalStdOut, logFileWriter));
-                    Console.SetError(new TeeTextWriter(originalStdErr, errorFileWriter));
+                    teeStdOut = new TeeTextWriter(originalStdOut, logFileWriter);
+                    teeStdErr = new TeeTextWriter(originalStdErr, errorFileWriter);
+
+                    Console.SetOut(teeStdOut);
+                    Console.SetError(teeStdErr);
                 }
                 catch
                 {
@@ -79,7 +85,7 @@ namespace ModHearth
             }
 
             Initialize();
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             string details = ex?.ToString() ?? "No exception details available.";
             Console.Error.WriteLine($"[{timestamp}] {label}");
             Console.Error.WriteLine(details);
@@ -88,7 +94,7 @@ namespace ModHearth
         public static void LogError(string message)
         {
             Initialize();
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
             Console.Error.WriteLine($"[{timestamp}] ERROR: {message}");
         }
 
@@ -113,8 +119,12 @@ namespace ModHearth
 
                 logFileWriter?.Dispose();
                 errorFileWriter?.Dispose();
+                teeStdOut?.Dispose();
+                teeStdErr?.Dispose();
                 logFileWriter = null;
                 errorFileWriter = null;
+                teeStdOut = null;
+                teeStdErr = null;
                 originalStdOut = null;
                 originalStdErr = null;
                 initialized = false;

@@ -47,9 +47,10 @@ namespace ModHearth.App.Tests
     /// Smoke tests to verify that all Avalonia windows, dialogs, and custom controls can be instantiated
     /// and initialized without crashing due to styling, theme, resource, binding, or real mod data mismatches.
     /// </summary>
-    public class AvaloniaUiSmokeTests(ITestOutputHelper output) : IClassFixture<AvaloniaAppFixture>
+    public class AvaloniaUiSmokeTests(ITestOutputHelper output, AvaloniaAppFixture fixture) : IClassFixture<AvaloniaAppFixture>
     {
         private readonly ITestOutputHelper _output = output;
+        private readonly AvaloniaAppFixture _fixture = fixture;
 
         [Fact(Timeout = 20000)]
         public async Task CanInstantiateAllUIComponentsAndPumpEventsWithoutCrash()
@@ -169,6 +170,7 @@ namespace ModHearth.App.Tests
                 iteration++;
             }
             _output.WriteLine("AvaloniaUiSmokeTests: UI event loop completed successfully.");
+            await Task.CompletedTask;
         }
 
         private static string FindExampleModPath()

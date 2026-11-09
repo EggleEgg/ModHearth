@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using ModHearth.Utilities.Logging;
 
-namespace ModHearth.Utilities
+namespace ModHearth.Utilities.Steam
 {
     /// <summary>
     /// Detects whether Steam (or one of its helper processes) is currently running.

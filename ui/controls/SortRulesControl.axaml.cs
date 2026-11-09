@@ -563,7 +563,7 @@ namespace ModHearth.UI
             string ownerId = selectedMod.ModReference.ID.Trim();
             ModRelationshipRule rule = GetRule(ownerId);
             HashSet<string> alreadyAdded = new(rule.GetIds(kind), StringComparer.OrdinalIgnoreCase);
-            RelationshipPickerWindow picker = new(ownerId, kind, GetOrBuildPickerMods(), alreadyAdded)
+            using RelationshipPickerWindow picker = new(ownerId, kind, GetOrBuildPickerMods(), alreadyAdded)
             {
                 WindowStartupLocation = WindowStartupLocation.CenterOwner
             };

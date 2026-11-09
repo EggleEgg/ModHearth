@@ -578,7 +578,7 @@ namespace ModHearth.UI
                 SearchFilterMode.Name => "Search by name",
                 SearchFilterMode.Regex => "Search by regex",
                 SearchFilterMode.Color => "Search by color",
-                SearchFilterMode.ModifiedTime => ModifiedTimeLabel == "Time" ? "Sort by time" : $"Sort by {(ModifiedTimeLabel ?? "Modified").ToLower()} time",
+                SearchFilterMode.ModifiedTime => ModifiedTimeLabel == "Time" ? "Sort by time" : $"Sort by {(ModifiedTimeLabel ?? "Modified").ToLowerInvariant()} time",
                 SearchFilterMode.Id => "Search by mod id",
                 SearchFilterMode.SteamFileId => "Search by steam file id",
                 _ => "Search by name"

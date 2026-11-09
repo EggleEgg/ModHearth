@@ -74,7 +74,7 @@ namespace ModHearth.Models
         /// <summary>
         /// True when <paramref name="problem"/> means the mod cannot safely remain enabled.
         /// </summary>
-        public static bool Excludes(ModProblem problem) => problem.problemType switch
+        public static bool Excludes(ModProblem problem) => problem.issueType switch
         {
             // The same mod id exists in more than one place; which copy DF loads is ambiguous.
             ModProblem.ProblemType.DuplicateMod => true,

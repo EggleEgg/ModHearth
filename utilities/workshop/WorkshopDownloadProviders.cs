@@ -87,7 +87,7 @@ namespace ModHearth.Utilities.Workshop
                 return false;
             }
 
-            string nestedContentDir = Path.Combine(fullDownloadPath, SteamApps, Workshop, Content, appId, workshopId.ToString());
+            string nestedContentDir = Path.Combine(fullDownloadPath, SteamApps, Workshop, Content, appId, workshopId.ToString(CultureInfo.InvariantCulture));
             string workshopSource = ResolveWorkshopSource(GetSteamCmdInstallDirectory(), appId, workshopId);
 
             // Fallback only matters when steamcmd ignored +force_install_dir and placed content relative
@@ -173,7 +173,7 @@ namespace ModHearth.Utilities.Workshop
                     string fullDownloadPath = Path.GetFullPath(item.DownloadPath);
                     _ = Directory.CreateDirectory(fullDownloadPath);
 
-                    string nestedContentDir = Path.Combine(stagingPath, SteamApps, Workshop, Content, appId, workshopId.ToString());
+                    string nestedContentDir = Path.Combine(stagingPath, SteamApps, Workshop, Content, appId, workshopId.ToString(CultureInfo.InvariantCulture));
                     string workshopSource = ResolveWorkshopSource(GetSteamCmdInstallDirectory(), appId, workshopId);
 
                     if (TryFinalizeDownload(nestedContentDir, fullDownloadPath, workshopSource, item.Progress))
@@ -204,12 +204,12 @@ namespace ModHearth.Utilities.Workshop
         /// </summary>
         private static string ResolveWorkshopSource(string steamCmdDir, string appId, ulong workshopId)
         {
-            string workshopSource = Path.Combine(steamCmdDir, SteamApps, Workshop, Content, appId, workshopId.ToString());
+            string workshopSource = Path.Combine(steamCmdDir, SteamApps, Workshop, Content, appId, workshopId.ToString(CultureInfo.InvariantCulture));
             if (Directory.Exists(workshopSource))
                 return workshopSource;
 
             string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string homeFallback = Path.Combine(home, ".steam", "steamcmd", SteamApps, Workshop, Content, appId, workshopId.ToString());
+            string homeFallback = Path.Combine(home, ".steam", "steamcmd", SteamApps, Workshop, Content, appId, workshopId.ToString(CultureInfo.InvariantCulture));
             return Directory.Exists(homeFallback) ? homeFallback : workshopSource;
         }
 

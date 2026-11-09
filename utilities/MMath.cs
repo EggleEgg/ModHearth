@@ -1,4 +1,4 @@
-namespace ModHearth.utilities
+namespace ModHearth.Utilities
 {
     /// <summary>
     /// Math helpers
@@ -16,7 +16,7 @@ namespace ModHearth.utilities
         {
             public bool Equals(double x, double y) => Math.Abs(x - y) < tolerance;
 
-            public int GetHashCode(double value) => 0;
+            public int GetHashCode(double obj) => 0;
         }
     }
 }

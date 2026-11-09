@@ -425,8 +425,8 @@ namespace ModHearth.Utilities.Logging
                 return "Steam";
 
             string path = modref.Path ?? string.Empty;
-            if (path.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                path.IndexOf("workshop", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (path.Contains("steamapps", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("workshop", StringComparison.OrdinalIgnoreCase))
             {
                 return "Steam";
             }

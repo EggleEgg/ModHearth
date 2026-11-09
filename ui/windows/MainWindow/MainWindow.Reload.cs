@@ -1,4 +1,5 @@
-﻿using Avalonia;
+﻿using System.Globalization;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -234,7 +235,7 @@ namespace ModHearth.UI
             bool enabled = configured >= 0;
             suppressAutoReloadUiEvents = true;
             autoReloadEnabledCheckBox.IsChecked = enabled;
-            autoReloadSecondsTextBox.Text = enabled ? configured.ToString() : MinimumAutoReloadSeconds.ToString();
+            autoReloadSecondsTextBox.Text = enabled ? configured.ToString(CultureInfo.InvariantCulture) : MinimumAutoReloadSeconds.ToString(CultureInfo.InvariantCulture);
             suppressAutoReloadUiEvents = false;
             UpdateAutoReloadInputState();
         }
@@ -304,7 +305,7 @@ namespace ModHearth.UI
             if (!normalizeText)
                 return;
 
-            string normalizedText = normalized.ToString();
+            string normalizedText = normalized.ToString(CultureInfo.InvariantCulture);
             if (string.Equals(autoReloadSecondsTextBox.Text, normalizedText, StringComparison.Ordinal))
                 return;
 

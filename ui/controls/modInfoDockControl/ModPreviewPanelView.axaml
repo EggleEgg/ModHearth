@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="clr-namespace:ModHearth.UI"
+             xmlns:modinfodockcontrol="using:ModHearth.UI.Controls.ModInfoDockControl"
              x:Class="ModHearth.UI.ModPreviewPanelView"
-             x:DataType="ui:ModPreviewPanelViewModel">
+             x:DataType="modinfodockcontrol:ModPreviewPanelViewModel">
        <Image Source="{Binding PreviewImage}"
               Stretch="Uniform"
               HorizontalAlignment="Center"

@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Globalization;
+using System.Text.Json.Serialization;
 
 namespace ModHearth.UI.Update
 {
@@ -176,7 +177,7 @@ namespace ModHearth.UI.Update
 
         public static string GetReleaseSubtitle(GitHubRelease release, string currentBuild)
         {
-            string date = release.PublishedAt?.LocalDateTime.ToString("yyyy-MM-dd") ?? "unknown date";
+            string date = release.PublishedAt?.LocalDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "unknown date";
             string? buildNumber = TryGetBuildNumber(release);
             string buildLabel = string.IsNullOrWhiteSpace(buildNumber) ? "unknown build" : $"build-{buildNumber}";
 

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using ModHearth.Utilities.Logging;
 
@@ -23,14 +24,14 @@ namespace ModHearth.Utilities.Steam
         // It exists so callers fail fast with a clear message instead of spawning a doomed worker
         // process when Steam obviously isn't running at all.
         public static bool IsAvailable => SteamProcessHelper.TryDetectSteamProcess(out _);
-        public static bool Subscribe(ulong workshopId) => RunWorker("subscribe", workshopId.ToString());
+        public static bool Subscribe(ulong workshopId) => RunWorker("subscribe", workshopId.ToString(CultureInfo.InvariantCulture));
 
-        public static bool Unsubscribe(ulong workshopId) => RunWorker("unsubscribe", workshopId.ToString());
+        public static bool Unsubscribe(ulong workshopId) => RunWorker("unsubscribe", workshopId.ToString(CultureInfo.InvariantCulture));
 
         public static bool Download(
             ulong workshopId,
             Action<ulong, ulong>? onProgress = null,
-            CancellationToken cancellationToken = default) => RunWorker("download", workshopId.ToString(), DownloadWorkerTimeout, onProgress, cancellationToken);
+            CancellationToken cancellationToken = default) => RunWorker("download", workshopId.ToString(CultureInfo.InvariantCulture), DownloadWorkerTimeout, onProgress, cancellationToken);
 
         // Sends wake-up calls for multiple workshop items concurrently.
         public static int DownloadMany(IEnumerable<ulong> workshopIds) => RunMany("download", workshopIds);
@@ -58,7 +59,7 @@ namespace ModHearth.Utilities.Steam
                 MaxDegreeOfParallelism = Environment.ProcessorCount
             }, id =>
             {
-                if (RunWorker(action, id.ToString()))
+                if (RunWorker(action, id.ToString(CultureInfo.InvariantCulture)))
                     _ = Interlocked.Increment(ref successCount);
             });
 

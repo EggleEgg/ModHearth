@@ -40,8 +40,8 @@ namespace ModHearth.Models
             if (isLocalPath)
                 return (false, true, false, false);
 
-            bool steamPathHint = path.IndexOf("steamapps", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                 path.IndexOf("workshop", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool steamPathHint = path.Contains("steamapps", StringComparison.OrdinalIgnoreCase) ||
+                                 path.Contains("workshop", StringComparison.OrdinalIgnoreCase);
 
             bool isSteam = hasSteamId || steamPathHint;
             if (isSteam)

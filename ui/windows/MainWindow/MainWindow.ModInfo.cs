@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using ModHearth.Models;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
+using ModHearth.UI.Windows.MainWindow;
 using ModHearth.Utilities;
 
 namespace ModHearth.UI

@@ -68,8 +68,7 @@ namespace ModHearth.UI.ModList
 
         public void RegisterList(ListBox list, bool allowReorder, bool allowDrop = true)
         {
-            if (list == null)
-                throw new ArgumentNullException(nameof(list));
+            ArgumentNullException.ThrowIfNull(list);
 
             sortableLists[list] = allowReorder;
 
@@ -181,7 +180,7 @@ namespace ModHearth.UI.ModList
             StartAutoScroll();
             try
             {
-                DataTransfer data = new();
+                using DataTransfer data = new();
                 // Retain the typed selection for this in-process drag. The transfer item merely
                 // identifies it as ours, avoiding JSON work proportional to the selection size.
                 data.Add(DataTransferItem.Create(DragDataFormat, InternalDragPayload));

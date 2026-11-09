@@ -102,6 +102,7 @@ namespace ModHearth.Utilities.ModRaws
         private const int LinesPerBlock = 16 * 1024;
         private const int MaxLinesPerSegment = 4 * 1024;
         private const int MinLinesForParallelism = 2 * 1024;
+        private const string detailString = "detail", plantString = "PLANT", unrecognizedString = "Unrecognized ";
 
         public static ModErrorLogAnalysis Analyze(
             string errorLogPath,
@@ -304,7 +305,7 @@ namespace ModHearth.Utilities.ModRaws
             {
                 string objectId = NormalizeObjectId(objectToken.Groups["object"].Value);
                 string kind = objectToken.Groups["kind"].Value;
-                string detail = objectToken.Groups["detail"].Value.Trim();
+                string detail = objectToken.Groups[detailString].Value.Trim();
                 return new ParsedLine(
                     FormatTokenCategory(kind, objectToken.Groups["context"].Value),
                     detail,
@@ -318,7 +319,7 @@ namespace ModHearth.Utilities.ModRaws
                 string kind = token.Groups["kind"].Value;
                 return new ParsedLine(
                     FormatTokenCategory(kind, token.Groups["context"].Value),
-                    token.Groups["detail"].Value.Trim(),
+                    token.Groups[detailString].Value.Trim(),
                     currentObject?.Id,
                     currentObject,
                     PreferFile: IsGraphicsKind(kind));
@@ -328,7 +329,7 @@ namespace ModHearth.Utilities.ModRaws
             {
                 return new ParsedLine(
                     "Unrecognized graphics token",
-                    graphicsToken.Groups["detail"].Value.Trim(),
+                    graphicsToken.Groups[detailString].Value.Trim(),
                     null,
                     null,
                     PreferFile: true);
@@ -347,7 +348,7 @@ namespace ModHearth.Utilities.ModRaws
 
             if (PlantMaterialRegex().Match(line) is { Success: true } plantMaterial)
             {
-                string detail = plantMaterial.Groups["detail"].Value.Trim();
+                string detail = plantMaterial.Groups[detailString].Value.Trim();
                 string plantId = NormalizeObjectId(detail.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty);
 
                 // DF repeats the plant token as both plant and material ("PALM PALM"); showing it
@@ -360,7 +361,7 @@ namespace ModHearth.Utilities.ModRaws
                     "Undefined plant material",
                     detail,
                     plantId,
-                    string.IsNullOrWhiteSpace(plantId) ? null : new ObjectHint("PLANT", plantId),
+                    string.IsNullOrWhiteSpace(plantId) ? null : new ObjectHint(ModErrorLogAnalyzer.plantString, plantId),
                     PreferFile: false);
             }
 
@@ -372,12 +373,12 @@ namespace ModHearth.Utilities.ModRaws
                     "Plant growth not found",
                     growth,
                     plantId,
-                    string.IsNullOrWhiteSpace(plantId) ? null : new ObjectHint("PLANT", plantId),
+                    string.IsNullOrWhiteSpace(plantId) ? null : new ObjectHint(ModErrorLogAnalyzer.plantString, plantId),
                     PreferFile: false);
             }
 
             if (ModIdentifierRegex().Match(line) is { Success: true } identifier)
-                return new ParsedLine("Invalid mod identifier", identifier.Groups["detail"].Value.Trim(), null, null, PreferFile: false);
+                return new ParsedLine("Invalid mod identifier", identifier.Groups[detailString].Value.Trim(), null, null, PreferFile: false);
 
             if (ObjectMessageRegex().Match(line) is { Success: true } objectMessage)
             {
@@ -427,7 +428,7 @@ namespace ModHearth.Utilities.ModRaws
             {
                 return (
                     FormatTokenCategory(embeddedToken.Groups["kind"].Value, embeddedToken.Groups["context"].Value),
-                    embeddedToken.Groups["detail"].Value.Trim());
+                    embeddedToken.Groups[detailString].Value.Trim());
             }
 
             if (value.StartsWith("Caste Selection Fails:", StringComparison.OrdinalIgnoreCase))
@@ -454,11 +455,11 @@ namespace ModHearth.Utilities.ModRaws
             if (value.StartsWith("GO_TO_TAG could not find target", StringComparison.OrdinalIgnoreCase))
                 return ("GO_TO_TAG target not found", string.Empty);
 
-            if (value.StartsWith("Unrecognized ", StringComparison.OrdinalIgnoreCase))
+            if (value.StartsWith(unrecognizedString, StringComparison.OrdinalIgnoreCase))
             {
                 int tokenSeparator = value.IndexOf(':');
                 if (tokenSeparator > 0)
-                    return ("Unrecognized " + value["Unrecognized ".Length..tokenSeparator].Trim().ToLowerInvariant(), value[(tokenSeparator + 1)..].Trim());
+                    return (unrecognizedString + value[unrecognizedString.Length..tokenSeparator].Trim().ToLowerInvariant(), value[(tokenSeparator + 1)..].Trim());
             }
 
             int separator = value.IndexOf(':');
@@ -492,7 +493,7 @@ namespace ModHearth.Utilities.ModRaws
 
         private static string FormatTokenCategory(string kind, string context)
         {
-            string category = "Unrecognized " + kind.Trim().ToLowerInvariant() + " token";
+            string category = unrecognizedString + kind.Trim().ToLowerInvariant() + " token";
             if (!string.IsNullOrWhiteSpace(context))
                 category += " in " + context.Trim().ToLowerInvariant();
             return category;
@@ -508,7 +509,7 @@ namespace ModHearth.Utilities.ModRaws
             if (kind.Contains("reaction", StringComparison.OrdinalIgnoreCase))
                 return "REACTION";
             if (kind.Contains("plant", StringComparison.OrdinalIgnoreCase))
-                return "PLANT";
+                return plantString;
             if (kind.Contains("inorganic", StringComparison.OrdinalIgnoreCase) || kind.Contains("color", StringComparison.OrdinalIgnoreCase))
                 return "INORGANIC";
             if (kind.Contains("entity", StringComparison.OrdinalIgnoreCase) || kind.Contains("permitted", StringComparison.OrdinalIgnoreCase))
@@ -535,7 +536,7 @@ namespace ModHearth.Utilities.ModRaws
             if (message.Contains("Unrecognized Reaction", StringComparison.OrdinalIgnoreCase))
                 return "REACTION";
             if (message.Contains("Unrecognized Plant", StringComparison.OrdinalIgnoreCase))
-                return "PLANT";
+                return plantString;
             if (message.Contains("Unrecognized Inorganic", StringComparison.OrdinalIgnoreCase))
                 return "INORGANIC";
             if (message.Contains("Unrecognized Entity", StringComparison.OrdinalIgnoreCase)

@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Text;
 using Avalonia.Media;
 using ModHearth.Models;
+using ModHearth.UI.Contracts;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
@@ -376,10 +378,10 @@ namespace ModHearth.UI.ViewModels
                     return null;
 
                 StringBuilder sb = new("Custom Sort Rules");
-                if (BeforeCount > 0) _ = sb.AppendLine().Append($"• Before: {BeforeCount}");
-                if (AfterCount > 0) _ = sb.AppendLine().Append($"• After: {AfterCount}");
-                if (RequiredCount > 0) _ = sb.AppendLine().Append($"• Required: {RequiredCount}");
-                if (IncompatibleCount > 0) _ = sb.AppendLine().Append($"• Incompatible: {IncompatibleCount}");
+                if (BeforeCount > 0) _ = sb.AppendLine().Append(CultureInfo.InvariantCulture, $"• Before: {BeforeCount}");
+                if (AfterCount > 0) _ = sb.AppendLine().Append(CultureInfo.InvariantCulture, $"• After: {AfterCount}");
+                if (RequiredCount > 0) _ = sb.AppendLine().Append(CultureInfo.InvariantCulture, $"• Required: {RequiredCount}");
+                if (IncompatibleCount > 0) _ = sb.AppendLine().Append(CultureInfo.InvariantCulture, $"• Incompatible: {IncompatibleCount}");
                 return sb.ToString();
             }
         }

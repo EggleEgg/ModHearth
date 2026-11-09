@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ModHearth.Utilities.Logging;
 
@@ -31,9 +32,9 @@ namespace ModHearth.Utilities.Workshop
             List<ulong> idList = [.. ids];
             if (idList.Count == 0) return [];
 
-            FormUrlEncodedContent content = new(
-                new[] { new KeyValuePair<string, string>("itemcount", idList.Count.ToString()) }
-                .Concat(idList.Select((id, i) => new KeyValuePair<string, string>($"publishedfileids[{i}]", id.ToString())))
+            using FormUrlEncodedContent content = new(
+                new[] { new KeyValuePair<string, string>("itemcount", idList.Count.ToString(CultureInfo.InvariantCulture)) }
+                .Concat(idList.Select((id, i) => new KeyValuePair<string, string>($"publishedfileids[{i}]", id.ToString(CultureInfo.InvariantCulture))))
             );
 
             try
@@ -89,10 +90,10 @@ namespace ModHearth.Utilities.Workshop
         public static async Task<List<ulong>> GetCollectionDetailsAsync(ulong collectionId)
         {
             Loggers.Workshop.Log($"SteamWebApiClient: Fetching collection details for {collectionId}...");
-            FormUrlEncodedContent content = new(
+            using FormUrlEncodedContent content = new(
                 [
                     new KeyValuePair<string, string>("collectioncount", "1"),
-                    new KeyValuePair<string, string>("publishedfileids[0]", collectionId.ToString())
+                    new KeyValuePair<string, string>("publishedfileids[0]", collectionId.ToString(CultureInfo.InvariantCulture))
                 ]);
 
             try

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using Avalonia.Controls;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Docking
 {
     public interface IWindowDragTracker : IDisposable
     {
@@ -135,10 +135,10 @@ namespace ModHearth.UI
         public event EventHandler? DragStarted;
         public event EventHandler? DragFinished;
 
-        [DllImport("/usr/lib/libobjc.A.dylib")]
+        [DllImport("/usr/lib/libobjc.A.dylib", CharSet = CharSet.Unicode)]
         private static extern IntPtr objc_getClass(string className);
 
-        [DllImport("/usr/lib/libobjc.A.dylib")]
+        [DllImport("/usr/lib/libobjc.A.dylib", CharSet = CharSet.Unicode)]
         private static extern IntPtr sel_registerName(string selectorName);
 
         [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
@@ -150,13 +150,13 @@ namespace ModHearth.UI
         [DllImport("/usr/lib/libobjc.A.dylib", EntryPoint = "objc_msgSend")]
         private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, IntPtr arg3, IntPtr arg4);
 
-        [DllImport("/usr/lib/libobjc.A.dylib")]
+        [DllImport("/usr/lib/libobjc.A.dylib", CharSet = CharSet.Unicode)]
         private static extern IntPtr objc_allocateClassPair(IntPtr superclass, string className, int extraBytes);
 
         [DllImport("/usr/lib/libobjc.A.dylib")]
         private static extern void objc_registerClassPair(IntPtr cls);
 
-        [DllImport("/usr/lib/libobjc.A.dylib")]
+        [DllImport("/usr/lib/libobjc.A.dylib", CharSet = CharSet.Unicode)]
         private static extern bool class_addMethod(IntPtr cls, IntPtr name, Delegate imp, string types);
 
         private delegate void NotificationCallbackDelegate(IntPtr self, IntPtr _cmd, IntPtr notification);

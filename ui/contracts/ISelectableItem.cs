@@ -1,4 +1,4 @@
-﻿namespace ModHearth.UI
+﻿namespace ModHearth.UI.Contracts
 {
     public interface ISelectableItem
     {

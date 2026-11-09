@@ -1,4 +1,4 @@
-namespace ModHearth
+namespace ModHearth.Models
 {
     public sealed class ModSortRule
     {

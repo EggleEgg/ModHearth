@@ -1,4 +1,4 @@
-namespace ModHearth.Utilities
+namespace ModHearth.Utilities.ModRaws
 {
     /// <summary>
     /// A single parsed token from a Dwarf Fortress raw file. The token is interpreted

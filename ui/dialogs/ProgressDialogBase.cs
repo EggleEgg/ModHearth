@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -10,7 +11,7 @@ namespace ModHearth.UI.Dialogs
     /// </summary>
     public abstract partial class ProgressDialogBase : Window
     {
-        protected CancellationTokenSource? Cts;
+        protected CancellationTokenSource? Cts { get; set; }
 
         protected ProgressDialogBase()
         {
@@ -46,7 +47,7 @@ namespace ModHearth.UI.Dialogs
                 return null;
 
             Match match = PercentageRegex().Match(message);
-            if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double result))
+            if (match.Success && double.TryParse(match.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
             {
                 return result;
             }

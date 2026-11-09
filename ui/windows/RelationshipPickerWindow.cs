@@ -13,11 +13,10 @@ using ModHearth.UI.ViewModels;
 
 namespace ModHearth.UI.Windows
 {
-    internal sealed class RelationshipPickerWindow : Window
+    internal sealed class RelationshipPickerWindow : Window, IDisposable
     {
         private readonly string ownerId;
         private readonly HashSet<string> alreadyAdded;
-        private readonly List<ModRefViewModel> allMods;
         private readonly ObservableCollection<ModRefViewModel> visibleItems = [];
         private readonly ModSearchBar searchBar = new();
         private readonly ListBox listBox = new();
@@ -33,7 +32,7 @@ namespace ModHearth.UI.Windows
             this.ownerId = ownerId.Trim();
             this.alreadyAdded = new HashSet<string>(alreadyAdded, StringComparer.OrdinalIgnoreCase);
 
-            allMods = [.. candidates
+            List<ModRefViewModel> allMods = [.. candidates
                 .Where(vm => !string.Equals(vm.ModReference.ID, this.ownerId, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(vm => vm.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(vm => vm.ModReference.ID, StringComparer.OrdinalIgnoreCase)];
@@ -203,5 +202,11 @@ namespace ModHearth.UI.Windows
             ModRelationshipKind.Incompatible => "Incompatible",
             _ => "Relationship"
         };
+
+        public void Dispose()
+        {
+            searchController.Dispose();
+            GC.SuppressFinalize(this);
+        }
     }
 }

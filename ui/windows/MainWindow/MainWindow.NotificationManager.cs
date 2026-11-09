@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -8,7 +9,6 @@ using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
 using ModHearth.Utilities;
-using ModHearth.utilities;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
@@ -35,7 +35,7 @@ namespace ModHearth.UI
         public IImage? IconSource { get; set; }
         public DateTime Timestamp { get; set; }
         public long Sequence { get; set; }
-        public string FormattedTime => "At:    " + Timestamp.ToString("HH'h 'mm'm 'ss's'");
+        public string FormattedTime => "At:    " + Timestamp.ToString("HH'h 'mm'm 'ss's'", CultureInfo.InvariantCulture);
 
         public bool IsFilteredOut
         {

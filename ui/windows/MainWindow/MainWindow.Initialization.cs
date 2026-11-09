@@ -6,6 +6,7 @@ using ModHearth.UI.Dialogs;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
 using ModHearth.UI.Update;
+using ModHearth.UI.Windows.MainWindow;
 
 namespace ModHearth.UI
 {
