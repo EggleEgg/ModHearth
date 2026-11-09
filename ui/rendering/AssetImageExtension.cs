@@ -69,10 +69,9 @@ namespace ModHearth.UI.Rendering
             return image;
         }
 
-        // Bounded so tinted variants and one-off assets cannot grow the cache without limit.
-        // Evicted images are not disposed: they may still be bound to live controls.
-        private const int MaxCachedImages = 256;
-        private static readonly BoundedLruCache<string, IImage?> imageCache = new(MaxCachedImages, StringComparer.Ordinal);
+        // Bounded so tinted variants and one-off assets cannot grow the caches without limit. Evicted images are not disposed: they may still be bound to live controls.
+        private static readonly BoundedLruCache<string, IImage?> svgCache = new(256, StringComparer.Ordinal); //icons are tipically small
+        private static readonly BoundedLruCache<string, IImage?> imageCache = new(16, StringComparer.Ordinal); //TODO Make this configurable. High values massively increase memory usage
 
         private static readonly Lazy<IImage?> missingTextureImage = new(() =>
             TryLoad("missing texture placeholder", () =>
@@ -183,7 +182,11 @@ namespace ModHearth.UI.Rendering
         }
 
         private static SvgImage? LoadTintedSvg(string assetUri, Color? tint = null, double? opacity = null)
-            => TryLoad($"tinted SVG '{assetUri}'", () =>
+        {
+            string opacityPart = opacity.HasValue ? opacity.Value.ToString(CultureInfo.InvariantCulture) : string.Empty;
+            string key = $"{assetUri}|{tint?.ToString()}|{opacityPart}|tinted";
+
+            return svgCache.GetOrAdd(key, _ => TryLoad($"tinted SVG '{assetUri}'", () =>
             {
                 Uri uri = new(assetUri, UriKind.Absolute);
                 using Stream stream = AssetLoader.Open(uri);
@@ -244,7 +247,8 @@ namespace ModHearth.UI.Rendering
                 xdoc.Save(memoryStream);
                 memoryStream.Position = 0;
                 return RenderSvgStream(memoryStream);
-            });
+            })) as SvgImage;
+        }
 
         public static IImage? LoadFromAssetUriUncached(string assetUri)
         {
@@ -261,14 +265,11 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return null;
 
-            return TryLoad<IImage>($"'{path}'", () =>
-            {
-                string fullPath = Path.GetFullPath(path);
-                if (IsSvgPath(path))
-                    return LoadSvgImage(new Uri(fullPath, UriKind.Absolute).ToString());
+            string fullPath = Path.GetFullPath(path);
+            if (IsSvgPath(path))
+                return LoadSvgImage(new Uri(fullPath, UriKind.Absolute).ToString());
 
-                return new Bitmap(fullPath);
-            });
+            return LoadBitmap(fullPath);
         }
 
         private static IImage? LoadFromNormalizedAssetUri(string normalizedAssetUri)
@@ -331,7 +332,7 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(uriText))
                 return null;
 
-            return TryLoad($"'{uriText}'", () =>
+            return svgCache.GetOrAdd(uriText, _ => TryLoad($"'{uriText}'", () =>
             {
                 if (uriText.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -347,7 +348,7 @@ namespace ModHearth.UI.Rendering
                     return RenderSvgFile(uriText);
 
                 return null;
-            }, ignoreMissingFile: true);
+            }, ignoreMissingFile: true)) as SvgImage;
         }
 
         private static Bitmap? LoadBitmap(string assetUri)
@@ -355,7 +356,7 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(assetUri))
                 return null;
 
-            return TryLoad($"'{assetUri}'", () =>
+            return imageCache.GetOrAdd(assetUri, _ => TryLoad($"'{assetUri}'", () =>
             {
                 if (assetUri.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -375,7 +376,7 @@ namespace ModHearth.UI.Rendering
                     return new Bitmap(assetUri);
 
                 return null;
-            }, ignoreMissingFile: true);
+            }, ignoreMissingFile: true)) as Bitmap;
         }
 
         private static string ReplaceExtension(string pathOrUri, string newExtension)
@@ -434,7 +435,11 @@ namespace ModHearth.UI.Rendering
                 };
             });
 
-        public static void ClearCache() => imageCache.Clear();
+        public static void ClearCache()
+        {
+            svgCache.Clear();
+            imageCache.Clear();
+        }
         [GeneratedRegex(@"(?<prefix>fill|stroke)\s*:\s*(?<color>[^;]+)", RegexOptions.IgnoreCase)]
         private static partial Regex SvgColorFilterRegex();
     }
