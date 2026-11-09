@@ -302,17 +302,23 @@ namespace ModHearth.UI
         {
             string installedModsPath = ConfigManager.GetInstalledModsPath();
             bool success = await DialogService.RunConfirmedActionAsync(this,
-                $"Clear installed mods cache?\n{installedModsPath}",
-                "Clear installed mods",
+                $"Clear installed_mods cache?\n{installedModsPath}",
+                "Clear installed_mods",
                 () =>
                 {
                     bool res = manager.ClearInstalledModsFolder(out string msg);
                     return (res, msg);
                 },
-                "Installed mods cleared",
+                "installed_mods cleared",
                 "Clear failed");
 
-            clearInstalledModsButton.IsEnabled = Directory.Exists(installedModsPath);
+            installedModsMenuButton.IsEnabled = Directory.Exists(installedModsPath);
+            if (clearInstalledModsButton != null)
+            {
+                clearInstalledModsButton.IsEnabled = !string.IsNullOrWhiteSpace(installedModsPath) &&
+                    Directory.Exists(installedModsPath) &&
+                    Directory.EnumerateFileSystemEntries(installedModsPath).Any();
+            }
             if (success)
             {
                 await Task.Run(manager.RefreshInstalledCacheModIds);
@@ -320,13 +326,31 @@ namespace ModHearth.UI
             }
         }
 
-        private async void ClearInstalledModsPointerPressed(object? sender, PointerPressedEventArgs e)
+        private async Task ClearErrorLogAsync()
         {
-            if (!e.GetCurrentPoint(clearInstalledModsButton).Properties.IsRightButtonPressed)
-                return;
+            string errorLogPath = ConfigManager.GetErrorLogPath();
+            bool success = await DialogService.RunConfirmedActionAsync(this,
+                $"Remove Dwarf Fortress error log?\n{errorLogPath}",
+                "Remove error log",
+                () =>
+                {
+                    bool res = manager.ClearErrorLog(out string msg);
+                    return (res, msg);
+                },
+                "Error log removed",
+                "Remove failed");
 
-            e.Handled = true;
-            await RevealInstalledModsFolderAsync();
+            if (success)
+            {
+                await Task.Run(manager.FindModlistProblems);
+                UpdateProblemIndicators();
+                UpdateModIssuesOverlay();
+            }
+
+            if (removeErrorLogButton != null)
+            {
+                removeErrorLogButton.IsEnabled = !string.IsNullOrWhiteSpace(errorLogPath) && File.Exists(errorLogPath);
+            }
         }
 
         private void SaveButtonPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -375,7 +399,7 @@ namespace ModHearth.UI
             string installedModsPath = ConfigManager.GetInstalledModsPath();
             if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
             {
-                await DialogService.ShowMessageAsync(this, "Installed mods folder not found.", "Open Folder");
+                await DialogService.ShowMessageAsync(this, "installed_mods folder not found.", "Open Folder");
                 return;
             }
 

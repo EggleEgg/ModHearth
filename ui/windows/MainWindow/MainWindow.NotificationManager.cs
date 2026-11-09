@@ -34,6 +34,7 @@ namespace ModHearth.UI
         public string IconResourceName { get; set; } = "infoCircleWhiteIcon.svg";
         public IImage? IconSource { get; set; }
         public DateTime Timestamp { get; set; }
+        public long Sequence { get; set; }
         public string FormattedTime => "At:    " + Timestamp.ToString("HH'h 'mm'm 'ss's'");
 
         public bool IsFilteredOut
@@ -102,9 +103,17 @@ namespace ModHearth.UI
         private readonly BulkObservableCollection<NotificationRecord> notificationRecords = [];
         private readonly ObservableCollection<NotificationRecord> toasts = [];
         private readonly Dictionary<NotificationRecord, CancellationTokenSource> toastTimers = [];
+        private bool notificationViewRefreshQueued;
+        private long nextNotificationSequence;
 
         public void ApplyNotificationFilterAndSort()
         {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(ApplyNotificationFilterAndSort);
+                return;
+            }
+
             string filter = notificationSearchBar?.Text?.Trim() ?? string.Empty;
             SearchFilterMode mode = notificationSearchBar?.SearchMode ?? SearchFilterMode.ModifiedTime;
             bool sortDescending = notificationSearchBar?.SortDescending ?? true;
@@ -112,23 +121,80 @@ namespace ModHearth.UI
 
             SearchFilterContext context = new(filter, mode);
 
+            // Single pass: update flags and collect survivors together.
+            List<NotificationRecord> visibleRecords = new(allNotificationRecords.Count);
             foreach (NotificationRecord r in allNotificationRecords)
             {
-                bool match = context.MatchesText(r.Message);
+                bool match = !context.HasFilter || context.MatchesText(r.Message);
 
                 r.IsFilteredOut = context.HasFilter && !match;
                 r.IsVisible = !hideFiltered || match;
+                if (r.IsVisible)
+                    visibleRecords.Add(r);
             }
 
-            IEnumerable<NotificationRecord> query = allNotificationRecords.Where(r => r.IsVisible);
+            visibleRecords.Sort(sortDescending ? CompareNotificationsDescending : CompareNotificationsAscending);
 
-            query = sortDescending
-                ? query.OrderByDescending(r => r.Timestamp)
-                : query.OrderBy(r => r.Timestamp);
+            SearchFilterHelper.ReplaceCollection(notificationRecords, visibleRecords);
+        }
 
-            List<NotificationRecord> filteredList = [.. query];
+        // Timestamps can collide within a single tick; Sequence preserves insertion order.
+        private static int CompareNotificationsDescending(NotificationRecord left, NotificationRecord right)
+        {
+            int timeComparison = right.Timestamp.CompareTo(left.Timestamp);
+            return timeComparison != 0
+                ? timeComparison
+                : right.Sequence.CompareTo(left.Sequence);
+        }
 
-            Dispatcher.UIThread.Post(() => SearchFilterHelper.ReplaceCollection(notificationRecords, filteredList));
+        private static int CompareNotificationsAscending(NotificationRecord left, NotificationRecord right)
+        {
+            int timeComparison = left.Timestamp.CompareTo(right.Timestamp);
+            return timeComparison != 0
+                ? timeComparison
+                : left.Sequence.CompareTo(right.Sequence);
+        }
+
+        /// <summary>
+        /// Adds a newly created record without rebuilding the whole history view when the default
+        /// view is active. Notifications are already stored newest-first, so an incremental insert
+        /// produces the same order while raising a single Add instead of a full Reset.
+        /// </summary>
+        private bool TryInsertNotificationRecord(NotificationRecord record)
+        {
+            bool noFilter = string.IsNullOrWhiteSpace(notificationSearchBar?.Text);
+            bool sortDescending = notificationSearchBar?.SortDescending ?? true;
+            bool viewInSync = notificationRecords.Count == allNotificationRecords.Count - 1
+                && (notificationRecords.Count == 0 || ReferenceEquals(notificationRecords[0], allNotificationRecords[1]));
+            bool isNewest = notificationRecords.Count == 0 || record.Timestamp >= notificationRecords[0].Timestamp;
+
+            if (!noFilter || !sortDescending || !viewInSync || !isNewest)
+                return false;
+
+            record.IsFilteredOut = false;
+            record.IsVisible = true;
+            notificationRecords.Insert(0, record);
+            TrimNotificationView();
+            return true;
+        }
+
+        private void TrimNotificationView()
+        {
+            while (notificationRecords.Count > MaxNotificationRecords)
+                notificationRecords.RemoveAt(notificationRecords.Count - 1);
+        }
+
+        private void ScheduleNotificationViewRefresh()
+        {
+            if (notificationViewRefreshQueued)
+                return;
+
+            notificationViewRefreshQueued = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                notificationViewRefreshQueued = false;
+                ApplyNotificationFilterAndSort();
+            }, DispatcherPriority.Background);
         }
 
         public void ShowNotification(string message,
@@ -150,13 +216,18 @@ namespace ModHearth.UI
                 Message = message,
                 IconResourceName = iconResourceName,
                 IconSource = ImageSourceLoader.LoadFromAssetUri(iconResourceName),
-                Timestamp = DateTime.Now
+                Timestamp = DateTime.Now,
+                Sequence = nextNotificationSequence++
             };
 
             allNotificationRecords.Insert(0, record);
+
+            bool insertedIncrementally = TryInsertNotificationRecord(record);
             if (allNotificationRecords.Count > MaxNotificationRecords)
                 allNotificationRecords.RemoveRange(MaxNotificationRecords, allNotificationRecords.Count - MaxNotificationRecords);
-            ApplyNotificationFilterAndSort();
+
+            if (!insertedIncrementally)
+                ScheduleNotificationViewRefresh();
 
             while (toasts.Count >= MaxShownNotifications)
                 DismissToast(toasts[^1]);
@@ -208,6 +279,9 @@ namespace ModHearth.UI
             }
             else
             {
+                // Populate the history before the slide-in starts so the drawer never opens empty
+                // while a coalesced background refresh is still queued.
+                ApplyNotificationFilterAndSort();
                 NotificationDrawerPanel.Classes.Add("open");
                 NotificationBackdrop.IsVisible = true;
             }

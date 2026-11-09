@@ -115,8 +115,8 @@ namespace ModHearth.UI
 
             BuildModViewModels();
             RefreshModlistPanels();
-            clearInstalledModsButton.IsEnabled = Directory.Exists(ConfigManager.GetInstalledModsPath());
             buildVersionLabel.Text = $"Build {ModHearthManager.GetBuildVersionString()}";
+            _ = RefreshVersionLabelsAsync();
             InitializeUpdateChecking();
             _ = UpdateDfHackStatusAsync();
             StartDfHackStatusTimer();
@@ -131,10 +131,9 @@ namespace ModHearth.UI
                 IReadOnlyList<ModHearthManager.ConfigIssue> issues = ConfigManager.GetConfigIssues();
                 if (issues.Count == 0)
                     return true;
-
-                bool handled = false;
                 foreach (ModHearthManager.ConfigIssue issue in issues)
                 {
+                    bool handled;
                     switch (issue.IssueType)
                     {
                         case ModHearthManager.ConfigIssueType.MissingDwarfFortressPath:

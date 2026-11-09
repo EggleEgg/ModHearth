@@ -42,12 +42,15 @@ namespace ModHearth.UI
         {
             HeaderText.Text = "Select a build to install:";
             HeaderText.FontSize = 16;
-            ChannelSwitchButton.IsVisible = DevMode.IsEnabled;
             UpdateChannelButtonState();
             RefreshReleaseList();
         }
 
-        private void UpdateChannelButtonState() => ChannelSwitchButton.Content = "Switch to " + (_isBleedingEdge ? "Main" : "Bleeding Edge");
+        private void UpdateChannelButtonState()
+        {
+            ChannelSwitchButton.Content = "Switch to " + (_isBleedingEdge ? "Main" : "Bleeding Edge");
+            BleedingEdgeWarningPanel.IsVisible = _isBleedingEdge;
+        }
 
         private void RefreshReleaseList()
         {
@@ -74,7 +77,7 @@ namespace ModHearth.UI
             catch (Exception ex)
             {
                 HeaderText.Text = $"Failed to fetch builds: {ex.Message}";
-                Loggers.Updates.Dev($"Channel switch failed: {ex.Message}");
+                Loggers.Updates.LogError($"Channel switch failed: {ex.Message}");
             }
             finally
             {

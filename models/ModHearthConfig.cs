@@ -39,7 +39,7 @@ namespace ModHearth.Models
             }
         }
 
-        // Path to installed mods cache.
+        // Path to installed_mods cache.
         public string InstalledModsPath { get; set; } = string.Empty;
 
         // Should this be in lightmode?
@@ -151,5 +151,8 @@ namespace ModHearth.Models
 
         // Whether to automatically check for releases on program startup.
         public bool AutoCheckForReleasesOnStartup { get; set; } = true;
+
+        // Whether to backup ModHearth data (metadata/, modrules.json, config.json) before installing a new release.
+        public bool BackupDataBeforeUpdate { get; set; } = true;
     }
 }

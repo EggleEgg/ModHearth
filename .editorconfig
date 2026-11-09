@@ -1,3 +1,11 @@
+[*]
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+insert_final_newline = true
+charset = utf-8
+end_of_line = lf
+
 [*.cs]
 
 csharp_prefer_braces = false:suggestion
@@ -7,14 +15,24 @@ csharp_prefer_braces = when_multiline:suggestion
 dotnet_diagnostic.xUnit1030.severity = suggestion
 
 dotnet_analyzer_diagnostic.category-Style.severity = warning
+# Promote all Reliability diagnostics (thread safety, lock management, memory usage)
+dotnet_analyzer_diagnostic.category-Reliability.severity = warning
+# Promote all Usage diagnostics (proper API usage, disposable patterns)
+dotnet_analyzer_diagnostic.category-Usage.severity = warning
+# Promote all Performance diagnostics (CA18xx series) to warnings
+dotnet_analyzer_diagnostic.category-Performance.severity = warning
+
 dotnet_diagnostic.IDE0046.severity = none
 dotnet_diagnostic.IDE0045.severity = none
 dotnet_diagnostic.IDE0022.severity = none
 dotnet_diagnostic.IDE0010.severity = none
 dotnet_diagnostic.IDE0011.severity = none
 dotnet_diagnostic.IDE0072.severity = none
+# Use primary constructors
+dotnet_diagnostic.IDE0290.severity = warning
 
 dotnet_style_allow_multiple_blank_lines_experimental = false
+# Dispose objects before losing scope
 dotnet_diagnostic.IDE2000.severity = warning
 
 # --- Regex Source Generator (SYSLIB1040 - SYSLIB1045) ---
@@ -42,8 +60,8 @@ dotnet_diagnostic.SYSLIB1006.severity = warning
 dotnet_diagnostic.SYSLIB1014.severity = warning
 dotnet_diagnostic.SYSLIB1015.severity = warning
 
-# Promote all Performance diagnostics (CA18xx series) to warnings
-dotnet_analyzer_diagnostic.category-Performance.severity = warning
+dotnet_diagnostic.CA2000.severity = warning
+
 
 
 ### Footnote: holy shit I love c# dev kit, it s like using ai agents but without the indeterminism

@@ -210,7 +210,7 @@ namespace ModHearth
                     Loggers.Steam.Log($"Unsubscribed workshop item {steamItemId} (resubscribe stage).");
                     lock (installedCacheGate)
                     {
-                        // Since we are unsubscribing, it's effectively deleted from the installed mods for now.
+                        // Since we are unsubscribing, it's effectively deleted from installed_mods for now.
                         _ = (installedCacheModIds?.Remove(steamItemId));
                     }
                 }

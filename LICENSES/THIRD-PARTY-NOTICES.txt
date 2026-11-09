@@ -7,6 +7,9 @@ Modified and ported Dwarf Fortress image and svg by Bay 12 Games & Kitfox Games
 
 Font Awesome by Dave Gandy. Fonticons, Inc. (https://fontawesome.com)
 
+Font Typicons by Stephen Hutchings https://www.s-ings.com/typicons/
+Font Microns by Stephen Hutchings https://www.s-ings.com/projects/microns-icon-font/
+
 Font Entypo by Daniel Bruce https://www.entypo.com/
 
 Font Iconic by http://somerandomdude.com/work/iconic/
@@ -23,8 +26,3 @@ Vectors and icons by <a href="https://github.com/540co/govicons?ref=svgrepo.com"
 Vectors and icons by <a href="https://www.figma.com/@thewolfkit?ref=svgrepo.com" target="_blank">Thewolfkit</a> in CC Attribution License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
 Vectors and icons by <a href="https://iconoir.com/?ref=svgrepo.com" target="_blank">Iconoir</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
 Vectors and icons by <a href="https://iconhub.io?ref=svgrepo.com" target="_blank">Iconhub</a> in CC Attribution License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
-
-
-
-
-

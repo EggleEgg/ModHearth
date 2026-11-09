@@ -7,6 +7,7 @@ using Avalonia.Media;
 using ModHearth.Models;
 using ModHearth.UI.Contracts;
 using ModHearth.UI.Dialogs;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.ModList;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
@@ -24,8 +25,7 @@ namespace ModHearth.UI
         // Undo history is capped so long editing sessions cannot retain an unbounded number of rule snapshots.
         private const int MaxUndoDepth = 100;
         private readonly LinkedList<Dictionary<string, ModRelationshipRule>> undoStack = new();
-        //TODO Finish up implementing github community sort rules fetching
-        private readonly string rulesFilePath;
+        private readonly string rulesFilePath; //TODO Finish up implementing github community sort rules fetching
         private readonly Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged;
         private ModRefViewModel? selectedMod;
         private bool applyingUndo;

@@ -179,6 +179,7 @@ namespace ModHearth.UI.Theme
                 app.Resources["SearchButtonHoverBrush"] = searchButtonHoverBrush;
                 app.Resources["SearchButtonPressedBrush"] = searchButtonPressedBrush;
                 app.Resources["ButtonTextBrush"] = buttonTextBrush;
+                app.Resources["ModRefIssueWarningBrush"] = BrushCache.GetBrush(style.ModRefIssueWarningColor);
             }
 
             // Single top-down $O(N)$ pass through the visual tree
@@ -199,6 +200,7 @@ namespace ModHearth.UI.Theme
             {
                 case null:
                     return;
+                //Use Tag="IgnoreTheme" to skip styling
                 case Control control when control.Tag is string ignoreTag && string.Equals(ignoreTag, "IgnoreTheme", StringComparison.OrdinalIgnoreCase):
                     return;
                 case IStyleAwareWindow styleAware:

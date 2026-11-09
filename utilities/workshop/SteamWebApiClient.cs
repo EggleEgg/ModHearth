@@ -17,6 +17,9 @@ namespace ModHearth.Utilities.Workshop
         public List<ulong> ChildrenIds { get; set; } = [];
     }
 
+    /// <summary>
+    /// A simple client for the Steam Web API to fetch workshop item details and collection details.
+    /// </summary>
     public static class SteamWebApiClient
     {
         private static readonly HttpClient HttpClient = new();

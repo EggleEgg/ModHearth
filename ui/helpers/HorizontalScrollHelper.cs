@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Helpers
 {
     /// <summary>
     /// Reusable helper for adding sideways scrolling behavior to ScrollViewers.

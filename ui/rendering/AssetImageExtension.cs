@@ -271,7 +271,7 @@ namespace ModHearth.UI.Rendering
         }
 
         private static IImage? LoadFromNormalizedAssetUri(string normalizedAssetUri)
-            => TryLoad<IImage>($"'{normalizedAssetUri}'", () =>
+            => TryLoad($"'{normalizedAssetUri}'", () =>
             {
                 if (IsSvgPath(normalizedAssetUri))
                 {
@@ -330,7 +330,7 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(uriText))
                 return null;
 
-            return TryLoad<SvgImage>($"'{uriText}'", () =>
+            return TryLoad($"'{uriText}'", () =>
             {
                 if (uriText.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -354,7 +354,7 @@ namespace ModHearth.UI.Rendering
             if (string.IsNullOrWhiteSpace(assetUri))
                 return null;
 
-            return TryLoad<Bitmap>($"'{assetUri}'", () =>
+            return TryLoad($"'{assetUri}'", () =>
             {
                 if (assetUri.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -442,10 +442,19 @@ namespace ModHearth.UI.Rendering
         public static TintedAssetConverter Instance { get; } = new TintedAssetConverter();
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (parameter is not string assetName)
+            string? assetName = parameter as string;
+            object? brushOrColor = value;
+
+            if (value is ThemeOption themeOption)
+            {
+                assetName = themeOption.IconAsset;
+                brushOrColor = themeOption.ColorBrush;
+            }
+
+            if (string.IsNullOrEmpty(assetName))
                 return null;
 
-            Color? tint = value switch
+            Color? tint = brushOrColor switch
             {
                 ISolidColorBrush brush => brush.Color,
                 Color color => color,

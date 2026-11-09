@@ -1,8 +1,6 @@
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Reactive;
@@ -486,50 +484,14 @@ namespace ModHearth.UI
             };
             searchModeLabels[mode] = text;
 
-            StackPanel content = new() { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 0, 15, 0) };
+            StackPanel content = new() { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 0, 2, 0) };
             content.Children.Add(CreateSearchModeIcon(mode));
             content.Children.Add(text);
 
             if (mode == SearchFilterMode.Regex)
             {
                 ToolTip.SetTip(button, "Search includes mod title and description");
-
-                Button helpButton = new()
-                {
-                    Content = "?",
-                    Width = 18,
-                    Height = 18,
-                    Padding = new Thickness(0),
-                    HorizontalContentAlignment = HorizontalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    FontSize = 12,
-                    Cursor = new Cursor(StandardCursorType.Hand)
-                };
-
-                ToolTip.SetTip(helpButton, "Click here to view regex documentation");
-
-                helpButton.Click += (_, e) =>
-                {
-                    e.Handled = true;
-
-                    using Process? process = Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "https://regex101.com/",
-                        UseShellExecute = true
-                    });
-                };
-
-                Grid grid = new()
-                {
-                    ColumnDefinitions = ColumnDefinitions.Parse("Auto, *, Auto")
-                };
-
-                Grid.SetColumn(content, 0);
-                Grid.SetColumn(helpButton, 2);
-                grid.Children.Add(content);
-                grid.Children.Add(helpButton);
-                button.Content = grid;
+                ButtonHelpers.AttachHelpButton(button, content, "https://regex101.com/", "Click here to view regex documentation");
             }
             else
             {

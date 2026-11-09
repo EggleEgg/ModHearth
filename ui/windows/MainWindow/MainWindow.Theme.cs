@@ -1,8 +1,11 @@
+using Avalonia.Media;
 using ModHearth.UI.Dialogs;
 using ModHearth.UI.Theme;
 
 namespace ModHearth.UI
 {
+    public sealed record ThemeOption(string Name, string IconAsset, IBrush ColorBrush);
+
     public partial class MainWindow
     {
         public void ApplyCustomStyle(Style style)
@@ -25,7 +28,7 @@ namespace ModHearth.UI
 
             ApplyCustomStyle(style);
 
-            // Use the centralized theme manager to apply styles recursively to the entire visual tree, 
+            // Use the centralized theme manager to apply styles recursively to the entire visual tree,
             // including window background, theme variant, application resources, labels, listboxes, notification container, etc.
             WindowThemeManager.ApplyToOpenWindows(style);
         }

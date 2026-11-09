@@ -7,6 +7,7 @@ using Avalonia.Threading;
 using ModHearth.Models;
 using ModHearth.UI.Behaviors;
 using ModHearth.UI.Docking;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.ModList;
 using ModHearth.UI.Theme;
 using ModHearth.UI.ViewModels;
@@ -179,6 +180,8 @@ namespace ModHearth.UI
             SetPreviewImage(LoadFallbackPreview("modhearth_icon_v2.ico"));
             ShowFallbackHelpText();
             HorizontalScrollHelper.EnableSidewaysScrolling(dfhackStatusScrollViewer);
+            HorizontalScrollHelper.EnableSidewaysScrolling(dfVersionScrollViewer);
+            HorizontalScrollHelper.EnableSidewaysScrolling(dfhackVersionScrollViewer);
 
             manager = new ModHearthManager();
             manager.RequestUIReload += () => Dispatcher.UIThread.Post(async () => await ReloadModpacksFromDisk());
@@ -280,8 +283,12 @@ namespace ModHearth.UI
             sortButton.Click += async (_, _) => await ModSortAsync();
             sortButton.AddHandler(PointerPressedEvent, SortButtonPointerPressed, RoutingStrategies.Tunnel, true);
             sortRulesButton.Click += async (_, _) => await OpenSortRulesAsync();
-            clearInstalledModsButton.Click += async (_, _) => await ClearInstalledModsAsync();
-            clearInstalledModsButton.AddHandler(PointerPressedEvent, ClearInstalledModsPointerPressed, RoutingStrategies.Tunnel, true);
+            installedModsMenuButton.Click += (s, e) =>
+            {
+                e.Handled = true;
+                EnsureInstalledModsOptionsFlyout();
+                installedModsOptionsFlyout?.ShowAt(installedModsMenuButton);
+            };
             reloadButton.Click += async (_, _) => await ReloadModpacksAsync();
             reloadButton.AddHandler(PointerPressedEvent, ReloadButtonPointerPressed, RoutingStrategies.Tunnel, true);
 
@@ -306,7 +313,11 @@ namespace ModHearth.UI
             rightDockSplitterCloseButton.Click += (_, _) => CloseDockedWindowOnSide(DockSide.Right);
             bottomDockSplitterCloseButton.Click += (_, _) => CloseDockedWindowOnSide(DockSide.Bottom);
 
-            themeComboBox.ItemsSource = new[] { "light theme", "dark theme" };
+            themeComboBox.ItemsSource = new[]
+            {
+                new ThemeOption("light theme", "themeLightIcon", BrushCache.GetBrush(Color.Parse("#000000"))),
+                new ThemeOption("dark theme", "themeDarkIcon", BrushCache.GetBrush(Color.Parse("#ffffff")))
+            };
             themeComboBox.SelectionChanged += async (_, _) => await OnThemeChangedAsync();
 
             modpackComboBox.SelectionChanged += (_, _) => OnModpackChanged();

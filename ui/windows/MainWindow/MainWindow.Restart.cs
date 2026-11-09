@@ -17,8 +17,7 @@ namespace ModHearth.UI
 
         /// <summary>
         /// Restarts the application only after every registered guard approves. <paramref name="onApproved"/>
-        /// runs after the guards pass but before the relaunch, which lets callers apply destructive
-        /// changes only once the user has committed to restarting.
+        /// runs after the guards pass but before the relaunch, which lets callers apply destructive changes only once the user has committed to restarting.
         /// Returns false when a guard vetoed the restart.
         /// </summary>
         private async Task<bool> RestartApplicationAsync(Func<Task>? onApproved = null)

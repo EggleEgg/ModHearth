@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 
-namespace ModHearth.UI
+namespace ModHearth.UI.Helpers
 {
     /// <summary>
     /// ObservableCollection variant with a bulk-replace operation that raises a single

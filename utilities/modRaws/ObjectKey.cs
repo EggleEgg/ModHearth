@@ -1,4 +1,4 @@
-namespace ModHearth.Utilities
+namespace ModHearth.Utilities.ModRaws
 {
     /// <summary>
     /// A composite key that uniquely identifies a Dwarf Fortress raw object.

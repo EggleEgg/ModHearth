@@ -66,7 +66,7 @@
           HorizontalAlignment="Stretch"
           VerticalContentAlignment="Center"
           Height="30"
-          ToolTip.Tip="Resolve and queue URLs. Right click to toggle auto-resolve"
+          ToolTip.Tip="Resolve and queue URLs.&#x0a;Right click to toggle auto-resolve"
           Tag="Themed" >
           <Grid ColumnDefinitions="Auto,*">
             <Image
@@ -144,7 +144,7 @@
             Height="26"
             VerticalContentAlignment="Center"
             FontSize="11"
-            ToolTip.Tip="Retry all failed or cancelled downloads. Right click to toggle auto-retry" >
+            ToolTip.Tip="Retry all failed or cancelled downloads.&#x0a;Right click to toggle auto-retry" >
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
               <Image
                 x:Name="autoRetryAllIndicator"

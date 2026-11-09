@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="380"
+   height="380"
+   viewBox="0 0 380 380"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <title
+     id="title1">Default mode</title>
+  <path
+     d="m 190,380 q 81,-2 135,-55 53,-54 55,-135 Q 378,109 325,55 271,2 190,0 109,2 55,55 2,109 0,190 q 2,81 55,135 54,53 135,55 z m 0,-40 V 40 q 65,1 107,43 42,42 43,107 -1,64 -43,106 -42,42 -107,44 z"
+     id="path1" />
+</svg>

@@ -11,6 +11,12 @@ def remove_xml_comments(file_path: Path) -> None:
     content = file_path.read_text(encoding="utf-8")
     # Matches <!-- and --> across multiple lines using [\s\S]*?
     cleaned_content = re.sub(r"<!--[\s\S]*?-->", "", content)
+    # Matches <g id="icomoon-ignore" ... /> or <g ... id="icomoon-ignore" ...>...</g> across multiple lines
+    cleaned_content = re.sub(
+        r"<g\b[^>]*\bid=['\"]icomoon-ignore['\"][^>]*(?:/>|>[\s\S]*?</\s*g\s*>)",
+        "",
+        cleaned_content,
+    )
     file_path.write_text(cleaned_content, encoding="utf-8")
 
 

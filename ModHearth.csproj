@@ -21,6 +21,17 @@
     <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- Always use the latest analyzer rules shipped with the SDK -->
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- Choose how aggressive the default analyzer set should be (e.g., Recommended or All) -->
+    <AnalysisMode>Recommended</AnalysisMode>
+
+    <!-- Enforce strict nullability to prevent NullReferenceExceptions at compile time -->
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Remove="ModHearth.App.Tests\\**\\*.cs" />
     <Compile Remove="ModHearth.SteamWorker\\**\\*.cs" />

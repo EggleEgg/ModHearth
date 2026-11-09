@@ -1158,7 +1158,7 @@ namespace ModHearth
             string installedModsPath = GetInstalledModsPath();
             if (string.IsNullOrWhiteSpace(installedModsPath) || !Directory.Exists(installedModsPath))
             {
-                issues.Add(new ModHearthManager.ConfigIssue(ModHearthManager.ConfigIssueType.MissingInstalledModsPath, "Installed mods path is not set or missing."));
+                issues.Add(new ModHearthManager.ConfigIssue(ModHearthManager.ConfigIssueType.MissingInstalledModsPath, "installed_mods path is not set or missing."));
             }
 
             if (string.IsNullOrWhiteSpace(Config.DFHackFolderPath))
@@ -1287,6 +1287,10 @@ namespace ModHearth
         public static bool GetAutoCheckForReleasesOnStartup() => Config.AutoCheckForReleasesOnStartup;
 
         public static void SetAutoCheckForReleasesOnStartup(bool autoCheck) => Update(c => c.AutoCheckForReleasesOnStartup = autoCheck, "Auto check for releases on startup");
+
+        public static bool GetBackupDataBeforeUpdate() => Config.BackupDataBeforeUpdate;
+
+        public static void SetBackupDataBeforeUpdate(bool backup) => Update(c => c.BackupDataBeforeUpdate = backup, "Backup data before update");
 
         [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex SteamLibraryPathRegex();

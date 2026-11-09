@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="332"
+   height="332"
+   viewBox="0 0 332 332"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <title
+     id="title1">Dark mode</title>
+  <path
+     d="m 152,332 q 77,-2 128,-53 50,-50 52,-127 Q 330,97 301,56 272,16 240,0 l -8,8 q 40,104 -40,184 -80,80 -184,40 l -8,8 q 16,32 57,61 40,29 95,31 z"
+     id="path1" />
+</svg>

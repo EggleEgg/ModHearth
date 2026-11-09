@@ -361,7 +361,7 @@
 
       <!-- Right buttons main panel -->
       <Border Grid.Column="5" Margin="0,3,3,3">
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*, Auto" RowSpacing="6">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="6">
           <Grid.Styles>
             <Style Selector="Button">
               <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -416,7 +416,7 @@
               x:Name="reloadButton"
               Grid.Column="3"
               Tag="Themed"
-              ToolTip.Tip="Reload local/steam workshop modlists and mods. Right click to autoreload">
+              ToolTip.Tip="Reload local/steam workshop modlists and mods.&#x0a;Right click to autoreload">
               <Grid>
                 <Image Source="{render:AssetImage reloadIcon}" />
                 <Image
@@ -497,7 +497,7 @@
               x:Name="sortButton"
               Tag="Themed"
               HorizontalContentAlignment="Stretch"
-              ToolTip.Tip="Sorts mods based on raw tag properties. Right click to autosort">
+              ToolTip.Tip="Sorts mods based on raw tag properties.&#x0a;Right click to autosort">
               <Grid>
                 <TextBlock Text="Sort" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Image
@@ -541,7 +541,7 @@
               Tag="Themed"
               Width="50"
               Height="50"
-              ToolTip.Tip="Open the Steam Workshop Downloader. Right click to toggle docking mode"
+              ToolTip.Tip="Open the Steam Workshop Downloader.&#x0a;Right click to toggle docking mode"
               HorizontalAlignment="Right">
               <Grid>
                 <Image Source="{render:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
@@ -562,7 +562,7 @@
                 FontSize="13"
                 HorizontalContentAlignment="Stretch"
                 VerticalContentAlignment="Stretch"
-                ToolTip.Tip="Open the Mod Update Log. Right click to toggle docking mode">
+                ToolTip.Tip="Open the Mod Update Log.&#x0a;Right click to toggle docking mode">
                 <Grid>
                   <TextBlock Text="Update log" HorizontalAlignment="Center" VerticalAlignment="Center" />
                   <Image
@@ -576,12 +576,12 @@
                 </Grid>
               </Button>
               <Button
-                x:Name="clearInstalledModsButton"
+                x:Name="installedModsMenuButton"
                 Grid.Column="1"
                 Tag="Themed"
                 Width="28"
                 Padding="-1,-1,-1,-3"
-                ToolTip.Tip="Delete the installed mods cache. Right click to open the installed_mods folder">
+                ToolTip.Tip="Clear contents submenu">
                 <Image Source="{render:AssetImage trashDatabaseIcon}" />
               </Button>
             </Grid>
@@ -604,7 +604,36 @@
                      Source="{render:AssetImage errorIcon}" />
             </Button>
             <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="10">
-              <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch" />
+              <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="ui:ThemeOption">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <Image
+                        Source="{Binding Converter={x:Static render:TintedAssetConverter.Instance}}"
+                        Width="16"
+                        Height="16"
+                        VerticalAlignment="Center" />
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+                <ComboBox.SelectionBoxItemTemplate>
+                  <DataTemplate x:DataType="ui:ThemeOption">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <Image
+                        Source="{Binding Converter={x:Static render:TintedAssetConverter.Instance}}"
+                        Width="14"
+                        Height="14"
+                        VerticalAlignment="Center" />
+                      <TextBlock
+                        Text="{Binding Name}"
+                        VerticalAlignment="Center"
+                        FontSize="11"
+                        TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ComboBox.SelectionBoxItemTemplate>
+              </ComboBox>
               <Button
                 Grid.Row="1"
                 x:Name="redoConfigButton"
@@ -614,6 +643,58 @@
                 HorizontalAlignment="Right"
                 Padding="6,0,6,0" />
             </Grid>
+          </Grid>
+          <Grid
+            Grid.Row="9"
+            ColumnDefinitions="*,*"
+            ColumnSpacing="6"
+            Margin="0,4,0,0">
+            <ScrollViewer
+              x:Name="dfVersionScrollViewer"
+              Grid.Column="0"
+              HorizontalScrollBarVisibility="Auto"
+              VerticalScrollBarVisibility="Disabled"
+              AllowAutoHide="False"
+              VerticalAlignment="Center">
+              <ScrollViewer.Styles>
+                <Style Selector="ScrollBar:horizontal">
+                  <Setter Property="Height" Value="5"/>
+                  <Setter Property="MinHeight" Value="5"/>
+                  <Setter Property="MaxHeight" Value="5"/>
+                  <Setter Property="ClipToBounds" Value="True"/>
+                </Style>
+              </ScrollViewer.Styles>
+              <TextBlock
+                x:Name="dfVersionLabel"
+                FontSize="11"
+                VerticalAlignment="Center"
+                Foreground="{DynamicResource MainTextBrush}"
+                ToolTip.Tip="Detected Dwarf Fortress Version" />
+            </ScrollViewer>
+            <ScrollViewer
+              x:Name="dfhackVersionScrollViewer"
+              Grid.Column="1"
+              HorizontalScrollBarVisibility="Auto"
+              VerticalScrollBarVisibility="Disabled"
+              AllowAutoHide="False"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Center">
+              <ScrollViewer.Styles>
+                <Style Selector="ScrollBar:horizontal">
+                  <Setter Property="Height" Value="5"/>
+                  <Setter Property="MinHeight" Value="5"/>
+                  <Setter Property="MaxHeight" Value="5"/>
+                  <Setter Property="ClipToBounds" Value="True"/>
+                </Style>
+              </ScrollViewer.Styles>
+              <TextBlock
+                x:Name="dfhackVersionLabel"
+                FontSize="11"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Foreground="{DynamicResource MainTextBrush}"
+                ToolTip.Tip="Detected DFHack Version" />
+            </ScrollViewer>
           </Grid>
         </Grid>
       </Border>

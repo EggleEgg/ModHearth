@@ -665,13 +665,13 @@ namespace ModHearth
             string installedModsPath = GetInstalledModsPath();
             if (string.IsNullOrWhiteSpace(installedModsPath))
             {
-                message = "Installed mods path is not set.";
+                message = "installed_mods path is not set.";
                 return false;
             }
 
             if (!Directory.Exists(installedModsPath))
             {
-                message = $"Installed mods folder not found:\n{installedModsPath}";
+                message = $"installed_mods folder not found:\n{installedModsPath}";
                 return false;
             }
 
@@ -711,6 +711,35 @@ namespace ModHearth
             message = $"Cleared {deleted} item(s).";
             RefreshInstalledCacheModIds();
             return true;
+        }
+
+        public bool ClearErrorLog(out string message)
+        {
+            string errorLogPath = GetErrorLogPath();
+            if (string.IsNullOrWhiteSpace(errorLogPath))
+            {
+                message = "Error log path is not set.";
+                return false;
+            }
+
+            if (!File.Exists(errorLogPath))
+            {
+                message = $"Error log file not found:\n{errorLogPath}";
+                return false;
+            }
+
+            try
+            {
+                File.Delete(errorLogPath);
+                ClearErrorLogProblemCache();
+                message = $"Deleted {errorLogPath}";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = $"Failed to delete error log:\n{ex.Message}";
+                return false;
+            }
         }
 
         public HashSet<string> GetInstalledCacheModIds()

@@ -27,6 +27,7 @@ namespace ModHearth.UI
 
         private Flyout? updateOptionsFlyout;
         private CheckBox? autoCheckUpdatesOnStartupCheckBox;
+        private CheckBox? backupDataBeforeUpdateCheckBox;
         private Button? ignoreVersionButton;
         private string? latestAvailableVersion;
         private bool suppressUpdateUiEvents;
@@ -129,6 +130,13 @@ namespace ModHearth.UI
             };
             autoCheckUpdatesOnStartupCheckBox.IsCheckedChanged += AutoCheckUpdatesOnStartupChanged;
 
+            backupDataBeforeUpdateCheckBox = new CheckBox
+            {
+                Content = "Backup ModHearth before updating",
+                IsChecked = ConfigManager.GetBackupDataBeforeUpdate()
+            };
+            backupDataBeforeUpdateCheckBox.IsCheckedChanged += BackupDataBeforeUpdateChanged;
+
             ignoreVersionButton = new Button
             {
                 Tag = "Themed",
@@ -143,6 +151,7 @@ namespace ModHearth.UI
                 Spacing = 8
             };
             panel.Children.Add(autoCheckUpdatesOnStartupCheckBox);
+            panel.Children.Add(backupDataBeforeUpdateCheckBox);
             panel.Children.Add(ignoreVersionButton);
 
             updateOptionsFlyout = new Flyout
@@ -162,6 +171,8 @@ namespace ModHearth.UI
 
             suppressUpdateUiEvents = true;
             autoCheckUpdatesOnStartupCheckBox.IsChecked = ConfigManager.GetAutoCheckForReleasesOnStartup();
+            if (backupDataBeforeUpdateCheckBox != null)
+                backupDataBeforeUpdateCheckBox.IsChecked = ConfigManager.GetBackupDataBeforeUpdate();
             suppressUpdateUiEvents = false;
             UpdateIgnoreButtonLabel();
         }
@@ -191,6 +202,15 @@ namespace ModHearth.UI
 
             bool autoCheck = autoCheckUpdatesOnStartupCheckBox.IsChecked == true;
             ConfigManager.SetAutoCheckForReleasesOnStartup(autoCheck);
+        }
+
+        private void BackupDataBeforeUpdateChanged(object? sender, RoutedEventArgs e)
+        {
+            if (suppressUpdateUiEvents || backupDataBeforeUpdateCheckBox == null)
+                return;
+
+            bool backup = backupDataBeforeUpdateCheckBox.IsChecked == true;
+            ConfigManager.SetBackupDataBeforeUpdate(backup);
         }
 
         private void IgnoreVersionClicked(object? sender, RoutedEventArgs e)

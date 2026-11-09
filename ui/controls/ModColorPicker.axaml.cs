@@ -7,6 +7,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using ModHearth.Models;
 using ModHearth.UI.Behaviors;
+using ModHearth.UI.Helpers;
 using ModHearth.Utilities.Workshop;
 
 namespace ModHearth.UI

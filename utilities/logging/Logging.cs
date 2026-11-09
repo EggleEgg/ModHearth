@@ -12,6 +12,7 @@ namespace ModHearth.Utilities.Logging
         public static readonly Logger Dock = new("DockRebalance", Console.WriteLine);
         public static readonly Logger Drag = new("ModDragDrop", Console.WriteLine);
         public static readonly Logger Updates = new("UpdateCheck", Console.WriteLine);
+        public static readonly Logger Backup = new("Backup", Console.WriteLine);
         public static readonly Logger Search = new("SearchFlow",
             line => Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {line}"));
     }

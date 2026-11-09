@@ -26,7 +26,7 @@ namespace ModHearth.UI.Dialogs
             Cts = new CancellationTokenSource();
 
             string installDir = Path.Combine(AppContext.BaseDirectory, "steamcmd");
-            IProgress<string> progress = CreateProgressReporter(StatusTextBlock);
+            IProgress<string> progress = CreateProgressReporter(StatusTextBlock, SetupProgressBar);
 
             try
             {

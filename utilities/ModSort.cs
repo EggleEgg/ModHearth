@@ -1,6 +1,6 @@
 using ModHearth.Models;
-using ModHearth.Utilities;
 using ModHearth.Utilities.Logging;
+using ModHearth.Utilities.ModRaws;
 
 namespace ModHearth
 {
@@ -91,7 +91,7 @@ namespace ModHearth
         // what makes tiered priority work: since tiers are added in priority order, a lower-priority edge that contradicts a higher-priority one
         // always fails this check and gets dropped, never the reverse.
         internal static bool WouldCreateCycle<TEdges>(IReadOnlyDictionary<string, TEdges> edges, string fromId, string toId)
-            where TEdges : IEnumerable<string>
+            where TEdges : class, IEnumerable<string>
         {
             if (string.Equals(fromId, toId, StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -149,7 +149,7 @@ namespace ModHearth
                 return false;
 
             destinations.Add(toId);
-            indegree[toId] = ++value;
+            indegree[toId] = value + 1;
             return true;
         }
 

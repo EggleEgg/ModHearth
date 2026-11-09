@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using Avalonia.Controls;
 using ModHearth.Models;
 using ModHearth.UI.Dialogs;
+using ModHearth.Utilities;
 
 namespace ModHearth.UI.Update
 {
@@ -258,6 +259,7 @@ namespace ModHearth.UI.Update
             }
 
             UpdateLogger.Log($"Update payload directory: {payloadDir}");
+            TryBackUpModHearthData(baseDir);
             string? configBackup = BackupConfig(baseDir, tempRoot);
             if (!string.IsNullOrWhiteSpace(configBackup))
                 UpdateLogger.Log($"Backed up config: {configBackup}");
@@ -769,6 +771,18 @@ namespace ModHearth.UI.Update
             client.DefaultRequestHeaders.UserAgent.ParseAdd("ModHearth/1.0");
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
             return client;
+        }
+
+        private static void TryBackUpModHearthData(string baseDir)
+        {
+            if (!ConfigManager.GetBackupDataBeforeUpdate())
+                return;
+
+            BackupResult result = BackupService.CreateBackup(baseDir);
+            if (result.Success)
+                UpdateLogger.Log(result.Message);
+            else
+                UpdateLogger.LogError($"Failed to create pre-update backup archive: {result.Message}");
         }
     }
 }

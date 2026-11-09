@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using ModHearth.Models;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.ModList;
 using ModHearth.UI.ViewModels;
 
@@ -101,7 +102,7 @@ namespace ModHearth.UI
             UpdateModlistHeaders();
         }
 
-        private async void ModlistDropped(ModListDropContext context)
+        private async Task ModlistDropped(ModListDropContext context)
         {
             if (context.Items.Count == 0)
                 return;

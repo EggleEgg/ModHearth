@@ -53,7 +53,7 @@ namespace ModHearth.UI.ModList
         private DateTime lastAutoScrollTickUtc;
         private long dragPointerPressedTimestamp;
 
-        public event Action<ModListDropContext>? Dropped;
+        public event Func<ModListDropContext, Task>? Dropped;
 
         public ModListDragDropController(Window owner)
         {
@@ -249,7 +249,7 @@ namespace ModHearth.UI.ModList
             }
         }
 
-        private void OnDrop(object? sender, DragEventArgs e)
+        private async void OnDrop(object? sender, DragEventArgs e)
         {
             if (sender is not ListBox list)
                 return;
@@ -277,8 +277,21 @@ namespace ModHearth.UI.ModList
                 return;
             }
 
-            Dropped?.Invoke(new ModListDropContext(list, dragSourceList, selected, index));
-            ResetDragState();
+            try
+            {
+                if (Dropped != null)
+                {
+                    await Dropped(new ModListDropContext(list, dragSourceList, selected, index));
+                }
+            }
+            catch (Exception ex)
+            {
+                Loggers.Drag.LogError($"Error handling mod list drop: {ex}");
+            }
+            finally
+            {
+                ResetDragState();
+            }
         }
 
         private bool IsSortable(ListBox list) => sortableLists.TryGetValue(list, out bool sortable) && sortable;
