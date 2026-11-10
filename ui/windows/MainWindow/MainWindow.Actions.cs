@@ -420,7 +420,7 @@ namespace ModHearth.UI
         private async Task RedoConfigAsync()
         {
             bool confirm = await DialogService.ShowConfirmAsync(this,
-                "Are you sure you want to reset the config file? Application will restart.",
+                "Are you sure you want to reset the config file (config.json)? Application will restart.",
                 "Redo Config");
             if (!confirm)
                 return;

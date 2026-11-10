@@ -38,26 +38,6 @@ namespace ModHearth
 
             try
             {
-                // For testing graphics libraries in github actions
-                bool isSmokeTestWindow = HasArg(args, "--smoke-test-window")
-                    || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW"));
-                bool isSmokeTest = HasArg(args, "--smoke-test")
-                    || IsEnabled(Environment.GetEnvironmentVariable("MODHEARTH_SMOKE_TEST"));
-
-                if (isSmokeTestWindow)
-                {
-                    Environment.SetEnvironmentVariable("MODHEARTH_SMOKE_TEST_WINDOW", "1");
-                    string[] filteredArgs = StripArgs(args, "--smoke-test-window", "--smoke-test", "--devmode");
-                    _ = BuildAvaloniaApp().StartWithClassicDesktopLifetime(filteredArgs);
-                    return;
-                }
-
-                if (isSmokeTest)
-                {
-                    _ = BuildAvaloniaApp().SetupWithoutStarting();
-                    return;
-                }
-
                 string[] normalArgs = StripArgs(args, "--devmode", "--dev");
                 _ = BuildAvaloniaApp().StartWithClassicDesktopLifetime(normalArgs);
             }

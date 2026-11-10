@@ -58,7 +58,7 @@ namespace ModHearth.App.Tests
                 () => Hammer(() => manager.ModSortEnabledMods(), cheapIterations),
                 () => Hammer(() => manager.FindAllModsFromDisk(), expensiveIterations),
                 () => Hammer(() => manager.EnsureModRawDependencyCacheAsync().GetAwaiter().GetResult(), expensiveIterations)
-            ));
+            ), TestContext.Current.CancellationToken);
 
             Assert.Null(captured);
         }

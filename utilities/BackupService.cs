@@ -1,11 +1,12 @@
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text.Json;
+using ModHearth.Models;
 using ModHearth.Utilities.Logging;
 
 namespace ModHearth.Utilities
 {
-    internal enum BackupArchiveFormat
+    public enum BackupArchiveFormat
     {
         Zip,
         TarGz
@@ -127,12 +128,11 @@ namespace ModHearth.Utilities
                 directory);
 
             string tempBackupDir = Path.Combine(Path.GetTempPath(), $"ModHearth_backup_{Guid.NewGuid():N}");
+            // Stage the archive next to the destination so replacing it is an atomic same-volume move.
+            string stagingArchivePath = archivePath + ".tmp";
 
             try
             {
-                DeleteArchive(alternatePath);
-                DeleteArchive(archivePath);
-
                 _ = Directory.CreateDirectory(tempBackupDir);
 
                 int entryCount = CollectBackupEntries(directory, tempBackupDir, modManagerConfigPath);
@@ -140,13 +140,19 @@ namespace ModHearth.Utilities
                     return BackupResult.Failed("There was nothing to back up.");
 
                 WriteManifest(tempBackupDir);
-                CreateArchive(tempBackupDir, archivePath, format);
+                DeleteArchive(stagingArchivePath);
+                CreateArchive(tempBackupDir, stagingArchivePath, format);
+
+                // Only replace the previous backup after the new archive was built successfully.
+                DeleteArchive(alternatePath);
+                File.Move(stagingArchivePath, archivePath, true);
 
                 Loggers.Backup.Log($"Created backup archive '{archivePath}'.");
                 return BackupResult.Succeeded($"Backup created at '{archivePath}'.");
             }
             catch (Exception ex)
             {
+                DeleteArchive(stagingArchivePath);
                 Loggers.Backup.LogError($"Failed to create backup archive: {ex.Message}");
                 return BackupResult.Failed(ex.Message);
             }
@@ -280,10 +286,7 @@ namespace ModHearth.Utilities
             if (sourcePath == null)
                 return;
 
-            string destinationPath = string.IsNullOrWhiteSpace(modManagerConfigPath)
-                ? ConfigManager.GetModManagerConfigPath()
-                : modManagerConfigPath;
-
+            string destinationPath = ResolveModManagerRestorePath(restoreDir, modManagerConfigPath);
             if (string.IsNullOrWhiteSpace(destinationPath))
             {
                 warnings.Add("The DFHack mod-manager.json was not restored because the Dwarf Fortress folder is not configured.");
@@ -295,6 +298,42 @@ namespace ModHearth.Utilities
             restoredEntries.Add(ModManagerRelativePath);
         }
 
+        /// <summary>
+        /// Resolves where the backed-up DFHack mod-manager file should be written. The active
+        /// configuration wins; when it has no Dwarf Fortress path, the path stored in the backup's
+        /// own config.json is used instead.
+        /// </summary>
+        private static string ResolveModManagerRestorePath(string restoreDir, string? modManagerConfigPath)
+        {
+            if (!string.IsNullOrWhiteSpace(modManagerConfigPath))
+                return modManagerConfigPath;
+
+            string currentDfFolder = ConfigManager.Config.DFFolderPath;
+            if (!string.IsNullOrWhiteSpace(currentDfFolder) && Directory.Exists(currentDfFolder))
+                return ConfigManager.GetModManagerConfigPath();
+
+            string? configPath = PathHelper.ResolveFile(restoreDir, "config.json");
+            if (configPath == null)
+                return string.Empty;
+
+            try
+            {
+                ModHearthConfig? config = JsonSerializer.Deserialize<ModHearthConfig>(
+                    File.ReadAllText(configPath),
+                    JsonFileStore.CaseInsensitive);
+
+                string dfFolder = config?.DFFolderPath ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(dfFolder) && Directory.Exists(dfFolder))
+                    return Path.Combine(dfFolder, "dfhack-config", "mod-manager.json");
+            }
+            catch (Exception ex)
+            {
+                Loggers.Backup.LogError($"Failed to read the backed-up config for the DFHack path: {ex.Message}");
+            }
+
+            return string.Empty;
+        }
+
         private static void WriteManifest(string tempBackupDir)
         {
             BackupManifest manifest = new()
@@ -303,10 +342,13 @@ namespace ModHearth.Utilities
                 ModHearthVersion = ModHearthManager.GetBuildVersionString()
             };
 
-            _ = JsonFileStore.TrySave(
+            if (!JsonFileStore.TrySave(
                 Path.Combine(tempBackupDir, ManifestEntryName),
                 manifest,
-                "Backup manifest");
+                "Backup manifest"))
+            {
+                Loggers.Backup.LogError("Failed to write the backup manifest; the backup date and version may be unavailable.");
+            }
         }
 
         private static BackupManifest? ReadManifest(string archivePath, BackupArchiveFormat format)
@@ -405,9 +447,11 @@ namespace ModHearth.Utilities
                     continue;
 
                 _ = Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-                using Stream entryStream = entry.DataStream ?? Stream.Null;
                 using FileStream output = File.Create(destinationPath);
-                entryStream.CopyTo(output);
+
+                // TarReader owns and reuses the entry stream; disposing it here would break the
+                // next GetNextEntry() call.
+                entry.DataStream?.CopyTo(output);
             }
         }
 
@@ -436,7 +480,7 @@ namespace ModHearth.Utilities
             }
             catch (Exception ex)
             {
-                Loggers.Backup.LogError($"Failed to delete stale backup archive '{archivePath}': {ex.Message}");
+                Loggers.Backup.LogError($"Failed to delete backup archive '{archivePath}': {ex.Message}");
             }
         }
 
