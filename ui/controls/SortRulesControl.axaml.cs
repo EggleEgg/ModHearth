@@ -510,7 +510,8 @@ namespace ModHearth.UI
                 IsVanillaModSource = vm.IsVanillaModSource,
                 IsLocalModSource = vm.IsLocalModSource,
                 IsSteamModSource = vm.IsSteamModSource,
-                IsSteamLocalModSource = vm.IsSteamLocalModSource
+                IsSteamLocalModSource = vm.IsSteamLocalModSource,
+                IsCacheOnlyModSource = vm.IsCacheOnlyModSource
             };
             displayVm.RefreshStyle();
             ModListIndicatorUpdater.UpdateRelationshipBadges([displayVm], rules);

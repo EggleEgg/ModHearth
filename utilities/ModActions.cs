@@ -394,7 +394,7 @@ namespace ModHearth
             HashSet<string> uniqueLocalKeys,
             List<ModReference> localDeletableMods)
         {
-            (_, bool isLocal, _, bool isSteamLocal) = ModSourceClassifier.Classify(modref, sourceContext);
+            (_, bool isLocal, _, bool isSteamLocal, _) = ModSourceClassifier.Classify(modref, sourceContext);
             if ((!isLocal && !isSteamLocal) || !CanDeleteModFromModsFolder(modref))
                 return false;
 
@@ -414,7 +414,7 @@ namespace ModHearth
             HashSet<string> uniqueSteamIds,
             List<ModReference> steamActionableMods)
         {
-            (_, _, bool isSteam, bool isSteamLocal) = ModSourceClassifier.Classify(modref, sourceContext);
+            (_, _, bool isSteam, bool isSteamLocal, _) = ModSourceClassifier.Classify(modref, sourceContext);
             if (!isSteam && !isSteamLocal)
                 return;
             if (!TryGetSteamWorkshopItemId(modref, out string steamId))

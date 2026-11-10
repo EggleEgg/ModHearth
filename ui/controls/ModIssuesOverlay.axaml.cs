@@ -1,5 +1,7 @@
 using System.Globalization;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using ModHearth.Models;
 
@@ -14,6 +16,10 @@ namespace ModHearth.UI
         public ModIssuesOverlay()
         {
             InitializeComponent();
+
+            errorIssueCountButton.AddHandler(PointerPressedEvent, OnErrorIssuePointerPressed, RoutingStrategies.Tunnel, true);
+            warningIssueCountButton.AddHandler(PointerPressedEvent, OnWarningIssuePointerPressed, RoutingStrategies.Tunnel, true);
+            infoIssueCountButton.AddHandler(PointerPressedEvent, OnInfoIssuePointerPressed, RoutingStrategies.Tunnel, true);
         }
 
         /// <summary>
@@ -21,6 +27,12 @@ namespace ModHearth.UI
         /// list and jump cursor the request maps to.
         /// </summary>
         public event EventHandler<ModIssueTier>? JumpRequested;
+
+        /// <summary>
+        /// Raised when the user right-clicks one of the severity counters. The host decides which mod
+        /// list and removal action the request maps to.
+        /// </summary>
+        public event EventHandler<ModIssueTier>? RemoveRequested;
 
         /// <summary>
         /// Applies the per-tier mod counts and hides the overlay when all tiers are empty.
@@ -43,6 +55,21 @@ namespace ModHearth.UI
         private void OnWarningIssueClick(object? sender, RoutedEventArgs e) => RaiseJump(ModIssueTier.Warning);
 
         private void OnInfoIssueClick(object? sender, RoutedEventArgs e) => RaiseJump(ModIssueTier.Info);
+
+        private void OnErrorIssuePointerPressed(object? sender, PointerPressedEventArgs e) => RaiseRemove(sender, e, ModIssueTier.Error);
+
+        private void OnWarningIssuePointerPressed(object? sender, PointerPressedEventArgs e) => RaiseRemove(sender, e, ModIssueTier.Warning);
+
+        private void OnInfoIssuePointerPressed(object? sender, PointerPressedEventArgs e) => RaiseRemove(sender, e, ModIssueTier.Info);
+
+        private void RaiseRemove(object? sender, PointerPressedEventArgs e, ModIssueTier tier)
+        {
+            if (sender is not Visual visual || !e.GetCurrentPoint(visual).Properties.IsRightButtonPressed)
+                return;
+
+            e.Handled = true;
+            RemoveRequested?.Invoke(this, tier);
+        }
 
         private void RaiseJump(ModIssueTier tier) => JumpRequested?.Invoke(this, tier);
     }

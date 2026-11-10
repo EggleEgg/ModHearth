@@ -307,6 +307,8 @@ namespace ModHearth.UI
                 JumpToNextIssueTier(inactiveMods, leftModlist, tier, inactiveIssueCursors);
             modIssuesOverlayRight.JumpRequested += (_, tier) =>
                 JumpToNextIssueTier(activeMods, rightModlist, tier, activeIssueCursors);
+            modIssuesOverlayRight.RemoveRequested += async (_, tier) =>
+                await RemoveIssueTierFromListAsync(activeMods, tier);
             settingsButton.Click += async (_, _) => await OpenSettingsDialogAsync();
             updateButton.Click += async (_, _) => await CheckForUpdatesAsync();
             updateLogButton.Click += async (_, _) => await OpenModUpdateLog();

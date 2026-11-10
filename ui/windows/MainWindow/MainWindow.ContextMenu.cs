@@ -58,6 +58,9 @@ namespace ModHearth.UI
                 case "delete-mod":
                     ModContextDeleteMod(item, new RoutedEventArgs());
                     break;
+                case "delete-cache-mod":
+                    ModContextDeleteCacheMod(item, new RoutedEventArgs());
+                    break;
                 case "unsubscribe-steam":
                     ModContextUnsubscribeSteam(item, new RoutedEventArgs());
                     break;
@@ -84,11 +87,46 @@ namespace ModHearth.UI
             await DeleteSelectedModsAsync(modReferences);
         }
 
+        private async void ModContextDeleteCacheMod(object? sender, RoutedEventArgs e)
+        {
+            if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
+                return;
+
+            await DeleteSelectedCacheOnlyModsAsync(modReferences);
+        }
+
         private async Task DeleteSelectedModsAsync(List<ModReference> modReferences)
         {
             if (modReferences == null || modReferences.Count == 0)
                 return;
 
+            string? targetAfterDeleteId = GetPostDeleteSelectionId(modReferences);
+
+            if (!await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(this, manager, modReferences, requestUIReload: false))
+                return;
+
+            await CompleteModDeletionAsync(targetAfterDeleteId);
+        }
+
+        private async Task DeleteSelectedCacheOnlyModsAsync(List<ModReference> modReferences)
+        {
+            if (modReferences == null || modReferences.Count == 0)
+                return;
+
+            string? targetAfterDeleteId = GetPostDeleteSelectionId(modReferences);
+
+            if (!await ModContextMenuSupport.DeleteCacheOnlyModsWithConfirmAsync(this, manager, modReferences, requestUIReload: false))
+                return;
+
+            await CompleteModDeletionAsync(targetAfterDeleteId);
+        }
+
+        /// <summary>
+        /// Keeps the current selection after a delete unless the selected mod was one of the deleted
+        /// targets, in which case the reload should fall back to the default selection.
+        /// </summary>
+        private string? GetPostDeleteSelectionId(List<ModReference> modReferences)
+        {
             string? targetAfterDeleteId = previousSelectedModId;
             if (!string.IsNullOrWhiteSpace(targetAfterDeleteId) &&
                 modReferences.Any(mod => string.Equals(mod.ID, targetAfterDeleteId, StringComparison.OrdinalIgnoreCase)))
@@ -96,9 +134,11 @@ namespace ModHearth.UI
                 targetAfterDeleteId = null;
             }
 
-            if (!await ModContextMenuSupport.DeleteLocalModsWithConfirmAsync(this, manager, modReferences, requestUIReload: false))
-                return;
+            return targetAfterDeleteId;
+        }
 
+        private async Task CompleteModDeletionAsync(string? targetAfterDeleteId)
+        {
             ClearPreviewCache();
             SetPreviewImage(LoadFallbackPreview());
 

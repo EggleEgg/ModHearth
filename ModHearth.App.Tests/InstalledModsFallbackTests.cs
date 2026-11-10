@@ -1,4 +1,5 @@
 using ModHearth.Models;
+using ModHearth.UI.ModList;
 using Xunit;
 
 namespace ModHearth.App.Tests
@@ -123,6 +124,69 @@ namespace ModHearth.App.Tests
             Assert.Same(canonicalRef, modrefMap[new DfhMod("my_mod", 10).ToString()]);
             _ = Assert.Single(modPool);
         }
+
+        [Fact]
+        public void ClassificationFlagsInstalledModsFoldersAsCacheOnly()
+        {
+            string tempRoot = Directory.CreateTempSubdirectory("modhearth-cache-only-").FullName;
+            try
+            {
+                string modsDir = Path.Combine(tempRoot, "Mods");
+                string vanillaDir = Path.Combine(tempRoot, "df", "data", "vanilla");
+                string cacheDir = Path.Combine(tempRoot, "data", "installed_mods", "123 (10)");
+                _ = Directory.CreateDirectory(modsDir);
+                _ = Directory.CreateDirectory(vanillaDir);
+                _ = Directory.CreateDirectory(cacheDir);
+
+                ModReference cacheRef = CreateReference("my_mod", "1.0", cacheDir);
+
+                (bool isVanilla, bool isLocal, bool isSteam, bool isSteamLocal, bool isCacheOnly) =
+                    ModSourceClassifier.Classify(cacheRef, modsDir, vanillaDir);
+
+                Assert.True(isCacheOnly);
+                Assert.True(cacheRef.IsIgnored);
+                Assert.False(isVanilla);
+                Assert.False(isLocal);
+                Assert.False(isSteam);
+                Assert.False(isSteamLocal);
+                Assert.True(ModSourceClassifier.IsCacheOnly(cacheRef));
+            }
+            finally
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void ClassificationDoesNotFlagRealSourceFoldersAsCacheOnly()
+        {
+            string tempRoot = Directory.CreateTempSubdirectory("modhearth-source-").FullName;
+            try
+            {
+                string modsDir = Path.Combine(tempRoot, "Mods");
+                string localDir = Path.Combine(modsDir, "my_mod");
+                _ = Directory.CreateDirectory(localDir);
+
+                ModReference localRef = CreateReference("my_mod", "1.0", localDir);
+
+                (_, bool isLocal, _, _, bool isCacheOnly) = ModSourceClassifier.Classify(localRef, modsDir, null);
+
+                Assert.True(isLocal);
+                Assert.False(isCacheOnly);
+                Assert.False(localRef.IsIgnored);
+                Assert.False(ModSourceClassifier.IsCacheOnly(localRef));
+            }
+            finally
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+
+        [Theory]
+        [InlineData(1, "Delete cache-only mod")]
+        [InlineData(2, "Delete 2 cache-only mods")]
+        public void CacheOnlyDeleteLabelReflectsSelectionSize(int count, string expected)
+            => Assert.Equal(expected, ModContextMenuSupport.BuildDeleteCacheText(count));
 
         private static ModReference CreateReference(string id, string numericVersion, string path) => new(new Dictionary<string, string>
         {

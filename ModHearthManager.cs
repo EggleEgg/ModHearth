@@ -595,6 +595,31 @@ namespace ModHearth
             return Directory.Exists(modPath);
         }
 
+        /// <summary>
+        /// True when <paramref name="modref"/> points at a real folder inside Dwarf Fortress's
+        /// installed_mods cache. The cache is disposable, so these entries can be deleted even
+        /// though they are never actionable as a normal local mod.
+        /// </summary>
+        public static bool CanDeleteCacheOnlyMod(ModReference modref)
+        {
+            if (modref == null || string.IsNullOrWhiteSpace(modref.Path) || Config == null)
+                return false;
+            if (!ModSourceClassifier.IsCacheOnly(modref))
+                return false;
+
+            string installedModsPath = GetInstalledModsPath();
+            if (string.IsNullOrWhiteSpace(installedModsPath))
+                return false;
+
+            string modPath = ResolveCanonicalPath(modref.Path);
+            installedModsPath = ResolveCanonicalPath(installedModsPath);
+            if (string.IsNullOrWhiteSpace(modPath) || string.IsNullOrWhiteSpace(installedModsPath))
+                return false;
+            if (!PathHelper.IsUnderRoot(modPath, installedModsPath))
+                return false;
+            return Directory.Exists(modPath);
+        }
+
         public ModDeletionBatchScope BeginDeletionBatch() => new(ShowNotification);
 
         public bool DeleteModFromModsFolder(ModReference modref, out string message, bool requestUIReload = true)
@@ -611,12 +636,44 @@ namespace ModHearth
                 return false;
             }
 
+            return TryDeleteModFolder(modref, requestUIReload, out message);
+        }
+
+        /// <summary>
+        /// Deletes a cache-only mod's copy from Dwarf Fortress's disposable installed_mods folder.
+        /// The real source (if any) is untouched; Dwarf Fortress recreates the cache entry the next
+        /// time the mod is enabled.
+        /// </summary>
+        public bool DeleteCacheOnlyMod(ModReference modref, out string message, bool requestUIReload = true)
+        {
+            if (modref == null)
+            {
+                message = "No mod selected.";
+                return false;
+            }
+
+            if (!CanDeleteCacheOnlyMod(modref))
+            {
+                message = "Mod is not a deletable installed_mods cache entry or was already removed.";
+                return false;
+            }
+
+            return TryDeleteModFolder(modref, requestUIReload, out message);
+        }
+
+        /// <summary>
+        /// Deletes the mod's folder, then drops the reference from the catalog and reports the change.
+        /// Callers are responsible for validating that the path is deletable.
+        /// </summary>
+        private bool TryDeleteModFolder(ModReference modref, bool requestUIReload, out string message)
+        {
             string modPath = NormalizeFileSystemPath(modref.Path);
             if (string.IsNullOrWhiteSpace(modPath))
             {
                 message = "Mod path is invalid.";
                 return false;
             }
+
             try
             {
                 Directory.Delete(modPath, true);
@@ -629,6 +686,17 @@ namespace ModHearth
                 return false;
             }
 
+            ForgetDeletedMod(modref, requestUIReload);
+            message = $"Deleted {modPath}";
+            return true;
+        }
+
+        /// <summary>
+        /// Removes a deleted mod from the in-memory catalog after its folder is gone, so the UI stops
+        /// showing it without waiting for a full disk rescan.
+        /// </summary>
+        private void ForgetDeletedMod(ModReference modref, bool requestUIReload)
+        {
             DfhMod dfm = modref.ToDFHMod();
             string modrefKey = modref.DFHackCompatibleString();
 
@@ -655,9 +723,6 @@ namespace ModHearth
             {
                 TriggerUIReload();
             }
-
-            message = $"Deleted {modPath}";
-            return true;
         }
 
         public bool ClearInstalledModsFolder(out string message)
@@ -1120,7 +1185,7 @@ namespace ModHearth
                     if (m.IsIgnored || IsInstalledModsPath(m.Path))
                         return false;
 
-                    (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(m, sourceContext);
+                    (_, _, _, bool isSteamLocal, _) = ModSourceClassifier.Classify(m, sourceContext);
                     return !isSteamLocal;
                 })];
 

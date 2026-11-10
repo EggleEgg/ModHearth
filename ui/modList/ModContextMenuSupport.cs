@@ -17,6 +17,7 @@ namespace ModHearth.UI.ModList
         int SteamCount,
         int SteamRedownloadCount,
         int LocalSteamCmdRedownloadCount,
+        int CacheOnlyCount,
         bool CanOpenFolder,
         bool HasSteamPage,
         bool ShowSteamActionsForContext,
@@ -25,6 +26,7 @@ namespace ModHearth.UI.ModList
     {
         public bool HasLocalActions => LocalCount > 0;
         public bool HasSteamActions => ShowSteamActionsForContext && SteamCount > 0;
+        public bool HasCacheOnlyActions => CacheOnlyCount > 0;
         public int TotalRedownloadCount => SteamRedownloadCount + LocalSteamCmdRedownloadCount;
         public bool HasRedownloadActions => TotalRedownloadCount > 0;
     }
@@ -32,6 +34,7 @@ namespace ModHearth.UI.ModList
     internal static class ModContextMenuSupport
     {
         public const string DeleteTag = "delete-mod";
+        public const string DeleteCacheModTag = "delete-cache-mod";
         public const string UnsubscribeTag = "unsubscribe-steam";
         public const string RedownloadTag = "redownload-steam";
         public const string OpenFolderTag = "open";
@@ -54,6 +57,9 @@ namespace ModHearth.UI.ModList
             {
                 case DeleteTag:
                     _ = await DeleteLocalModsWithConfirmAsync(owner, manager, [modref]);
+                    break;
+                case DeleteCacheModTag:
+                    _ = await DeleteCacheOnlyModsWithConfirmAsync(owner, manager, [modref]);
                     break;
                 case UnsubscribeTag:
                     await UnsubscribeSteamWithConfirmAsync(owner, manager, [modref]);
@@ -139,7 +145,7 @@ namespace ModHearth.UI.ModList
 
             ModSourceContext sourceContext = ModSourceContext.FromConfig();
 
-            (_, _, _, bool isSteamLocal) = ModSourceClassifier.Classify(contextMod, sourceContext);
+            (_, _, _, bool isSteamLocal, _) = ModSourceClassifier.Classify(contextMod, sourceContext);
 
             bool isSteamCmdAvailable = new SteamCmdService().IsAvailable();
 
@@ -152,17 +158,20 @@ namespace ModHearth.UI.ModList
                     if (!ModHearthManager.TryGetSteamWorkshopItemId(m, out _))
                         return false;
 
-                    (_, _, _, bool isSteamLocalMod) = ModSourceClassifier.Classify(m, sourceContext);
+                    (_, _, _, bool isSteamLocalMod, _) = ModSourceClassifier.Classify(m, sourceContext);
 
                     return !isSteamLocalMod;
                 })
                 : 0;
+
+            int cacheOnlyCount = GetCacheOnlyDeletableMods(selection).Count;
 
             return new ModContextMenuState(
                 localMods.Count,
                 steamMods.Count,
                 steamRedownloadCount,
                 localSteamCmdRedownloadCount,
+                cacheOnlyCount,
                 canOpenFolder,
                 hasSteamPage,
                 steamMods.Count > 0,
@@ -173,6 +182,7 @@ namespace ModHearth.UI.ModList
         public static void ApplyState(ContextMenu menu, ModContextMenuState state)
         {
             string deleteText = BuildDeleteText(state.LocalCount, state.IsSteamLocal);
+            string deleteCacheText = BuildDeleteCacheText(state.CacheOnlyCount);
             string unsubscribeText = BuildUnsubscribeText(state.SteamCount, state.IsSteamLocal);
             string redownloadText = BuildRedownloadText(state.SteamRedownloadCount, state.LocalSteamCmdRedownloadCount, state.IsSteamLocal);
 
@@ -182,6 +192,12 @@ namespace ModHearth.UI.ModList
                 state.HasLocalActions,
                 state.HasLocalActions,
                 deleteText);
+            SetMenuItem(
+                menu,
+                DeleteCacheModTag,
+                state.HasCacheOnlyActions,
+                state.HasCacheOnlyActions,
+                deleteCacheText);
             SetMenuItem(
                 menu,
                 UnsubscribeTag,
@@ -204,6 +220,36 @@ namespace ModHearth.UI.ModList
                 return $"Delete {localCount} local mods";
 
             return isSteamLocal ? "Delete local mod copy" : "Delete local mod";
+        }
+
+        public static string BuildDeleteCacheText(int cacheOnlyCount)
+            => cacheOnlyCount > 1 ? $"Delete {cacheOnlyCount} cache-only mods" : "Delete cache-only mod";
+
+        /// <summary>
+        /// Returns the selection's references that point at deletable folders inside Dwarf Fortress's
+        /// disposable installed_mods cache, de-duplicated by canonical path so a multi-selection
+        /// cannot delete the same folder twice.
+        /// </summary>
+        public static List<ModReference> GetCacheOnlyDeletableMods(IEnumerable<ModReference>? mods)
+        {
+            List<ModReference> targets = [];
+            if (mods == null)
+                return targets;
+
+            HashSet<string> seenPaths = new(StringComparer.OrdinalIgnoreCase);
+            foreach (ModReference modref in mods)
+            {
+                if (!ModHearthManager.CanDeleteCacheOnlyMod(modref))
+                    continue;
+
+                string canonicalPath = ConfigManager.ResolveCanonicalPath(modref.Path);
+                if (string.IsNullOrWhiteSpace(canonicalPath) || !seenPaths.Add(canonicalPath))
+                    continue;
+
+                targets.Add(modref);
+            }
+
+            return targets;
         }
 
         public static string BuildUnsubscribeText(int steamCount, bool isSteamLocal)
@@ -248,6 +294,12 @@ namespace ModHearth.UI.ModList
                 ? $"Delete '{localTargets.First().Name}' from the Mods folder?"
                 : $"Delete {localTargets.Count} mods from the Mods folder?";
 
+        public static string BuildDeleteCachePrompt(IReadOnlyCollection<ModReference> cacheTargets) => cacheTargets.Count == 1
+                ? $"Delete '{cacheTargets.First().Name}' from the installed_mods cache?\n\n" +
+                  "Dwarf Fortress recreates this disposable copy the next time the mod is enabled."
+                : $"Delete {cacheTargets.Count} cache-only mods from the installed_mods cache?\n\n" +
+                  "Dwarf Fortress recreates these disposable copies the next time the mods are enabled.";
+
         public static string BuildUnsubscribePrompt(IReadOnlyCollection<ModReference> steamTargets) => steamTargets.Count == 1
                 ? $"Unsubscribe from '{steamTargets.First().Name}' on Steam Workshop?"
                 : $"Unsubscribe from {steamTargets.Count} Steam mods?";
@@ -275,6 +327,28 @@ namespace ModHearth.UI.ModList
 
             string prompt = BuildDeletePrompt(localTargets);
             return await DialogService.RunConfirmedActionAsync(owner, prompt, "Delete Mod", () => DeleteLocalMods(manager, localTargets, requestUIReload));
+        }
+
+        public static async Task<bool> DeleteCacheOnlyModsWithConfirmAsync(
+            Window owner,
+            ModHearthManager manager,
+            IEnumerable<ModReference> modReferences,
+            bool requestUIReload = true)
+        {
+            List<ModReference> cacheTargets = GetCacheOnlyDeletableMods(modReferences);
+
+            if (cacheTargets.Count == 0)
+            {
+                await DialogService.ShowMessageAsync(owner, "Selected mods are not deletable installed_mods cache entries.", "Delete Cache-Only Mod");
+                return false;
+            }
+
+            string prompt = BuildDeleteCachePrompt(cacheTargets);
+            return await DialogService.RunConfirmedActionAsync(
+                owner,
+                prompt,
+                "Delete Cache-Only Mod",
+                () => DeleteCacheOnlyMods(manager, cacheTargets, requestUIReload));
         }
 
         public static async Task UnsubscribeSteamWithConfirmAsync(
@@ -361,6 +435,21 @@ namespace ModHearth.UI.ModList
                 foreach (ModReference modref in localTargets)
                 {
                     if (!manager.DeleteModFromModsFolder(modref, out string message, requestUIReload))
+                        failures.Add(message);
+                }
+
+                return failures;
+            }
+        }
+
+        public static List<string> DeleteCacheOnlyMods(ModHearthManager manager, IEnumerable<ModReference> cacheTargets, bool requestUIReload = true)
+        {
+            using (manager.BeginDeletionBatch())
+            {
+                List<string> failures = [];
+                foreach (ModReference modref in cacheTargets)
+                {
+                    if (!manager.DeleteCacheOnlyMod(modref, out string message, requestUIReload))
                         failures.Add(message);
                 }
 

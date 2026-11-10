@@ -30,6 +30,7 @@ namespace ModHearth.UI.ViewModels
         private bool isLocalModSource;
         private bool isSteamModSource;
         private bool isSteamLocalModSource;
+        private bool isCacheOnlyModSource;
         private bool showDropAbove;
         private bool showDropBelow;
         private string? problemTooltip;
@@ -187,6 +188,16 @@ namespace ModHearth.UI.ViewModels
         {
             get => isSteamLocalModSource;
             set => SetField(ref isSteamLocalModSource, value);
+        }
+
+        /// <summary>
+        /// True when this mod is only available through Dwarf Fortress's disposable installed_mods
+        /// cache. It is a real, deletable folder, but not one of the user's mod source folders.
+        /// </summary>
+        public bool IsCacheOnlyModSource
+        {
+            get => isCacheOnlyModSource;
+            set => SetField(ref isCacheOnlyModSource, value);
         }
 
         public bool ShowDropAbove

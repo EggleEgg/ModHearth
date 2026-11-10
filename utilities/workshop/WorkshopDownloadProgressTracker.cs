@@ -139,8 +139,9 @@ namespace ModHearth.Utilities.Workshop
             }
 
             double overall = active > 0 && counted > 0 ? sum / counted : 0;
+            string modLabel = active == 1 ? "mod" : "mods";
             string status = active > 0
-                ? $"{active} workshop {(active == 1 ? "mod" : "mods")} · {overall:F0}%"
+                ? $"{active} workshop {modLabel} · {overall:F0}%"
                 : string.Empty;
 
             if (ActiveDownloadCount == active

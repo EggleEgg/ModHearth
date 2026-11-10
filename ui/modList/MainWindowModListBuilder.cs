@@ -49,11 +49,12 @@ namespace ModHearth.UI.ModList
 
         public static void ApplyClassification(ModRefViewModel vm, ModReference modref, string modsFolderPath, string vanillaFolderPath)
         {
-            (bool isVanilla, bool isLocal, bool isSteam, bool isSteamLocal) = ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
+            (bool isVanilla, bool isLocal, bool isSteam, bool isSteamLocal, bool isCacheOnly) = ModSourceClassifier.Classify(modref, modsFolderPath, vanillaFolderPath);
             vm.IsVanillaModSource = isVanilla;
             vm.IsLocalModSource = isLocal;
             vm.IsSteamModSource = isSteam;
             vm.IsSteamLocalModSource = isSteamLocal;
+            vm.IsCacheOnlyModSource = isCacheOnly;
             vm.RefreshStyle();
         }
 
@@ -63,6 +64,7 @@ namespace ModHearth.UI.ModList
             target.IsLocalModSource = source.IsLocalModSource;
             target.IsSteamModSource = source.IsSteamModSource;
             target.IsSteamLocalModSource = source.IsSteamLocalModSource;
+            target.IsCacheOnlyModSource = source.IsCacheOnlyModSource;
             target.RefreshStyle();
         }
 

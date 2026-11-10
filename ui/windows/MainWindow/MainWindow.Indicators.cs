@@ -154,6 +154,18 @@ namespace ModHearth.UI
             ShowModInfo(vm.ModReference);
         }
 
+        private async Task RemoveIssueTierFromListAsync(
+            IEnumerable<ModRefViewModel> modsList,
+            ModIssueTier tier)
+        {
+            List<ModRefViewModel> matching = [.. modsList.Where(m => m.IssueTier == tier)];
+            if (matching.Count == 0)
+                return;
+
+            List<DfhMod> mods = [.. matching.Select(vm => vm.DfMod)];
+            await ApplyModMoveAsync(mods, manager.disabledMods.Count, false, true);
+        }
+
         private ModRefViewModel? currentJumpHighlighted;
 
         private void JumpToNextProblem()
