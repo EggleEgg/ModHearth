@@ -50,6 +50,19 @@ namespace ModHearth.UI
 
         private async Task ReloadModpacksFromDisk()
         {
+            BeginNotificationLogPopulation();
+            try
+            {
+                await ReloadModpacksFromDiskCore();
+            }
+            finally
+            {
+                EndNotificationLogPopulation();
+            }
+        }
+
+        private async Task ReloadModpacksFromDiskCore()
+        {
             DismissAllNotifications();
 
             Loggers.Reload.Log("ReloadModpacksFromDisk begin");

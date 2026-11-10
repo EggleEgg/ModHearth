@@ -6,7 +6,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AssemblyName>ModHearth.SteamWorker</AssemblyName>
-        <SelfContained>true</SelfContained>
+        <!-- Only self-contained when a runtime is specified (i.e. publish), so referencing projects
+        such as the test host do not trip NETSDK1151 on newer SDKs. -->
+        <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
         <PublishSingleFile>true</PublishSingleFile>
         <DebugType>embedded</DebugType>
         <!-- Keep native DLLs loose so Steamworks P/Invoke resolution works smoothly -->

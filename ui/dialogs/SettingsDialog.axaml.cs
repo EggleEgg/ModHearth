@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using ModHearth.UI.Theme;
 using ModHearth.Utilities;
+using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI.Dialogs
 {
@@ -9,6 +10,7 @@ namespace ModHearth.UI.Dialogs
         private readonly Func<string, Task>? restoreBackupAsync;
         private readonly Func<Task>? redoConfigAsync;
         private bool busy;
+        private bool hasBackup;
 
         public SettingsDialog()
         {
@@ -45,9 +47,10 @@ namespace ModHearth.UI.Dialogs
         private void RefreshBackupInfo()
         {
             string? archivePath = BackupService.FindArchive();
+            hasBackup = archivePath != null;
             if (archivePath == null)
             {
-                backupInfoText.Text = "No backup found. Backups are created automatically before updates, or with Backup Now.";
+                backupInfoText.Text = "No backup found. Backups are created automatically before updates.";
                 restoreBackupButton.IsEnabled = false;
                 return;
             }
@@ -56,7 +59,7 @@ namespace ModHearth.UI.Dialogs
             backupInfoText.Text = info == null
                 ? $"Backup found at '{archivePath}'."
                 : $"Backup from {info.CreatedUtc.ToLocalTime():yyyy-MM-dd HH:mm} (ModHearth {info.ModHearthVersion}).";
-            restoreBackupButton.IsEnabled = true;
+            restoreBackupButton.IsEnabled = !busy;
         }
 
         private async Task RestoreBackupAsync()
@@ -108,6 +111,7 @@ namespace ModHearth.UI.Dialogs
             }
             catch (Exception ex)
             {
+                Loggers.Backup.LogError($"Backup now failed: {ex.Message}");
                 SetStatus($"Backup failed: {ex.Message}", isError: true);
             }
             finally
@@ -132,7 +136,7 @@ namespace ModHearth.UI.Dialogs
         private void SetBusy(bool isBusy)
         {
             busy = isBusy;
-            restoreBackupButton.IsEnabled = !isBusy;
+            restoreBackupButton.IsEnabled = hasBackup && !isBusy;
             backupNowButton.IsEnabled = !isBusy;
             redoConfigButton.IsEnabled = !isBusy;
         }

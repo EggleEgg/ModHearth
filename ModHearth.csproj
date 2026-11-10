@@ -11,7 +11,10 @@
 
         <NoWarn>$(NoWarn);EnableGenerateDocumentationFile</NoWarn>
         <PublishSingleFile>true</PublishSingleFile>
-        <SelfContained>true</SelfContained>
+        <!-- Only self-contained when a runtime is specified (i.e. publish). A plain build must stay
+             framework-dependent, otherwise referencing projects (the test host) fail with
+             NETSDK1151 on newer SDKs. Publish passes the runtime and self-contained flags explicitly. -->
+        <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
         <DebugType>embedded</DebugType>
 
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

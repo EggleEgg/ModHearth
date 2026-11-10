@@ -132,7 +132,7 @@ namespace ModHearth.UI
 
             backupDataBeforeUpdateCheckBox = new CheckBox
             {
-                Content = "Backup ModHearth before updating",
+                Content = "Backup data before updating",
                 IsChecked = ConfigManager.GetBackupDataBeforeUpdate()
             };
             backupDataBeforeUpdateCheckBox.IsCheckedChanged += BackupDataBeforeUpdateChanged;

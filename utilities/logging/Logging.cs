@@ -15,5 +15,7 @@ namespace ModHearth.Utilities.Logging
         public static readonly Logger Backup = new("Backup", Console.WriteLine);
         public static readonly Logger Search = new("SearchFlow",
             line => Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {line}"));
+        public static readonly Logger Notifications = new("Notifications",
+            line => Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {line}"));
     }
 }

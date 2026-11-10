@@ -38,6 +38,19 @@ namespace ModHearth.UI
 
         private async Task InitializeAsync()
         {
+            BeginNotificationLogPopulation();
+            try
+            {
+                await InitializeCoreAsync();
+            }
+            finally
+            {
+                EndNotificationLogPopulation();
+            }
+        }
+
+        private async Task InitializeCoreAsync()
+        {
             UpdateService.CheckPendingUpdateStatus(this);
 
             if (!DevMode.IsEnabled)

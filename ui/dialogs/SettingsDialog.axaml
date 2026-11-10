@@ -1,48 +1,47 @@
 <Window
-  xmlns="https://github.com/avaloniaui"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  x:Class="ModHearth.UI.Dialogs.SettingsDialog"
-  Width="440"
-  SizeToContent="Height"
-  WindowStartupLocation="CenterOwner"
-  CanResize="False"
-  Title="Settings">
-  <StackPanel Margin="16" Spacing="16">
-    <StackPanel Spacing="6">
-      <TextBlock Text="Backup" FontWeight="SemiBold" />
-      <Button
-        x:Name="restoreBackupButton"
-        Content="Restore Backup"
-        Tag="Themed"
-        HorizontalAlignment="Stretch"
-        HorizontalContentAlignment="Center" />
-      <TextBlock
-        x:Name="backupInfoText"
-        FontSize="11"
-        TextWrapping="Wrap"
-        Opacity="0.75"
-        Foreground="{DynamicResource MainTextBrush}" />
-    </StackPanel>
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="ModHearth.UI.Dialogs.SettingsDialog"
+    Width="440"
+    SizeToContent="Height"
+    WindowStartupLocation="CenterOwner"
+    CanResize="False"
+    Title="Settings">
+    <StackPanel Margin="16" Spacing="16">
+        <StackPanel Spacing="6">
+            <TextBlock Text="Backup" FontWeight="SemiBold" />
+            <Button
+                x:Name="restoreBackupButton"
+                Content="Restore Backup"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" />
+            <TextBlock
+                x:Name="backupInfoText"
+                FontSize="11"
+                TextWrapping="Wrap"
+                Opacity="0.75"
+                Foreground="{DynamicResource MainTextBrush}" />
+        </StackPanel>
 
-    <StackPanel Spacing="6">
-      <Button
-        x:Name="backupNowButton"
-        Content="Backup Now"
-        Tag="Themed"
-        HorizontalAlignment="Stretch"
-        HorizontalContentAlignment="Center" />
-      <TextBlock
-        x:Name="statusText"
-        FontSize="11"
-        TextWrapping="Wrap"
-        IsVisible="False"
-        Foreground="{DynamicResource MainTextBrush}" />
-    </StackPanel>
+        <StackPanel Spacing="6">
+            <Button
+                x:Name="backupNowButton"
+                Content="Backup Now"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" />
+            <TextBlock
+                x:Name="statusText"
+                FontSize="11"
+                TextWrapping="Wrap"
+                IsVisible="False"
+                Foreground="{DynamicResource MainTextBrush}" />
+        </StackPanel>
 
-    <Button
-      x:Name="redoConfigButton"
-      Content="Redo Config"
-      HorizontalAlignment="Right"
-      Padding="10,2" />
-  </StackPanel>
+        <Button
+            x:Name="redoConfigButton"
+            Content="Redo Config"
+            Tag="Themed"
+            HorizontalAlignment="Right"
+            Padding="10,4" />
+    </StackPanel>
 </Window>

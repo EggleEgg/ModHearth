@@ -51,6 +51,7 @@ jobs:
             **/*.csproj
             **/*.props
             **/*.targets
+            global.json
       - name: Restore
         run: dotnet restore ModHearth.sln
       - name: Restore publish runtime assets

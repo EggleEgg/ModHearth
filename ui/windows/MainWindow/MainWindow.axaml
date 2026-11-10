@@ -1,985 +1,1017 @@
 <Window
-  xmlns="https://github.com/avaloniaui"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:ui="clr-namespace:ModHearth.UI"
-  xmlns:viewmodels="using:ModHearth.UI.ViewModels"
-  xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
-  xmlns:modinfodockcontrol="using:ModHearth.UI.Controls.ModInfoDockControl"
-  xmlns:render="clr-namespace:ModHearth.UI.Rendering"
-  KeyboardNavigation.TabNavigation="None"
-  XYFocus.NavigationModes="Disabled"
-  x:Class="ModHearth.UI.MainWindow"
-  x:DataType="ui:MainWindow"
-  Title="Mod Hearth"
-  Width="1264"
-  Height="828"
-  MinWidth="850"
-  MinHeight="540">
-  <Window.DataTemplates>
-    <DataTemplate DataType="viewmodels:ModRefViewModel" x:DataType="viewmodels:ModRefViewModel">
-      <ui:ModRefControl
-        ShowColorUnderlay="True"
-        Padding="0"
-        Margin="0,0,-3,0"
-        HorizontalAlignment="Stretch"
-        ToolTip.Tip="{Binding HoverTooltip}" />
-    </DataTemplate>
-    <DataTemplate DataType="modinfodockcontrol:ModPreviewPanelViewModel" x:DataType="modinfodockcontrol:ModPreviewPanelViewModel">
-      <ui:ModPreviewPanelView />
-    </DataTemplate>
-    <DataTemplate DataType="modinfodockcontrol:ModDataPanelViewModel" x:DataType="modinfodockcontrol:ModDataPanelViewModel">
-      <ui:ModDataPanelView />
-    </DataTemplate>
-    <DataTemplate DataType="modinfodockcontrol:ModDescriptionPanelViewModel" x:DataType="modinfodockcontrol:ModDescriptionPanelViewModel">
-      <ui:ModDescriptionPanelView />
-    </DataTemplate>
-  </Window.DataTemplates>
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="clr-namespace:ModHearth.UI"
+    xmlns:viewmodels="using:ModHearth.UI.ViewModels"
+    xmlns:dock="clr-namespace:Dock.Avalonia.Controls;assembly=Dock.Avalonia"
+    xmlns:modinfodockcontrol="using:ModHearth.UI.Controls.ModInfoDockControl"
+    xmlns:render="clr-namespace:ModHearth.UI.Rendering"
+    KeyboardNavigation.TabNavigation="None"
+    XYFocus.NavigationModes="Disabled"
+    x:Class="ModHearth.UI.MainWindow"
+    x:DataType="ui:MainWindow"
+    Title="Mod Hearth"
+    Width="1264"
+    Height="828"
+    MinWidth="850"
+    MinHeight="540">
+    <Window.DataTemplates>
+        <DataTemplate DataType="viewmodels:ModRefViewModel" x:DataType="viewmodels:ModRefViewModel">
+            <ui:ModRefControl
+                ShowColorUnderlay="True"
+                Padding="0"
+                Margin="0,0,-3,0"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="{Binding HoverTooltip}" />
+        </DataTemplate>
+        <DataTemplate DataType="modinfodockcontrol:ModPreviewPanelViewModel" x:DataType="modinfodockcontrol:ModPreviewPanelViewModel">
+            <ui:ModPreviewPanelView />
+        </DataTemplate>
+        <DataTemplate DataType="modinfodockcontrol:ModDataPanelViewModel" x:DataType="modinfodockcontrol:ModDataPanelViewModel">
+            <ui:ModDataPanelView />
+        </DataTemplate>
+        <DataTemplate DataType="modinfodockcontrol:ModDescriptionPanelViewModel" x:DataType="modinfodockcontrol:ModDescriptionPanelViewModel">
+            <ui:ModDescriptionPanelView />
+        </DataTemplate>
+    </Window.DataTemplates>
 
-  <Window.Styles>
-    <Style Selector="Control">
-      <Setter Property="Focusable" Value="False" />
-      <Setter Property="IsTabStop" Value="False" />
-    </Style>
-    <Style Selector="Border[Tag=DockPreviewBorder]">
-      <Setter Property="Background" Value="{DynamicResource DockPreviewBrush}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource ButtonSelectionBrush}"/>
-      <Setter Property="BorderThickness" Value="2"/>
-      <Setter Property="Margin" Value="0"/>
-      <Setter Property="IsVisible" Value="False"/>
-    </Style>
-  </Window.Styles>
-
-  <Panel>
-    <Grid x:Name="mainGrid" Margin="12">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="0" /> <!-- Left Content (0) -->
-        <ColumnDefinition Width="0" /> <!-- Left Splitter (1) -->
-        <ColumnDefinition Width="10*" />
-        <ColumnDefinition Width="Auto" />
-        <ColumnDefinition Width="11*" />
-        <ColumnDefinition Width="200" />
-        <ColumnDefinition Width="0" />
-        <ColumnDefinition Width="0" />
-      </Grid.ColumnDefinitions>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="*" />
-        <RowDefinition Height="0" />
-        <RowDefinition Height="0" />
-      </Grid.RowDefinitions>
-
-      <Grid.Styles>
-        <Style Selector="Button[Tag=DockSplitterCloseButton]">
-          <Setter Property="Padding" Value="0"/>
-          <Setter Property="Width" Value="38"/>
-          <Setter Property="Height" Value="38"/>
-          <!-- Half of the side value to make a circle -->
-          <Setter Property="CornerRadius" Value="19"/>
-          <Setter Property="Background" Value="Transparent"/>
-          <Setter Property="Foreground" Value="{DynamicResource PanelDarkBrush}"/>
-          <Setter Property="ToolTip.Tip" Value="Close docked window" />
-          <Setter Property="Content">
-            <Template>
-              <Image
-                Source="{Binding $parent[Button].Foreground, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=horizontalClearFullIcon.svg}"
-                Stretch="Uniform"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center" />
-            </Template>
-          </Setter>
+    <Window.Styles>
+        <Style Selector="Control">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
         </Style>
-        <Style Selector="Button[Tag=DockSplitterCloseButton]:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-          <Setter Property="Background" Value="{DynamicResource SelectionPreviewBrush}" />
+        <Style Selector="Border[Tag=DockPreviewBorder]">
+            <Setter Property="Background" Value="{DynamicResource DockPreviewBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonSelectionBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="IsVisible" Value="False"/>
         </Style>
+    </Window.Styles>
 
-        <Style Selector="Button#leftDockSplitterCloseButton Image">
-          <Setter Property="RenderTransform" Value="Rotate(0deg)" />
-        </Style>
-        <Style Selector="Button#rightDockSplitterCloseButton Image">
-          <Setter Property="RenderTransform" Value="Rotate(180deg)" />
-        </Style>
-        <Style Selector="Button#bottomDockSplitterCloseButton Image">
-          <Setter Property="RenderTransform" Value="Rotate(270deg)" />
-        </Style>
-
-        <!-- Dock splitters -->
-        <Style Selector="ContentControl[Tag=DockHost]">
-          <Setter Property="HorizontalAlignment" Value="Stretch"/>
-          <Setter Property="VerticalAlignment" Value="Stretch"/>
-          <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
-          <Setter Property="IsVisible" Value="False"/>
-        </Style>
-        <Style Selector="Border[Tag=DockHost]">
-          <Setter Property="Background" Value="{DynamicResource PanelDarkBrush}"/>
-        </Style>
-        <Style Selector="Border[Tag=DockHost].pressed">
-          <Setter Property="Background" Value="{DynamicResource LowAlphaModRefHighlightBrush}" />
-        </Style>
-
-      </Grid.Styles>
-
-      <ContentControl x:Name="leftDockHost" Tag="DockHost" Grid.Column="0" />
-      <Border
-        x:Name="leftDockHostLine"
-        Grid.Column="0"
-        Tag="DockHost"
-        Width="3"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Stretch"
-        Margin="0,12,0,0"
-        IsVisible="{Binding IsVisible, ElementName=leftDockHost}" />
-
-      <Border
-        x:Name="leftDockSplitter"
-        Grid.Column="1"
-        Width="10"
-        Background="Transparent"
-        Cursor="SizeWestEast"
-        HorizontalAlignment="Center"
-        VerticalAlignment="Stretch"
-        Margin="0, 36, 0, 0"
-        IsVisible="False" />
-
-      <Border Grid.Column="2" Margin="3">
-        <Grid>
-          <Grid RowSpacing="1">
+    <Panel>
+        <Grid x:Name="mainGrid" Margin="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="0" /> <!-- Left Content (0) -->
+                <ColumnDefinition Width="0" /> <!-- Left Splitter (1) -->
+                <ColumnDefinition Width="10*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="11*" />
+                <ColumnDefinition Width="200" />
+                <ColumnDefinition Width="0" />
+                <ColumnDefinition Width="0" />
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="*" />
-              <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="0" />
+                <RowDefinition Height="0" />
             </Grid.RowDefinitions>
-            <SelectableTextBlock
-              x:Name="modTitleLabel"
-              FontSize="24"
-              FontWeight="Bold"
-              TextWrapping="WrapWithOverflow"
-              VerticalAlignment="Center"
-              MinHeight="42"
-              Margin="2,2,2,5">
-              <InlineUIContainer>
-                <Button
-                  x:Name="notificationManagerButton"
-                  Width="26"
-                  Height="26"
-                  Margin="-4,-4,4,-4"
-                  Tag="Themed"
-                  Padding="0"
-                  Click="OnToggleNotificationDrawerClick"
-                  VerticalAlignment="Center"
-                  ToolTip.Tip="Open Notification Logs">
-                  <Image
-                    Source="{render:AssetImage notificationFullIcon}"
-                    Stretch="Uniform"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Right" />
-                </Button>
-              </InlineUIContainer>
-              <Run x:Name="modTitleRun" />
-            </SelectableTextBlock>
-            <dock:DockControl
-              x:Name="modInfoDockControl"
-              Grid.Row="1"
-              Grid.RowSpan="2"
-              Margin="2,2,2,2"
-              InitializeFactory="False"
-              InitializeLayout="False" />
-            <Grid
-              Grid.Row="3"
-              ColumnDefinitions="Auto,*"
-              RowDefinitions="Auto,Auto"
-              VerticalAlignment="Center"
-              Margin="0,5,2,0"
-              MinHeight="18"
-              RowSpacing="7">
-              <Grid
-                Grid.Row="0"
-                Grid.ColumnSpan="2"
-                RowDefinitions="Auto,Auto">
-                <Grid
-                  Grid.Row="0"
-                  ColumnDefinitions="*,Auto"
-                  ColumnSpacing="6"
-                  Margin="0,0,0,2"
-                  ClipToBounds="True"
-                  IsVisible="{Binding IsWorkshopDownloadActive, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}">
-                  <ProgressBar
-                    Grid.Column="0"
-                    Height="6"
-                    Minimum="0"
-                    Maximum="100"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Stretch"
-                    MinWidth="0"
-                    ClipToBounds="True"
-                    Background="{DynamicResource PanelBrush}"
-                    Foreground="{DynamicResource ModRefHighlightBrush}"
-                    Value="{Binding WorkshopDownloadProgress, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}" />
-                  <TextBlock
-                    Grid.Column="1"
-                    VerticalAlignment="Center"
-                    FontSize="10"
-                    TextTrimming="CharacterEllipsis"
-                    Foreground="{DynamicResource MainTextBrush}"
-                    Text="{Binding WorkshopDownloadStatusText, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}" />
-                </Grid>
-                <Border
-                  Grid.Row="1"
-                  Height="2"
-                  Background="{DynamicResource PanelBrush}"
-                  HorizontalAlignment="Stretch"
-                  Margin="2,2,0,0" />
-              </Grid>
-              <StackPanel
-                Grid.Row="1"
-                Orientation="Horizontal"
-                Spacing="6"
-                Margin="0,0,6,0"
-                VerticalAlignment="Center">
-                <Grid>
-                  <Button
-                    x:Name="updateButton"
-                    Width="23"
-                    Height="23"
-                    Padding="0"
-                    Tag="Themed"
-                    ToolTip.Tip="Check for updates. Right click for update options">
-                    <Image Source="{render:AssetImage updateIcon}"
-                           Stretch="Uniform" />
-                  </Button>
-                  <Ellipse
-                    x:Name="updateIndicatorEllipse"
-                    Width="12"
-                    Height="12"
-                    Fill="{DynamicResource ModRefHighlightBrush}"
-                    HorizontalAlignment="Left"
-                    StrokeThickness="0.5"
-                    Stroke="{DynamicResource ButtonBorderBrush}"
-                    VerticalAlignment="Bottom"
-                    Margin="-2,0,0,-2"
-                    IsVisible="{Binding IsUpdateAvailable, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}"
-                    IsHitTestVisible="False" />
-                </Grid>
-                <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
-              </StackPanel>
-              <ScrollViewer
-                x:Name="dfhackStatusScrollViewer"
-                Grid.Row="1"
-                Grid.Column="1"
-                HorizontalScrollBarVisibility="Auto"
-                Margin="6,0,0,0"
-                VerticalScrollBarVisibility="Disabled"
-                AllowAutoHide="False"
+
+            <Grid.Styles>
+                <Style Selector="Button[Tag=DockSplitterCloseButton]">
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Width" Value="38"/>
+                    <Setter Property="Height" Value="38"/>
+                    <!-- Half of the side value to make a circle -->
+                    <Setter Property="CornerRadius" Value="19"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="{DynamicResource PanelDarkBrush}"/>
+                    <Setter Property="ToolTip.Tip" Value="Close docked window" />
+                    <Setter Property="Content">
+                        <Template>
+                            <Image
+                                Source="{Binding $parent[Button].Foreground, Converter={x:Static render:TintedAssetConverter.Instance}, ConverterParameter=horizontalClearFullIcon.svg}"
+                                Stretch="Uniform"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Template>
+                    </Setter>
+                </Style>
+                <Style Selector="Button[Tag=DockSplitterCloseButton]:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="{DynamicResource SelectionPreviewBrush}" />
+                </Style>
+
+                <Style Selector="Button#leftDockSplitterCloseButton Image">
+                    <Setter Property="RenderTransform" Value="Rotate(0deg)" />
+                </Style>
+                <Style Selector="Button#rightDockSplitterCloseButton Image">
+                    <Setter Property="RenderTransform" Value="Rotate(180deg)" />
+                </Style>
+                <Style Selector="Button#bottomDockSplitterCloseButton Image">
+                    <Setter Property="RenderTransform" Value="Rotate(270deg)" />
+                </Style>
+
+                <!-- Dock splitters -->
+                <Style Selector="ContentControl[Tag=DockHost]">
+                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                    <Setter Property="VerticalAlignment" Value="Stretch"/>
+                    <Setter Property="Background" Value="{DynamicResource BackgroundBrush}"/>
+                    <Setter Property="IsVisible" Value="False"/>
+                </Style>
+                <Style Selector="Border[Tag=DockHost]">
+                    <Setter Property="Background" Value="{DynamicResource PanelDarkBrush}"/>
+                </Style>
+                <Style Selector="Border[Tag=DockHost].pressed">
+                    <Setter Property="Background" Value="{DynamicResource LowAlphaModRefHighlightBrush}" />
+                </Style>
+
+            </Grid.Styles>
+
+            <ContentControl x:Name="leftDockHost" Tag="DockHost" Grid.Column="0" />
+            <Border
+                x:Name="leftDockHostLine"
+                Grid.Column="0"
+                Tag="DockHost"
+                Width="3"
                 HorizontalAlignment="Right"
+                VerticalAlignment="Stretch"
+                Margin="0,12,0,0"
+                IsVisible="{Binding IsVisible, ElementName=leftDockHost}" />
+
+            <Border
+                x:Name="leftDockSplitter"
+                Grid.Column="1"
+                Width="10"
+                Background="Transparent"
+                Cursor="SizeWestEast"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Stretch"
+                Margin="0, 36, 0, 0"
+                IsVisible="False" />
+
+            <Border Grid.Column="2" Margin="3">
+                <Grid>
+                    <Grid RowSpacing="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <SelectableTextBlock
+                            x:Name="modTitleLabel"
+                            FontSize="24"
+                            FontWeight="Bold"
+                            TextWrapping="WrapWithOverflow"
+                            VerticalAlignment="Center"
+                            MinHeight="42"
+                            Margin="2,2,2,5">
+                            <InlineUIContainer>
+                                <Button
+                                    x:Name="notificationManagerButton"
+                                    Width="26"
+                                    Height="26"
+                                    Margin="-4,-4,4,-4"
+                                    Tag="Themed"
+                                    Padding="0"
+                                    Click="OnToggleNotificationDrawerClick"
+                                    VerticalAlignment="Center"
+                                    ToolTip.Tip="Open Notification Logs">
+                                    <Image
+                                        Source="{render:AssetImage notificationFullIcon}"
+                                        Stretch="Uniform"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Right" />
+                                </Button>
+                            </InlineUIContainer>
+                            <Run x:Name="modTitleRun" />
+                        </SelectableTextBlock>
+                        <dock:DockControl
+                            x:Name="modInfoDockControl"
+                            Grid.Row="1"
+                            Grid.RowSpan="2"
+                            Margin="2,2,2,2"
+                            InitializeFactory="False"
+                            InitializeLayout="False" />
+                        <Grid
+                            Grid.Row="3"
+                            ColumnDefinitions="Auto,*"
+                            RowDefinitions="Auto,Auto"
+                            VerticalAlignment="Center"
+                            Margin="0,5,2,0"
+                            MinHeight="18"
+                            RowSpacing="7">
+                            <Grid
+                                Grid.Row="0"
+                                Grid.ColumnSpan="2"
+                                RowDefinitions="Auto,Auto">
+                                <Grid
+                                    Grid.Row="0"
+                                    ColumnDefinitions="*,Auto"
+                                    ColumnSpacing="6"
+                                    Margin="0,0,0,2"
+                                    ClipToBounds="True"
+                                    IsVisible="{Binding IsWorkshopDownloadActive, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}">
+                                    <ProgressBar
+                                        Grid.Column="0"
+                                        Height="6"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Stretch"
+                                        MinWidth="0"
+                                        ClipToBounds="True"
+                                        Background="{DynamicResource PanelBrush}"
+                                        Foreground="{DynamicResource ModRefHighlightBrush}"
+                                        Value="{Binding WorkshopDownloadProgress, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        FontSize="10"
+                                        TextTrimming="CharacterEllipsis"
+                                        Foreground="{DynamicResource MainTextBrush}"
+                                        Text="{Binding WorkshopDownloadStatusText, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}" />
+                                </Grid>
+                                <Border
+                                    Grid.Row="1"
+                                    Height="2"
+                                    Background="{DynamicResource PanelBrush}"
+                                    HorizontalAlignment="Stretch"
+                                    Margin="2,2,0,0" />
+                            </Grid>
+                            <StackPanel
+                                Grid.Row="1"
+                                Orientation="Horizontal"
+                                Spacing="6"
+                                Margin="0,0,6,0"
+                                VerticalAlignment="Center">
+                                <Grid>
+                                    <Button
+                                        x:Name="updateButton"
+                                        Width="23"
+                                        Height="23"
+                                        Padding="0"
+                                        Tag="Themed"
+                                        ToolTip.Tip="Check for updates. Right click for update options">
+                                        <Image Source="{render:AssetImage updateIcon}"
+                                               Stretch="Uniform" />
+                                    </Button>
+                                    <Ellipse
+                                        x:Name="updateIndicatorEllipse"
+                                        Width="12"
+                                        Height="12"
+                                        Fill="{DynamicResource ModRefHighlightBrush}"
+                                        HorizontalAlignment="Left"
+                                        StrokeThickness="0.5"
+                                        Stroke="{DynamicResource ButtonBorderBrush}"
+                                        VerticalAlignment="Bottom"
+                                        Margin="-2,0,0,-2"
+                                        IsVisible="{Binding IsUpdateAvailable, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}"
+                                        IsHitTestVisible="False" />
+                                </Grid>
+                                <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <ScrollViewer
+                                x:Name="dfhackStatusScrollViewer"
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                HorizontalScrollBarVisibility="Auto"
+                                Margin="6,0,0,0"
+                                VerticalScrollBarVisibility="Disabled"
+                                AllowAutoHide="False"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                IsVisible="False">
+                                <ScrollViewer.Styles>
+                                    <Style Selector="ScrollBar:horizontal">
+                                        <Setter Property="Height" Value="5"/>
+                                        <Setter Property="MinHeight" Value="5"/>
+                                        <Setter Property="MaxHeight" Value="5"/>
+                                        <Setter Property="ClipToBounds" Value="True"/>
+                                    </Style>
+                                </ScrollViewer.Styles>
+                                <TextBlock
+                                    x:Name="dfhackStatusLabel"
+                                    FontSize="11"
+                                    VerticalAlignment="Center"
+                                    Foreground="{DynamicResource MainTextBrush}"  />
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="3" Classes="VerticalSplitter" Margin="0,24,3,0" />
+
+            <Border Grid.Column="4" Margin="3">
+                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
+
+                    <Grid.Styles>
+                        <Style Selector="ListBoxItem" x:DataType="viewmodels:ModRefViewModel">
+                            <Setter Property="Padding" Value="0,0,3,0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="IsVisible" Value="{Binding IsVisible}" />
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+                            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+                        </Style>
+                    </Grid.Styles>
+
+                    <Grid Grid.Column="0" RowDefinitions="22,30,*">
+                        <TextBlock
+                            x:Name="leftHeaderLabel"
+                            Grid.Row="0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+
+                        <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1" />
+
+                        <Grid Grid.Row="2">
+                            <ListBox
+                                x:Name="leftModlist"
+                                SelectionMode="Multiple"
+                                AutoScrollToSelectedItem="False"
+                                Margin="0,6,0,0"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
+                            </ListBox>
+
+                            <ui:ModIssuesOverlay x:Name="modIssuesOverlayLeft" />
+                        </Grid>
+                    </Grid>
+
+                    <Grid Grid.Column="1" RowDefinitions="22,30,*">
+                        <TextBlock
+                            x:Name="rightHeaderLabel"
+                            Grid.Row="0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+
+                        <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1" />
+
+                        <Grid Grid.Row="2">
+                            <ListBox
+                                x:Name="rightModlist"
+                                SelectionMode="Multiple"
+                                AutoScrollToSelectedItem="False"
+                                Margin="0,6,0,0"
+                                ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
+                            </ListBox>
+
+                            <ui:ModIssuesOverlay x:Name="modIssuesOverlayRight" />
+                        </Grid>
+                    </Grid>
+
+                    <Grid Grid.Column="2"></Grid>
+
+                </Grid>
+            </Border>
+
+            <!-- Right buttons main panel -->
+            <Border Grid.Column="5" Margin="0,3,3,3">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="6">
+                    <Grid.Styles>
+                        <Style Selector="Button">
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                            <Setter Property="VerticalAlignment" Value="Stretch" />
+                            <Setter Property="HorizontalContentAlignment" Value="Center" />
+                            <Setter Property="VerticalContentAlignment" Value="Center" />
+                            <Setter Property="MinHeight" Value="0" />
+                            <Setter Property="Padding" Value="0" />
+                        </Style>
+                        <Style Selector="Image">
+                            <Setter Property="Stretch" Value="Uniform" />
+                        </Style>
+                        <Style Selector="Grid">
+                            <Setter Property="ColumnSpacing" Value="6" />
+                        </Style>
+                    </Grid.Styles>
+
+                    <Grid ColumnDefinitions="*,*,*,*" Height="42">
+                        <Button
+                            x:Name="saveButton"
+                            Grid.Column="0"
+                            Tag="Themed"
+                            ToolTip.Tip="Save the current modlist. Right click to toggle autosave">
+                            <Grid>
+                                <Image Source="{render:AssetImage saveIcon}" />
+                                <Image
+                                    x:Name="autoSaveIndicator"
+                                    Source="{render:AssetImage updateBorderIcon}"
+                                    Width="16"
+                                    Height="16"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom"
+                                    Margin="0"
+                                    IsVisible="{Binding IsAutoSaveEnabled}" />
+                            </Grid>
+                        </Button>
+                        <Button
+                            x:Name="runDwarfFortressButton"
+                            Grid.Column="1"
+                            Tag="Themed"
+                            ToolTip.Tip="Run Dwarf Fortress">
+                            <Image Source="{render:AssetImage arrowPlayIcon}" />
+                        </Button>
+                        <Button
+                            x:Name="undoChangesButton"
+                            Grid.Column="2"
+                            Tag="Themed"
+                            ToolTip.Tip="Undo unsaved changes">
+                            <Image Source="{render:AssetImage undoIcon}" />
+                        </Button>
+                        <Button
+                            x:Name="reloadButton"
+                            Grid.Column="3"
+                            Tag="Themed"
+                            ToolTip.Tip="Reload local/steam workshop modlists and mods.&#x0a;Right click to autoreload">
+                            <Grid>
+                                <Image Source="{render:AssetImage reloadIcon}" />
+                                <Image
+                                    x:Name="autoReloadIndicator"
+                                    Source="{render:AssetImage updateBorderIcon}"
+                                    Width="16"
+                                    Height="16"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom"
+                                    Margin="0"
+                                    IsVisible="{Binding IsAutoReloadEnabled}" />
+                            </Grid>
+                        </Button>
+                    </Grid>
+
+                    <ComboBox
+                        x:Name="modpackComboBox"
+                        Grid.Row="2"
+                        Height="30"
+                        HorizontalAlignment="Stretch" />
+
+                    <Grid Grid.Row="3" ColumnDefinitions="*,*,*" Height="28">
+                        <Button
+                            x:Name="newListButton"
+                            Content="New"
+                            Tag="Themed"
+                            FontSize="12"
+                            ToolTip.Tip="Create a new modpack"/>
+                        <Button
+                            x:Name="renameListButton"
+                            Grid.Column="1"
+                            Content="Rename"
+                            Tag="Themed"
+                            FontSize="12"
+                            ToolTip.Tip="Rename this modpack"/>
+                        <Button
+                            x:Name="deleteListButton"
+                            Grid.Column="2"
+                            Content="Delete"
+                            Tag="Themed"
+                            FontSize="12"
+                            ToolTip.Tip="Delete this modpack"/>
+                    </Grid>
+
+                    <Grid Grid.Row="4" ColumnDefinitions="Auto,*,*" Height="28">
+                        <Button
+                            x:Name="clearModlistButton"
+                            Tag="Themed"
+                            ToolTip.Tip="Clear the active mods list"
+                            Width="28"
+                            Padding="0,0,-1,-3">
+                            <Image Source="{render:AssetImage broomMenuIcon}"/>
+                        </Button>
+                        <Button
+                            x:Name="importButton"
+                            Grid.Column="1"
+                            Tag="Themed"
+                            Content="Import"
+                            FontSize="13" />
+                        <Button
+                            x:Name="exportButton"
+                            Grid.Column="2"
+                            Tag="Themed"
+                            Content="Export"
+                            FontSize="13" />
+                    </Grid>
+
+                    <Border
+                        Grid.Row="5"
+                        Grid.ColumnSpan="3"
+                        Background="{DynamicResource PanelBrush}"
+                        Height="2"
+                        HorizontalAlignment="Stretch"
+                        Margin="0,2,0,4" />
+
+                    <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Height="28">
+                        <Button
+                            x:Name="sortButton"
+                            Tag="Themed"
+                            HorizontalContentAlignment="Stretch"
+                            ToolTip.Tip="Sorts mods based on raw tag properties.&#x0a;Right click to autosort">
+                            <Grid>
+                                <TextBlock Text="Sort" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Image
+                                    x:Name="autoSortIndicator"
+                                    Source="{render:AssetImage updateBorderIcon}"
+                                    IsVisible="{Binding IsAutoSortEnabled}"
+                                    Width="16"
+                                    Height="16"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Margin="6,0,0,0"/>
+                            </Grid>
+                        </Button>
+                        <!-- Use &#x0a; as a substitute for \n (new line) -->
+                        <Button
+                            x:Name="sortRulesButton"
+                            Grid.Column="1"
+                            Tag="Themed"
+                            ToolTip.Tip="Custom sorting rules. These override default sorting.&#x0a;Right click to toggle docking mode">
+                            <Grid>
+                                <Image Source="{render:AssetImage gearIcon}" />
+                                <Image
+                                    x:Name="sortRulesModeIndicator"
+                                    Source="{render:AssetImage windowDoubleIcon}"
+                                    Width="15"
+                                    Height="15"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="-1,-1,0,0"/>
+                            </Grid>
+                        </Button>
+                    </Grid>
+
+                    <StackPanel
+                        Grid.Row="7"
+                        Spacing="12"
+                        Margin="0,0,0,6"
+                        VerticalAlignment="Bottom">
+                        <Button
+                            x:Name="workshopDownloaderButton"
+                            Tag="Themed"
+                            Width="50"
+                            Height="50"
+                            ToolTip.Tip="Open the Steam Workshop Downloader.&#x0a;Right click to toggle docking mode"
+                            HorizontalAlignment="Right">
+                            <Grid>
+                                <Image Source="{render:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
+                                <Image
+                                    x:Name="workshopModeIndicator"
+                                    Source="{render:AssetImage windowDoubleIcon}"
+                                    Width="20"
+                                    Height="20"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="-1,-2.5,0,0" />
+                            </Grid>
+                        </Button>
+                        <Grid ColumnDefinitions="*,Auto" Height="28">
+                            <Button
+                                x:Name="updateLogButton"
+                                Tag="Themed"
+                                FontSize="13"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch"
+                                ToolTip.Tip="Open the Mod Update Log.&#x0a;Right click to toggle docking mode">
+                                <Grid>
+                                    <TextBlock Text="Update log" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Image
+                                        x:Name="updateLogModeIndicator"
+                                        Source="{render:AssetImage windowDoubleIcon}"
+                                        Width="18"
+                                        Height="18"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Margin="4,0"/>
+                                </Grid>
+                            </Button>
+                            <Button
+                                x:Name="installedModsMenuButton"
+                                Grid.Column="1"
+                                Tag="Themed"
+                                Width="28"
+                                Padding="-1,-1,-1,-3"
+                                ToolTip.Tip="Clear contents submenu">
+                                <Image Source="{render:AssetImage trashDatabaseIcon}" />
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+
+                    <Grid
+                        Grid.Row="8"
+                        ColumnDefinitions="Auto,*"
+                        ColumnSpacing="0"
+                        Height="62">
+                        <Button
+                            x:Name="warningIssuesButton"
+                            Tag="Themed"
+                            IsVisible="False"
+                            IsEnabled="False"
+                            Width="62"
+                            Margin="0,0,6,0"
+                            ToolTip.Tip="Issues detected in mods">
+                            <Image x:Name="warningIssuesIcon"
+                                   Source="{render:AssetImage errorIcon}" />
+                        </Button>
+                        <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="10">
+                            <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="ui:ThemeOption">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <Image
+                                                Source="{Binding Converter={x:Static render:TintedAssetConverter.Instance}}"
+                                                Width="16"
+                                                Height="16"
+                                                VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                                <ComboBox.SelectionBoxItemTemplate>
+                                    <DataTemplate x:DataType="ui:ThemeOption">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <Image
+                                                Source="{Binding Converter={x:Static render:TintedAssetConverter.Instance}}"
+                                                Width="14"
+                                                Height="14"
+                                                VerticalAlignment="Center" />
+                                            <TextBlock
+                                                Text="{Binding Name}"
+                                                VerticalAlignment="Center"
+                                                FontSize="11"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.SelectionBoxItemTemplate>
+                            </ComboBox>
+                            <Button
+                                Grid.Row="1"
+                                x:Name="settingsButton"
+                                Tag="Themed"
+                                FontSize="12"
+                                HorizontalAlignment="Right"
+                                Padding="6,0"
+                                ToolTip.Tip="Backup, restore, and reset ModHearth settings">
+                                <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                                    <Image
+                                        Source="{render:AssetImage wrenchIcon}"
+                                        Width="14"
+                                        Height="14"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock
+                                        Text="Settings"
+                                        VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Grid>
+                    <Grid
+                        Grid.Row="9"
+                        ColumnDefinitions="*,*"
+                        ColumnSpacing="6"
+                        Margin="0,4,0,0">
+                        <ScrollViewer
+                            x:Name="dfVersionScrollViewer"
+                            Grid.Column="0"
+                            HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollBarVisibility="Disabled"
+                            AllowAutoHide="False"
+                            VerticalAlignment="Center">
+                            <ScrollViewer.Styles>
+                                <Style Selector="ScrollBar:horizontal">
+                                    <Setter Property="Height" Value="5"/>
+                                    <Setter Property="MinHeight" Value="5"/>
+                                    <Setter Property="MaxHeight" Value="5"/>
+                                    <Setter Property="ClipToBounds" Value="True"/>
+                                </Style>
+                            </ScrollViewer.Styles>
+                            <TextBlock
+                                x:Name="dfVersionLabel"
+                                FontSize="11"
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource MainTextBrush}"
+                                ToolTip.Tip="Detected Dwarf Fortress Version" />
+                        </ScrollViewer>
+                        <ScrollViewer
+                            x:Name="dfhackVersionScrollViewer"
+                            Grid.Column="1"
+                            HorizontalScrollBarVisibility="Auto"
+                            VerticalScrollBarVisibility="Disabled"
+                            AllowAutoHide="False"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                            <ScrollViewer.Styles>
+                                <Style Selector="ScrollBar:horizontal">
+                                    <Setter Property="Height" Value="5"/>
+                                    <Setter Property="MinHeight" Value="5"/>
+                                    <Setter Property="MaxHeight" Value="5"/>
+                                    <Setter Property="ClipToBounds" Value="True"/>
+                                </Style>
+                            </ScrollViewer.Styles>
+                            <TextBlock
+                                x:Name="dfhackVersionLabel"
+                                FontSize="11"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource MainTextBrush}"
+                                ToolTip.Tip="Detected DFHack Version" />
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border
+                x:Name="rightDockSplitter"
+                Grid.Column="6"
+                Width="10"
+                Background="Transparent"
+                Cursor="SizeWestEast"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Stretch"
+                Margin="0, 36, 0, 0"
+                IsVisible="False" />
+
+            <ContentControl x:Name="rightDockHost" Tag="DockHost" Grid.Column="7" />
+            <Border
+                x:Name="rightDockHostLine"
+                Grid.Column="7"
+                Tag="DockHost"
+                Width="3"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Stretch"
+                Margin="0,12,0,0"
+                IsVisible="{Binding IsVisible, ElementName=rightDockHost}" />
+
+            <Border
+                x:Name="bottomDockSplitter"
+                Grid.Row="1"
+                Grid.ColumnSpan="8"
+                Height="7"
+                Background="Transparent"
+                Cursor="SizeNorthSouth"
+                HorizontalAlignment="Stretch"
                 VerticalAlignment="Center"
-                IsVisible="False">
-                <ScrollViewer.Styles>
-                  <Style Selector="ScrollBar:horizontal">
-                    <Setter Property="Height" Value="5"/>
-                    <Setter Property="MinHeight" Value="5"/>
-                    <Setter Property="MaxHeight" Value="5"/>
-                    <Setter Property="ClipToBounds" Value="True"/>
-                  </Style>
-                </ScrollViewer.Styles>
-                <TextBlock
-                  x:Name="dfhackStatusLabel"
-                  FontSize="11"
-                  VerticalAlignment="Center"
-                  Foreground="{DynamicResource MainTextBrush}"  />
-              </ScrollViewer>
-            </Grid>
-          </Grid>
+                Margin="0, 0, 36, 0"
+                IsVisible="False" />
+
+            <ContentControl
+                x:Name="bottomDockHost"
+                Tag="DockHost"
+                Grid.Row="2"
+                Grid.ColumnSpan="8" />
+            <Border
+                x:Name="bottomDockHostLine"
+                Grid.Row="2"
+                Grid.ColumnSpan="8"
+                Tag="DockHost"
+                Height="3"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Stretch"
+                Margin="0,0,12,0"
+                IsVisible="{Binding IsVisible, ElementName=bottomDockHost}" />
+
+            <!-- TODO Refactor to stop using weird "magic number" margins to center the buttons. Image rotation should be accounted for too -->
+            <Button
+                x:Name="leftDockSplitterCloseButton"
+                Grid.Column="1"
+                Tag="DockSplitterCloseButton"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0, -12, 2, 0"
+                IsVisible="{Binding IsVisible, ElementName=leftDockSplitter}" />
+
+            <Button
+                x:Name="rightDockSplitterCloseButton"
+                Grid.Column="6"
+                Tag="DockSplitterCloseButton"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="2, -12, 0, 0"
+                IsVisible="{Binding IsVisible, ElementName=rightDockSplitter}" />
+
+            <Button
+                x:Name="bottomDockSplitterCloseButton"
+                Grid.Row="1"
+                Grid.ColumnSpan="8"
+                Tag="DockSplitterCloseButton"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0, 2, -12, 0"
+                IsVisible="{Binding IsVisible, ElementName=bottomDockSplitter}" />
         </Grid>
-      </Border>
 
-      <GridSplitter Grid.Column="3" Classes="VerticalSplitter" Margin="0,24,3,0" />
-
-      <Border Grid.Column="4" Margin="3">
-        <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="12">
-
-          <Grid.Styles>
-            <Style Selector="ListBoxItem" x:DataType="viewmodels:ModRefViewModel">
-              <Setter Property="Padding" Value="0,0,3,0" />
-              <Setter Property="Margin" Value="0" />
-              <Setter Property="Background" Value="Transparent" />
-              <Setter Property="BorderThickness" Value="0" />
-              <Setter Property="IsVisible" Value="{Binding IsVisible}" />
-              <Setter Property="HorizontalAlignment" Value="Stretch" />
-              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-              <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-              <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
-            </Style>
-          </Grid.Styles>
-
-          <Grid Grid.Column="0" RowDefinitions="22,30,*">
-            <TextBlock
-              x:Name="leftHeaderLabel"
-              Grid.Row="0"
-              HorizontalAlignment="Center"
-              VerticalAlignment="Center" />
-
-            <ui:ModSearchBar x:Name="leftSearchBar" Grid.Row="1" />
-
-            <Grid Grid.Row="2">
-              <ListBox
-                x:Name="leftModlist"
-                SelectionMode="Multiple"
-                AutoScrollToSelectedItem="False"
-                Margin="0,6,0,0"
-                ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
-              </ListBox>
-
-              <ui:ModIssuesOverlay x:Name="modIssuesOverlayLeft" />
-            </Grid>
-          </Grid>
-
-          <Grid Grid.Column="1" RowDefinitions="22,30,*">
-            <TextBlock
-              x:Name="rightHeaderLabel"
-              Grid.Row="0"
-              HorizontalAlignment="Center"
-              VerticalAlignment="Center" />
-
-            <ui:ModSearchBar x:Name="rightSearchBar" Grid.Row="1" />
-
-            <Grid Grid.Row="2">
-              <ListBox
-                x:Name="rightModlist"
-                SelectionMode="Multiple"
-                AutoScrollToSelectedItem="False"
-                Margin="0,6,0,0"
-                ScrollViewer.HorizontalScrollBarVisibility="Disabled" >
-              </ListBox>
-
-              <ui:ModIssuesOverlay x:Name="modIssuesOverlayRight" />
-            </Grid>
-          </Grid>
-
-          <Grid Grid.Column="2"></Grid>
-
-        </Grid>
-      </Border>
-
-      <!-- Right buttons main panel -->
-      <Border Grid.Column="5" Margin="0,3,3,3">
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" RowSpacing="6">
-          <Grid.Styles>
-            <Style Selector="Button">
-              <Setter Property="HorizontalAlignment" Value="Stretch" />
-              <Setter Property="VerticalAlignment" Value="Stretch" />
-              <Setter Property="HorizontalContentAlignment" Value="Center" />
-              <Setter Property="VerticalContentAlignment" Value="Center" />
-              <Setter Property="MinHeight" Value="0" />
-              <Setter Property="Padding" Value="0" />
-            </Style>
-            <Style Selector="Image">
-              <Setter Property="Stretch" Value="Uniform" />
-            </Style>
-            <Style Selector="Grid">
-              <Setter Property="ColumnSpacing" Value="6" />
-            </Style>
-          </Grid.Styles>
-
-          <Grid ColumnDefinitions="*,*,*,*" Height="42">
-            <Button
-              x:Name="saveButton"
-              Grid.Column="0"
-              Tag="Themed"
-              ToolTip.Tip="Save the current modlist. Right click to toggle autosave">
-              <Grid>
-                <Image Source="{render:AssetImage saveIcon}" />
-                <Image
-                  x:Name="autoSaveIndicator"
-                  Source="{render:AssetImage updateBorderIcon}"
-                  Width="16"
-                  Height="16"
-                  HorizontalAlignment="Left"
-                  VerticalAlignment="Bottom"
-                  Margin="0"
-                  IsVisible="{Binding IsAutoSaveEnabled}" />
-              </Grid>
-            </Button>
-            <Button
-              x:Name="runDwarfFortressButton"
-              Grid.Column="1"
-              Tag="Themed"
-              ToolTip.Tip="Run Dwarf Fortress">
-              <Image Source="{render:AssetImage arrowPlayIcon}" />
-            </Button>
-            <Button
-              x:Name="undoChangesButton"
-              Grid.Column="2"
-              Tag="Themed"
-              ToolTip.Tip="Undo unsaved changes">
-              <Image Source="{render:AssetImage undoIcon}" />
-            </Button>
-            <Button
-              x:Name="reloadButton"
-              Grid.Column="3"
-              Tag="Themed"
-              ToolTip.Tip="Reload local/steam workshop modlists and mods.&#x0a;Right click to autoreload">
-              <Grid>
-                <Image Source="{render:AssetImage reloadIcon}" />
-                <Image
-                  x:Name="autoReloadIndicator"
-                  Source="{render:AssetImage updateBorderIcon}"
-                  Width="16"
-                  Height="16"
-                  HorizontalAlignment="Left"
-                  VerticalAlignment="Bottom"
-                  Margin="0"
-                  IsVisible="{Binding IsAutoReloadEnabled}" />
-              </Grid>
-            </Button>
-          </Grid>
-
-          <ComboBox
-            x:Name="modpackComboBox"
-            Grid.Row="2"
-            Height="30"
-            HorizontalAlignment="Stretch" />
-
-          <Grid Grid.Row="3" ColumnDefinitions="*,*,*" Height="28">
-            <Button
-              x:Name="newListButton"
-              Content="New"
-              Tag="Themed"
-              FontSize="12"
-              ToolTip.Tip="Create a new modpack"/>
-            <Button
-              x:Name="renameListButton"
-              Grid.Column="1"
-              Content="Rename"
-              Tag="Themed"
-              FontSize="12"
-              ToolTip.Tip="Rename this modpack"/>
-            <Button
-              x:Name="deleteListButton"
-              Grid.Column="2"
-              Content="Delete"
-              Tag="Themed"
-              FontSize="12"
-              ToolTip.Tip="Delete this modpack"/>
-          </Grid>
-
-          <Grid Grid.Row="4" ColumnDefinitions="Auto,*,*" Height="28">
-            <Button
-              x:Name="clearModlistButton"
-              Tag="Themed"
-              ToolTip.Tip="Clear the active mods list"
-              Width="28"
-              Padding="0,0,-1,-3">
-              <Image Source="{render:AssetImage broomMenuIcon}"/>
-            </Button>
-            <Button
-              x:Name="importButton"
-              Grid.Column="1"
-              Tag="Themed"
-              Content="Import"
-              FontSize="13" />
-            <Button
-              x:Name="exportButton"
-              Grid.Column="2"
-              Tag="Themed"
-              Content="Export"
-              FontSize="13" />
-          </Grid>
-
-          <Border
-            Grid.Row="5"
-            Grid.ColumnSpan="3"
-            Background="{DynamicResource PanelBrush}"
-            Height="2"
+        <Border
+            x:Name="leftDockPreviewBorder"
+            Tag="DockPreviewBorder"
+            Width="420"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Stretch"/>
+        <Border
+            x:Name="rightDockPreviewBorder"
+            Tag="DockPreviewBorder"
+            Width="360"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Stretch"/>
+        <Border
+            x:Name="bottomDockPreviewBorder"
+            Tag="DockPreviewBorder"
+            Height="260"
             HorizontalAlignment="Stretch"
-            Margin="0,2,0,4" />
+            VerticalAlignment="Bottom" />
 
-          <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Height="28">
-            <Button
-              x:Name="sortButton"
-              Tag="Themed"
-              HorizontalContentAlignment="Stretch"
-              ToolTip.Tip="Sorts mods based on raw tag properties.&#x0a;Right click to autosort">
-              <Grid>
-                <TextBlock Text="Sort" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <Image
-                  x:Name="autoSortIndicator"
-                  Source="{render:AssetImage updateBorderIcon}"
-                  IsVisible="{Binding IsAutoSortEnabled}"
-                  Width="16"
-                  Height="16"
-                  HorizontalAlignment="Left"
-                  VerticalAlignment="Center"
-                  Margin="6,0,0,0"/>
-              </Grid>
-            </Button>
-            <!-- Use &#x0a; as a substitute for \n (new line) -->
-            <Button
-              x:Name="sortRulesButton"
-              Grid.Column="1"
-              Tag="Themed"
-              ToolTip.Tip="Custom sorting rules. These override default sorting.&#x0a;Right click to toggle docking mode">
-              <Grid>
-                <Image Source="{render:AssetImage gearIcon}" />
-                <Image
-                  x:Name="sortRulesModeIndicator"
-                  Source="{render:AssetImage windowDoubleIcon}"
-                  Width="15"
-                  Height="15"
-                  HorizontalAlignment="Left"
-                  VerticalAlignment="Top"
-                  Margin="-1,-1,0,0"/>
-              </Grid>
-            </Button>
-          </Grid>
-
-          <StackPanel
-            Grid.Row="7"
-            Spacing="12"
-            Margin="0,0,0,6"
-            VerticalAlignment="Bottom">
-            <Button
-              x:Name="workshopDownloaderButton"
-              Tag="Themed"
-              Width="50"
-              Height="50"
-              ToolTip.Tip="Open the Steam Workshop Downloader.&#x0a;Right click to toggle docking mode"
-              HorizontalAlignment="Right">
-              <Grid>
-                <Image Source="{render:AssetImage steamDownloadIcon}" Margin="4,4,1,-0.5" />
-                <Image
-                  x:Name="workshopModeIndicator"
-                  Source="{render:AssetImage windowDoubleIcon}"
-                  Width="20"
-                  Height="20"
-                  HorizontalAlignment="Left"
-                  VerticalAlignment="Top"
-                  Margin="-1,-2.5,0,0" />
-              </Grid>
-            </Button>
-            <Grid ColumnDefinitions="*,Auto" Height="28">
-              <Button
-                x:Name="updateLogButton"
-                Tag="Themed"
-                FontSize="13"
-                HorizontalContentAlignment="Stretch"
-                VerticalContentAlignment="Stretch"
-                ToolTip.Tip="Open the Mod Update Log.&#x0a;Right click to toggle docking mode">
-                <Grid>
-                  <TextBlock Text="Update log" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                  <Image
-                    x:Name="updateLogModeIndicator"
-                    Source="{render:AssetImage windowDoubleIcon}"
-                    Width="18"
-                    Height="18"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
-                    Margin="4,0"/>
-                </Grid>
-              </Button>
-              <Button
-                x:Name="installedModsMenuButton"
-                Grid.Column="1"
-                Tag="Themed"
-                Width="28"
-                Padding="-1,-1,-1,-3"
-                ToolTip.Tip="Clear contents submenu">
-                <Image Source="{render:AssetImage trashDatabaseIcon}" />
-              </Button>
-            </Grid>
-          </StackPanel>
-
-          <Grid
-            Grid.Row="8"
-            ColumnDefinitions="Auto,*"
-            ColumnSpacing="0"
-            Height="62">
-            <Button
-              x:Name="warningIssuesButton"
-              Tag="Themed"
-              IsVisible="False"
-              IsEnabled="False"
-              Width="62"
-              Margin="0,0,6,0"
-              ToolTip.Tip="Issues detected in mods">
-              <Image x:Name="warningIssuesIcon"
-                     Source="{render:AssetImage errorIcon}" />
-            </Button>
-            <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="10">
-              <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate x:DataType="ui:ThemeOption">
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                      <Image
-                        Source="{Binding Converter={x:Static render:TintedAssetConverter.Instance}}"
-                        Width="16"
-                        Height="16"
-                        VerticalAlignment="Center" />
-                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-                <ComboBox.SelectionBoxItemTemplate>
-                  <DataTemplate x:DataType="ui:ThemeOption">
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                      <Image
-                        Source="{Binding Converter={x:Static render:TintedAssetConverter.Instance}}"
-                        Width="14"
-                        Height="14"
-                        VerticalAlignment="Center" />
-                      <TextBlock
-                        Text="{Binding Name}"
-                        VerticalAlignment="Center"
-                        FontSize="11"
-                        TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
-                  </DataTemplate>
-                </ComboBox.SelectionBoxItemTemplate>
-              </ComboBox>
-              <Button
-                Grid.Row="1"
-                x:Name="redoConfigButton"
-                Tag="Themed"
-                Content="Redo Config"
-                FontSize="12"
-                HorizontalAlignment="Right"
-                Padding="6,0,6,0" />
-            </Grid>
-          </Grid>
-          <Grid
-            Grid.Row="9"
-            ColumnDefinitions="*,*"
-            ColumnSpacing="6"
-            Margin="0,4,0,0">
-            <ScrollViewer
-              x:Name="dfVersionScrollViewer"
-              Grid.Column="0"
-              HorizontalScrollBarVisibility="Auto"
-              VerticalScrollBarVisibility="Disabled"
-              AllowAutoHide="False"
-              VerticalAlignment="Center">
-              <ScrollViewer.Styles>
-                <Style Selector="ScrollBar:horizontal">
-                  <Setter Property="Height" Value="5"/>
-                  <Setter Property="MinHeight" Value="5"/>
-                  <Setter Property="MaxHeight" Value="5"/>
-                  <Setter Property="ClipToBounds" Value="True"/>
-                </Style>
-              </ScrollViewer.Styles>
-              <TextBlock
-                x:Name="dfVersionLabel"
-                FontSize="11"
-                VerticalAlignment="Center"
-                Foreground="{DynamicResource MainTextBrush}"
-                ToolTip.Tip="Detected Dwarf Fortress Version" />
-            </ScrollViewer>
-            <ScrollViewer
-              x:Name="dfhackVersionScrollViewer"
-              Grid.Column="1"
-              HorizontalScrollBarVisibility="Auto"
-              VerticalScrollBarVisibility="Disabled"
-              AllowAutoHide="False"
-              HorizontalAlignment="Right"
-              VerticalAlignment="Center">
-              <ScrollViewer.Styles>
-                <Style Selector="ScrollBar:horizontal">
-                  <Setter Property="Height" Value="5"/>
-                  <Setter Property="MinHeight" Value="5"/>
-                  <Setter Property="MaxHeight" Value="5"/>
-                  <Setter Property="ClipToBounds" Value="True"/>
-                </Style>
-              </ScrollViewer.Styles>
-              <TextBlock
-                x:Name="dfhackVersionLabel"
-                FontSize="11"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Center"
-                Foreground="{DynamicResource MainTextBrush}"
-                ToolTip.Tip="Detected DFHack Version" />
-            </ScrollViewer>
-          </Grid>
-        </Grid>
-      </Border>
-
-      <Border
-        x:Name="rightDockSplitter"
-        Grid.Column="6"
-        Width="10"
-        Background="Transparent"
-        Cursor="SizeWestEast"
-        HorizontalAlignment="Center"
-        VerticalAlignment="Stretch"
-        Margin="0, 36, 0, 0"
-        IsVisible="False" />
-
-      <ContentControl x:Name="rightDockHost" Tag="DockHost" Grid.Column="7" />
-      <Border
-        x:Name="rightDockHostLine"
-        Grid.Column="7"
-        Tag="DockHost"
-        Width="3"
-        HorizontalAlignment="Left"
-        VerticalAlignment="Stretch"
-        Margin="0,12,0,0"
-        IsVisible="{Binding IsVisible, ElementName=rightDockHost}" />
-
-      <Border
-        x:Name="bottomDockSplitter"
-        Grid.Row="1"
-        Grid.ColumnSpan="8"
-        Height="7"
-        Background="Transparent"
-        Cursor="SizeNorthSouth"
-        HorizontalAlignment="Stretch"
-        VerticalAlignment="Center"
-        Margin="0, 0, 36, 0"
-        IsVisible="False" />
-
-      <ContentControl
-        x:Name="bottomDockHost"
-        Tag="DockHost"
-        Grid.Row="2"
-        Grid.ColumnSpan="8" />
-      <Border
-        x:Name="bottomDockHostLine"
-        Grid.Row="2"
-        Grid.ColumnSpan="8"
-        Tag="DockHost"
-        Height="3"
-        VerticalAlignment="Top"
-        HorizontalAlignment="Stretch"
-        Margin="0,0,12,0"
-        IsVisible="{Binding IsVisible, ElementName=bottomDockHost}" />
-
-      <!-- TODO Refactor to stop using weird "magic number" margins to center the buttons. Image rotation should be accounted for too -->
-      <Button
-        x:Name="leftDockSplitterCloseButton"
-        Grid.Column="1"
-        Tag="DockSplitterCloseButton"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Top"
-        Margin="0, -12, 2, 0"
-        IsVisible="{Binding IsVisible, ElementName=leftDockSplitter}" />
-
-      <Button
-        x:Name="rightDockSplitterCloseButton"
-        Grid.Column="6"
-        Tag="DockSplitterCloseButton"
-        HorizontalAlignment="Left"
-        VerticalAlignment="Top"
-        Margin="2, -12, 0, 0"
-        IsVisible="{Binding IsVisible, ElementName=rightDockSplitter}" />
-
-      <Button
-        x:Name="bottomDockSplitterCloseButton"
-        Grid.Row="1"
-        Grid.ColumnSpan="8"
-        Tag="DockSplitterCloseButton"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Top"
-        Margin="0, 2, -12, 0"
-        IsVisible="{Binding IsVisible, ElementName=bottomDockSplitter}" />
-    </Grid>
-
-    <Border
-      x:Name="leftDockPreviewBorder"
-      Tag="DockPreviewBorder"
-      Width="420"
-      HorizontalAlignment="Left"
-      VerticalAlignment="Stretch"/>
-    <Border
-      x:Name="rightDockPreviewBorder"
-      Tag="DockPreviewBorder"
-      Width="360"
-      HorizontalAlignment="Right"
-      VerticalAlignment="Stretch"/>
-    <Border
-      x:Name="bottomDockPreviewBorder"
-      Tag="DockPreviewBorder"
-      Height="260"
-      HorizontalAlignment="Stretch"
-      VerticalAlignment="Bottom" />
-
-    <ItemsControl
-      x:Name="toastHost"
-      HorizontalAlignment="Left"
-      VerticalAlignment="Bottom"
-      Margin="0,0,0,10">
-      <ItemsControl.ItemsPanel>
-        <ItemsPanelTemplate>
-          <StackPanel Spacing="4" />
-        </ItemsPanelTemplate>
-      </ItemsControl.ItemsPanel>
-      <ItemsControl.ItemTemplate>
-        <DataTemplate x:DataType="ui:NotificationRecord">
-          <Border
+        <ItemsControl
+            x:Name="toastHost"
             HorizontalAlignment="Left"
             VerticalAlignment="Bottom"
-            Padding="6,5.5,20,5.5"
-            CornerRadius="0,4,4,0"
-            BorderThickness="0,1,1,1"
-            BoxShadow="0 4 12 0 #40000000"
-            Background="{DynamicResource ModRefPanelClearBrush}"
-            BorderBrush="{DynamicResource ButtonBorderBrush}"
-            PointerEntered="OnToastPointerEntered">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <Image
-                Width="16"
-                Height="16"
-                VerticalAlignment="Center"
-                Source="{Binding IconSource}" />
-              <TextBlock
-                Text="{Binding Message}"
-                FontSize="12"
-                FontWeight="SemiBold"
-                VerticalAlignment="Center"
-                Foreground="{DynamicResource MainTextBrush}" />
-            </StackPanel>
-          </Border>
-        </DataTemplate>
-      </ItemsControl.ItemTemplate>
-    </ItemsControl>
+            Margin="0,0,0,10">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Spacing="4" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ui:NotificationRecord">
+                    <Border
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Bottom"
+                        Padding="6,5.5,20,5.5"
+                        CornerRadius="0,4,4,0"
+                        BorderThickness="0,1,1,1"
+                        BoxShadow="0 4 12 0 #40000000"
+                        Background="{DynamicResource ModRefPanelClearBrush}"
+                        BorderBrush="{DynamicResource ButtonBorderBrush}"
+                        PointerEntered="OnToastPointerEntered">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Image
+                                Width="16"
+                                Height="16"
+                                VerticalAlignment="Center"
+                                Source="{Binding IconSource}" />
+                            <TextBlock
+                                Text="{Binding Message}"
+                                FontSize="12"
+                                FontWeight="SemiBold"
+                                VerticalAlignment="Center"
+                                Foreground="{DynamicResource MainTextBrush}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
 
-    <!-- Optional Dimmed Backdrop overlay -->
-    <Border
-      x:Name="NotificationBackdrop"
-      Background="#80000000"
-      IsVisible="False"
-      PointerPressed="OnNotificationBackdropClick" />
+        <!-- Optional Dimmed Backdrop overlay -->
+        <Border
+            x:Name="NotificationBackdrop"
+            Background="#80000000"
+            IsVisible="False"
+            PointerPressed="OnNotificationBackdropClick" />
 
-    <!-- Sliding Notification Manager Drawer Panel -->
-    <Border
-      x:Name="NotificationDrawerPanel"
-      Width="320"
-      HorizontalAlignment="Left"
-      CornerRadius="0,20,20,0"
-      Background="{DynamicResource BackgroundBrush}"
-      BorderBrush="{DynamicResource ButtonOutlineBrush}"
-      BorderThickness="0,0,1,0"
-      Classes="drawer"
-      ZIndex="1000">
+        <!-- Sliding Notification Manager Drawer Panel -->
+        <Border
+            x:Name="NotificationDrawerPanel"
+            Width="320"
+            HorizontalAlignment="Left"
+            CornerRadius="0,20,20,0"
+            Background="{DynamicResource BackgroundBrush}"
+            BorderBrush="{DynamicResource ButtonOutlineBrush}"
+            BorderThickness="0,0,1,0"
+            Classes="drawer"
+            ZIndex="1000">
 
-      <Border.Styles>
-        <Style Selector="Border.drawer">
-          <Setter Property="RenderTransform" Value="translate(-320px, 0px)" />
-        </Style>
-        <Style Selector="Border.drawer.open">
-          <Setter Property="RenderTransform" Value="translate(0px, 0px)" />
-        </Style>
-      </Border.Styles>
+            <Border.Styles>
+                <Style Selector="Border.drawer">
+                    <Setter Property="RenderTransform" Value="translate(-320px, 0px)" />
+                </Style>
+                <Style Selector="Border.drawer.open">
+                    <Setter Property="RenderTransform" Value="translate(0px, 0px)" />
+                </Style>
+            </Border.Styles>
 
-      <Border.Transitions>
-        <Transitions>
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.4" Easing="CubicEaseOut" />
-        </Transitions>
-      </Border.Transitions>
+            <Border.Transitions>
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.4" Easing="CubicEaseOut" />
+                </Transitions>
+            </Border.Transitions>
 
-      <Grid RowDefinitions="Auto,Auto,*">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,12,12,8">
-          <TextBlock
-            Text="Notification Logs"
-            FontSize="16"
-            FontWeight="Bold"
-            VerticalAlignment="Center" />
-          <Button
-            Grid.Column="1"
-            Click="OnToggleNotificationDrawerClick"
-            Width="28"
-            Height="28"
-            Padding="2"
-            Tag="Themed">
-            <Image Source="{render:AssetImage cancelIcon}" />
-          </Button>
-        </Grid>
-
-        <ui:ModSearchBar
-          x:Name="notificationSearchBar"
-          Grid.Row="1"
-          Margin="12,0,12,8"
-          IsSortingEnabled="True"
-          IsColorSearchEnabled="False"
-          IsIdSearchEnabled="False"
-          IsSteamFileIdSearchEnabled="False"
-          IsNameSearchEnabled="False"
-          IsRegexSearchEnabled="True"
-          IsModifiedTimeSearchEnabled="True"
-          SearchMode="ModifiedTime"
-          SortDescending="True"
-          ModifiedTimeLabel="Time" />
-
-        <!-- ListBox (instead of ScrollViewer + ItemsControl) so the notification history is virtualized. -->
-        <ListBox
-          x:Name="NotificationItemsControl"
-          Grid.Row="2"
-          Margin="12,0,12,12"
-          Background="Transparent"
-          BorderThickness="0"
-          Padding="0"
-          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-          <ListBox.Styles>
-            <Style Selector="ListBoxItem">
-              <Setter Property="Padding" Value="0" />
-              <Setter Property="Margin" Value="0" />
-              <Setter Property="Background" Value="Transparent" />
-              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            </Style>
-            <Style Selector="ListBoxItem /template/ ContentPresenter">
-              <Setter Property="Background" Value="Transparent" />
-            </Style>
-            <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-              <Setter Property="Background" Value="Transparent" />
-            </Style>
-            <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-              <Setter Property="Background" Value="Transparent" />
-            </Style>
-          </ListBox.Styles>
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="ui:NotificationRecord">
-              <Border
-                Margin="0,4"
-                Padding="4,4,8,4"
-                CornerRadius="4"
-                Background="{DynamicResource PanelBrush}"
-                BorderBrush="{DynamicResource ButtonOutlineBrush}"
-                BorderThickness="1"
-                Opacity="{Binding ItemOpacity}">
-                <StackPanel Spacing="2">
-                  <Grid ColumnDefinitions="Auto,*">
-                    <Image
-                      Width="16"
-                      Height="16"
-                      VerticalAlignment="Bottom"
-                      Source="{Binding IconSource}" />
+            <Grid RowDefinitions="Auto,Auto,Auto,*">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="12,12,12,8">
                     <TextBlock
-                      Grid.Column="1"
-                      Text="{Binding Message}"
-                      FontSize="12"
-                      FontWeight="SemiBold"
-                      VerticalAlignment="Center"
-                      TextWrapping="Wrap"
-                      Margin="6,0,0,0"
-                      Foreground="{Binding MessageForeground}"
-                      TextDecorations="{Binding TextDecorations}" />
-                  </Grid>
-                  <Border
+                        Text="Notification Logs"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        VerticalAlignment="Center" />
+                    <Button
+                        Grid.Column="1"
+                        Click="OnToggleNotificationDrawerClick"
+                        Width="28"
+                        Height="28"
+                        Padding="2"
+                        Tag="Themed">
+                        <Image Source="{render:AssetImage cancelIcon}" />
+                    </Button>
+                </Grid>
+
+                <ui:ModSearchBar
+                    x:Name="notificationSearchBar"
+                    Grid.Row="1"
+                    Margin="12,0,12,8"
+                    IsSortingEnabled="True"
+                    IsColorSearchEnabled="False"
+                    IsIdSearchEnabled="False"
+                    IsSteamFileIdSearchEnabled="False"
+                    IsNameSearchEnabled="False"
+                    IsRegexSearchEnabled="True"
+                    IsModifiedTimeSearchEnabled="True"
+                    SearchMode="ModifiedTime"
+                    SortDescending="True"
+                    ModifiedTimeLabel="Time" />
+
+                <!-- Shown until the initial load/reload stops producing notifications. -->
+                <Border
+                    x:Name="notificationPopulatingNotice"
+                    Grid.Row="2"
+                    Margin="12,4,12,0"
+                    Padding="4,4,8,4"
+                    CornerRadius="4"
                     Background="{DynamicResource PanelDarkBrush}"
-                    CornerRadius="12"
-                    Margin="22,0,0,0"
-                    Padding="4,2"
-                    HorizontalAlignment="Stretch">
+                    BorderBrush="{DynamicResource ButtonOutlineBrush}"
+                    BorderThickness="1"
+                    IsHitTestVisible="False"
+                    IsVisible="{Binding IsNotificationLogPopulating}">
                     <TextBlock
-                      Text="{Binding FormattedTime}"
-                      FontSize="10"
-                      FontStyle="Italic"
-                      Foreground="{Binding MessageForeground}"
-                      Opacity="0.8"
-                      TextDecorations="{Binding TextDecorations}"
-                      HorizontalAlignment="Center" />
-                  </Border>
-                </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-      </Grid>
-    </Border>
-  </Panel>
+                        Text="Populating notification log..."
+                        FontSize="12"
+                        FontStyle="Italic"
+                        TextWrapping="Wrap"
+                        Foreground="{DynamicResource MainTextBrush}"
+                        Opacity="0.8" />
+                </Border>
+
+                <!-- ListBox (instead of ScrollViewer + ItemsControl) so the notification history is virtualized. -->
+                <ListBox
+                    x:Name="NotificationItemsControl"
+                    Grid.Row="3"
+                    Margin="12,0,12,12"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="0"
+                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                        <Style Selector="ListBoxItem /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="ui:NotificationRecord">
+                            <Border
+                                Margin="0,4"
+                                Padding="4,4,8,4"
+                                CornerRadius="4"
+                                Background="{DynamicResource PanelBrush}"
+                                BorderBrush="{DynamicResource ButtonOutlineBrush}"
+                                BorderThickness="1"
+                                Opacity="{Binding ItemOpacity}">
+                                <StackPanel Spacing="2">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Image
+                                            Width="16"
+                                            Height="16"
+                                            VerticalAlignment="Bottom"
+                                            Source="{Binding IconSource}" />
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            Text="{Binding Message}"
+                                            FontSize="12"
+                                            FontWeight="SemiBold"
+                                            VerticalAlignment="Center"
+                                            TextWrapping="Wrap"
+                                            Margin="6,0,0,0"
+                                            Foreground="{Binding MessageForeground}"
+                                            TextDecorations="{Binding TextDecorations}" />
+                                    </Grid>
+                                    <Border
+                                        Background="{DynamicResource PanelDarkBrush}"
+                                        CornerRadius="12"
+                                        Margin="22,0,0,0"
+                                        Padding="4,2"
+                                        HorizontalAlignment="Stretch">
+                                        <TextBlock
+                                            Text="{Binding FormattedTime}"
+                                            FontSize="10"
+                                            FontStyle="Italic"
+                                            Foreground="{Binding MessageForeground}"
+                                            Opacity="0.8"
+                                            TextDecorations="{Binding TextDecorations}"
+                                            HorizontalAlignment="Center" />
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+    </Panel>
 </Window>
