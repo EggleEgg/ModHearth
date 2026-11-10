@@ -30,7 +30,8 @@ namespace ModHearth
             ConflictPresent,
             DuplicateMod,
             MissingRequired,
-            ErrorLogIssue
+            ErrorLogIssue,
+            PossibleIssue
         };
 
         public ProblemType issueType = type;
@@ -55,6 +56,7 @@ namespace ModHearth
             ProblemType.DuplicateMod => $"Duplicate mod folder found: '{problemThrowerID}' (Folders: {problemID}).\n\nPlease remove one to avoid issues.",
             ProblemType.MissingRequired => $"Mod '{problemThrowerID}' requires mod '{problemID}' to be enabled.",
             ProblemType.ErrorLogIssue => problemID,
+            ProblemType.PossibleIssue => problemID,
             _ => "",
         };
     }
@@ -2517,6 +2519,7 @@ namespace ModHearth
             }
 
             AppendErrorLogProblems(modPoolSnapshot, newModProblems);
+            AppendPossibleIssueProblems(modPoolSnapshot, newModProblems);
 
             lock (stateGate)
                 modproblems = newModProblems;
@@ -2589,8 +2592,9 @@ namespace ModHearth
         {
             RefreshCacheDuplicateMap();
 
+            bool errorLogSearchEnabled = GetSearchErrorLogIssues();
             string errorLogPath = GetErrorLogPath();
-            bool exists = File.Exists(errorLogPath);
+            bool exists = errorLogSearchEnabled && File.Exists(errorLogPath);
             if (logFound && exists &&
                 (!string.Equals(lastLoggedErrorLogPath, errorLogPath, StringComparison.OrdinalIgnoreCase) || !lastLoggedErrorLogExists))
             {
@@ -2699,6 +2703,19 @@ namespace ModHearth
 
         private void RefreshCacheDuplicateMap()
         {
+            if (!GetSearchPossibleIssues())
+            {
+                lock (stateGate)
+                {
+                    cacheDuplicateMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                    cacheDuplicateGroups = [];
+                    cacheDuplicateLastWriteUtc = null;
+                    cacheDuplicateActiveModIds = null;
+                }
+
+                return;
+            }
+
             string cachePath = ModRawDependencyCacheStore.CachePath;
             bool exists = File.Exists(cachePath);
             DateTime lastWriteUtc = exists ? File.GetLastWriteTimeUtc(cachePath) : DateTime.MinValue;
@@ -2719,50 +2736,38 @@ namespace ModHearth
             Dictionary<string, ModRawDependencyInfo> cache = ModRawDependencyCacheStore.Load();
             Dictionary<string, List<string>> newMap = new(StringComparer.OrdinalIgnoreCase);
             List<HashSet<string>> newGroups = [];
-            Dictionary<string, List<string>> definitionToMods = new(StringComparer.OrdinalIgnoreCase);
-            HashSet<string> activeCutIds = new(StringComparer.OrdinalIgnoreCase);
 
-            foreach (ModRawDependencyInfo entry in cache.Values)
+            // DF treats the official raw folders as ordinary mods, so a direct definition that
+            // collides with vanilla produces the same "Duplicate Object" line as a mod-vs-mod
+            // collision. The baseline is loaded from those folders by the same scanner.
+            List<ModDuplicateDefinitionGroup> groups = ModDuplicateDefinitionAnalyzer.Analyze(
+                cache.Values,
+                activeModIds,
+                GetVanillaBaseline());
+
+            foreach (ModDuplicateDefinitionGroup duplicate in groups)
             {
-                if (!activeModIds.Contains(entry.ModId))
-                    continue;
+                HashSet<string> group = new(duplicate.ModIds, StringComparer.OrdinalIgnoreCase);
+                if (duplicate.IncludesVanilla)
+                    _ = group.Add(ModDuplicateDefinitionAnalyzer.VanillaOffender);
+                newGroups.Add(group);
 
-                foreach (string cutId in entry.CutTargetIds)
+                string displayLabel = ObjectKey.FormatForDisplay(duplicate.DefinitionKey);
+                foreach (string modId in duplicate.ModIds)
                 {
-                    _ = activeCutIds.Add(cutId);
-                }
-
-                foreach (string defId in entry.DirectDefinitionIds)
-                {
-                    if (!definitionToMods.TryGetValue(defId, out List<string>? mods))
+                    if (!newMap.TryGetValue(modId, out List<string>? objects))
                     {
-                        mods = [];
-                        definitionToMods[defId] = mods;
+                        objects = [];
+                        newMap[modId] = objects;
                     }
-                    mods.Add(entry.ModId);
-                }
-            }
 
-            foreach (KeyValuePair<string, List<string>> kvp in definitionToMods)
-            {
-                if (kvp.Value.Count > 1)
-                {
-                    if (activeCutIds.Contains(kvp.Key))
-                        continue;
+                    List<string> otherMods = [.. duplicate.ModIds
+                        .Where(id => !string.Equals(id, modId, StringComparison.OrdinalIgnoreCase))];
 
-                    HashSet<string> group = new(kvp.Value, StringComparer.OrdinalIgnoreCase);
-                    newGroups.Add(group);
+                    if (duplicate.IncludesVanilla)
+                        otherMods.Add(ModDuplicateDefinitionAnalyzer.VanillaOffender);
 
-                    string displayLabel = ObjectKey.FormatForDisplay(kvp.Key);
-                    foreach (string modId in kvp.Value)
-                    {
-                        if (!newMap.TryGetValue(modId, out List<string>? objects))
-                        {
-                            objects = [];
-                            newMap[modId] = objects;
-                        }
-                        objects.Add($"[Cache] Duplicate raw definition: {displayLabel} (also in: {string.Join(", ", kvp.Value.Where(id => !string.Equals(id, modId, StringComparison.OrdinalIgnoreCase)))})");
-                    }
+                    objects.Add($"[Cache] Duplicate raw definition: {displayLabel} (also in: {string.Join(", ", otherMods)})");
                 }
             }
 

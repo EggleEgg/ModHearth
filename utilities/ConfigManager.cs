@@ -1292,6 +1292,14 @@ namespace ModHearth
 
         public static void SetBackupDataBeforeUpdate(bool backup) => Update(c => c.BackupDataBeforeUpdate = backup, "Backup data before update");
 
+        public static bool GetSearchPossibleIssues() => Config.SearchPossibleIssues;
+
+        public static void SetSearchPossibleIssues(bool enabled) => Update(c => c.SearchPossibleIssues = enabled, "Search possible issues");
+
+        public static bool GetSearchErrorLogIssues() => Config.SearchErrorLogIssues;
+
+        public static void SetSearchErrorLogIssues(bool enabled) => Update(c => c.SearchErrorLogIssues = enabled, "Search errorlog issues");
+
         [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex SteamLibraryPathRegex();
         [GeneratedRegex("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled)]

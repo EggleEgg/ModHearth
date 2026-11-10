@@ -68,6 +68,9 @@ namespace ModHearth.Utilities.ModRaws
             HashSet<string> selectIds = new(comparer);
             HashSet<string> copyIds = new(comparer);
             HashSet<string> directIds = new(comparer);
+            HashSet<string> permittedReactionIds = new(comparer);
+            HashSet<string> permittedBuildingIds = new(comparer);
+            HashSet<string> reactionBuildingIds = new(comparer);
 
             foreach (RawObject raw in Objects)
             {
@@ -82,6 +85,15 @@ namespace ModHearth.Utilities.ModRaws
 
                 if (raw.IsDefinition && !string.IsNullOrWhiteSpace(raw.Id))
                     _ = directIds.Add(new ObjectKey(raw.ObjectType, raw.Id).ToString());
+
+                if (raw.IsPermittedReaction && !string.IsNullOrWhiteSpace(raw.Id))
+                    _ = permittedReactionIds.Add(raw.Id);
+
+                if (raw.IsPermittedBuilding && !string.IsNullOrWhiteSpace(raw.Id))
+                    _ = permittedBuildingIds.Add(raw.Id);
+
+                if (raw.IsReactionBuildingReference && !string.IsNullOrWhiteSpace(raw.Id))
+                    _ = reactionBuildingIds.Add(raw.Id);
             }
 
             bool hasVanillaEntity = false;
@@ -113,7 +125,7 @@ namespace ModHearth.Utilities.ModRaws
                 }
                 else if (string.Equals(raw.ObjectType, "INORGANIC", StringComparison.OrdinalIgnoreCase)
                       || string.Equals(raw.ObjectType, "PLANT", StringComparison.OrdinalIgnoreCase)
-                      || raw.ObjectType.StartsWith("ITEM_", StringComparison.OrdinalIgnoreCase))
+                      || string.Equals(raw.ObjectType, "ITEM", StringComparison.OrdinalIgnoreCase))
                 {
                     hasNewStuff = true;
                 }
@@ -132,6 +144,9 @@ namespace ModHearth.Utilities.ModRaws
                 SelectTargetIds = [.. selectIds],
                 CopyTagsFromSourceIds = [.. copyIds],
                 DirectDefinitionIds = [.. directIds],
+                PermittedReactionIds = [.. permittedReactionIds],
+                PermittedBuildingIds = [.. permittedBuildingIds],
+                ReactionBuildingIds = [.. reactionBuildingIds],
                 HasVanillaEntity = hasVanillaEntity,
                 HasNewEntity = hasNewEntity,
                 HasReaction = hasReaction,

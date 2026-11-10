@@ -12,7 +12,7 @@ namespace ModHearth.Utilities.ModRaws
         // cached rows unsafe to reuse as-is (e.g. the ObjectType:Id key format introduced here).
         // Load() discards a cache file written under a different version wholesale, forcing a
         // one-time full rescan rather than silently mixing old- and new-format data.
-        private const int CurrentSchemaVersion = 3;
+        private const int CurrentSchemaVersion = 4;
 
         public static Dictionary<string, ModRawDependencyInfo> Load()
         {

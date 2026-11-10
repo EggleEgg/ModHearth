@@ -35,7 +35,9 @@ namespace ModHearth.UI
             }
 
             await ReloadModpacksFromDisk();
-            await manager.EnsureModRawDependencyCacheAsync();
+            await Task.Run(manager.RefreshRawAnalysisAsync);
+            UpdateProblemIndicators();
+            UpdateDuplicateWarningIndicators();
         }
         private void ReloadButtonPointerPressed(object? sender, PointerPressedEventArgs e)
         {

@@ -122,12 +122,75 @@ namespace ModHearth.Utilities.ModRaws
                                 continue;
                             }
 
-                            // Direct definition: the tag matches the active [OBJECT:TYPE].
-                            if (!string.IsNullOrWhiteSpace(currentObjectType)
-                                && string.Equals(tag, currentObjectType, StringComparison.OrdinalIgnoreCase))
+                            // [PERMITTED_REACTION:ID] (entity) -> reference resolved against the
+                            // union of loaded REACTION definitions, including vanilla raws.
+                            if (string.Equals(tag, "PERMITTED_REACTION", StringComparison.OrdinalIgnoreCase))
                             {
                                 if (!string.IsNullOrWhiteSpace(firstArg))
-                                    objects.Add(new RawObject(currentObjectType, firstArg, sourceMod, true, false, false));
+                                {
+                                    objects.Add(new RawObject("REACTION", firstArg, sourceMod, false, false, false)
+                                    {
+                                        IsPermittedReaction = true
+                                    });
+                                }
+                                continue;
+                            }
+
+                            // [PERMITTED_BUILDING:ID] (entity) -> reference resolved against the
+                            // union of loaded BUILDING definitions, including vanilla raws.
+                            if (string.Equals(tag, "PERMITTED_BUILDING", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!string.IsNullOrWhiteSpace(firstArg))
+                                {
+                                    objects.Add(new RawObject("BUILDING", firstArg, sourceMod, false, false, false)
+                                    {
+                                        IsPermittedBuilding = true
+                                    });
+                                }
+                                continue;
+                            }
+
+                            // [BUILDING:ID] inside a reaction lists the workshops that can run it.
+                            // DF reports "Unrecognized Building Token" when the id has no definition.
+                            if (string.Equals(tag, "BUILDING", StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(currentObjectType, "REACTION", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!string.IsNullOrWhiteSpace(firstArg))
+                                {
+                                    objects.Add(new RawObject("BUILDING", firstArg, sourceMod, false, false, false)
+                                    {
+                                        IsReactionBuildingReference = true
+                                    });
+                                }
+                                continue;
+                            }
+
+                            // Direct definition: the tag matches the active [OBJECT:TYPE].
+                            // Buildings and items are declared below their object type:
+                            // [OBJECT:BUILDING] uses [BUILDING_WORKSHOP:ID]/[BUILDING_FURNACE:ID]
+                            // and [OBJECT:ITEM] uses [ITEM_WEAPON:ID], [ITEM_AMMO:ID], ...
+                            bool isBuildingDefinition =
+                                string.Equals(currentObjectType, "BUILDING", StringComparison.OrdinalIgnoreCase)
+                                && tag.StartsWith("BUILDING_", StringComparison.OrdinalIgnoreCase);
+                            bool isItemDefinition =
+                                string.Equals(currentObjectType, "ITEM", StringComparison.OrdinalIgnoreCase)
+                                && tag.StartsWith("ITEM_", StringComparison.OrdinalIgnoreCase);
+
+                            if (isBuildingDefinition
+                                || isItemDefinition
+                                || (!string.IsNullOrWhiteSpace(currentObjectType)
+                                    && string.Equals(tag, currentObjectType, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                if (!string.IsNullOrWhiteSpace(firstArg))
+                                {
+                                    string objectType = isBuildingDefinition
+                                        ? "BUILDING"
+                                        : isItemDefinition
+                                            ? "ITEM"
+                                            : currentObjectType!;
+
+                                    objects.Add(new RawObject(objectType, firstArg, sourceMod, true, false, false));
+                                }
 
                                 currentSelectObjectType = null;
                                 currentSelectId = null;

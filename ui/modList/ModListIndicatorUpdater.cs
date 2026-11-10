@@ -131,7 +131,9 @@ namespace ModHearth.UI.ModList
                 {
                     bool foundInErrorLog = manager.HasErrorLogDuplicateWarning(vm.ModReference.ID);
                     vm.IsDuplicateWarning = true;
-                    vm.DuplicateWarningTier = ModIssueClassifier.ForErrorLogDuplicateWarning(foundInErrorLog);
+                    vm.DuplicateWarningTier = ModIssueClassifier.ForErrorLogDuplicateWarning(
+                        foundInErrorLog,
+                        staticallyConfirmed: ConfigManager.GetSearchPossibleIssues());
                     vm.DuplicateWarningTooltip = BuildDuplicateWarningTooltip(manager, vm.ModReference.ID, foundInErrorLog, duplicates);
                 }
                 else
@@ -171,7 +173,7 @@ namespace ModHearth.UI.ModList
             else if (hasCache)
             {
                 string cachePath = ModRawDependencyCacheStore.trimmedCachePath ?? "mod_raw_dependency_cache.json";
-                _ = builder.Append("Potential duplicate raw definitions (").Append(cachePath).Append("):");
+                _ = builder.Append("Duplicate raw definitions (static raw scan, ").Append(cachePath).Append("):");
             }
 
             _ = builder.AppendLine().AppendLine();

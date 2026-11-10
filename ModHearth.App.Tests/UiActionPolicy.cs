@@ -116,7 +116,7 @@ namespace ModHearth.App.Tests
             Invoke("MainWindow", "errorIssueCountButton", "Jumps to the next in-memory error issue.");
             Invoke("MainWindow", "warningIssueCountButton", "Jumps to the next in-memory warning issue.");
             Invoke("MainWindow", "infoIssueCountButton", "Jumps to the next in-memory info issue.");
-            Invoke("MainWindow", "warningIssuesButton", "Jumps to the next in-memory problem mod.");
+            Skip("MainWindow", "warningIssuesButton", "Opens the issue-search flyout that needs a visual root.");
             Invoke("MainWindow", "leftDockSplitterCloseButton", "Closes an optional left dock; safe when empty.");
             Invoke("MainWindow", "rightDockSplitterCloseButton", "Closes an optional right dock; safe when empty.");
             Invoke("MainWindow", "bottomDockSplitterCloseButton", "Closes an optional bottom dock; safe when empty.");

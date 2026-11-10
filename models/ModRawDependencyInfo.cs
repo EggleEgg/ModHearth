@@ -29,6 +29,26 @@ namespace ModHearth.Models
         // defining the same ID with no CUT relationship is the "duplicate raws" silent-breakage case. DF's errorlog.txt won't necessarily catch it.
         public List<string> DirectDefinitionIds { get; set; } = [];
 
+        // Bare reaction IDs named by an entity's [PERMITTED_REACTION:ID] token. DF resolves these
+        // against every loaded reaction (including vanilla) and reports "Unrecognized permitted
+        // reaction token" when nothing matches, so they are stored without an object-type prefix.
+        public List<string> PermittedReactionIds { get; set; } = [];
+
+        // Bare building IDs named by an entity's [PERMITTED_BUILDING:ID] token.
+        public List<string> PermittedBuildingIds { get; set; } = [];
+
+        // Bare building IDs named by a reaction's [BUILDING:ID] token. DF reports these as
+        // "Unrecognized Building Token" when no building defines the id.
+        public List<string> ReactionBuildingIds { get; set; } = [];
+
+        // info.txt metadata problems detected statically, mirroring the "Invalid mod identifier",
+        // "Invalid mod version metadata" and "Unrecognized mod info token" error-log categories.
+        public List<ModInfoIssue> InfoIssues { get; set; } = [];
+
+        // Cache key component: LastWriteTimeUtc (ticks) of this mod's info.txt at scan time, so an
+        // edited info.txt forces the metadata checks to run again even when objects/ is unchanged.
+        public long InfoFileStampTicks { get; set; }
+
         // Capability flags detected for this mod (raw content, graphics, sound, Lua, DFHack, native plugin,
         // DFHack startup scripts). Independent of the raw-object-specific fields above -- see ModCapabilityScanner and ModCapabilities.
         public ModCapabilities Capabilities { get; set; } = ModCapabilities.None;

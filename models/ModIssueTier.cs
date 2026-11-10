@@ -33,6 +33,10 @@ namespace ModHearth.Models
 
             // Error-log problems are refined per category below.
             ModProblem.ProblemType.ErrorLogIssue => ModIssueTier.Warning,
+
+            // Statically predicted raw problems: DF would report them on load, but the game is
+            // not expected to fail outright.
+            ModProblem.ProblemType.PossibleIssue => ModIssueTier.Warning,
             _ => ModIssueTier.Warning
         };
 
@@ -57,10 +61,12 @@ namespace ModHearth.Models
 
         /// <summary>
         /// Duplicate raw definitions reported in the error log are guaranteed conflicts (DF names
-        /// the offending mods). Cache-only "potential" duplicates return <see cref="ModIssueTier.None"/>.
+        /// the offending mods). The static raw scan proves the same conflict without launching the
+        /// game, so enabling the possible-issues search promotes those to a real warning. When
+        /// neither source confirms the conflict it stays a potential-only hint with no icon.
         /// </summary>
-        public static ModIssueTier ForErrorLogDuplicateWarning(bool foundInErrorLog)
-            => foundInErrorLog ? ModIssueTier.Warning : ModIssueTier.None;
+        public static ModIssueTier ForErrorLogDuplicateWarning(bool foundInErrorLog, bool staticallyConfirmed = false)
+            => foundInErrorLog || staticallyConfirmed ? ModIssueTier.Warning : ModIssueTier.None;
     }
 
     /// <summary>

@@ -9,11 +9,32 @@ namespace ModHearth.Utilities.ModRaws
     /// to determine whether an asset originates from vanilla by set containment
     /// rather than by string matching a hardcoded list.
     /// </summary>
-    public sealed class VanillaRawBaseline(IEnumerable<ObjectKey> keys)
+    public sealed class VanillaRawBaseline
     {
         public static VanillaRawBaseline Empty { get; } = new VanillaRawBaseline([]);
 
-        private readonly HashSet<ObjectKey> _baseline = [.. keys];
+        private readonly HashSet<ObjectKey> _baseline;
+        private readonly HashSet<string> _objectTypes;
+
+        public VanillaRawBaseline(IEnumerable<ObjectKey> keys)
+        {
+            _baseline = [.. keys];
+            _objectTypes = new HashSet<string>(
+                _baseline.Select(key => key.ObjectType).Where(type => !string.IsNullOrWhiteSpace(type)),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Distinct object types (CREATURE, PLANT, ...) the vanilla raws define. Used to tell a
+        /// top-level object reference from a nested selector such as SELECT_CASTE or SELECT_MATERIAL.
+        /// </summary>
+        public IReadOnlyCollection<string> ObjectTypes => _objectTypes;
+
+        /// <summary>
+        /// True when no vanilla object keys were loaded. Missing-reference analysis cannot run
+        /// reliably without the baseline, because every vanilla-derived target would look missing.
+        /// </summary>
+        public bool IsEmpty => _baseline.Count == 0;
 
         public bool Contains(ObjectKey? key) => key != null && _baseline.Contains(key);
 
@@ -24,6 +45,13 @@ namespace ModHearth.Utilities.ModRaws
 
             return _baseline.Contains(new ObjectKey(objectType, id));
         }
+
+        /// <summary>
+        /// Convenience overload for the "ObjectType:Id" composite keys produced by
+        /// <see cref="ObjectKey.ToString"/>, which is how the raw scan persists references.
+        /// </summary>
+        public bool Contains(string compositeKey)
+            => ObjectKey.TryParse(compositeKey, out string objectType, out string id) && Contains(objectType, id);
 
         /// <summary>
         /// Loads the vanilla baseline by scanning the objects/ folders of all mods

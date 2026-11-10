@@ -22,6 +22,12 @@ namespace ModHearth
 
         private void AppendErrorLogProblems(IEnumerable<DfhMod> mods, List<ModProblem> problems)
         {
+            if (!GetSearchErrorLogIssues())
+            {
+                ClearErrorLogProblemCache();
+                return;
+            }
+
             EnsureErrorLogProblemCache();
 
             Dictionary<string, List<ModProblem>> map = errorLogProblemMap;

@@ -31,6 +31,26 @@ namespace ModHearth.Utilities.ModRaws
         public override string ToString() => $"{ObjectType}:{Id}";
 
         /// <summary>
+        /// Splits an "ObjectType:Id" composite key. Returns false for keys without both parts.
+        /// </summary>
+        public static bool TryParse(string? compositeKey, out string objectType, out string id)
+        {
+            objectType = string.Empty;
+            id = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(compositeKey))
+                return false;
+
+            int separatorIndex = compositeKey.IndexOf(':');
+            if (separatorIndex <= 0 || separatorIndex >= compositeKey.Length - 1)
+                return false;
+
+            objectType = compositeKey[..separatorIndex].Trim();
+            id = compositeKey[(separatorIndex + 1)..].Trim();
+            return objectType.Length > 0 && id.Length > 0;
+        }
+
+        /// <summary>
         /// Turns a "ObjectType:Id" key produced by ToString() into a friendlier "Id [ObjectType]" label
         /// for display. Falls back to the raw key unchanged if it isn't in that format.
         /// </summary>

@@ -99,7 +99,7 @@ namespace ModHearth.UI
                     }
                 }
 
-                await manager.EnsureModRawDependencyCacheAsync();
+                await Task.Run(manager.RefreshRawAnalysisAsync);
             }
             else
             {
@@ -112,7 +112,7 @@ namespace ModHearth.UI
                     Console.WriteLine($"[DEV] Initialization failed in dev mode: {ex}");
                 }
 
-                await manager.EnsureModRawDependencyCacheAsync();
+                await Task.Run(manager.RefreshRawAnalysisAsync);
             }
 
             SetupModlistBox();

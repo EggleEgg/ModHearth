@@ -595,13 +595,11 @@
                         <Button
                             x:Name="warningIssuesButton"
                             Tag="Themed"
-                            IsVisible="False"
-                            IsEnabled="False"
                             Width="62"
                             Margin="0,0,6,0"
-                            ToolTip.Tip="Issues detected in mods">
+                            ToolTip.Tip="Choose issue searches">
                             <Image x:Name="warningIssuesIcon"
-                                   Source="{render:AssetImage errorIcon}" />
+                                   Source="{render:AssetImage updateIcon}" />
                         </Button>
                         <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="10">
                             <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch">

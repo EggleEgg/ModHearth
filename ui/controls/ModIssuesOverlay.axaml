@@ -21,7 +21,7 @@
                 x:Name="errorIssueCountButton"
                 Background="{DynamicResource PanelBrush}"
                 Foreground="#FF0000"
-                ToolTip.Tip="Jump to next error.&#x0a;Right click to disable all."
+                ToolTip.Tip="Jump to next error&#x0a;Right click to disable all"
                 Padding="6,0"
                 Click="OnErrorIssueClick">
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
@@ -40,7 +40,7 @@
                 x:Name="warningIssueCountButton"
                 Background="{DynamicResource PanelBrush}"
                 Foreground="#FF9632"
-                ToolTip.Tip="Jump to next warning.&#x0a;Right click to disable all."
+                ToolTip.Tip="Jump to next warning.&#x0a;Right click to disable all"
                 Padding="6,0"
                 Click="OnWarningIssueClick">
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
@@ -59,7 +59,7 @@
                 x:Name="infoIssueCountButton"
                 Background="{DynamicResource PanelBrush}"
                 Foreground="#FFD246"
-                ToolTip.Tip="Jump to next info.&#x0a;Right click to disable all."
+                ToolTip.Tip="Jump to next info-&#x0a;Right click to disable all"
                 Padding="6,0"
                 Click="OnInfoIssueClick">
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">

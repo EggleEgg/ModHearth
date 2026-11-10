@@ -156,5 +156,12 @@ namespace ModHearth.Models
 
         // Whether to backup ModHearth data (metadata/, modrules.json, config.json) before installing a new release.
         public bool BackupDataBeforeUpdate { get; set; } = true;
+
+        // Statically analyze active mods' raws for problems Dwarf Fortress would write to
+        // errorlog.txt (unresolved raw references, duplicate definitions) without launching the game.
+        public bool SearchPossibleIssues { get; set; } = true;
+
+        // Include issues parsed from Dwarf Fortress's errorlog.txt in the warning indicators.
+        public bool SearchErrorLogIssues { get; set; } = true;
     }
 }

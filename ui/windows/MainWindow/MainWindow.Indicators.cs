@@ -45,24 +45,33 @@ namespace ModHearth.UI
             bool hasDuplicates = duplicateCount > 0;
             bool hasIssues = hasProblems || hasDuplicates;
 
-            warningIssuesButton.IsVisible = hasIssues;
-            warningIssuesButton.IsEnabled = hasIssues;
+            // The button is also the entry point for the issue-search settings, so it stays
+            // visible and clickable even when the active modlist is clean.
+            warningIssuesButton.IsVisible = true;
+            warningIssuesButton.IsEnabled = true;
 
-            string? tooltip = ModListIndicatorUpdater.BuildWarningIssuesTooltip(problemCount, duplicateCount);
+            string tooltip = (hasIssues
+                ? ((ModListIndicatorUpdater.BuildWarningIssuesTooltip(problemCount, duplicateCount) + Environment.NewLine) ?? string.Empty)
+                + Environment.NewLine + "Click to jump to the next issue." + Environment.NewLine : string.Empty)
+                + "Left click to choose issue search types";
+
             if (tooltip != lastWarningTooltip)
             {
                 lastWarningTooltip = tooltip;
                 ToolTip.SetTip(warningIssuesButton, tooltip);
             }
 
-            if (hasIssues && warningIssuesIcon != null)
+            if (warningIssuesIcon != null)
             {
                 string iconName;
                 if (hasProblems && hasDuplicates)
                     iconName = "warningErrorIcon.svg";
                 else if (hasProblems)
                     iconName = "errorIcon.svg";
-                else iconName = "warningIcon.svg";
+                else if (hasDuplicates)
+                    iconName = "warningIcon.svg";
+                else
+                    iconName = "checkButtonIcon.svg";
 
                 warningIssuesIcon.Source = ImageSourceLoader.LoadFromAssetUri(iconName)
                     ?? warningIssuesIcon.Source;

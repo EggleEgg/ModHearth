@@ -27,6 +27,7 @@ namespace ModHearth.App.Tests
         [InlineData(ModProblem.ProblemType.MissingBefore, ModIssueTier.Warning)]
         [InlineData(ModProblem.ProblemType.MissingAfter, ModIssueTier.Warning)]
         [InlineData(ModProblem.ProblemType.ErrorLogIssue, ModIssueTier.Warning)]
+        [InlineData(ModProblem.ProblemType.PossibleIssue, ModIssueTier.Warning)]
         public void ProblemTypesMapToExpectedTier(ModProblem.ProblemType problemType, ModIssueTier expected)
             => Assert.Equal(expected, ModIssueClassifier.ForProblemType(problemType));
 
@@ -36,6 +37,17 @@ namespace ModHearth.App.Tests
             Assert.Equal(ModIssueTier.None, ModIssueClassifier.ForErrorLogDuplicateWarning(foundInErrorLog: false));
             Assert.Equal(ModIssueTier.Warning, ModIssueClassifier.ForErrorLogDuplicateWarning(foundInErrorLog: true));
         }
+
+        [Theory]
+        [InlineData(false, false, ModIssueTier.None)]
+        [InlineData(true, false, ModIssueTier.Warning)]
+        [InlineData(false, true, ModIssueTier.Warning)]
+        [InlineData(true, true, ModIssueTier.Warning)]
+        public void DuplicateWarningsEscalateWhenEitherSearchConfirmsThem(
+            bool foundInErrorLog,
+            bool staticallyConfirmed,
+            ModIssueTier expected)
+            => Assert.Equal(expected, ModIssueClassifier.ForErrorLogDuplicateWarning(foundInErrorLog, staticallyConfirmed));
 
         [Theory]
         [InlineData(ModProblem.ProblemType.DuplicateMod, ModIssueTier.None, true)]
@@ -48,6 +60,7 @@ namespace ModHearth.App.Tests
         [InlineData(ModProblem.ProblemType.MissingRequired, ModIssueTier.Error, false)]
         [InlineData(ModProblem.ProblemType.MissingBefore, ModIssueTier.Warning, false)]
         [InlineData(ModProblem.ProblemType.MissingAfter, ModIssueTier.Warning, false)]
+        [InlineData(ModProblem.ProblemType.PossibleIssue, ModIssueTier.Warning, false)]
         public void SortExclusionMatchesFatalProblemRule(
             ModProblem.ProblemType problemType,
             ModIssueTier tier,

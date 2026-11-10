@@ -19,5 +19,20 @@ namespace ModHearth.Utilities.ModRaws
         /// object type context.
         /// </summary>
         public bool IsCopyTagsFrom { get; init; }
+
+        /// <summary>
+        /// True when this token is an entity's [PERMITTED_REACTION:ID] reference.
+        /// </summary>
+        public bool IsPermittedReaction { get; init; }
+
+        /// <summary>
+        /// True when this token is an entity's [PERMITTED_BUILDING:ID] reference.
+        /// </summary>
+        public bool IsPermittedBuilding { get; init; }
+
+        /// <summary>
+        /// True when this token is a reaction's [BUILDING:ID] reference.
+        /// </summary>
+        public bool IsReactionBuildingReference { get; init; }
     }
 }

@@ -303,6 +303,7 @@ namespace ModHearth.UI
             clearModlistButton.Click += async (_, _) => await ClearModlistAsync();
 
             warningIssuesButton.Click += (_, _) => JumpToNextProblem();
+            warningIssuesButton.AddHandler(PointerPressedEvent, WarningIssuesButtonPointerPressed, RoutingStrategies.Tunnel, true);
             modIssuesOverlayLeft.JumpRequested += (_, tier) =>
                 JumpToNextIssueTier(inactiveMods, leftModlist, tier, inactiveIssueCursors);
             modIssuesOverlayRight.JumpRequested += (_, tier) =>
