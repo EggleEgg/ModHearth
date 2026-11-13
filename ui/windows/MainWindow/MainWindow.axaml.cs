@@ -1,9 +1,11 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Behaviors;
 using ModHearth.UI.Docking;
@@ -11,7 +13,7 @@ using ModHearth.UI.Helpers;
 using ModHearth.UI.ModList;
 using ModHearth.UI.Theme;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
@@ -31,44 +33,40 @@ namespace ModHearth.UI
             return true;
         }
 
-        private double _workshopDownloadProgress;
         /// <summary>Overall Steam workshop download progress (0-100) across the current run.</summary>
         public double WorkshopDownloadProgress
         {
-            get => _workshopDownloadProgress;
+            get;
             private set
             {
                 // Ignore sub-percent jitter so the progress bar is not re-rendered for noise.
-                if (Math.Abs(_workshopDownloadProgress - value) < 0.01)
+                if (Math.Abs(field - value) < 0.01)
                     return;
-                _workshopDownloadProgress = value;
+                field = value;
                 NotifyOfPropertyChange();
             }
         }
 
-        private bool _isWorkshopDownloadActive;
         /// <summary>True while at least one Steam workshop download is in flight.</summary>
         public bool IsWorkshopDownloadActive
         {
-            get => _isWorkshopDownloadActive;
-            private set => SetField(ref _isWorkshopDownloadActive, value);
+            get;
+            private set => SetField(ref field, value);
         }
 
-        private int _workshopActiveDownloadCount;
         /// <summary>Number of Steam workshop downloads currently in flight.</summary>
         public int WorkshopActiveDownloadCount
         {
-            get => _workshopActiveDownloadCount;
-            private set => SetField(ref _workshopActiveDownloadCount, value);
+            get;
+            private set => SetField(ref field, value);
         }
 
-        private string _workshopDownloadStatusText = string.Empty;
         /// <summary>Text shown next to the aggregate workshop progress bar.</summary>
         public string WorkshopDownloadStatusText
         {
-            get => _workshopDownloadStatusText;
-            private set => SetField(ref _workshopDownloadStatusText, value);
-        }
+            get;
+            private set => SetField(ref field, value);
+        } = string.Empty;
 
         public bool IsAutoSaveEnabled
         {
@@ -96,15 +94,14 @@ namespace ModHearth.UI
             }
         }
 
-        private bool _isAutoReloadEnabled;
         public bool IsAutoReloadEnabled
         {
-            get => _isAutoReloadEnabled;
+            get;
             set
             {
-                if (_isAutoReloadEnabled != value)
+                if (field != value)
                 {
-                    _isAutoReloadEnabled = value;
+                    field = value;
                     NotifyOfPropertyChange();
                 }
             }
@@ -126,11 +123,10 @@ namespace ModHearth.UI
         private bool changesMade;
         private bool isBatchSelecting;
         private bool changesMarked;
-        private bool redoAvailable;
-        private bool isRedoing;
         private bool modifyingComboBox;
         private int lastIndex;
-        private List<DfhMod> redoMods = [];
+        private readonly ModListHistory modlistHistory = new();
+        private DfhModpack? modlistHistoryOwner;
         private List<DfhMod> problemMods = [];
         private int problemModIndex;
         private List<DfhMod> duplicateWarningMods = [];
@@ -179,6 +175,7 @@ namespace ModHearth.UI
             saveButton.DataContext = this;
             sortButton.DataContext = this;
             reloadButton.DataContext = this;
+            runDwarfFortressButton.DataContext = this;
             SetWindowIcon();
             SetPreviewImage(LoadFallbackPreview("modhearth_icon_v2.ico"));
             ShowFallbackHelpText();
@@ -194,9 +191,9 @@ namespace ModHearth.UI
             modListController.Dropped += ModlistDropped;
 
             shortcutKeyHandler = new ShortcutKeyHandler(
-                () => undoChangesButton.IsEnabled,
+                CanUndoModlistChanges,
                 UndoChangesAsync,
-                () => redoAvailable,
+                CanRedoModlistChanges,
                 RedoListChangesAsync,
                 saveAsync: SaveCurrentModpackAsync,
                 moveLeftAsync: () => MoveSelectedBetweenListsAsync(false),
@@ -282,6 +279,12 @@ namespace ModHearth.UI
             saveButton.Click += async (_, _) => await SaveCurrentModpackAsync();
             saveButton.AddHandler(PointerPressedEvent, SaveButtonPointerPressed, RoutingStrategies.Tunnel, true);
             runDwarfFortressButton.Click += async (_, _) => await RunDwarfFortressAsync();
+            ButtonHelpers.AttachRightClickHandler(runDwarfFortressButton, () =>
+            {
+                EnsureRunDwarfFortressOptionsFlyout();
+                SyncAutoOpenNewWorldSetupCheckBox();
+                runDwarfFortressOptionsFlyout?.ShowAt(runDwarfFortressButton);
+            });
             undoChangesButton.Click += async (_, _) => await UndoChangesAsync();
             sortButton.Click += async (_, _) => await ModSortAsync();
             sortButton.AddHandler(PointerPressedEvent, SortButtonPointerPressed, RoutingStrategies.Tunnel, true);
@@ -293,7 +296,12 @@ namespace ModHearth.UI
                 installedModsOptionsFlyout?.ShowAt(installedModsMenuButton);
             };
             reloadButton.Click += async (_, _) => await ReloadModpacksAsync();
-            reloadButton.AddHandler(PointerPressedEvent, ReloadButtonPointerPressed, RoutingStrategies.Tunnel, true);
+            ButtonHelpers.AttachRightClickHandler(reloadButton, () =>
+            {
+                EnsureReloadOptionsFlyout();
+                LoadAutoReloadMenuFromConfig();
+                reloadOptionsFlyout?.ShowAt(reloadButton);
+            });
 
             newListButton.Click += async (_, _) => await CreateNewModpackAsync();
             renameListButton.Click += async (_, _) => await RenameModpackAsync();
@@ -303,7 +311,11 @@ namespace ModHearth.UI
             clearModlistButton.Click += async (_, _) => await ClearModlistAsync();
 
             warningIssuesButton.Click += (_, _) => JumpToNextProblem();
-            warningIssuesButton.AddHandler(PointerPressedEvent, WarningIssuesButtonPointerPressed, RoutingStrategies.Tunnel, true);
+            ButtonHelpers.AttachRightClickHandler(warningIssuesButton, () =>
+            {
+                EnsureIssueSearchFlyout();
+                issueSearchFlyout?.ShowAt(warningIssuesButton);
+            });
             modIssuesOverlayLeft.JumpRequested += (_, tier) =>
                 JumpToNextIssueTier(inactiveMods, leftModlist, tier, inactiveIssueCursors);
             modIssuesOverlayRight.JumpRequested += (_, tier) =>
@@ -364,6 +376,7 @@ namespace ModHearth.UI
                 modManagerWatcher?.Dispose();
                 autoActionGate?.Dispose();
                 dropProcessingGate?.Dispose();
+                autoNewWorldCancellation.Cancel();
 
                 modManagerReloadTimer?.Stop();
                 dfHackStatusTimer?.Stop();

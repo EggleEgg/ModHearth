@@ -1,11 +1,12 @@
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using ModHearth.Config;
 using ModHearth.Models;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Formatting;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {

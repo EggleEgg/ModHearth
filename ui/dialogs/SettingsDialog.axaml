@@ -13,6 +13,7 @@
             <Button
                 x:Name="restoreBackupButton"
                 Content="Restore Backup"
+                Margin="50,4"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center" />
             <TextBlock
@@ -27,11 +28,13 @@
             <Button
                 x:Name="backupNowButton"
                 Content="Backup Now"
+                Margin="50,4"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center" />
             <TextBlock
                 x:Name="statusText"
                 FontSize="11"
+                HorizontalAlignment="Stretch"
                 TextWrapping="Wrap"
                 IsVisible="False"
                 Foreground="{DynamicResource MainTextBrush}" />

@@ -50,17 +50,17 @@
     </Window.Styles>
 
     <Panel>
-        <Grid x:Name="mainGrid" Margin="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="0" /> <!-- Left Content (0) -->
-                <ColumnDefinition Width="0" /> <!-- Left Splitter (1) -->
-                <ColumnDefinition Width="10*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="11*" />
-                <ColumnDefinition Width="200" />
-                <ColumnDefinition Width="0" />
-                <ColumnDefinition Width="0" />
-            </Grid.ColumnDefinitions>
+        <Grid x:Name="mainGrid" Margin="12"> <!-- TODO Move all MainWindow (not dock) content into its own column -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0" /> <!-- Left Content (0) -->
+            <ColumnDefinition Width="0" /> <!-- Left Splitter (1) -->
+            <ColumnDefinition Width="10*" /> <!-- Main Content (2) -->
+            <ColumnDefinition Width="Auto" /> <!-- Main Splitter (3) -->
+            <ColumnDefinition Width="11*" /> <!-- Mod Lists (4) -->
+            <ColumnDefinition Width="200" /> <!-- Right Sidebar (5) -->
+            <ColumnDefinition Width="0" /> <!-- Right Splitter (6) -->
+            <ColumnDefinition Width="0" /> <!-- Right Content (7) -->
+        </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
                 <RowDefinition Height="0" />
@@ -259,7 +259,7 @@
                                         IsVisible="{Binding IsUpdateAvailable, RelativeSource={RelativeSource AncestorType=ui:MainWindow}}"
                                         IsHitTestVisible="False" />
                                 </Grid>
-                                <TextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
+                                <SelectableTextBlock x:Name="buildVersionLabel" FontSize="12" VerticalAlignment="Center" />
                             </StackPanel>
                             <ScrollViewer
                                 x:Name="dfhackStatusScrollViewer"
@@ -402,14 +402,25 @@
                             x:Name="runDwarfFortressButton"
                             Grid.Column="1"
                             Tag="Themed"
-                            ToolTip.Tip="Run Dwarf Fortress">
-                            <Image Source="{render:AssetImage arrowPlayIcon}" />
+                            ToolTip.Tip="Run Dwarf Fortress.&#x0a;Right click for launch options">
+                            <Grid>
+                                <Image Source="{render:AssetImage playIcon}" />
+                                <Image
+                                    x:Name="autoOpenNewWorldIndicator"
+                                    Source="{render:AssetImage mouseBorderIcon}"
+                                    Width="16"
+                                    Height="16"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Bottom"
+                                    Margin="0"
+                                    IsVisible="{Binding IsAutoOpenNewWorldSetupEnabled}" />
+                            </Grid>
                         </Button>
                         <Button
                             x:Name="undoChangesButton"
                             Grid.Column="2"
                             Tag="Themed"
-                            ToolTip.Tip="Undo unsaved changes">
+                            ToolTip.Tip="Undo last modlist change (Ctrl+Z)&#x0a;Ctrl+Y redoes">
                             <Image Source="{render:AssetImage undoIcon}" />
                         </Button>
                         <Button
@@ -580,9 +591,8 @@
                                 Grid.Column="1"
                                 Tag="Themed"
                                 Width="28"
-                                Padding="-1,-1,-1,-3"
-                                ToolTip.Tip="Clear contents submenu">
-                                <Image Source="{render:AssetImage trashDatabaseIcon}" />
+                                ToolTip.Tip="Clear contents flyout">
+                                <Image Source="{render:AssetImage trashIcon}" />
                             </Button>
                         </Grid>
                     </StackPanel>
@@ -599,7 +609,7 @@
                             Margin="0,0,6,0"
                             ToolTip.Tip="Choose issue searches">
                             <Image x:Name="warningIssuesIcon"
-                                   Source="{render:AssetImage updateIcon}" />
+                                   Source="{render:AssetImage updateBorderIcon}" />
                         </Button>
                         <Grid Grid.Column="1" RowDefinitions="*,*" RowSpacing="10">
                             <ComboBox x:Name="themeComboBox" HorizontalAlignment="Stretch">
@@ -656,8 +666,7 @@
                     <Grid
                         Grid.Row="9"
                         ColumnDefinitions="*,*"
-                        ColumnSpacing="6"
-                        Margin="0,4,0,0">
+                        ColumnSpacing="6">
                         <ScrollViewer
                             x:Name="dfVersionScrollViewer"
                             Grid.Column="0"
@@ -673,7 +682,7 @@
                                     <Setter Property="ClipToBounds" Value="True"/>
                                 </Style>
                             </ScrollViewer.Styles>
-                            <TextBlock
+                            <SelectableTextBlock
                                 x:Name="dfVersionLabel"
                                 FontSize="11"
                                 VerticalAlignment="Center"
@@ -696,7 +705,7 @@
                                     <Setter Property="ClipToBounds" Value="True"/>
                                 </Style>
                             </ScrollViewer.Styles>
-                            <TextBlock
+                            <SelectableTextBlock
                                 x:Name="dfhackVersionLabel"
                                 FontSize="11"
                                 HorizontalAlignment="Right"

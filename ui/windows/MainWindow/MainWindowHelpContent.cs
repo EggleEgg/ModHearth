@@ -1,5 +1,5 @@
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Formatting;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI.Windows.MainWindow
 {

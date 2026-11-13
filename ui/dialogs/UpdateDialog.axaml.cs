@@ -1,16 +1,16 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Interactivity;
-using ModHearth.Models;
+using ModHearth.Config;
 using ModHearth.UI.Theme;
 using ModHearth.UI.Update;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
     public partial class UpdateDialog : Window
     {
-        private bool _isBleedingEdge = DevMode.IsEnabled;
+        private bool _isBleedingEdge = UpdateService.IsCurrentBuildBleedingEdge();
         private string _currentBuild = string.Empty;
         private List<GitHubRelease> _releases = [];
 
@@ -31,7 +31,7 @@ namespace ModHearth.UI
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 _currentBuild = currentBuild,
                 _releases = [.. releases],
-                _isBleedingEdge = DevMode.IsEnabled
+                _isBleedingEdge = UpdateService.IsCurrentBuildBleedingEdge()
             };
 
             dialog.InitializeDialog();
@@ -64,6 +64,7 @@ namespace ModHearth.UI
         private async void ChannelSwitchClicked(object? sender, RoutedEventArgs e)
         {
             _isBleedingEdge = !_isBleedingEdge;
+            ConfigManager.SetIsBleedingEdge(_isBleedingEdge);
             UpdateChannelButtonState();
             ChannelSwitchButton.IsEnabled = false;
 

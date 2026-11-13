@@ -1,6 +1,6 @@
 using ModHearth.UI.Dialogs;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.IO;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {

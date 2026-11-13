@@ -1,5 +1,5 @@
 using ModHearth.Models;
-using ModHearth.Utilities.ModRaws;
+using ModHearth.Utils.ModRaws;
 using Xunit;
 
 namespace ModHearth.App.Tests
@@ -80,6 +80,102 @@ namespace ModHearth.App.Tests
 
                 Assert.Empty(info.ReactionBuildingIds);
                 Assert.Empty(info.PermittedBuildingIds);
+            }
+            finally
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void UnterminatedTagDoesNotSwallowTheNextDefinition()
+        {
+            string tempRoot = Directory.CreateTempSubdirectory("modhearth-scanner-").FullName;
+            try
+            {
+                string objectsDir = Directory.CreateDirectory(Path.Combine(tempRoot, "objects")).FullName;
+                File.WriteAllText(Path.Combine(objectsDir, "reactions.txt"), """
+                    [OBJECT:REACTION]
+                    [REACTION:FIRST_REACTION]
+                    [CATEGORY:STEELMAKING
+
+                    [REACTION:SECOND_REACTION]
+                    [BUILDING:SMELTER:NONE]
+                    """);
+
+                ModRawDependencyInfo info = ModRawObjectScanner
+                    .Scan(tempRoot, "test_mod")
+                    .ToDependencyInfo("test_mod", "1", 0, null);
+
+                Assert.Contains("REACTION:FIRST_REACTION", info.DirectDefinitionIds);
+                Assert.Contains("REACTION:SECOND_REACTION", info.DirectDefinitionIds);
+                Assert.Contains("SMELTER", info.ReactionBuildingIds);
+            }
+            finally
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void ReactionDefinitionWithWrongObjectHeaderIsStillCaptured()
+        {
+            string tempRoot = Directory.CreateTempSubdirectory("modhearth-scanner-").FullName;
+            try
+            {
+                string objectsDir = Directory.CreateDirectory(Path.Combine(tempRoot, "objects")).FullName;
+                File.WriteAllText(Path.Combine(objectsDir, "reactions.txt"), """
+                    [OBJECT:INORGANIC]
+                    [REACTION:PEAT_TO_COKE]
+                    [NAME:roast two coke from peat]
+                    [BUILDING:WOOD:NONE]
+                    """);
+
+                ModRawDependencyInfo info = ModRawObjectScanner
+                    .Scan(tempRoot, "test_mod")
+                    .ToDependencyInfo("test_mod", "1", 0, null);
+
+                Assert.Contains("REACTION:PEAT_TO_COKE", info.DirectDefinitionIds);
+                Assert.Contains("WOOD", info.ReactionBuildingIds);
+            }
+            finally
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void NestedObjectTypeReferencesAreNotTreatedAsDefinitions()
+        {
+            // BODY, BODY_DETAIL_PLAN, SOUND, and CREATURE are all valid object types, but the
+            // same tags also appear as references inside other objects. Only REACTION is
+            // unambiguous enough to start a definition regardless of the file's OBJECT header.
+            string tempRoot = Directory.CreateTempSubdirectory("modhearth-scanner-").FullName;
+            try
+            {
+                string objectsDir = Directory.CreateDirectory(Path.Combine(tempRoot, "objects")).FullName;
+                File.WriteAllText(Path.Combine(objectsDir, "objects.txt"), """
+                    [OBJECT:ENTITY]
+                    [ENTITY:MY_ENTITY]
+                    [CREATURE:GREYDWARF]
+
+                    [OBJECT:CREATURE]
+                    [CREATURE:MY_BEAST]
+                    [BODY:QUADRUPED_NECK]
+                    [BODY_DETAIL_PLAN:STANDARD_TISSUES]
+                    [SOUND:ALERT]
+                    """);
+
+                ModRawDependencyInfo info = ModRawObjectScanner
+                    .Scan(tempRoot, "test_mod")
+                    .ToDependencyInfo("test_mod", "1", 0, null);
+
+                Assert.Contains("ENTITY:MY_ENTITY", info.DirectDefinitionIds);
+                Assert.Contains("CREATURE:MY_BEAST", info.DirectDefinitionIds);
+                Assert.DoesNotContain("CREATURE:GREYDWARF", info.DirectDefinitionIds);
+                Assert.DoesNotContain("BODY:QUADRUPED_NECK", info.DirectDefinitionIds);
+                Assert.DoesNotContain("BODY_DETAIL_PLAN:STANDARD_TISSUES", info.DirectDefinitionIds);
+                Assert.DoesNotContain("SOUND:ALERT", info.DirectDefinitionIds);
             }
             finally
             {

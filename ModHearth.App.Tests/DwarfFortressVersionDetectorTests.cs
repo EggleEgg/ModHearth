@@ -1,4 +1,4 @@
-using ModHearth.Utilities;
+using ModHearth.Utils.DwarfFortress;
 using Xunit;
 
 namespace ModHearth.App.Tests
@@ -132,34 +132,18 @@ namespace ModHearth.App.Tests
 
         private sealed class TempInstallation : IDisposable
         {
-            private readonly string root =
-                Path.Combine(Path.GetTempPath(), "ModHearthVersionTests", Guid.NewGuid().ToString("N"));
+            private readonly TempFolder temp = new("ModHearthVersionTests");
 
-            public string DfFolder => Path.Combine(root, "Dwarf Fortress");
-            public string DfHackFolder => Path.Combine(root, "DFHack");
+            public string DfFolder => temp.Combine("Dwarf Fortress");
+            public string DfHackFolder => temp.Combine("DFHack");
 
-            public void WriteToDf(string relativePath, string contents) => Write(DfFolder, relativePath, contents);
-            public void WriteToDfHack(string relativePath, string contents) => Write(DfHackFolder, relativePath, contents);
+            public void WriteToDf(string relativePath, string contents)
+                => temp.Write(Path.Combine("Dwarf Fortress", relativePath), contents);
 
-            private static void Write(string root, string relativePath, string contents)
-            {
-                string path = Path.Combine(root, relativePath);
-                _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path, contents);
-            }
+            public void WriteToDfHack(string relativePath, string contents)
+                => temp.Write(Path.Combine("DFHack", relativePath), contents);
 
-            public void Dispose()
-            {
-                try
-                {
-                    if (Directory.Exists(root))
-                        Directory.Delete(root, recursive: true);
-                }
-                catch (IOException)
-                {
-                    // Best-effort cleanup only.
-                }
-            }
+            public void Dispose() => temp.Dispose();
         }
     }
 }

@@ -1,5 +1,6 @@
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Config;
+using ModHearth.Utils.DwarfFortress;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
@@ -21,8 +22,7 @@ namespace ModHearth.UI
                 string? dfFolderPath = ConfigManager.Config?.DFFolderPath;
                 string? dfHackFolderPath = ConfigManager.Config?.DFHackFolderPath;
 
-                DwarfFortressVersionInfo versions = await Task.Run(
-                    () => DwarfFortressVersionDetector.Detect(dfFolderPath, dfHackFolderPath));
+                DwarfFortressVersionInfo versions = await Task.Run(() => DwarfFortressVersionDetector.Detect(dfFolderPath, dfHackFolderPath));
 
                 if (dfVersionLabel == null || dfhackVersionLabel == null)
                     return;

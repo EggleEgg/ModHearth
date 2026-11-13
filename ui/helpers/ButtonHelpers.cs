@@ -1,13 +1,42 @@
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 
 namespace ModHearth.UI.Helpers
 {
     public static class ButtonHelpers
     {
+        /// <summary>
+        /// Wires a secondary (right) click on <paramref name="button"/> to <paramref name="onRightClick"/>.
+        /// The event is marked handled so it does not also trigger the button's normal click action.
+        /// </summary>
+        public static void AttachRightClickHandler(Button button, Action onRightClick)
+            => button.AddHandler(
+                InputElement.PointerPressedEvent,
+                (_, e) =>
+                {
+                    if (!e.GetCurrentPoint(button).Properties.IsRightButtonPressed)
+                        return;
+
+                    e.Handled = true;
+                    onRightClick();
+                },
+                RoutingStrategies.Tunnel,
+                handledEventsToo: true);
+
+        /// <summary>
+        /// Creates the compact flyout shell used by the toolbar option menus.
+        /// </summary>
+        public static Flyout CreateCompactFlyout(Control content, PlacementMode placement = PlacementMode.Bottom)
+            => new()
+            {
+                FlyoutPresenterClasses = { "compact-flyout" },
+                Placement = placement,
+                Content = content
+            };
+
         public static Button CreateHelpButton(string url, string tooltip = "Click here to view documentation")
         {
             Button helpButton = new()
@@ -31,19 +60,7 @@ namespace ModHearth.UI.Helpers
             helpButton.Click += (_, e) =>
             {
                 e.Handled = true;
-
-                try
-                {
-                    using Process? process = Process.Start(new ProcessStartInfo
-                    {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
-                }
-                catch
-                {
-                    // Ignore or log if needed
-                }
+                _ = ShellLauncher.TryOpenAsync(null, url, "Open documentation");
             };
 
             return helpButton;

@@ -1,14 +1,17 @@
 using System.Collections;
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input.Platform;
 using Avalonia.Media;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Dialogs;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities.Steam;
+using ModHearth.Utils.IO;
+using ModHearth.Utils.Steam;
 
 namespace ModHearth.UI.ModList
 {
@@ -236,7 +239,7 @@ namespace ModHearth.UI.ModList
             if (mods == null)
                 return targets;
 
-            HashSet<string> seenPaths = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> seenPaths = new(PathHelper.Comparer);
             foreach (ModReference modref in mods)
             {
                 if (!ModHearthManager.CanDeleteCacheOnlyMod(modref))
@@ -308,87 +311,93 @@ namespace ModHearth.UI.ModList
                 ? $"Redownload '{steamTargets.First().Name}' from Steam Workshop?"
                 : $"Redownload {steamTargets.Count} Steam mods?";
 
-        public static async Task<bool> DeleteLocalModsWithConfirmAsync(
+        public static Task<bool> DeleteLocalModsWithConfirmAsync(
             Window owner,
             ModHearthManager manager,
             IEnumerable<ModReference> modReferences,
             bool requestUIReload = true)
-        {
-            manager.SplitActionableMods(
-                modReferences,
-                out List<ModReference> localTargets,
-                out _);
-
-            if (localTargets.Count == 0)
-            {
-                await DialogService.ShowMessageAsync(owner, "Selected mods cannot be deleted from the Mods folder.", "Delete Mod");
-                return false;
-            }
-
-            string prompt = BuildDeletePrompt(localTargets);
-            return await DialogService.RunConfirmedActionAsync(owner, prompt, "Delete Mod", () => DeleteLocalMods(manager, localTargets, requestUIReload));
-        }
-
-        public static async Task<bool> DeleteCacheOnlyModsWithConfirmAsync(
-            Window owner,
-            ModHearthManager manager,
-            IEnumerable<ModReference> modReferences,
-            bool requestUIReload = true)
-        {
-            List<ModReference> cacheTargets = GetCacheOnlyDeletableMods(modReferences);
-
-            if (cacheTargets.Count == 0)
-            {
-                await DialogService.ShowMessageAsync(owner, "Selected mods are not deletable installed_mods cache entries.", "Delete Cache-Only Mod");
-                return false;
-            }
-
-            string prompt = BuildDeleteCachePrompt(cacheTargets);
-            return await DialogService.RunConfirmedActionAsync(
+            => RunSplitConfirmedActionAsync(
                 owner,
-                prompt,
+                modReferences,
+                mods => ResolveLocalTargets(manager, mods),
+                "Selected mods cannot be deleted from the Mods folder.",
+                "Delete Mod",
+                BuildDeletePrompt,
+                targets => DeleteLocalMods(manager, targets, requestUIReload));
+
+        public static Task<bool> DeleteCacheOnlyModsWithConfirmAsync(
+            Window owner,
+            ModHearthManager manager,
+            IEnumerable<ModReference> modReferences,
+            bool requestUIReload = true)
+            => RunSplitConfirmedActionAsync(
+                owner,
+                modReferences,
+                GetCacheOnlyDeletableMods,
+                "Selected mods are not deletable installed_mods cache entries.",
                 "Delete Cache-Only Mod",
-                () => DeleteCacheOnlyMods(manager, cacheTargets, requestUIReload));
-        }
+                BuildDeleteCachePrompt,
+                targets => DeleteCacheOnlyMods(manager, targets, requestUIReload));
 
-        public static async Task UnsubscribeSteamWithConfirmAsync(
+        public static Task UnsubscribeSteamWithConfirmAsync(
             Window owner,
             ModHearthManager manager,
             IEnumerable<ModReference> modReferences)
-        {
-            manager.SplitActionableMods(
+            => RunSplitConfirmedActionAsync(
+                owner,
                 modReferences,
-                out _,
-                out List<ModReference> steamTargets);
+                mods => ResolveSteamTargets(manager, mods),
+                "Selected mods are not Steam Workshop mods.",
+                "Unsubscribe Steam Mod",
+                BuildUnsubscribePrompt,
+                targets => UnsubscribeSteamMods(manager, targets));
 
-            if (steamTargets.Count == 0)
-            {
-                await DialogService.ShowMessageAsync(owner, "Selected mods are not Steam Workshop mods.", "Unsubscribe Steam Mod");
-                return;
-            }
-
-            string prompt = BuildUnsubscribePrompt(steamTargets);
-            _ = await DialogService.RunConfirmedActionAsync(owner, prompt, "Unsubscribe Steam Mod", () => UnsubscribeSteamMods(manager, steamTargets));
-        }
-
-        public static async Task RedownloadSteamWithConfirmAsync(
+        public static Task RedownloadSteamWithConfirmAsync(
             Window owner,
             ModHearthManager manager,
             IEnumerable<ModReference> modReferences)
-        {
-            manager.SplitActionableMods(
+            => RunSplitConfirmedActionAsync(
+                owner,
                 modReferences,
-                out _,
-                out List<ModReference> steamTargets);
+                mods => ResolveSteamTargets(manager, mods),
+                "Selected mods are not Steam Workshop mods.",
+                "Redownload Steam Mod",
+                BuildRedownloadPrompt,
+                targets => RedownloadSteamMods(manager, targets));
 
-            if (steamTargets.Count == 0)
+        /// <summary>
+        /// Shared skeleton for the four context-menu actions: resolve the actionable targets, bail
+        /// out with a message when there are none, confirm, then run the action on a worker thread.
+        /// </summary>
+        private static async Task<bool> RunSplitConfirmedActionAsync(
+            Window owner,
+            IEnumerable<ModReference> modReferences,
+            Func<IEnumerable<ModReference>, List<ModReference>> resolveTargets,
+            string noTargetsMessage,
+            string title,
+            Func<List<ModReference>, string> prompt,
+            Func<List<ModReference>, List<string>> action)
+        {
+            List<ModReference> targets = resolveTargets(modReferences);
+            if (targets.Count == 0)
             {
-                await DialogService.ShowMessageAsync(owner, "Selected mods are not Steam Workshop mods.", "Redownload Steam Mod");
-                return;
+                await DialogService.ShowMessageAsync(owner, noTargetsMessage, title);
+                return false;
             }
 
-            string prompt = BuildRedownloadPrompt(steamTargets);
-            _ = await DialogService.RunConfirmedActionAsync(owner, prompt, "Redownload Steam Mod", () => RedownloadSteamMods(manager, steamTargets));
+            return await DialogService.RunConfirmedActionAsync(owner, prompt(targets), title, () => action(targets));
+        }
+
+        private static List<ModReference> ResolveLocalTargets(ModHearthManager manager, IEnumerable<ModReference> modReferences)
+        {
+            manager.SplitActionableMods(modReferences, out List<ModReference> localTargets, out _);
+            return localTargets;
+        }
+
+        private static List<ModReference> ResolveSteamTargets(ModHearthManager manager, IEnumerable<ModReference> modReferences)
+        {
+            manager.SplitActionableMods(modReferences, out _, out List<ModReference> steamTargets);
+            return steamTargets;
         }
 
         public static async Task OpenFolderFromContextMenuAsync<T>(
@@ -431,14 +440,9 @@ namespace ModHearth.UI.ModList
         {
             using (manager.BeginDeletionBatch())
             {
-                List<string> failures = [];
-                foreach (ModReference modref in localTargets)
-                {
-                    if (!manager.DeleteModFromModsFolder(modref, out string message, requestUIReload))
-                        failures.Add(message);
-                }
-
-                return failures;
+                return RunDeletionBatch(
+                    localTargets,
+                    modref => manager.DeleteModFromModsFolder(modref, out string message, requestUIReload) ? null : message);
             }
         }
 
@@ -446,15 +450,29 @@ namespace ModHearth.UI.ModList
         {
             using (manager.BeginDeletionBatch())
             {
-                List<string> failures = [];
-                foreach (ModReference modref in cacheTargets)
-                {
-                    if (!manager.DeleteCacheOnlyMod(modref, out string message, requestUIReload))
-                        failures.Add(message);
-                }
-
-                return failures;
+                return RunDeletionBatch(
+                    cacheTargets,
+                    modref => manager.DeleteCacheOnlyMod(modref, out string message, requestUIReload) ? null : message);
             }
+        }
+
+        /// <summary>
+        /// Deletes each target inside the caller's deletion batch, collecting per-mod failure
+        /// messages. A null/empty return from <paramref name="delete"/> means success.
+        /// </summary>
+        private static List<string> RunDeletionBatch(
+            IEnumerable<ModReference> targets,
+            Func<ModReference, string?> delete)
+        {
+            List<string> failures = [];
+            foreach (ModReference modref in targets)
+            {
+                string? failure = delete(modref);
+                if (!string.IsNullOrEmpty(failure))
+                    failures.Add(failure);
+            }
+
+            return failures;
         }
 
         public static List<string> UnsubscribeSteamMods(ModHearthManager manager, IEnumerable<ModReference> steamTargets) => manager.UnsubscribeSteamMods(steamTargets);
@@ -485,25 +503,15 @@ namespace ModHearth.UI.ModList
                 return;
             }
 
-            try
-            {
-                using Process? process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = path,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                await DialogService.ShowMessageAsync(owner, ex.Message, "Open Folder");
-            }
+            _ = await ShellLauncher.TryOpenAsync(owner, path, "Open Folder");
         }
 
         public static async Task OpenSteamPageAsync(Window owner, ModReference modref)
         {
+            string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open URL in steam" : "Open URL in browser";
+
             if (!ModHearthManager.TryGetSteamWorkshopItemId(modref, out string steamId))
             {
-                string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open URL in steam" : "Open URL in browser";
                 await DialogService.ShowMessageAsync(owner, "Steam ID not available for this mod.", actionTitle);
                 return;
             }
@@ -512,19 +520,7 @@ namespace ModHearth.UI.ModList
                 ? $"steam://url/CommunityFilePage/{steamId}"
                 : $"https://steamcommunity.com/sharedfiles/filedetails/?id={steamId}";
 
-            try
-            {
-                using Process? process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = url,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                string actionTitle = ConfigManager.GetOpenSteamInClient() ? "Open URL in steam" : "Open URL in browser";
-                await DialogService.ShowMessageAsync(owner, ex.Message, actionTitle);
-            }
+            _ = await ShellLauncher.TryOpenAsync(owner, url, actionTitle);
         }
 
         public static async Task CopyModIdAsync(Window owner, ModReference modref)

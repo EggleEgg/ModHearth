@@ -3,188 +3,188 @@ name: Build & Release
 # yaml-embedded-languages: shell
 
 on:
-  push:
-    branches: ["main"]
-  workflow_dispatch: # Allows triggering releases manually
+    push:
+        branches: ["main"]
+    workflow_dispatch: # Allows triggering releases manually
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  compute-version:
-    runs-on: ubuntu-latest
-    outputs:
-      build_number: ${{ steps.compute.outputs.build_number }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    compute-version:
+        runs-on: ubuntu-latest
+        outputs:
+            build_number: ${{ steps.compute.outputs.build_number }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Compute build number
-        id: compute
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BLEEDING_EDGE_TOKEN: ${{ secrets.BLEEDING_EDGE_TOKEN }}
-        run: python .github/scripts/compute-version.py
+            - name: Compute build number
+              id: compute
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  BLEEDING_EDGE_TOKEN: ${{ secrets.BLEEDING_EDGE_TOKEN }}
+              run: python .github/scripts/compute-version.py
 
-  build-test-publish:
-    runs-on: ${{ matrix.os }}
-    needs: compute-version
-    if: ${{ needs.compute-version.result == 'success' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            rid: win-x64
-            ext: zip
-          - os: ubuntu-latest
-            rid: linux-x64
-            ext: tar.gz
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-          cache: true
-          cache-dependency-path: |
-            **/*.csproj
-            **/*.props
-            **/*.targets
-            global.json
-      - name: Restore
-        run: dotnet restore ModHearth.sln
-      - name: Restore publish runtime assets
-        run: dotnet restore ModHearth.csproj -r ${{ matrix.rid }}
-      - name: Restore Steam worker publish runtime assets
-        run: dotnet restore ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -r ${{ matrix.rid }}
-      - name: Build
-        run: dotnet build ModHearth.sln -c Release --no-restore
-      - name: Test (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          if ! command -v xvfb-run >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xvfb
-          fi
-          echo "Running UI tests under Xvfb (required for Skia smoke test)."
-          if ! xvfb-run -a dotnet test ModHearth.sln -c Release --no-build --no-restore; then
-            echo "Tests failed. This can include the Skia native smoke test on Linux."
-            exit 1
-          fi
-      - name: Test (Windows)
-        if: matrix.os != 'ubuntu-latest'
-        run: dotnet test ModHearth.sln -c Release --no-build --no-restore
-      - name: Publish
-        run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
-      - name: Publish Steam worker
-        run: dotnet publish ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore -o artifacts/${{ matrix.rid }}
-      - name: Prune + verify + package (Windows)
-        if: matrix.os == 'windows-latest'
-        run: ./.github/scripts/prune-package.ps1 -Rid "${{ matrix.rid }}" -Ext "${{ matrix.ext }}"
-      - name: Prune + verify + package (Unix)
-        if: matrix.os != 'windows-latest'
-        run: bash ./.github/scripts/prune-package.sh "${{ matrix.rid }}" "${{ matrix.ext }}"
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ModHearth-${{ matrix.rid }}
-          path: dist/ModHearth-${{ matrix.rid }}.${{ matrix.ext }}
+    build-test-publish:
+        runs-on: ${{ matrix.os }}
+        needs: compute-version
+        if: ${{ needs.compute-version.result == 'success' }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: windows-latest
+                      rid: win-x64
+                      ext: zip
+                    - os: ubuntu-latest
+                      rid: linux-x64
+                      ext: tar.gz
+        steps:
+            - uses: actions/checkout@v4
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: 10.0.x
+                  cache: true
+                  cache-dependency-path: |
+                      **/*.csproj
+                      **/*.props
+                      **/*.targets
+                      global.json
+            - name: Restore
+              run: dotnet restore ModHearth.sln
+            - name: Restore publish runtime assets
+              run: dotnet restore ModHearth.csproj -r ${{ matrix.rid }}
+            - name: Restore Steam worker publish runtime assets
+              run: dotnet restore ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -r ${{ matrix.rid }}
+            - name: Build
+              run: dotnet build ModHearth.sln -c Release --no-restore
+            - name: Test (Linux)
+              if: matrix.os == 'ubuntu-latest'
+              run: |
+                  if ! command -v xvfb-run >/dev/null 2>&1; then
+                    sudo apt-get update
+                    sudo apt-get install -y xvfb
+                  fi
+                  echo "Running UI tests under Xvfb (required for Skia smoke test)."
+                  if ! xvfb-run -a dotnet test ModHearth.sln -c Release --no-build --no-restore; then
+                    echo "Tests failed. This can include the Skia native smoke test on Linux."
+                    exit 1
+                  fi
+            - name: Test (Windows)
+              if: matrix.os != 'ubuntu-latest'
+              run: dotnet test ModHearth.sln -c Release --no-build --no-restore
+            - name: Publish
+              run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
+            - name: Publish Steam worker
+              run: dotnet publish ModHearth.SteamWorker/ModHearth.SteamWorker.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore -o artifacts/${{ matrix.rid }}
+            - name: Prune + verify + package (Windows)
+              if: matrix.os == 'windows-latest'
+              run: ./.github/scripts/prune-package.ps1 -Rid "${{ matrix.rid }}" -Ext "${{ matrix.ext }}"
+            - name: Prune + verify + package (Unix)
+              if: matrix.os != 'windows-latest'
+              run: bash ./.github/scripts/prune-package.sh "${{ matrix.rid }}" "${{ matrix.ext }}"
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ModHearth-${{ matrix.rid }}
+                  path: dist/ModHearth-${{ matrix.rid }}.${{ matrix.ext }}
 
-  # --- Production release on manual dispatch, bleeding-edge build on push ---
-  publish:
-    runs-on: ubuntu-latest
-    needs: [build-test-publish, compute-version]
-    if: ${{ needs.build-test-publish.result == 'success' && needs.compute-version.result == 'success' }}
-    steps:
-      - name: Normalize build tag
-        id: release_tag
-        env:
-          RAW_BUILD: ${{ needs.compute-version.outputs.build_number }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          raw="$(echo -n "$RAW_BUILD" | tr -d '\r\n' | xargs)"
-          raw="${raw//\\n/}"
-          raw="${raw//\\r/}"
-          if [ -z "$raw" ]; then
-            echo "Missing build number from compute-version."
-            exit 1
-          fi
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then prefix="Build"; else prefix="BE Build"; fi
-          echo "tag=build-$raw" >> $GITHUB_OUTPUT
-          echo "name=$prefix $raw" >> $GITHUB_OUTPUT
+    # --- Production release on manual dispatch, bleeding-edge build on push ---
+    publish:
+        runs-on: ubuntu-latest
+        needs: [build-test-publish, compute-version]
+        if: ${{ needs.build-test-publish.result == 'success' && needs.compute-version.result == 'success' }}
+        steps:
+            - name: Normalize build tag
+              id: release_tag
+              env:
+                  RAW_BUILD: ${{ needs.compute-version.outputs.build_number }}
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  raw="$(echo -n "$RAW_BUILD" | tr -d '\r\n' | xargs)"
+                  raw="${raw//\\n/}"
+                  raw="${raw//\\r/}"
+                  if [ -z "$raw" ]; then
+                    echo "Missing build number from compute-version."
+                    exit 1
+                  fi
+                  if [ "$EVENT_NAME" = "workflow_dispatch" ]; then prefix="Build"; else prefix="BE Build"; fi
+                  echo "tag=build-$raw" >> $GITHUB_OUTPUT
+                  echo "name=$prefix $raw" >> $GITHUB_OUTPUT
 
-      - name: Checkout Git history only
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 5
-          sparse-checkout: .github
-          sparse-checkout-cone-mode: false
+            - name: Checkout Git history only
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 5
+                  sparse-checkout: .github
+                  sparse-checkout-cone-mode: false
 
-      - name: Set release body
-        id: set_release_body
-        env:
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          body_content=""
-          if [ -z "$COMMIT_MESSAGE" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            COMMIT_MESSAGE="$(git log -1 --format=%B)"
-          fi
-          if [[ "$COMMIT_MESSAGE" == Merge* ]]; then
-            parent_shas=$(git log -1 --pretty=%P)
-            for parent_sha in $parent_shas;
-            do
-              if [ -n "$body_content" ]; then
-                body_content+=$'\n\n'
-              fi
-              body_content+=$(git log --format=%B -n 1 $parent_sha)
-            done
-          else
-            body_content="$COMMIT_MESSAGE"
-          fi
-          {
-            echo "body<<EOF"
-            echo "$body_content"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+            - name: Set release body
+              id: set_release_body
+              env:
+                  COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+              run: |
+                  body_content=""
+                  if [ -z "$COMMIT_MESSAGE" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    COMMIT_MESSAGE="$(git log -1 --format=%B)"
+                  fi
+                  if [[ "$COMMIT_MESSAGE" == Merge* ]]; then
+                    parent_shas=$(git log -1 --pretty=%P)
+                    for parent_sha in $parent_shas;
+                    do
+                      if [ -n "$body_content" ]; then
+                        body_content+=$'\n\n'
+                      fi
+                      body_content+=$(git log --format=%B -n 1 $parent_sha)
+                    done
+                  else
+                    body_content="$COMMIT_MESSAGE"
+                  fi
+                  {
+                    echo "body<<EOF"
+                    echo "$body_content"
+                    echo "EOF"
+                  } >> $GITHUB_OUTPUT
 
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
+            - uses: actions/download-artifact@v4
+              with:
+                  path: dist
+                  merge-multiple: true
 
-      - name: Create release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ github.event_name == 'workflow_dispatch' && secrets.GITHUB_TOKEN || secrets.BLEEDING_EDGE_TOKEN }}
-          repo_name: ${{ github.event_name == 'workflow_dispatch' && github.repository || 'EggleEgg/ModHearth-Builds' }}
-          tag: ${{ steps.release_tag.outputs.tag }}
-          release_name: ${{ steps.release_tag.outputs.name }}
-          body: ${{ steps.set_release_body.outputs.body }}
-          file: dist/*
-          file_glob: true
-          overwrite: true
+            - name: Create release
+              uses: svenstaro/upload-release-action@v2
+              with:
+                  repo_token: ${{ github.event_name == 'workflow_dispatch' && secrets.GITHUB_TOKEN || secrets.BLEEDING_EDGE_TOKEN }}
+                  repo_name: ${{ github.event_name == 'workflow_dispatch' && github.repository || 'EggleEgg/ModHearth-Builds' }}
+                  tag: ${{ steps.release_tag.outputs.tag }}
+                  release_name: ${{ steps.release_tag.outputs.name }}
+                  body: ${{ steps.set_release_body.outputs.body }}
+                  file: dist/*
+                  file_glob: true
+                  overwrite: true
 
-  # --- Status reporting ---
-  release-status:
-    runs-on: ubuntu-latest
-    needs: [build-test-publish, compute-version, publish]
-    if: ${{ always() }}
-    steps:
-      - name: Report release status
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BUILD_RESULT: ${{ needs.build-test-publish.result }}
-          PUBLISH_RESULT: ${{ needs.publish.result }}
-        run: |
-          if [ "$BUILD_RESULT" != "success" ]; then
-            echo "Pipeline skipped or failed because build/test matrix failed."
-            exit 1
-          fi
+    # --- Status reporting ---
+    release-status:
+        runs-on: ubuntu-latest
+        needs: [build-test-publish, compute-version, publish]
+        if: ${{ always() }}
+        steps:
+            - name: Report release status
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  BUILD_RESULT: ${{ needs.build-test-publish.result }}
+                  PUBLISH_RESULT: ${{ needs.publish.result }}
+              run: |
+                  if [ "$BUILD_RESULT" != "success" ]; then
+                    echo "Pipeline skipped or failed because build/test matrix failed."
+                    exit 1
+                  fi
 
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then channel="Production"; else channel="Bleeding Edge"; fi
-          if [ "$PUBLISH_RESULT" != "success" ]; then
-            echo "$channel release creation failed."
-            exit 1
-          fi
-          echo "$channel release created successfully!"
+                  if [ "$EVENT_NAME" = "workflow_dispatch" ]; then channel="Production"; else channel="Bleeding Edge"; fi
+                  if [ "$PUBLISH_RESULT" != "success" ]; then
+                    echo "$channel release creation failed."
+                    exit 1
+                  fi
+                  echo "$channel release created successfully!"

@@ -26,12 +26,25 @@ case "$distro" in
         ;;
     arch)
         pacman -Syu --noconfirm --needed \
-            git curl tar gzip findutils which ca-certificates \
+            git curl tar gzip findutils which ca-certificates make gcc \
             icu libstdc++ zlib openssl krb5 \
             fontconfig freetype2 ttf-dejavu \
             xorg-server-xvfb xorg-xauth \
             libx11 libxext libxrender libxi libxrandr libxcursor libxfixes \
             libxcomposite libxdamage libxcb libxkbcommon libice libsm mesa
+
+        # .NET 8 expects libssl.so.1.1, but Arch Linux provides OpenSSL 3.
+        # Compile and install OpenSSL 1.1.1w side-by-side if not present.
+        if ! ldconfig -p 2>/dev/null | grep -q libssl.so.1.1; then
+            curl -fsSL https://www.openssl.org/source/openssl-1.1.1w.tar.gz -o /tmp/openssl-1.1.1w.tar.gz
+            tar -xzf /tmp/openssl-1.1.1w.tar.gz -C /tmp
+            cd /tmp/openssl-1.1.1w
+            ./config --prefix=/usr --libdir=lib shared zlib
+            make -j$(nproc)
+            make install_sw
+            cd - > /dev/null
+            rm -rf /tmp/openssl-1.1.1w /tmp/openssl-1.1.1w.tar.gz
+        fi
         ;;
     opensuse)
         zypper --non-interactive --gpg-auto-import-keys refresh

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
+using ModHearth.UI.Contracts;
 using ModHearth.UI.ModList;
 using ModHearth.UI.ViewModels;
 
@@ -23,21 +24,38 @@ namespace ModHearth.UI.Helpers
             totalCount = items.Count;
 
             // Single pass: update flags and collect survivors in the same loop.
-            List<ModRefViewModel> visibleItems = new(items.Count);
-            foreach (ModRefViewModel vm in items)
-            {
-                bool match = !context.HasFilter || vm.MatchesFilter(context);
-                vm.IsFilteredOut = context.HasFilter && !match;
-                vm.IsVisible = !hideFiltered || match;
-                if (vm.IsVisible)
-                    visibleItems.Add(vm);
-            }
+            List<ModRefViewModel> visibleItems = ApplyFilter(items, context, hideFiltered);
 
             // Sort the surviving subset in place to avoid the intermediate buffers that LINQ's OrderBy allocates.
             if (isSortingEnabled)
             {
                 IComparer<ModRefViewModel> comparer = new ModRefComparer(searchMode, sortDescending);
                 visibleItems.Sort(comparer);
+            }
+
+            return visibleItems;
+        }
+
+        /// <summary>
+        /// Single pass over a filterable list: updates <see cref="IFilterableItem.IsFilteredOut"/> /
+        /// <see cref="IFilterableItem.IsVisible"/> and collects the survivors. Shared by the mod list,
+        /// the update log and the notification drawer so the filter invariant lives in one place.
+        /// </summary>
+        public static List<T> ApplyFilter<T>(
+            IEnumerable<T> source,
+            SearchFilterContext context,
+            bool hideFiltered) where T : IFilterableItem
+        {
+            List<T> items = source is List<T> list ? list : [.. source];
+            List<T> visibleItems = new(items.Count);
+
+            foreach (T item in items)
+            {
+                bool match = !context.HasFilter || item.MatchesFilter(context);
+                item.IsFilteredOut = context.HasFilter && !match;
+                item.IsVisible = !hideFiltered || match;
+                if (item.IsVisible)
+                    visibleItems.Add(item);
             }
 
             return visibleItems;

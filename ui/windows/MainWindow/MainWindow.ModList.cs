@@ -65,8 +65,7 @@ namespace ModHearth.UI
                 ? $"Active [{activeCount} / {activeSelected} selected]"
                 : $"Active [{activeCount}]";
 
-            if (clearModlistButton != null)
-                clearModlistButton.IsEnabled = activeCount > 0;
+            clearModlistButton?.IsEnabled = activeCount > 0;
         }
 
         private void ModlistSelectionChanged(object? sender, SelectionChangedEventArgs e)

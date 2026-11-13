@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using ModHearth.Utilities.Steam;
+using ModHearth.Config;
+using ModHearth.Utils.Steam;
 
 namespace ModHearth.UI.Dialogs
 {

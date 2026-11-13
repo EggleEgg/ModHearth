@@ -1,5 +1,8 @@
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.ViewModels;
+using ModHearth.Utils.Thread;
 
 namespace ModHearth.UI.ModList
 {
@@ -17,10 +20,7 @@ namespace ModHearth.UI.ModList
             // independent per mod. Computed into an indexed array and merged into modViewMap
             // sequentially (Dictionary writes aren't thread-safe even though the per-item work is).
             (string Key, ModRefViewModel Vm)?[] results = new (string, ModRefViewModel)?[modList.Count];
-            _ = Parallel.For(0, modList.Count, new ParallelOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount
-            }, i =>
+            _ = Parallel.For(0, modList.Count, Parallelism.CpuBound, i =>
             {
                 DfhMod dfm = modList[i];
                 string key = dfm.ToString();

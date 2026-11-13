@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using ModHearth.Config;
 using ModHearth.UI.Dialogs;
 using ModHearth.UI.Theme;
 

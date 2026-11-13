@@ -9,9 +9,10 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Avalonia.Controls;
-using ModHearth.Models;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.UI.Dialogs;
-using ModHearth.Utilities;
+using ModHearth.Utils.IO;
 
 namespace ModHearth.UI.Update
 {
@@ -135,9 +136,27 @@ namespace ModHearth.UI.Update
             }
         }
 
+        internal static bool IsCurrentBuildBleedingEdge()
+        {
+            if (ConfigManager.GetIsBleedingEdge() is { } configured)
+                return configured;
+
+            string version = ModHearthManager.GetBuildVersionString();
+            if (string.IsNullOrWhiteSpace(version))
+                return false;
+
+            return version.Contains("dev", StringComparison.OrdinalIgnoreCase)
+                || version.Contains("bleeding", StringComparison.OrdinalIgnoreCase)
+                || version.Contains("edge", StringComparison.OrdinalIgnoreCase)
+                || version.Contains("alpha", StringComparison.OrdinalIgnoreCase)
+                || version.Contains("beta", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(version, "none", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(version, "local-dev", StringComparison.OrdinalIgnoreCase);
+        }
+
         internal static async Task<List<GitHubRelease>> FetchRecentBuildsAsync(int count, bool? isBleedingEdge = null)
         {
-            bool bleeding = isBleedingEdge ?? DevMode.IsEnabled;
+            bool bleeding = isBleedingEdge ?? IsCurrentBuildBleedingEdge();
             string owner = bleeding ? BleedingEdgeRepoOwner : UpdateRepoOwner;
             string repo = bleeding ? BleedingEdgeRepoName : UpdateRepoName;
 

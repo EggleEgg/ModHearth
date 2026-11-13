@@ -62,6 +62,9 @@ namespace ModHearth.Models
         // Automatically sort modlist changes.
         public bool IsAutoSortEnabled { get; set; }
 
+        // Automatically click "Create new world" once Dwarf Fortress finishes loading.
+        public bool IsAutoOpenNewWorldSetupEnabled { get; set; }
+
         // Automatically resolve and queue workshop URLs when input changes.
 
         public bool IsAutoResolveAndQueueEnabled { get; set; }
@@ -163,5 +166,8 @@ namespace ModHearth.Models
 
         // Include issues parsed from Dwarf Fortress's errorlog.txt in the warning indicators.
         public bool SearchErrorLogIssues { get; set; } = true;
+
+        // Whether to use bleeding edge update channel.
+        public bool? IsBleedingEdge { get; set; }
     }
 }

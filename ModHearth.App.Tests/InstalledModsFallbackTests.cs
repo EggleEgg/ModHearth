@@ -1,3 +1,4 @@
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.ModList;
 using Xunit;

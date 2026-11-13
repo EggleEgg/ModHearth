@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using ModHearth.Manager;
 using ModHearth.UI.Theme;
 
 namespace ModHearth.UI

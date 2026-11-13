@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;

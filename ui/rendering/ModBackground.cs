@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using ModHearth.Utilities;
+using ModHearth.Utils;
 
 namespace ModHearth.UI.Rendering
 {

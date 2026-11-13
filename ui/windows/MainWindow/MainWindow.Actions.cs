@@ -1,12 +1,14 @@
-using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Dialogs;
 using ModHearth.UI.Docking;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.Update;
-using ModHearth.Utilities.Workshop;
+using ModHearth.Utils.Workshop;
 
 namespace ModHearth.UI
 {
@@ -211,7 +213,6 @@ namespace ModHearth.UI
                         SortRulesControl ctrl = new(
                             manager.GetModRelationshipRules(),
                             modRefs,
-                            ModHearthManager.GetModRelationshipRulesPath(),
                             rules =>
                             {
                                 manager.SetModRelationshipRules(rules);
@@ -224,7 +225,6 @@ namespace ModHearth.UI
                     WindowCreator = control => new SortRulesWindow(
                         manager.GetModRelationshipRules(),
                         manager.modPool.Select(manager.FindModRef).OfType<ModReference>().Where(m => !string.IsNullOrWhiteSpace(m.ID)),
-                        ModHearthManager.GetModRelationshipRulesPath(),
                         rules =>
                         {
                             manager.SetModRelationshipRules(rules);
@@ -295,6 +295,8 @@ namespace ModHearth.UI
                     dfSteamLaunched = true;
                 else
                     dfLaunched = true;
+
+                StartAutoOpenNewWorldSetupIfEnabled();
             }
         }
 
@@ -313,12 +315,9 @@ namespace ModHearth.UI
                 "Clear failed");
 
             installedModsMenuButton.IsEnabled = Directory.Exists(installedModsPath);
-            if (clearInstalledModsButton != null)
-            {
-                clearInstalledModsButton.IsEnabled = !string.IsNullOrWhiteSpace(installedModsPath) &&
+            clearInstalledModsButton?.IsEnabled = !string.IsNullOrWhiteSpace(installedModsPath) &&
                     Directory.Exists(installedModsPath) &&
                     Directory.EnumerateFileSystemEntries(installedModsPath).Any();
-            }
             if (success)
             {
                 await Task.Run(manager.RefreshInstalledCacheModIds);
@@ -347,10 +346,7 @@ namespace ModHearth.UI
                 UpdateModIssuesOverlay();
             }
 
-            if (removeErrorLogButton != null)
-            {
-                removeErrorLogButton.IsEnabled = !string.IsNullOrWhiteSpace(errorLogPath) && File.Exists(errorLogPath);
-            }
+            removeErrorLogButton?.IsEnabled = !string.IsNullOrWhiteSpace(errorLogPath) && File.Exists(errorLogPath);
         }
 
         private void SaveButtonPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -403,18 +399,7 @@ namespace ModHearth.UI
                 return;
             }
 
-            try
-            {
-                using Process? process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = installedModsPath,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                await DialogService.ShowMessageAsync(this, ex.Message, "Open Folder");
-            }
+            _ = await ShellLauncher.TryOpenAsync(this, installedModsPath, "Open Folder");
         }
 
         private async Task RedoConfigAsync()

@@ -1,5 +1,5 @@
 using Avalonia.Controls;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 using ModHearth.UI.ViewModels;
 using ModHearth.UI.ModList;
 

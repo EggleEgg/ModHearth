@@ -1,4 +1,5 @@
-using ModHearth.Utilities;
+using ModHearth.Config;
+using ModHearth.Utils.IO;
 
 namespace ModHearth.Models
 {
@@ -54,8 +55,6 @@ namespace ModHearth.Models
             ModReference modref,
             ModSourceContext sourceContext)
             => Classify(modref, sourceContext.ModsFolderPath, sourceContext.VanillaFolderPath);
-
-        public static (bool IsVanilla, bool IsLocal, bool IsSteam, bool IsSteamLocal, bool IsCacheOnly) Classify(ModReference modref, string? modsFolderPath) => Classify(modref, modsFolderPath, null);
 
         /// <summary>
         /// True when the reference lives in Dwarf Fortress's disposable installed_mods cache rather

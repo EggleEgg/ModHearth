@@ -8,6 +8,8 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Behaviors;
 using ModHearth.UI.Contracts;
@@ -16,12 +18,12 @@ using ModHearth.UI.ModList;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities.Logging;
-using ModHearth.Utilities.Workshop;
+using ModHearth.Utils.Logging;
+using ModHearth.Utils.Workshop;
 
 namespace ModHearth.UI
 {
-    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable, IModRefContextMenuProvider
+    public partial class WorkshopDownloaderControl : UserControl, INotifyPropertyChanged, IDisposable, IModRefContextMenuProvider, IStyleAwareWindow
     {
         public new event PropertyChangedEventHandler? PropertyChanged;
 
@@ -40,15 +42,14 @@ namespace ModHearth.UI
             }
         }
 
-        private IWorkshopDownloadProvider? _selectedProvider;
         public IWorkshopDownloadProvider? SelectedProvider
         {
-            get => _selectedProvider;
+            get;
             set
             {
-                if (_selectedProvider != value)
+                if (field != value)
                 {
-                    _selectedProvider = value;
+                    field = value;
                     NotifyOfPropertyChange();
                 }
             }
@@ -375,8 +376,7 @@ namespace ModHearth.UI
 
         private void UpdateQueueActionStates()
         {
-            if (BtnCancelAll != null)
-                BtnCancelAll.IsEnabled = _queueManager.Queue.Any(i => i.CanCancel);
+            BtnCancelAll?.IsEnabled = _queueManager.Queue.Any(i => i.CanCancel);
         }
 
         /// <summary>
@@ -430,7 +430,7 @@ namespace ModHearth.UI
             }
         }
 
-        public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+        public async Task OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
             ModHearthManager? manager = _queueManager?.Manager;
             if (manager == null)
@@ -459,7 +459,7 @@ namespace ModHearth.UI
                             }
                         }
 
-                        if (workshopIds.Count > 0 && new Utilities.Steam.SteamCmdService().IsAvailable())
+                        if (workshopIds.Count > 0 && new Utils.Steam.SteamCmdService().IsAvailable())
                         {
                             await RedownloadModsAsync(workshopIds);
                         }
@@ -528,10 +528,7 @@ namespace ModHearth.UI
                         SelectedProvider = null;
                         SelectedProvider = current;
                         NotifyOfPropertyChange("SelectedProvider.StatusBrush");
-                        if (ProviderComboBox != null)
-                        {
-                            ProviderComboBox.SelectedItem = SelectedProvider;
-                        }
+                        ProviderComboBox?.SelectedItem = SelectedProvider;
                     }
                 }
             }

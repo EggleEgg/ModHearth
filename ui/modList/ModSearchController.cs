@@ -19,7 +19,6 @@ namespace ModHearth.UI.ModList
         private readonly ObservableCollection<ModRefViewModel> targetCollection;
         private readonly IEnumerable<ModRefViewModel> sourceItems;
         private readonly DispatcherTimer debounceTimer;
-        private bool isInitialApply = true;
 
         public ModSearchController(
             ModSearchBar searchBar,
@@ -100,11 +99,6 @@ namespace ModHearth.UI.ModList
             if (listBox != null && selectionController != null)
             {
                 selectionController.UpdateSelectionState(listBox);
-            }
-
-            if (isInitialApply)
-            {
-                isInitialApply = false;
             }
         }
 

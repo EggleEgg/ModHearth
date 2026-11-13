@@ -8,9 +8,10 @@ using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm;
 using Dock.Model.Mvvm.Controls;
+using ModHearth.Config;
 using ModHearth.Models;
 using ModHearth.UI.Controls.ModInfoDockControl;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 using DockOrientation = Dock.Model.Core.Orientation;
 
 namespace ModHearth.UI

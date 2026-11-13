@@ -1,13 +1,14 @@
 using ModHearth.Models;
-using ModHearth.Utilities.ModRaws;
+using ModHearth.Utils.ModRaws;
 using Xunit;
 
 namespace ModHearth.App.Tests
 {
     /// <summary>
-    /// Pins the duplicate-rawware heuristic behind the cache-based warning. DF reports collisions
-    /// between mods and the official raw folders through the same "Duplicate Object" line, and a
-    /// CUT of the id suppresses the collision.
+    /// Pins the duplicate-raw heuristic behind the cache-based warning. DF reports collisions
+    /// between mods and the official raw folders through the same "Duplicate Object" line, a
+    /// CUT of the id suppresses the collision, and a vanilla source mod never collides with the
+    /// baseline it defines.
     /// </summary>
     public class ModDuplicateDefinitionAnalyzerTests
     {
@@ -68,6 +69,54 @@ namespace ModHearth.App.Tests
             ModRawDependencyInfo mod = Info("mod_a", "PLANT:FLAX", "PLANT:FLAX");
 
             Assert.Empty(ModDuplicateDefinitionAnalyzer.Analyze([mod], ["mod_a"], VanillaRawBaseline.Empty));
+        }
+
+        [Fact]
+        public void VanillaSourceModsDoNotCollideWithTheirOwnBaseline()
+        {
+            ModRawDependencyInfo vanilla = Info("vanilla_entities", "ENTITY:EVIL");
+            VanillaRawBaseline baseline = new([new ObjectKey("ENTITY", "EVIL")]);
+
+            // The baseline is loaded from this mod's own folder, so defining EVIL is not a duplicate.
+            Assert.Empty(ModDuplicateDefinitionAnalyzer.Analyze(
+                [vanilla],
+                ["vanilla_entities"],
+                baseline,
+                vanillaSourceModIds: ["vanilla_entities"]));
+        }
+
+        [Fact]
+        public void NonVanillaModRedefiningVanillaIsStillReported()
+        {
+            ModRawDependencyInfo vanilla = Info("vanilla_entities", "ENTITY:EVIL");
+            ModRawDependencyInfo mod = Info("playable_races", "ENTITY:EVIL");
+            VanillaRawBaseline baseline = new([new ObjectKey("ENTITY", "EVIL")]);
+
+            ModDuplicateDefinitionGroup group = Assert.Single(ModDuplicateDefinitionAnalyzer.Analyze(
+                [vanilla, mod],
+                ["vanilla_entities", "playable_races"],
+                baseline,
+                vanillaSourceModIds: ["vanilla_entities"]));
+
+            Assert.Equal(["playable_races", "vanilla_entities"], group.ModIds);
+            Assert.True(group.IncludesVanilla);
+        }
+
+        [Fact]
+        public void DuplicatesBetweenVanillaSourceModsAreStillReported()
+        {
+            ModRawDependencyInfo first = Info("vanilla_entities", "ENTITY:EVIL");
+            ModRawDependencyInfo second = Info("vanilla_entities_copy", "ENTITY:EVIL");
+            VanillaRawBaseline baseline = new([new ObjectKey("ENTITY", "EVIL")]);
+
+            ModDuplicateDefinitionGroup group = Assert.Single(ModDuplicateDefinitionAnalyzer.Analyze(
+                [first, second],
+                ["vanilla_entities", "vanilla_entities_copy"],
+                baseline,
+                vanillaSourceModIds: ["vanilla_entities", "vanilla_entities_copy"]));
+
+            Assert.Equal(["vanilla_entities", "vanilla_entities_copy"], group.ModIds);
+            Assert.False(group.IncludesVanilla);
         }
 
         private static ModRawDependencyInfo Info(string modId, params string[] definitions) => new()

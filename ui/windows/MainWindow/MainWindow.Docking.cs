@@ -1,7 +1,7 @@
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
+using ModHearth.Config;
 using ModHearth.UI.Docking;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 
 namespace ModHearth.UI
@@ -10,9 +10,27 @@ namespace ModHearth.UI
     {
         private void InitializeDockingButtons()
         {
-            updateLogButton.AddHandler(PointerPressedEvent, ModUpdateLogButtonPointerPressed, RoutingStrategies.Tunnel, true);
-            workshopDownloaderButton.AddHandler(PointerPressedEvent, WorkshopDownloaderButtonPointerPressed, RoutingStrategies.Tunnel, true);
-            sortRulesButton.AddHandler(PointerPressedEvent, SortRulesButtonPointerPressed, RoutingStrategies.Tunnel, true);
+            ButtonHelpers.AttachRightClickHandler(updateLogButton, () =>
+                ToggleDockingMode(
+                    _updateLogDockManager,
+                    ConfigManager.GetIsModUpdateLogDocked(),
+                    ConfigManager.SetIsModUpdateLogDocked,
+                    updateLogModeIndicator,
+                    "Update Log"));
+            ButtonHelpers.AttachRightClickHandler(workshopDownloaderButton, () =>
+                ToggleDockingMode(
+                    _workshopDockManager,
+                    ConfigManager.GetIsWorkshopDownloaderDocked(),
+                    ConfigManager.SetIsWorkshopDownloaderDocked,
+                    workshopModeIndicator,
+                    "Downloader"));
+            ButtonHelpers.AttachRightClickHandler(sortRulesButton, () =>
+                ToggleDockingMode(
+                    _sortRulesDockManager,
+                    ConfigManager.GetIsSortRulesDocked(),
+                    ConfigManager.SetIsSortRulesDocked,
+                    sortRulesModeIndicator,
+                    "Sort Rules"));
 
             UpdateDockingButtonModeImages();
         }
@@ -31,48 +49,6 @@ namespace ModHearth.UI
 
             string iconName = docked ? "windowIcon.svg" : "windowDoubleIcon.svg";
             indicator.Source = ImageSourceLoader.LoadFromAssetUri(iconName) ?? indicator.Source;
-        }
-
-        private void WorkshopDownloaderButtonPointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (!e.GetCurrentPoint(workshopDownloaderButton).Properties.IsRightButtonPressed)
-                return;
-
-            e.Handled = true;
-            ToggleDockingMode(
-                _workshopDockManager,
-                ConfigManager.GetIsWorkshopDownloaderDocked(),
-                ConfigManager.SetIsWorkshopDownloaderDocked,
-                workshopModeIndicator,
-                "Downloader");
-        }
-
-        private void ModUpdateLogButtonPointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (!e.GetCurrentPoint(updateLogButton).Properties.IsRightButtonPressed)
-                return;
-
-            e.Handled = true;
-            ToggleDockingMode(
-                _updateLogDockManager,
-                ConfigManager.GetIsModUpdateLogDocked(),
-                ConfigManager.SetIsModUpdateLogDocked,
-                updateLogModeIndicator,
-                "Update Log");
-        }
-
-        private void SortRulesButtonPointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (!e.GetCurrentPoint(sortRulesButton).Properties.IsRightButtonPressed)
-                return;
-
-            e.Handled = true;
-            ToggleDockingMode(
-                _sortRulesDockManager,
-                ConfigManager.GetIsSortRulesDocked(),
-                ConfigManager.SetIsSortRulesDocked,
-                sortRulesModeIndicator,
-                "Sort Rules");
         }
 
         private void ToggleDockingMode<TControl, TWindow>(

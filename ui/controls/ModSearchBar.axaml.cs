@@ -9,7 +9,7 @@ using ModHearth.UI.Behaviors;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {

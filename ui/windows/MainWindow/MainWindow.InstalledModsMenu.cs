@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using ModHearth.Config;
 using ModHearth.UI.Helpers;
 
 namespace ModHearth.UI
@@ -20,7 +21,7 @@ namespace ModHearth.UI
 
             string installedModsPath = ConfigManager.GetInstalledModsPath();
             clearInstalledModsButton ??= ButtonHelpers.CreateMenuButton(
-                "deleteFolderIcon.svg", "Clear installed_mods",
+                "trashDatabaseIcon.svg", "Clear installed_mods",
                 async () => { installedModsOptionsFlyout?.Hide(); await ClearInstalledModsAsync(); });
             clearInstalledModsButton.IsEnabled = !string.IsNullOrWhiteSpace(installedModsPath) &&
                 Directory.Exists(installedModsPath) &&
@@ -29,11 +30,8 @@ namespace ModHearth.UI
             if (installedModsOptionsFlyout != null)
                 return;
 
-            installedModsOptionsFlyout = new Flyout
-            {
-                FlyoutPresenterClasses = { "compact-flyout" },
-                Placement = PlacementMode.Bottom,
-                Content = new StackPanel
+            installedModsOptionsFlyout = ButtonHelpers.CreateCompactFlyout(
+                new StackPanel
                 {
                     Margin = new Thickness(6),
                     Spacing = 12,
@@ -46,8 +44,7 @@ namespace ModHearth.UI
                             "https://dwarffortresswiki.org/Modding", "Click here to view installed_mods wiki docs",
                             async () => { installedModsOptionsFlyout?.Hide(); await RevealInstalledModsFolderAsync(); })
                     }
-                }
-            };
+                });
         }
     }
 }

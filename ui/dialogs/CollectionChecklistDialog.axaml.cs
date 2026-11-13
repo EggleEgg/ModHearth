@@ -1,8 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Media;
 using ModHearth.UI.Theme;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Workshop;
+using ModHearth.Utils;
+using ModHearth.Utils.Workshop;
 
 namespace ModHearth.UI
 {
@@ -11,21 +11,19 @@ namespace ModHearth.UI
     /// </summary>
     public class CollectionChecklistItem : ObservableObject
     {
-        private bool _isChecked = true;
-
         public WorkshopItemMetadata Metadata { get; set; } = null!;
         public string Title => Metadata.Title;
         public ModStatusClassification Classification { get; set; }
 
         public bool IsChecked
         {
-            get => _isChecked;
+            get;
             set
             {
-                _isChecked = value;
+                field = value;
                 OnPropertyChanged(nameof(IsChecked));
             }
-        }
+        } = true;
 
         public string ClassificationText => Classification switch
         {

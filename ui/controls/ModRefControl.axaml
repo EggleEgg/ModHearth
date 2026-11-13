@@ -147,6 +147,7 @@
                     <Setter Property="Width" Value="14" />
                     <Setter Property="Height" Value="14" />
                     <Setter Property="VerticalAlignment" Value="Center" />
+                    <Setter Property="HorizontalAlignment" Value="Center" />
                     <Setter Property="Stretch" Value="Uniform" />
                     <Style Selector="^.issue">
                         <Setter Property="Margin" Value="1,0,0,0" />

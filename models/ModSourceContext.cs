@@ -1,3 +1,5 @@
+using ModHearth.Config;
+
 namespace ModHearth.Models
 {
     /// <summary>

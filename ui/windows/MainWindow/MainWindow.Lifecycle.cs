@@ -1,10 +1,13 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.UI.Dialogs;
 using ModHearth.UI.ModList;
 using ModHearth.UI.ViewModels;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
@@ -30,18 +33,10 @@ namespace ModHearth.UI
                     // If autosave is not enabled, prompt the user if there are unsaved changes.
                     _ = Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                            this,
-                            manager.SelectedModlist.Name,
-                            "change modpacks");
-                        switch (choice)
+                        if (!await ConfirmUnsavedChangesAsync("change modpacks"))
                         {
-                            case UnsavedChangesChoice.Cancel:
-                                SetModpackComboIndex(lastIndex);
-                                return;
-                            case UnsavedChangesChoice.Save:
-                                await SaveCurrentModpackAsync();
-                                break;
+                            SetModpackComboIndex(lastIndex);
+                            return;
                         }
 
                         SetAndRefreshModpack(modpackComboBox.SelectedIndex);
@@ -69,29 +64,59 @@ namespace ModHearth.UI
             unsavedClosePromptInFlight = true;
             try
             {
-                UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                    this,
-                    manager.SelectedModlist.Name,
-                    "exit");
-                switch (choice)
-                {
-                    case UnsavedChangesChoice.Cancel:
-                        return;
-                    case UnsavedChangesChoice.Save:
-                        await SaveCurrentModpackAsync();
-                        break;
-                    default:
-                        _ = await SetAndMarkChangesAsync(false);
-                        break;
-                }
+                if (!await ConfirmUnsavedChangesAsync("exit", () => SetAndMarkChangesAsync(false)))
+                    return;
 
                 bypassUnsavedClosePrompt = true;
                 Close();
+            }
+            catch (Exception ex)
+            {
+                // async void closing handler: keep the window usable and record the failure.
+                Loggers.Diag.LogError($"Failed while prompting on close: {ex.Message}");
             }
             finally
             {
                 bypassUnsavedClosePrompt = false;
                 unsavedClosePromptInFlight = false;
+            }
+        }
+
+        /// <summary>
+        /// Prompts for unsaved changes and resolves the user's choice. Returns false only when the
+        /// caller must abort (Cancel). "Save" persists the active modpack; "discard" runs
+        /// <paramref name="onDiscard"/> (defaults to clearing the dirty flag) and proceeds.
+        /// </summary>
+        private async Task<bool> ConfirmUnsavedChangesAsync(string actionName, Func<Task>? onDiscard = null)
+        {
+            if (!changesMade)
+                return true;
+
+            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
+                this,
+                manager.SelectedModlist?.Name,
+                actionName);
+
+            switch (choice)
+            {
+                case UnsavedChangesChoice.Cancel:
+                    return false;
+
+                case UnsavedChangesChoice.Save:
+                    await SaveCurrentModpackAsync();
+                    return true;
+
+                default:
+                    if (onDiscard != null)
+                    {
+                        await onDiscard();
+                    }
+                    else
+                    {
+                        SetChangesMade(false);
+                    }
+
+                    return true;
             }
         }
 

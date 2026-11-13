@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="16.919388"
-   height="16.91939"
-   viewBox="0 0 16.919388 16.91939"
+   width="260.74149"
+   height="260.74152"
+   viewBox="0 0 260.74149 260.74152"
    fill="none"
    stroke="#000000"
    stroke-width="2"
@@ -10,13 +10,35 @@
    stroke-linejoin="round"
    version="1.1"
    id="svg4"
+   sodipodi:docname="regexIcon.svg"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.52697968"
+     inkscape:cx="-105.31715"
+     inkscape:cy="52.184175"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg4" />
   <defs
      id="defs4" />
   <g
      id="g1"
-     transform="matrix(0.91258953,0,0,0.91258953,0.15284626,-1.30273)">
+     transform="matrix(14.063745,0,0,14.063745,2.3554856,-20.076127)">
     <path
        id="path3"
        d="M 10.336468,8.4999996 18.996468,3.5 m -8.66,0 8.66,4.9999996 M 14.666468,1 v 9.999999"

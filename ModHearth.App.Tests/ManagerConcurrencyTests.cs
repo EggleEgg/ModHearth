@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
-using ModHearth.Utilities;
+using ModHearth.Manager;
+using ModHearth.Utils.Mods;
 using Xunit;
 
 namespace ModHearth.App.Tests

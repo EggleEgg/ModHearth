@@ -1,10 +1,12 @@
 using System.Text;
 using Avalonia.Media;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities.ModRaws;
+using ModHearth.Utils.ModRaws;
 
 namespace ModHearth.UI.ModList
 {

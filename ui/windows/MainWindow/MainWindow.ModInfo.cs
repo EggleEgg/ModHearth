@@ -8,7 +8,8 @@ using ModHearth.Models;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
 using ModHearth.UI.Windows.MainWindow;
-using ModHearth.Utilities;
+using ModHearth.Utils;
+using ModHearth.Utils.IO;
 
 namespace ModHearth.UI
 {
@@ -122,7 +123,7 @@ namespace ModHearth.UI
             });
         }
 
-        private static IImage LoadFallbackPreview(string file = "43G6tag.png") => fallbackPreviewCache.GetOrAdd(file, static f => LoadFallbackPreviewCore(f));
+        private static IImage LoadFallbackPreview(string file = "43G6tag.svg") => fallbackPreviewCache.GetOrAdd(file, static f => LoadFallbackPreviewCore(f));
 
         private static IImage LoadFallbackPreviewCore(string file)
         {

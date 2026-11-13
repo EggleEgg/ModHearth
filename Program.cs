@@ -1,8 +1,9 @@
 using Avalonia;
+using ModHearth.Config;
 using ModHearth.Models;
 using ModHearth.UI;
 using ModHearth.UI.Theme;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth
 {

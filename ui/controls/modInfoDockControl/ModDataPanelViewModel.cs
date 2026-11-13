@@ -7,15 +7,14 @@ namespace ModHearth.UI.Controls.ModInfoDockControl
     {
         public ObservableCollection<ModDataEntryViewModel> Entries { get; } = [];
 
-        private bool hasSelection;
         public bool HasSelection
         {
-            get => hasSelection;
+            get;
             set
             {
-                if (hasSelection == value)
+                if (field == value)
                     return;
-                hasSelection = value;
+                field = value;
                 OnPropertyChanged();
             }
         }

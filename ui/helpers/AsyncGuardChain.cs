@@ -8,7 +8,7 @@ namespace ModHearth.UI.Helpers
     /// </summary>
     public sealed class AsyncGuardChain
     {
-        private readonly object gate = new();
+        private readonly Lock gate = new();
         private readonly List<Func<Task<bool>>> guards = [];
 
         /// <summary>

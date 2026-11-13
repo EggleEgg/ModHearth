@@ -1,4 +1,4 @@
-using ModHearth.Utilities.Workshop;
+using ModHearth.Utils.Workshop;
 using Xunit;
 
 namespace ModHearth.App.Tests

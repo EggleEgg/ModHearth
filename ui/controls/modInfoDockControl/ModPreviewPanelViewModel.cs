@@ -5,16 +5,14 @@ namespace ModHearth.UI.Controls.ModInfoDockControl
 {
     public sealed class ModPreviewPanelViewModel : Tool
     {
-        private IImage? previewImage;
-
         public IImage? PreviewImage
         {
-            get => previewImage;
+            get;
             set
             {
-                if (Equals(previewImage, value))
+                if (Equals(field, value))
                     return;
-                previewImage = value;
+                field = value;
                 OnPropertyChanged();
             }
         }

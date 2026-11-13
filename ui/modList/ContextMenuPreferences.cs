@@ -1,4 +1,5 @@
-using ModHearth.Utilities;
+using ModHearth.Config;
+using ModHearth.Utils;
 
 namespace ModHearth.UI.ModList
 {

@@ -4,21 +4,17 @@ using ModHearth.Models;
 using ModHearth.UI.Contracts;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Theme;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI.ViewModels
 {
-    public sealed class ModUpdateLogItemViewModel : ObservableObject, ISelectableItem, IThemedViewModel
+    public sealed class ModUpdateLogItemViewModel : ObservableObject, ISelectableItem, IThemedViewModel, IFilterableItem
     {
         private readonly IBrush defaultBackgroundBrush = Brushes.Transparent;
         private IBrush selectedBackgroundBrush;
-        private bool isSelected;
         private IBrush backgroundBrush;
         private IBrush rowBrush;
-        private bool isFilteredOut;
-        private bool isVisible = true;
-        private TextDecorationCollection? textDecorations;
 
         public ModUpdateLogItemViewModel(
             ModUpdateLogEntry entry,
@@ -75,21 +71,21 @@ namespace ModHearth.UI.ViewModels
         };
         public bool IsSelected
         {
-            get => isSelected;
+            get;
             set
             {
-                if (!SetField(ref isSelected, value))
+                if (!SetField(ref field, value))
                     return;
-                BackgroundBrush = isSelected ? selectedBackgroundBrush : defaultBackgroundBrush;
+                BackgroundBrush = field ? selectedBackgroundBrush : defaultBackgroundBrush;
             }
         }
 
         public bool IsFilteredOut
         {
-            get => isFilteredOut;
+            get;
             set
             {
-                if (!SetField(ref isFilteredOut, value))
+                if (!SetField(ref field, value))
                     return;
                 if (Style.instance != null)
                     RefreshStyle(Style.instance);
@@ -98,22 +94,20 @@ namespace ModHearth.UI.ViewModels
 
         public bool IsVisible
         {
-            get => isVisible;
-            set => SetField(ref isVisible, value);
-        }
+            get;
+            set => SetField(ref field, value);
+        } = true;
 
         public TextDecorationCollection? TextDecorations
         {
-            get => textDecorations;
-            private set => SetField(ref textDecorations, value);
+            get;
+            private set => SetField(ref field, value);
         }
-
-        private string? searchTargetCache;
 
         /// <summary>
         /// Combined text used by regex searches. The view model is immutable, so this is built once.
         /// </summary>
-        private string SearchTarget => searchTargetCache ??=
+        private string SearchTarget => field ??=
             $"{ModName} {Entry.ModId} {Entry.SteamId} {Entry.Path} {SourceType} {StateText} {DateText}";
 
         public bool MatchesFilter(SearchFilterContext context)

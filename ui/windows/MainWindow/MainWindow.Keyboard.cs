@@ -47,7 +47,15 @@ namespace ModHearth.UI
                 return;
 
             e.Handled = true;
-            await DeleteSelectedModsAsync([.. selection.Select(vm => vm.ModReference)]);
+            try
+            {
+                await DeleteSelectedModsAsync([.. selection.Select(vm => vm.ModReference)]);
+            }
+            catch (Exception ex)
+            {
+                // async void event handler: surface the failure instead of tearing down the dispatcher.
+                Utils.Logging.AppLogging.LogException("Keyboard delete shortcut failed", ex);
+            }
         }
 
         private bool HandleTabKey()

@@ -1,6 +1,8 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Dialogs;
 using ModHearth.UI.Rendering;
@@ -253,6 +255,7 @@ namespace ModHearth.UI
             int index = manager.selectedModlistIndex;
             RefreshModpackCombo(index);
             lastIndex = index;
+            ResetModlistHistory();
         }
     }
 }

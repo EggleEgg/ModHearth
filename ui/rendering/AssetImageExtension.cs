@@ -11,8 +11,8 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Svg.Skia;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI.Rendering
 {

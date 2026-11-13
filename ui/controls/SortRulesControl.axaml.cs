@@ -4,6 +4,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Contracts;
 using ModHearth.UI.Dialogs;
@@ -25,7 +27,6 @@ namespace ModHearth.UI
         // Undo history is capped so long editing sessions cannot retain an unbounded number of rule snapshots.
         private const int MaxUndoDepth = 100;
         private readonly LinkedList<Dictionary<string, ModRelationshipRule>> undoStack = new();
-        private readonly string rulesFilePath; //TODO Finish up implementing github community sort rules fetching
         private readonly Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged;
         private ModRefViewModel? selectedMod;
         private bool applyingUndo;
@@ -56,18 +57,16 @@ namespace ModHearth.UI
         public event EventHandler? CloseRequested;
 
         public SortRulesControl()
-            : this(new Dictionary<string, ModRelationshipRule>(), [], string.Empty, null)
+            : this(new Dictionary<string, ModRelationshipRule>(), [], null)
         {
         }
 
         public SortRulesControl(
             IReadOnlyDictionary<string, ModRelationshipRule> existingRules,
             IEnumerable<ModReference> modRefs,
-            string? rulesFilePath,
             Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged = null)
         {
             InitializeComponent();
-            this.rulesFilePath = rulesFilePath ?? string.Empty;
             this.onRulesChanged = onRulesChanged;
 
             foreach (KeyValuePair<string, ModRelationshipRule> kvp in existingRules ?? new Dictionary<string, ModRelationshipRule>())
@@ -201,7 +200,7 @@ namespace ModHearth.UI
         public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => modTreeList.SelectedItems?.Cast<ModRefViewModel>().Select(vm => vm.ModReference)
                 ?? [];
 
-        public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+        public async Task OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
             string? tag = item.Tag?.ToString();
             if (tag == "relation-clear-all")
@@ -237,9 +236,6 @@ namespace ModHearth.UI
             if (selectedMod == null)
             {
                 int globalRelationshipCount = CountAllRelationships();
-                clearAllRelationshipsButton.IsEnabled = globalRelationshipCount > 0;
-                clearAllRelationshipsButton.Opacity = clearAllRelationshipsButton.IsEnabled ? 1.0 : 0.4;
-                clearAllRelationshipsButton.Content = BuildCountedButtonLabel("Clear", "relationship", globalRelationshipCount, "Clear all relationships");
 
                 selectedTitleText.Text = "Select a mod";
                 selectedSubtitleText.Text = "Choose a mod to edit its relationships.";
@@ -250,55 +246,62 @@ namespace ModHearth.UI
                 SetSummary(totalBefore, totalAfter, totalRequired, totalIncompatible);
 
                 ValidationResult globalValidation = ValidateRules();
-                int globalIssueCount = globalValidation.Issues?.Count ?? 0;
-                fixConflictsButton.IsEnabled = globalIssueCount > 0;
-                fixConflictsButton.Opacity = fixConflictsButton.IsEnabled ? 1.0 : 0.4;
-                fixConflictsButton.Content = BuildCountedButtonLabel("Fix", "conflict", globalIssueCount, "Fix conflicts");
-
-                if (globalValidation.Issues != null && globalValidation.Issues.Count > 0)
-                {
-                    validationText.IsVisible = false;
-                    validationScrollViewer.IsVisible = true;
-                    validationIssuesPanel.IsVisible = true;
-                    validationIssuesPanel.Children.Clear();
-                    foreach (Control issueCtrl in globalValidation.Issues)
-                        validationIssuesPanel.Children.Add(issueCtrl);
-                }
-                else
-                {
-                    validationText.IsVisible = true;
-                    validationScrollViewer.IsVisible = false;
-                    validationIssuesPanel.IsVisible = false;
-                    validationText.Text = globalValidation.Message;
-                }
-
-                ValidateTextColor(validationText, validationIssuesPanel, globalValidation);
+                ApplyRelationshipActionStates(globalRelationshipCount, globalValidation.Issues?.Count ?? 0);
+                ShowValidation(globalValidation);
                 return;
             }
 
-            int modRelationshipCount = selectedMod.RelationshipCount;
-            clearAllRelationshipsButton.IsEnabled = modRelationshipCount > 0;
-            clearAllRelationshipsButton.Opacity = clearAllRelationshipsButton.IsEnabled ? 1.0 : 0.4;
-            clearAllRelationshipsButton.Content = BuildCountedButtonLabel("Clear", "relationship", modRelationshipCount, "Clear all relationships");
-
             ValidationResult modValidation = ValidateRules(selectedMod.ModReference.ID);
-            int modIssueCount = modValidation.Issues?.Count ?? 0;
-            fixConflictsButton.IsEnabled = modIssueCount > 0;
-            fixConflictsButton.Opacity = fixConflictsButton.IsEnabled ? 1.0 : 0.4;
-            fixConflictsButton.Content = BuildCountedButtonLabel("Fix", "conflict", modIssueCount, "Fix conflicts");
+            ApplyRelationshipActionStates(selectedMod.RelationshipCount, modValidation.Issues?.Count ?? 0);
 
             ModRelationshipRule rule = GetRule(selectedMod.ModReference.ID);
             selectedTitleText.Text = selectedMod.ModReference.Name ?? selectedMod.ModReference.ID;
             selectedSubtitleText.Text = $"{selectedMod.ModReference.Author}   {selectedMod.ModReference.ID}";
             SetSummary(rule.BeforeIds.Count, rule.AfterIds.Count, rule.RequiredIds.Count, rule.IncompatibleIds.Count);
 
-            if (modValidation.Issues != null && modValidation.Issues.Count > 0)
+            ShowValidation(modValidation);
+
+            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Before, "Before", "This mod must load before these mods.", rule.BeforeIds));
+            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));
+            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Required, "Required", "These mods are required when this mod is enabled.", rule.RequiredIds));
+            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Incompatible, "Incompatible", "These mods should not be enabled together.", rule.IncompatibleIds));
+        }
+
+        /// <summary>
+        /// Applies the enabled/opacity/label state shared by the two relationship action buttons.
+        /// </summary>
+        private void ApplyRelationshipActionStates(int relationshipCount, int issueCount)
+        {
+            SetActionButtonState(
+                clearAllRelationshipsButton,
+                relationshipCount > 0,
+                BuildCountedButtonLabel("Clear", "relationship", relationshipCount, "Clear all relationships"));
+            SetActionButtonState(
+                fixConflictsButton,
+                issueCount > 0,
+                BuildCountedButtonLabel("Fix", "conflict", issueCount, "Fix conflicts"));
+        }
+
+        private static void SetActionButtonState(Button button, bool enabled, object content)
+        {
+            button.IsEnabled = enabled;
+            button.Opacity = enabled ? 1.0 : 0.4;
+            button.Content = content;
+        }
+
+        /// <summary>
+        /// Shows the validation issue list when there is at least one issue, otherwise the single
+        /// summary message, and tints both by the result's worst severity.
+        /// </summary>
+        private void ShowValidation(ValidationResult validation)
+        {
+            if (validation.Issues is { Count: > 0 })
             {
                 validationText.IsVisible = false;
                 validationScrollViewer.IsVisible = true;
                 validationIssuesPanel.IsVisible = true;
                 validationIssuesPanel.Children.Clear();
-                foreach (Control issueCtrl in modValidation.Issues)
+                foreach (Control issueCtrl in validation.Issues)
                     validationIssuesPanel.Children.Add(issueCtrl);
             }
             else
@@ -306,15 +309,10 @@ namespace ModHearth.UI
                 validationText.IsVisible = true;
                 validationScrollViewer.IsVisible = false;
                 validationIssuesPanel.IsVisible = false;
-                validationText.Text = modValidation.Message;
+                validationText.Text = validation.Message;
             }
 
-            ValidateTextColor(validationText, validationIssuesPanel, modValidation);
-
-            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Before, "Before", "This mod must load before these mods.", rule.BeforeIds));
-            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.After, "After", "This mod must load after these mods.", rule.AfterIds));
-            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Required, "Required", "These mods are required when this mod is enabled.", rule.RequiredIds));
-            sectionsPanel.Children.Add(CreateSection(ModRelationshipKind.Incompatible, "Incompatible", "These mods should not be enabled together.", rule.IncompatibleIds));
+            ValidateTextColor(validationText, validationIssuesPanel, validation);
         }
 
         private static void ValidateTextColor(TextBlock text, StackPanel issuesPanel, ValidationResult result)

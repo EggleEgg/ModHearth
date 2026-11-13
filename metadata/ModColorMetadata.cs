@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModHearth.Models;
-using ModHearth.Utilities;
+using ModHearth.Utils.IO;
 
 namespace ModHearth.Metadata
 {
@@ -15,7 +15,7 @@ namespace ModHearth.Metadata
     {
         private static readonly string MetadataDir = Path.Combine(AppContext.BaseDirectory, "metadata");
         private static readonly string MetadataPath = Path.Combine(MetadataDir, "mod_colors.json");
-        private static readonly object FileLock = new();
+        private static readonly Lock FileLock = new();
         private static readonly JsonSerializerOptions SerializerOptions = new()
         {
             WriteIndented = true,

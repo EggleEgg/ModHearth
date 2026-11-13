@@ -1,5 +1,5 @@
 using ModHearth.Models;
-using ModHearth.Utilities.ModRaws;
+using ModHearth.Utils.ModRaws;
 using Xunit;
 
 namespace ModHearth.App.Tests
@@ -214,6 +214,55 @@ namespace ModHearth.App.Tests
             List<ModPossibleIssue> issues = ModPossibleIssueAnalyzer.Analyze([mod], ["mod_a"], VanillaRawBaseline.Empty);
 
             Assert.Empty(issues);
+        }
+
+        [Fact]
+        public void BuiltInWorkshopAndFurnaceIdsAreValidReactionBuildings()
+        {
+            // Vanilla reactions reference DF's hardcoded workshops and furnaces with
+            // [BUILDING:CARPENTER] and friends. No raw file defines those ids, but DF resolves
+            // them against its built-in building types instead of reporting "Unrecognized
+            // Building Token". These are exactly the ids vanilla_reactions false-positived on.
+            ModRawDependencyInfo mod = Info(
+                "mod_a",
+                reactionBuildings:
+                [
+                    "ASHERY", "CARPENTER", "CRAFTSMAN", "DYER", "FARMER", "KILN",
+                    "KITCHEN", "MILLSTONE", "QUERN", "SMELTER", "STILL", "TANNER",
+
+                    // furnace_type ids that vanilla does not currently reference.
+                    "WOOD", "GLASS", "SMELTER_LAVA", "GLASS_LAVA", "KILN_LAVA"
+                ]);
+
+            VanillaRawBaseline baseline = new([new ObjectKey("BUILDING", "SOAP_MAKER")]);
+
+            Assert.Empty(ModPossibleIssueAnalyzer.Analyze([mod], ["mod_a"], baseline));
+        }
+
+        [Fact]
+        public void UnknownReactionBuildingIsStillReported()
+        {
+            ModRawDependencyInfo mod = Info("mod_a", reactionBuildings: ["MAGMA_DREDGER"]);
+            VanillaRawBaseline baseline = new([new ObjectKey("BUILDING", "SOAP_MAKER")]);
+
+            ModPossibleIssue issue = Assert.Single(ModPossibleIssueAnalyzer.Analyze([mod], ["mod_a"], baseline));
+
+            Assert.Equal("BUILDING:MAGMA_DREDGER", issue.TargetKey);
+            Assert.Equal(ModPossibleIssueKind.MissingReactionBuilding, issue.Kind);
+        }
+
+        [Fact]
+        public void BuiltInWorkshopIdsAreNotValidPermittedBuildings()
+        {
+            // PERMITTED_BUILDING names a mod-defined custom building, so DF's hardcoded
+            // workshop ids are not accepted there even though [BUILDING:CARPENTER] is.
+            ModRawDependencyInfo mod = Info("mod_a", permittedBuildings: ["CARPENTER"]);
+            VanillaRawBaseline baseline = new([new ObjectKey("BUILDING", "SOAP_MAKER")]);
+
+            ModPossibleIssue issue = Assert.Single(ModPossibleIssueAnalyzer.Analyze([mod], ["mod_a"], baseline));
+
+            Assert.Equal("BUILDING:CARPENTER", issue.TargetKey);
+            Assert.Equal(ModPossibleIssueKind.MissingPermittedBuilding, issue.Kind);
         }
 
         private static ModRawDependencyInfo Info(

@@ -4,11 +4,12 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Contracts;
 using ModHearth.UI.ModList;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
@@ -144,14 +145,8 @@ namespace ModHearth.UI
             Control? detailed = this.FindControl<Control>("DetailedBadgesControl");
             Control? simple = this.FindControl<Control>("SimpleBadgeControl");
 
-            if (detailed != null)
-            {
-                detailed.IsVisible = showDetailed && vm.HasRuleBadges;
-            }
-            if (simple != null)
-            {
-                simple.IsVisible = !showDetailed && vm.HasRelationships;
-            }
+            detailed?.IsVisible = showDetailed && vm.HasRuleBadges;
+            simple?.IsVisible = !showDetailed && vm.HasRelationships;
         }
 
         private static bool IsRelationshipTag(string? tag) => tag is not null &&
@@ -240,7 +235,7 @@ namespace ModHearth.UI
             }
         }
 
-        private void OnContextMenuItemClick(object? sender, RoutedEventArgs e)
+        private async void OnContextMenuItemClick(object? sender, RoutedEventArgs e)
         {
             if (sender is not MenuItem item)
                 return;
@@ -250,7 +245,17 @@ namespace ModHearth.UI
 
             IModRefContextMenuProvider? provider = this.FindAncestorOfType<IModRefContextMenuProvider>();
             Loggers.Diag.Dev($"OnContextMenuItemClick - Provider found: {provider != null}");
-            provider?.OnModRefContextMenuItemClicked(item, vm);
+
+            try
+            {
+                if (provider != null)
+                    await provider.OnModRefContextMenuItemClicked(item, vm);
+            }
+            catch (Exception ex)
+            {
+                // async void handler: an unhandled exception here would tear down the dispatcher.
+                AppLogging.LogException("Context-menu action failed", ex);
+            }
         }
 
         private void OnContextMenuItemPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)

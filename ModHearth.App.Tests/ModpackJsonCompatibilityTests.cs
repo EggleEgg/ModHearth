@@ -1,6 +1,6 @@
 using System.Text.Json;
 using ModHearth.Models;
-using ModHearth.Utilities;
+using ModHearth.Utils.IO;
 using Xunit;
 
 namespace ModHearth.App.Tests

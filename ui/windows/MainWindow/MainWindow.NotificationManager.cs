@@ -12,24 +12,19 @@ using Avalonia.Rendering.Composition;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using ModHearth.Models;
+using ModHearth.UI.Contracts;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
-    public class NotificationRecord : ObservableObject, IThemedViewModel
+    public class NotificationRecord : ObservableObject, IThemedViewModel, IFilterableItem
     {
         // Sub-milliscale opacity changes are visually identical; ignore them so the row is not re-rendered.
         private static readonly IEqualityComparer<double> OpacityComparer = new MMath.ToleranceComparer(0.001);
-
-        private bool isFilteredOut;
-        private bool isVisible = true;
-        private TextDecorationCollection? textDecorations;
-        private IBrush messageForeground = Brushes.White;
-        private double itemOpacity = 1.0;
 
         public NotificationRecord()
         {
@@ -46,10 +41,10 @@ namespace ModHearth.UI
 
         public bool IsFilteredOut
         {
-            get => isFilteredOut;
+            get;
             set
             {
-                if (!SetField(ref isFilteredOut, value))
+                if (!SetField(ref field, value))
                     return;
                 RefreshStyle();
             }
@@ -57,27 +52,29 @@ namespace ModHearth.UI
 
         public bool IsVisible
         {
-            get => isVisible;
-            set => SetField(ref isVisible, value);
-        }
+            get;
+            set => SetField(ref field, value);
+        } = true;
+
+        public bool MatchesFilter(SearchFilterContext context) => context.MatchesText(Message);
 
         public TextDecorationCollection? TextDecorations
         {
-            get => textDecorations;
-            private set => SetField(ref textDecorations, value);
+            get;
+            private set => SetField(ref field, value);
         }
 
         public IBrush MessageForeground
         {
-            get => messageForeground;
-            private set => SetField(ref messageForeground, value);
-        }
+            get;
+            private set => SetField(ref field, value);
+        } = Brushes.White;
 
         public double ItemOpacity
         {
-            get => itemOpacity;
-            private set => SetField(ref itemOpacity, value, OpacityComparer);
-        }
+            get;
+            private set => SetField(ref field, value, OpacityComparer);
+        } = 1.0;
 
         public void RefreshStyle() => RefreshStyle(Style.instance);
 
@@ -113,7 +110,6 @@ namespace ModHearth.UI
         private readonly Dictionary<NotificationRecord, CancellationTokenSource> toastTimers = [];
         private bool notificationViewRefreshQueued;
         private long nextNotificationSequence;
-        private bool isNotificationLogPopulating;
         private int notificationLogPopulationDepth;
         private long lastNotificationTimestamp;
         private Stopwatch? notificationDrawerProbeWatch;
@@ -294,8 +290,8 @@ namespace ModHearth.UI
         /// </summary>
         public bool IsNotificationLogPopulating
         {
-            get => isNotificationLogPopulating;
-            private set => SetField(ref isNotificationLogPopulating, value);
+            get;
+            private set => SetField(ref field, value);
         }
 
         /// <summary>
@@ -342,16 +338,7 @@ namespace ModHearth.UI
             SearchFilterContext context = new(filter, mode);
 
             // Single pass: update flags and collect survivors together.
-            List<NotificationRecord> visibleRecords = new(allNotificationRecords.Count);
-            foreach (NotificationRecord r in allNotificationRecords)
-            {
-                bool match = !context.HasFilter || context.MatchesText(r.Message);
-
-                r.IsFilteredOut = context.HasFilter && !match;
-                r.IsVisible = !hideFiltered || match;
-                if (r.IsVisible)
-                    visibleRecords.Add(r);
-            }
+            List<NotificationRecord> visibleRecords = SearchFilterHelper.ApplyFilter(allNotificationRecords, context, hideFiltered);
 
             visibleRecords.Sort(sortDescending ? CompareNotificationsDescending : CompareNotificationsAscending);
 

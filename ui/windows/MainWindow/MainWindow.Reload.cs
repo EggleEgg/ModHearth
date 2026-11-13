@@ -1,13 +1,16 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.UI.Dialogs;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.ModList;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
@@ -15,39 +18,13 @@ namespace ModHearth.UI
     {
         private async Task ReloadModpacksAsync()
         {
-            if (changesMade)
-            {
-                UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                    this,
-                    manager.SelectedModlist.Name,
-                    "reload modpacks");
-                switch (choice)
-                {
-                    case UnsavedChangesChoice.Cancel:
-                        return;
-                    case UnsavedChangesChoice.Save:
-                        await SaveCurrentModpackAsync();
-                        break;
-                    default:
-                        _ = await SetAndMarkChangesAsync(true);
-                        break;
-                }
-            }
+            if (!await ConfirmUnsavedChangesAsync("reload modpacks", () => SetAndMarkChangesAsync(true)))
+                return;
 
             await ReloadModpacksFromDisk();
             await Task.Run(manager.RefreshRawAnalysisAsync);
             UpdateProblemIndicators();
             UpdateDuplicateWarningIndicators();
-        }
-        private void ReloadButtonPointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (!e.GetCurrentPoint(reloadButton).Properties.IsRightButtonPressed)
-                return;
-
-            e.Handled = true;
-            EnsureReloadOptionsFlyout();
-            LoadAutoReloadMenuFromConfig();
-            reloadOptionsFlyout?.ShowAt(reloadButton);
         }
 
         private async Task ReloadModpacksFromDisk()
@@ -124,6 +101,7 @@ namespace ModHearth.UI
                 : -1;
             RefreshModpackCombo(selectedIndex);
             lastIndex = selectedIndex;
+            ResetModlistHistory();
 
             Loggers.Reload.Log("ReloadModpacksFromDisk restoring snapshot + refresh");
 
@@ -154,10 +132,18 @@ namespace ModHearth.UI
 
         private async void AutoReloadTimerTick(object? sender, EventArgs e)
         {
-            if (changesMade || manager.IsSavingModpacks || modifyingComboBox)
-                return;
+            try
+            {
+                if (changesMade || manager.IsSavingModpacks || modifyingComboBox)
+                    return;
 
-            await ReloadModpacksFromDisk();
+                await ReloadModpacksFromDisk();
+            }
+            catch (Exception ex)
+            {
+                // async void timer handler: never let a reload failure escape to the dispatcher.
+                Loggers.Diag.LogError($"Auto-reload failed: {ex.Message}");
+            }
         }
 
         private void EnsureReloadOptionsFlyout()
@@ -212,7 +198,7 @@ namespace ModHearth.UI
                 Tag = "Themed", //TODO why is this not being styled?
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
-                Padding = new Thickness(0, 4),
+                Padding = new Thickness(0, 6),
                 Margin = new Thickness(0, 6, 0, 0)
             };
             restartButton.Click += async (_, _) =>
@@ -222,12 +208,7 @@ namespace ModHearth.UI
             };
             panel.Children.Add(restartButton);
 
-            reloadOptionsFlyout = new Flyout
-            {
-                FlyoutPresenterClasses = { "compact-flyout" },
-                Placement = PlacementMode.Bottom,
-                Content = panel
-            };
+            reloadOptionsFlyout = ButtonHelpers.CreateCompactFlyout(panel);
         }
 
         private static void AutoReloadSecondsTextInput(object? sender, TextInputEventArgs e)

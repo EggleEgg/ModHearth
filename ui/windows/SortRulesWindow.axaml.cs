@@ -14,20 +14,19 @@ namespace ModHearth.UI
         public static double DefaultMaxHeight => 1100;
 
         public SortRulesWindow()
-            : this(new Dictionary<string, ModRelationshipRule>(), [], string.Empty, null)
+            : this(new Dictionary<string, ModRelationshipRule>(), [], null)
         {
         }
 
         public SortRulesWindow(
             IReadOnlyDictionary<string, ModRelationshipRule> existingRules,
             IEnumerable<ModReference> modRefs,
-            string? rulesFilePath,
             Action<Dictionary<string, ModRelationshipRule>>? onRulesChanged = null,
             SortRulesControl? control = null)
         {
             InitializeComponent();
             WindowThemeManager.Register(this);
-            Content = control ?? new SortRulesControl(existingRules, modRefs, rulesFilePath, onRulesChanged);
+            Content = control ?? new SortRulesControl(existingRules, modRefs, onRulesChanged);
 
             // old docking/undocking cycles need to be cleared to avoid memory leaks
             if (Content is SortRulesControl rc)

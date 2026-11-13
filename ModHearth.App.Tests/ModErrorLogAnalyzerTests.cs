@@ -1,6 +1,5 @@
-using System.Text;
 using ModHearth.Models;
-using ModHearth.Utilities.ModRaws;
+using ModHearth.Utils.ModRaws;
 using Xunit;
 
 namespace ModHearth.App.Tests
@@ -422,28 +421,16 @@ namespace ModHearth.App.Tests
 
         private sealed class TempErrorLog : IDisposable
         {
-            private readonly string directory;
+            private readonly TempFolder temp = new("modhearth-errorlog");
 
             public string Path { get; }
 
             public TempErrorLog(params string[] lines)
             {
-                directory = Directory.CreateTempSubdirectory("modhearth-errorlog-").FullName;
-                Path = System.IO.Path.Combine(directory, "errorlog.txt");
-                File.WriteAllText(Path, string.Join(Environment.NewLine, lines), Encoding.UTF8);
+                Path = temp.Write("errorlog.txt", string.Join(Environment.NewLine, lines));
             }
 
-            public void Dispose()
-            {
-                try
-                {
-                    Directory.Delete(directory, recursive: true);
-                }
-                catch
-                {
-                    // Best-effort cleanup for a test artifact.
-                }
-            }
+            public void Dispose() => temp.Dispose();
         }
     }
 }

@@ -173,7 +173,7 @@ namespace ModHearth.UI.Theme
                 app.Resources["ButtonSelectionBrush"] = BrushCache.GetBrush(style.SelectionColor);
                 app.Resources["DockPreviewBrush"] = BrushCache.EditBrushAlpha(style.SelectionColor, 120);
                 app.Resources["SelectionPreviewBrush"] = BrushCache.EditBrushAlpha(style.SelectionColor, 30);
-                app.Resources["LowAlphaModRefHighlightBrush"] = BrushCache.EditBrushAlpha(brushes.ModRefHighlight, 150);
+                app.Resources["LowAlphaModRefHighlightBrush"] = BrushCache.EditBrushAlpha(brushes.ModRefHighlight, 100);
                 app.Resources["SearchBorderBrush"] = searchBorderBrush;
                 app.Resources["SearchButtonBrush"] = searchButtonBrush;
                 app.Resources["SearchButtonHoverBrush"] = searchButtonHoverBrush;

@@ -1,0 +1,344 @@
+using System.Diagnostics;
+using System.Formats.Tar;
+using System.IO.Compression;
+using ModHearth.Config;
+using ModHearth.Utils.Logging;
+
+namespace ModHearth.Utils.Steam
+{
+    public class SteamCmdService : ISteamCmdService
+    {
+        private const string Steamcmd = "steamcmd";
+        private const string SteamcmdExe = "steamcmd.exe";
+        private const string SteamcmdSh = "steamcmd.sh";
+        private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromMinutes(10) };
+
+        public string GetExecutablePath()
+        {
+            string? found = FindExisting();
+            if (!string.IsNullOrEmpty(found))
+                return found;
+
+            return OperatingSystem.IsWindows()
+                ? Path.Combine(AppContext.BaseDirectory, Steamcmd, SteamcmdExe)
+                : Path.Combine(AppContext.BaseDirectory, Steamcmd, SteamcmdSh);
+        }
+
+        public bool IsAvailable()
+        {
+            string? found = FindExisting();
+            return !string.IsNullOrEmpty(found) && File.Exists(found);
+        }
+
+        public string? FindExisting()
+        {
+            // 1. Check config
+            string configPath = ConfigManager.Config.SteamCmdPath;
+            if (!string.IsNullOrEmpty(configPath) && File.Exists(configPath))
+                return Path.GetFullPath(configPath);
+
+            // 2. Check local folder inside ModHearth root
+            string localDir = Path.Combine(AppContext.BaseDirectory, Steamcmd);
+            string localExe = OperatingSystem.IsWindows()
+                ? Path.Combine(localDir, SteamcmdExe)
+                : Path.Combine(localDir, SteamcmdSh);
+            if (File.Exists(localExe))
+                return Path.GetFullPath(localExe);
+
+            // 3. On Linux, check system PATH
+            if (OperatingSystem.IsLinux() && TryFindInPath(Steamcmd, out string systemPath))
+                return systemPath;
+
+            return null;
+        }
+
+        public async Task<bool> ValidateAsync(string exePath, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+                return false;
+
+            int exitCode = await ExecuteCommandInternalAsync(exePath, "+quit", null, cancellationToken);
+            if (exitCode != 0)
+                return false;
+
+            string dir = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory;
+            if (OperatingSystem.IsWindows())
+            {
+                return File.Exists(Path.Combine(dir, SteamcmdExe));
+            }
+            else
+            {
+                return File.Exists(Path.Combine(dir, SteamcmdSh)) || File.Exists(Path.Combine(dir, Steamcmd));
+            }
+        }
+
+        public async Task<bool> InstallAsync(string installDir, IProgress<string> progress, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                progress.Report("Creating installation directory...");
+                _ = Directory.CreateDirectory(installDir);
+
+                bool isWindows = OperatingSystem.IsWindows();
+                string archiveName = isWindows ? "steamcmd.zip" : "steamcmd_linux.tar.gz";
+                string archivePath = Path.Combine(installDir, archiveName);
+                string url = isWindows
+                    ? "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
+                    : "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz";
+
+                // Download with retries and exponential backoff
+                if (!File.Exists(archivePath))
+                {
+                    bool downloaded = false;
+                    int maxRetries = 3;
+                    int delayMs = 1000;
+
+                    for (int attempt = 1; attempt <= maxRetries; attempt++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        try
+                        {
+                            progress.Report($"Downloading SteamCMD (attempt {attempt}/{maxRetries})...");
+                            using HttpResponseMessage response = await HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                            _ = response.EnsureSuccessStatusCode();
+
+                            using FileStream fs = new(archivePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                            await response.Content.CopyToAsync(fs, cancellationToken);
+                            downloaded = true;
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            if (File.Exists(archivePath))
+                            {
+                                try
+                                {
+                                    File.Delete(archivePath);
+                                }
+                                catch (Exception delEx)
+                                {
+                                    AppLogging.LogException("Failed to delete temporary SteamCMD archive file", delEx);
+                                }
+                            }
+
+                            if (attempt == maxRetries)
+                                throw new IOException($"Failed to download SteamCMD after {maxRetries} attempts: {ex.Message}", ex);
+
+                            progress.Report($"Download failed ({ex.Message}). Retrying in {delayMs / 1000}s...");
+                            await Task.Delay(delayMs, cancellationToken);
+                            delayMs *= 2;
+                        }
+                    }
+
+                    if (!downloaded)
+                        return false;
+                }
+
+                progress.Report("Extracting SteamCMD archive...");
+                if (isWindows)
+                {
+                    ZipFile.ExtractToDirectory(archivePath, installDir, true);
+                }
+                else
+                {
+                    string extractedTar = Path.Combine(installDir, "steamcmd.tar");
+                    try
+                    {
+                        using (GZipStream gzStream = new(File.OpenRead(archivePath), CompressionMode.Decompress))
+                        using (FileStream tarFileStream = File.Create(extractedTar))
+                        {
+                            await gzStream.CopyToAsync(tarFileStream, cancellationToken);
+                        }
+
+                        await TarFile.ExtractToDirectoryAsync(extractedTar, installDir, true, CancellationToken.None);
+                    }
+                    finally
+                    {
+                        if (File.Exists(extractedTar))
+                        {
+                            try
+                            {
+                                File.Delete(extractedTar);
+                            }
+                            catch (Exception delEx)
+                            {
+                                AppLogging.LogException("Failed to delete temporary extracted tar file", delEx);
+                            }
+                        }
+                    }
+
+                    string shPath = Path.Combine(installDir, SteamcmdSh);
+                    if (File.Exists(shPath))
+                    {
+                        // Ensure executable
+                        using Process chmodProcess = Process.Start("chmod", $"+x \"{shPath}\"");
+                        if (chmodProcess != null)
+                        {
+                            await chmodProcess.WaitForExitAsync(cancellationToken);
+                        }
+                    }
+                }
+
+                string exe = isWindows
+                    ? Path.Combine(installDir, SteamcmdExe)
+                    : Path.Combine(installDir, SteamcmdSh);
+
+                if (!File.Exists(exe))
+                {
+                    throw new FileNotFoundException($"Expected SteamCMD executable not found at {exe}");
+                }
+
+                progress.Report("Running initial self-update and setup...");
+                // Launch once to allow SteamCMD to self-update and install required files
+                _ = await ExecuteCommandInternalAsync(exe, "+quit", progress, cancellationToken);
+
+                progress.Report("Validating installation...");
+                bool isValid = await ValidateAsync(exe, cancellationToken);
+                if (!isValid)
+                {
+                    throw new InvalidOperationException("SteamCMD validation failed after installation.");
+                }
+
+                // Save installation path in config
+                ConfigManager.SetSteamCmdPath(exe);
+
+                progress.Report("SteamCMD setup completed successfully.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppLogging.LogException("SteamCmd Install failed", ex);
+                progress.Report($"Error: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<int> ExecuteAsync(string arguments, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+        {
+            string exe = GetExecutablePath();
+            if (string.IsNullOrEmpty(exe) || !File.Exists(exe))
+            {
+                throw new FileNotFoundException($"SteamCMD executable not found at {exe}");
+            }
+
+            return await ExecuteCommandInternalAsync(exe, arguments, progress, cancellationToken);
+        }
+
+        private static async Task<int> ExecuteCommandInternalAsync(string exe, string arguments, IProgress<string>? progress, CancellationToken cancellationToken)
+        {
+            ProcessStartInfo startInfo = new()
+            {
+                FileName = exe,
+                Arguments = arguments,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            Loggers.Workshop.Log($"SteamCmd: Executing {exe} {arguments}");
+
+            using Process process = new() { StartInfo = startInfo };
+            try
+            {
+                _ = process.Start();
+            }
+            catch (Exception ex)
+            {
+                AppLogging.LogException("SteamCmd execution failed to start", ex);
+                throw;
+            }
+
+            using CancellationTokenRegistration reg = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (Exception killEx)
+                {
+                    AppLogging.LogException("Failed to kill SteamCMD process on cancellation registration", killEx);
+                }
+            });
+
+            Task outputTask = Task.Run(async () =>
+            {
+                using StreamReader reader = process.StandardOutput;
+                string? line;
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        progress?.Report(line);
+                        Loggers.Workshop.Log($"SteamCmd stdout: {line}");
+                    }
+                }
+            }, cancellationToken);
+
+            Task errorTask = Task.Run(async () =>
+            {
+                using StreamReader reader = process.StandardError;
+                string? line;
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        progress?.Report($"[ERR] {line}");
+                        Loggers.Workshop.Log($"SteamCmd stderr: {line}");
+                    }
+                }
+            }, cancellationToken);
+
+            while (!process.HasExited)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                    catch (Exception killEx)
+                    {
+                        AppLogging.LogException("Failed to kill SteamCMD process on cancellation request", killEx);
+                    }
+                    break;
+                }
+                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+            }
+
+            try
+            {
+                await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
+            }
+            catch (Exception taskEx)
+            {
+                AppLogging.LogException("Error waiting for SteamCMD output/error reader tasks", taskEx);
+            }
+
+            return process.HasExited ? process.ExitCode : -1;
+        }
+
+        private static bool TryFindInPath(string tool, out string fullPath)
+        {
+            fullPath = string.Empty;
+            string[] paths = Environment.GetEnvironmentVariable("PATH")?.Split(Path.PathSeparator) ?? [];
+            foreach (string path in paths)
+            {
+                try
+                {
+                    string candidate = Path.Combine(path, tool);
+                    if (File.Exists(candidate))
+                    {
+                        fullPath = Path.GetFullPath(candidate);
+                        return true;
+                    }
+                }
+                catch (Exception pathEx)
+                {
+                    AppLogging.LogException($"Failed to inspect path candidate '{path}' during steamcmd search", pathEx);
+                }
+            }
+            return false;
+        }
+    }
+}

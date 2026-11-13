@@ -3,7 +3,7 @@ namespace ModHearth.Models
     /// <summary>
     /// Which kind of metadata problem Dwarf Fortress would report while reading a mod's
     /// <c>info.txt</c>. These mirror the error-log categories produced by
-    /// <see cref="ModHearth.Utilities.ModRaws.ModErrorLogAnalyzer"/>.
+    /// <see cref="Utils.ModRaws.ModErrorLogAnalyzer"/>.
     /// </summary>
     public enum ModInfoIssueKind
     {

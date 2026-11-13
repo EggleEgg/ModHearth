@@ -1,8 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Media;
-using ModHearth.Utilities.Logging;
+using ModHearth.Config;
+using ModHearth.UI.Helpers;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
@@ -30,36 +31,18 @@ namespace ModHearth.UI
                 ConfigManager.GetSearchErrorLogIssues(),
                 enabled => _ = OnSearchErrorLogIssuesToggledAsync(enabled));
 
-            issueSearchFlyout = new Flyout
-            {
-                FlyoutPresenterClasses = { "compact-flyout" },
-                Placement = PlacementMode.Top,
-                Content = new StackPanel
+            issueSearchFlyout = ButtonHelpers.CreateCompactFlyout(
+                new StackPanel
                 {
                     Margin = new Thickness(8),
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock
-                        {
-                            Text = "Issue search",
-                            FontWeight = FontWeight.SemiBold
-                        },
                         searchPossibleIssuesCheckBox,
                         searchErrorLogIssuesCheckBox
                     }
-                }
-            };
-        }
-
-        private void WarningIssuesButtonPointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-        {
-            if (!e.GetCurrentPoint(warningIssuesButton).Properties.IsRightButtonPressed)
-                return;
-
-            e.Handled = true;
-            EnsureIssueSearchFlyout();
-            issueSearchFlyout?.ShowAt(warningIssuesButton);
+                },
+                PlacementMode.Top);
         }
 
         private static CheckBox CreateIssueSearchCheckBox(
@@ -123,7 +106,5 @@ namespace ModHearth.UI
             UpdateProblemIndicators();
             UpdateDuplicateWarningIndicators();
         }
-
-        private bool HasWarningIssues() => (problemMods?.Count ?? 0) > 0 || (duplicateWarningMods?.Count ?? 0) > 0;
     }
 }

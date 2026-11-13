@@ -1,25 +1,26 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Threading;
+using ModHearth.Config;
+using ModHearth.Manager;
+using ModHearth.UI.Helpers;
 using ModHearth.UI.Update;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI
 {
     public partial class MainWindow
     {
-        private bool _isUpdateAvailable;
         public bool IsUpdateAvailable
         {
-            get => _isUpdateAvailable;
+            get;
             set
             {
-                if (_isUpdateAvailable != value)
+                if (field != value)
                 {
-                    _isUpdateAvailable = value;
+                    field = value;
                     NotifyOfPropertyChange();
                 }
             }
@@ -36,7 +37,12 @@ namespace ModHearth.UI
         {
             updateButton.DataContext = this;
             // (Click is wired in the constructor with the other button handlers.)
-            updateButton.AddHandler(PointerPressedEvent, UpdateButtonPointerPressed, RoutingStrategies.Tunnel, true);
+            ButtonHelpers.AttachRightClickHandler(updateButton, () =>
+            {
+                EnsureUpdateOptionsFlyout();
+                LoadUpdateMenuFromConfig();
+                updateOptionsFlyout?.ShowAt(updateButton);
+            });
 
             if (ConfigManager.GetAutoCheckForReleasesOnStartup())
             {
@@ -53,17 +59,6 @@ namespace ModHearth.UI
                     }
                 });
             }
-        }
-
-        private void UpdateButtonPointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            if (!e.GetCurrentPoint(updateButton).Properties.IsRightButtonPressed)
-                return;
-
-            e.Handled = true;
-            EnsureUpdateOptionsFlyout();
-            LoadUpdateMenuFromConfig();
-            updateOptionsFlyout?.ShowAt(updateButton);
         }
 
         private async Task CheckForUpdatesQuietlyAsync()
@@ -154,12 +149,7 @@ namespace ModHearth.UI
             panel.Children.Add(backupDataBeforeUpdateCheckBox);
             panel.Children.Add(ignoreVersionButton);
 
-            updateOptionsFlyout = new Flyout
-            {
-                FlyoutPresenterClasses = { "compact-flyout" },
-                Placement = PlacementMode.Bottom,
-                Content = panel
-            };
+            updateOptionsFlyout = ButtonHelpers.CreateCompactFlyout(panel);
 
             UpdateIgnoreButtonLabel();
         }
@@ -171,8 +161,7 @@ namespace ModHearth.UI
 
             suppressUpdateUiEvents = true;
             autoCheckUpdatesOnStartupCheckBox.IsChecked = ConfigManager.GetAutoCheckForReleasesOnStartup();
-            if (backupDataBeforeUpdateCheckBox != null)
-                backupDataBeforeUpdateCheckBox.IsChecked = ConfigManager.GetBackupDataBeforeUpdate();
+            backupDataBeforeUpdateCheckBox?.IsChecked = ConfigManager.GetBackupDataBeforeUpdate();
             suppressUpdateUiEvents = false;
             UpdateIgnoreButtonLabel();
         }

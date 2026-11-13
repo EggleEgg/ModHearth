@@ -1,4 +1,5 @@
-﻿using Avalonia.Threading;
+using Avalonia.Threading;
+using ModHearth.Manager;
 
 namespace ModHearth.UI
 {
@@ -101,8 +102,7 @@ namespace ModHearth.UI
             }
 
             dfhackStatusLabel.IsVisible = true;
-            if (dfhackStatusScrollViewer != null)
-                dfhackStatusScrollViewer.IsVisible = true;
+            dfhackStatusScrollViewer?.IsVisible = true;
         }
 
         private void ApplyDwarfFortressButtonStatus(bool dfRunning, bool dfFound)
@@ -133,8 +133,7 @@ namespace ModHearth.UI
 
             dfhackStatusLabel.Text = transientStatusNotice;
             dfhackStatusLabel.IsVisible = true;
-            if (dfhackStatusScrollViewer != null)
-                dfhackStatusScrollViewer.IsVisible = true;
+            dfhackStatusScrollViewer?.IsVisible = true;
             return true;
         }
     }

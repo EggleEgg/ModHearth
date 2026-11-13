@@ -315,7 +315,7 @@ namespace ModHearth.UI.Docking
             {
                 await Task.Delay(40);
 
-                if (_window == null || !_window.IsVisible)
+                if (!_window.IsVisible)
                 {
                     _movementCheckScheduled = false;
                     IsDragging = false;
@@ -334,10 +334,7 @@ namespace ModHearth.UI.Docking
 
         public void Dispose()
         {
-            if (_window != null)
-            {
-                _window.PositionChanged -= OnPositionChanged;
-            }
+            _window?.PositionChanged -= OnPositionChanged;
         }
     }
 }

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using ModHearth.Metadata;
-using ModHearth.Utilities;
+using ModHearth.Utils.IO;
 
 namespace ModHearth.Models
 {

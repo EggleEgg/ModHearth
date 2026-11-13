@@ -1,7 +1,4 @@
-using System.Diagnostics;
-using ModHearth.UI.Dialogs;
 using ModHearth.UI.Helpers;
-using ModHearth.Utilities.Logging;
 
 namespace ModHearth.UI
 {
@@ -33,42 +30,15 @@ namespace ModHearth.UI
             return true;
         }
 
-        private async Task<bool> ConfirmUnsavedChangesBeforeRestartAsync()
-        {
-            if (!changesMade)
-                return true;
-
-            UnsavedChangesChoice choice = await DialogService.ShowUnsavedChangesPromptAsync(
-                this,
-                manager.SelectedModlist?.Name,
-                "restart");
-
-            switch (choice)
-            {
-                case UnsavedChangesChoice.Cancel:
-                    return false;
-                case UnsavedChangesChoice.Save:
-                    await SaveCurrentModpackAsync();
-                    return true;
-                default:
-                    // The app is about to close, so do not let the close handler prompt again.
-                    SetChangesMade(false);
-                    return true;
-            }
-        }
+        private Task<bool> ConfirmUnsavedChangesBeforeRestartAsync()
+            // The app is about to close, so do not let the close handler prompt again.
+            => ConfirmUnsavedChangesAsync("restart");
 
         private void RelaunchApplication()
         {
-            try
-            {
-                string? exePath = Environment.ProcessPath;
-                if (!string.IsNullOrWhiteSpace(exePath))
-                    _ = Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                AppLogging.LogException("Failed to restart application", ex);
-            }
+            string? exePath = Environment.ProcessPath;
+            if (!string.IsNullOrWhiteSpace(exePath))
+                _ = ShellLauncher.TryOpenAsync(null, exePath, "Restart ModHearth");
 
             Close();
         }

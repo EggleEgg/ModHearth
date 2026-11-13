@@ -12,7 +12,7 @@ namespace ModHearth.UI.Docking
     {
         Left,
         Right,
-        Top, //TODO Fully implement this side
+        Top,
         Bottom
     }
 
@@ -58,7 +58,7 @@ namespace ModHearth.UI.Docking
     /// Scalable logic for docking sub-windows into MainWindow on any side (Left, Right, Top, Bottom)
     /// with overflow prevention against host screen bounds.
     /// </summary>
-    public class DockingManager<TControl, TWindow> : IDisposable
+    public partial class DockingManager<TControl, TWindow> : IDisposable
         where TControl : UserControl
         where TWindow : Window
     {
@@ -284,31 +284,68 @@ namespace ModHearth.UI.Docking
         public void Close()
         {
             if (_isDisposed) return;
+            CloseCore();
+        }
+
+        /// <summary>
+        /// Shared close body. Kept separate from <see cref="Close"/> so <see cref="Dispose(bool)"/>
+        /// can tear down before setting the disposed flag, and so the disposed guard cannot turn the
+        /// final close into a no-op.
+        /// </summary>
+        private void CloseCore()
+        {
             CollapsePanel();
 
-            foreach (DockingTarget target in _sideTargets.Values)
-                ClearDockHost(target);
-
-            if (_dragTracker != null)
-            {
-                _dragTracker.DragFinished -= OnDragFinished;
-                _dragTracker.Dispose();
-                _dragTracker = null;
-            }
-
-            if (FloatingWindow != null)
-            {
-                TWindow win = FloatingWindow;
-                FloatingWindow = null;
-                win.PositionChanged -= OnFloatingWindowPositionChanged;
-                if (_pointerReleasedHandler != null) win.RemoveHandler(InputElement.PointerReleasedEvent, _pointerReleasedHandler);
-                if (_pointerCaptureLostHandler != null) win.RemoveHandler(InputElement.PointerCaptureLostEvent, _pointerCaptureLostHandler);
-                win.Content = null;
-                win.Close();
-            }
+            ClearAllDockHosts();
+            DetachDragTracker();
+            DetachFloatingWindow(closeWindow: true);
 
             HidePreview();
             Closed?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Detaches and disposes the drag tracker. Safe to call when no tracker exists, so every
+        /// teardown path (close, dock, float-window closed, dispose) can share it.
+        /// </summary>
+        private void DetachDragTracker()
+        {
+            if (_dragTracker == null)
+                return;
+
+            _dragTracker.DragFinished -= OnDragFinished;
+            _dragTracker.Dispose();
+            _dragTracker = null;
+        }
+
+        /// <summary>
+        /// Detaches the floating window and always removes both pointer handlers. Closing the window
+        /// raises <see cref="Window.Closed"/>, which calls this again; the null field check keeps that
+        /// re-entrant path a no-op.
+        /// </summary>
+        private void DetachFloatingWindow(bool closeWindow)
+        {
+            if (FloatingWindow == null)
+                return;
+
+            TWindow win = FloatingWindow;
+            FloatingWindow = null;
+
+            win.PositionChanged -= OnFloatingWindowPositionChanged;
+            if (_pointerReleasedHandler != null)
+                win.RemoveHandler(InputElement.PointerReleasedEvent, _pointerReleasedHandler);
+            if (_pointerCaptureLostHandler != null)
+                win.RemoveHandler(InputElement.PointerCaptureLostEvent, _pointerCaptureLostHandler);
+            win.Content = null;
+
+            if (closeWindow)
+                win.Close();
+        }
+
+        private void ClearAllDockHosts()
+        {
+            foreach (DockingTarget target in _sideTargets.Values)
+                ClearDockHost(target);
         }
 
         public void ToggleDock() => SetDocked(!IsDocked);
@@ -334,20 +371,8 @@ namespace ModHearth.UI.Docking
 
             if (IsDocked)
             {
-                if (_dragTracker != null)
-                {
-                    _dragTracker.DragFinished -= OnDragFinished;
-                    _dragTracker.Dispose();
-                    _dragTracker = null;
-                }
-
-                if (FloatingWindow != null)
-                {
-                    FloatingWindow.PositionChanged -= OnFloatingWindowPositionChanged;
-                    FloatingWindow.Content = null;
-                    FloatingWindow.Close();
-                    FloatingWindow = null;
-                }
+                DetachDragTracker();
+                DetachFloatingWindow(closeWindow: true);
 
                 if (IsOpen || SharedControl != null)
                     ShowDockedContent();
@@ -370,8 +395,7 @@ namespace ModHearth.UI.Docking
         private void ShowFloatingWindow()
         {
             CollapsePanel();
-            foreach (DockingTarget target in _sideTargets.Values)
-                ClearDockHost(target);
+            ClearAllDockHosts();
 
             if (FloatingWindow == null)
             {
@@ -398,392 +422,17 @@ namespace ModHearth.UI.Docking
 
                 FloatingWindow.Closed += (_, _) =>
                 {
-                    if (_dragTracker != null)
-                    {
-                        _dragTracker.DragFinished -= OnDragFinished;
-                        _dragTracker.Dispose();
-                        _dragTracker = null;
-                    }
+                    DetachDragTracker();
 
-                    if (FloatingWindow == null) return;
-                    TWindow win = FloatingWindow;
-                    FloatingWindow = null;
-                    win.PositionChanged -= OnFloatingWindowPositionChanged;
-                    if (_pointerReleasedHandler != null) win.RemoveHandler(InputElement.PointerReleasedEvent, _pointerReleasedHandler);
-                    if (_pointerCaptureLostHandler != null) win.RemoveHandler(InputElement.PointerCaptureLostEvent, _pointerCaptureLostHandler);
-                    win.Content = null;
+                    if (FloatingWindow == null)
+                        return;
+
+                    DetachFloatingWindow(closeWindow: false);
                     HidePreview();
                 };
             }
 
             FloatingWindow.Show(_parentWindow);
-        }
-
-        private void OnDragFinished(object? sender, EventArgs e)
-        {
-            if (_isOverDockTarget)
-            {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (_isOverDockTarget && !IsDocked && !_isDisposed && FloatingWindow != null)
-                        Dock();
-                });
-            }
-        }
-
-        private void OnFloatingWindowPositionChanged(object? sender, PixelPointEventArgs e)
-        {
-            if (FloatingWindow == null || IsDocked || _isDisposed) return;
-
-            try
-            {
-                if (!_parentWindow.IsVisible)
-                    return;
-
-                PixelPoint parentTopLeft = _parentWindow.PointToScreen(new Point(0, 0));
-                double scale = _parentWindow.DesktopScaling;
-                double parentWidthPx = _parentWindow.ClientSize.Width * scale;
-                double parentHeightPx = _parentWindow.ClientSize.Height * scale;
-
-                PixelPoint floatingPos = FloatingWindow.Position;
-                double floatingScale = FloatingWindow.DesktopScaling;
-                PixelPoint floatingCenter = new(
-                    floatingPos.X + (int)(FloatingWindow.ClientSize.Width * floatingScale / 2),
-                    floatingPos.Y + (int)(FloatingWindow.ClientSize.Height * floatingScale / 2)
-                );
-
-                _hoverSide = DetectHoverSide(floatingCenter, parentTopLeft, parentWidthPx, parentHeightPx);
-                _isOverDockTarget = _hoverSide.HasValue;
-                UpdatePreviewVisibility(_hoverSide);
-            }
-            catch
-            {
-                // Ignore transient coordinate exceptions
-            }
-        }
-
-        private DockSide? DetectHoverSide(
-            PixelPoint floatingCenter,
-            PixelPoint parentTopLeft,
-            double parentWidthPx,
-            double parentHeightPx)
-        {
-            DockSide? bestSide = null;
-            double bestDistance = double.MaxValue;
-
-            foreach ((DockSide side, DockingTarget? target) in _sideTargets)
-            {
-                if (!CanDockOnSide(side))
-                    continue;
-
-                int snapThreshold = GetSnapThreshold(target);
-                if (!IsOverSide(side, floatingCenter, parentTopLeft, parentWidthPx, parentHeightPx, snapThreshold))
-                    continue;
-
-                double distance = GetDistanceToSideEdge(side, floatingCenter, parentTopLeft, parentWidthPx, parentHeightPx);
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    bestSide = side;
-                }
-            }
-
-            return bestSide;
-        }
-
-        private static int GetSnapThreshold(DockingTarget target)
-        {
-            if (target.PreviewBorder == null)
-                return 250;
-
-            int snapThreshold = (int)(target.PreviewBorder.Width > 0
-                ? target.PreviewBorder.Width
-                : target.PreviewBorder.Height);
-
-            return snapThreshold is <= 0 or > 500 ? 250 : snapThreshold;
-        }
-
-        private static bool IsOverSide(
-            DockSide side,
-            PixelPoint floatingCenter,
-            PixelPoint parentTopLeft,
-            double parentWidthPx,
-            double parentHeightPx,
-            int snapThreshold) => side switch
-            {
-                DockSide.Right =>
-                    floatingCenter.X >= parentTopLeft.X + (int)parentWidthPx - snapThreshold &&
-                    floatingCenter.X <= parentTopLeft.X + (int)parentWidthPx &&
-                    floatingCenter.Y >= parentTopLeft.Y &&
-                    floatingCenter.Y <= parentTopLeft.Y + (int)parentHeightPx,
-                DockSide.Left =>
-                    floatingCenter.X >= parentTopLeft.X &&
-                    floatingCenter.X <= parentTopLeft.X + snapThreshold &&
-                    floatingCenter.Y >= parentTopLeft.Y &&
-                    floatingCenter.Y <= parentTopLeft.Y + (int)parentHeightPx,
-                DockSide.Bottom =>
-                    floatingCenter.X >= parentTopLeft.X &&
-                    floatingCenter.X <= parentTopLeft.X + (int)parentWidthPx &&
-                    floatingCenter.Y >= parentTopLeft.Y + (int)parentHeightPx - snapThreshold &&
-                    floatingCenter.Y <= parentTopLeft.Y + (int)parentHeightPx,
-                DockSide.Top =>
-                    floatingCenter.X >= parentTopLeft.X &&
-                    floatingCenter.X <= parentTopLeft.X + (int)parentWidthPx &&
-                    floatingCenter.Y >= parentTopLeft.Y &&
-                    floatingCenter.Y <= parentTopLeft.Y + snapThreshold,
-                _ => false
-            };
-
-        // Vacates this manager's docked side without immediately creating a floating window. Used when another DockingManager is claiming the same side.
-
-        internal void ForceUndockForSideHandoff()
-        {
-            if (_isDisposed || !IsDocked) return;
-
-            CollapsePanel();
-            ClearDockHost(ActiveTarget);
-            IsDocked = false;
-            DockStateChanged?.Invoke(this, EventArgs.Empty);
-        }
-
-        private static double GetDistanceToSideEdge(
-            DockSide side,
-            PixelPoint floatingCenter,
-            PixelPoint parentTopLeft,
-            double parentWidthPx,
-            double parentHeightPx) => side switch
-            {
-                DockSide.Right => Math.Abs(floatingCenter.X - (parentTopLeft.X + parentWidthPx)),
-                DockSide.Left => Math.Abs(floatingCenter.X - parentTopLeft.X),
-                DockSide.Bottom => Math.Abs(floatingCenter.Y - (parentTopLeft.Y + parentHeightPx)),
-                DockSide.Top => Math.Abs(floatingCenter.Y - parentTopLeft.Y),
-                _ => double.MaxValue
-            };
-
-        private void UpdatePreviewVisibility(DockSide? side)
-        {
-            foreach ((DockSide dockSide, DockingTarget? target) in _sideTargets)
-            {
-                if (target.PreviewBorder == null)
-                    continue;
-
-                bool show = side.HasValue && dockSide == side.Value;
-                if (!show)
-                {
-                    target.PreviewBorder.IsVisible = false;
-                }
-                else
-                {
-                    Border border = target.PreviewBorder;
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (border != null)
-                            border.IsVisible = true;
-                    });
-                }
-            }
-        }
-
-        private void HidePreview()
-        {
-            foreach (DockingTarget target in _sideTargets.Values)
-            {
-                if (target.PreviewBorder != null)
-                    target.PreviewBorder.IsVisible = false;
-            }
-
-            _isOverDockTarget = false;
-            _hoverSide = null;
-        }
-
-        public void Dock()
-        {
-            if (_isDisposed) return;
-
-            // _hoverSide is only non-null while a floating window is actively being dragged over a valid target
-            if (_hoverSide == null)
-                return;
-
-            DockSide side = _hoverSide.Value;
-            if (!CanDockOnSide(side))
-                return;
-
-            if (IsDocked && ActiveSide == side)
-                return;
-
-            HidePreview();
-
-            if (_dragTracker != null)
-            {
-                _dragTracker.DragFinished -= OnDragFinished;
-                _dragTracker.Dispose();
-                _dragTracker = null;
-            }
-
-            if (FloatingWindow != null)
-            {
-                TWindow win = FloatingWindow;
-                FloatingWindow = null;
-                win.PositionChanged -= OnFloatingWindowPositionChanged;
-                win.Content = null;
-                win.Close();
-            }
-
-            if (IsDocked && ActiveSide != side)
-            {
-                DockingTarget previousTarget = _sideTargets[ActiveSide];
-                CollapsePanel();
-                ClearDockHost(previousTarget);
-            }
-
-            ActiveSide = side;
-            IsDocked = true;
-            _sideSaver?.Invoke(side);
-            ShowDockedContent();
-            DockStateChanged?.Invoke(this, EventArgs.Empty);
-        }
-
-        private void ClearDockHost(DockingTarget target)
-        {
-            if (target.DockHostControl.Content == SharedControl)
-            {
-                target.DockHostControl.Content = null;
-                target.DockHostControl.IsVisible = false;
-            }
-        }
-
-        private void ExpandPanel()
-        {
-            if (_isExpanded || _isDisposed) return;
-
-            if (!TryComputeExpandedLayout(ActiveSide, out double childSize, out double newParentPrimary))
-                return;
-
-            DockingTarget target = ActiveTarget;
-            _expandedSize = childSize;
-            double minIncrease = childSize + _splitterSize;
-            _preExpandParentPrimary = IsHorizontal(ActiveSide) ? _parentWindow.Width : _parentWindow.Height;
-            _preExpandMinWidth = _parentWindow.MinWidth;
-            _preExpandMinHeight = _parentWindow.MinHeight;
-
-            if (IsHorizontal(ActiveSide))
-            {
-                SetSafeMinWidth(_preExpandMinWidth + minIncrease);
-                SetSafeWidth(newParentPrimary);
-
-                if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
-                {
-                    target.MainGrid.ColumnDefinitions[target.SplitterIndex].Width = new GridLength(_splitterSize, GridUnitType.Pixel);
-                    target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(childSize, GridUnitType.Pixel);
-                }
-            }
-            else
-            {
-                SetSafeMinHeight(_preExpandMinHeight + minIncrease);
-                SetSafeHeight(newParentPrimary);
-
-                if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
-                {
-                    target.MainGrid.RowDefinitions[target.SplitterIndex].Height = new GridLength(_splitterSize, GridUnitType.Pixel);
-                    target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(childSize, GridUnitType.Pixel);
-                }
-            }
-
-            target.SplitterControl.IsVisible = true;
-            _isExpanded = true;
-        }
-
-        private void CollapsePanel()
-        {
-            if (!_isExpanded || _isDisposed) return;
-
-            DockingTarget target = ActiveTarget;
-            double collapseAmount = _expandedSize + _splitterSize;
-
-            if (IsHorizontal(ActiveSide))
-            {
-                double newMinWidth = Math.Max(0, _parentWindow.MinWidth - collapseAmount);
-                if (_preExpandMinWidth > 0 && newMinWidth < _preExpandMinWidth)
-                {
-                    newMinWidth = _preExpandMinWidth;
-                }
-                SetSafeMinWidth(newMinWidth);
-                SetSafeWidth(_preExpandParentPrimary);
-
-                if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
-                {
-                    target.MainGrid.ColumnDefinitions[target.SplitterIndex].Width = new GridLength(0, GridUnitType.Pixel);
-                    target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(0, GridUnitType.Pixel);
-                }
-            }
-            else
-            {
-                double newMinHeight = Math.Max(0, _parentWindow.MinHeight - collapseAmount);
-                if (_preExpandMinHeight > 0 && newMinHeight < _preExpandMinHeight)
-                {
-                    newMinHeight = _preExpandMinHeight;
-                }
-                SetSafeMinHeight(newMinHeight);
-                SetSafeHeight(_preExpandParentPrimary);
-
-                if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
-                {
-                    target.MainGrid.RowDefinitions[target.SplitterIndex].Height = new GridLength(0, GridUnitType.Pixel);
-                    target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(0, GridUnitType.Pixel);
-                }
-            }
-
-            target.SplitterControl.IsVisible = false;
-            _isExpanded = false;
-            _expandedSize = 0;
-        }
-
-        private void SetSafeMinWidth(double value)
-        {
-            try
-            {
-                _parentWindow.MinWidth = Math.Max(0, value);
-            }
-            catch
-            {
-                // Safeguard against invalid MinWidth values
-            }
-        }
-
-        private void SetSafeMinHeight(double value)
-        {
-            try
-            {
-                _parentWindow.MinHeight = Math.Max(0, value);
-            }
-            catch
-            {
-                // Safeguard against invalid MinHeight values
-            }
-        }
-
-        private void SetSafeWidth(double value)
-        {
-            try
-            {
-                _parentWindow.Width = Math.Max(_parentWindow.MinWidth, value);
-            }
-            catch
-            {
-                // Safeguard against invalid Width values
-            }
-        }
-
-        private void SetSafeHeight(double value)
-        {
-            try
-            {
-                _parentWindow.Height = Math.Max(_parentWindow.MinHeight, value);
-            }
-            catch
-            {
-                // Safeguard against invalid Height values
-            }
         }
 
         private void ShowDockedContent()
@@ -806,8 +455,7 @@ namespace ModHearth.UI.Docking
                 return;
             }
 
-            if (SharedControl != null)
-                SharedControl.Opacity = 0;
+            SharedControl?.Opacity = 0;
 
             DockingTarget target = ActiveTarget;
             switch (SharedControl?.Parent)
@@ -835,192 +483,6 @@ namespace ModHearth.UI.Docking
 
                 SharedControl.Opacity = 1;
             }, DispatcherPriority.Loaded);
-        }
-
-        private void RegisterSplitterEvents()
-        {
-            foreach (DockingTarget target in _sideTargets.Values)
-            {
-                if (target.SplitterControl == null)
-                    continue;
-
-                Control splitter = target.SplitterControl;
-
-                void pressedHandler(object? sender, PointerPressedEventArgs e)
-                {
-                    if (_isDisposed || !_isExpanded || ActiveSide != target.Side) return;
-                    PointerPointProperties props = e.GetCurrentPoint(_parentWindow).Properties;
-                    if (!props.IsLeftButtonPressed)
-                        return;
-
-                    _isDraggingSplitter = true;
-                    _splitterStartPoint = e.GetPosition(_parentWindow);
-                    target.DockHostBorder?.Classes.Add(pressedName);
-
-                    if (IsHorizontal(ActiveSide))
-                    {
-                        if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
-                            _initialContentSize = target.MainGrid.ColumnDefinitions[target.ContentIndex].Width.Value;
-                        _initialParentSize = _parentWindow.Width;
-                    }
-                    else
-                    {
-                        if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
-                            _initialContentSize = target.MainGrid.RowDefinitions[target.ContentIndex].Height.Value;
-                        _initialParentSize = _parentWindow.Height;
-                    }
-
-                    e.Pointer.Capture(splitter);
-                    e.Handled = true;
-                }
-
-                void movedHandler(object? sender, PointerEventArgs e)
-                {
-                    if (!_isDraggingSplitter || _isDisposed || ActiveSide != target.Side) return;
-
-                    _pendingSplitterSize = ComputeClampedSize(e.GetPosition(_parentWindow));
-
-                    if (!_splitterResizePending)
-                    {
-                        _splitterResizePending = true;
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            _splitterResizePending = false;
-                            if (_isDraggingSplitter && !_isDisposed)
-                                ApplySplitterSize(target, _pendingSplitterSize);
-                        }, DispatcherPriority.Render);
-                    }
-
-                    e.Handled = true;
-                }
-
-                void releasedHandler(object? sender, PointerReleasedEventArgs e)
-                {
-                    _ = (target.DockHostBorder?.Classes.Remove(pressedName));
-                    if (!_isDraggingSplitter || _isDisposed) return;
-                    _isDraggingSplitter = false;
-                    _splitterResizePending = false;
-                    e.Pointer.Capture(null);
-
-                    double parentPrimary = IsHorizontal(ActiveSide) ? _parentWindow.Width : _parentWindow.Height;
-                    if (parentPrimary > 0)
-                    {
-                        double proportion = _expandedSize / parentPrimary;
-                        proportion = Math.Clamp(proportion, 0.01, 0.99);
-                        _proportionSaver?.Invoke(ActiveSide, proportion);
-                    }
-
-                    e.Handled = true;
-                }
-
-                splitter.PointerCaptureLost += (sender, e) =>
-                {
-                    _ = (target.DockHostBorder?.Classes.Remove(pressedName));
-                    _isDraggingSplitter = false;
-                    _splitterResizePending = false;
-                };
-
-                if (target.DockHostBorder != null)
-                {
-                    target.DockHostBorder.PointerPressed += (s, e) => target.DockHostBorder.Classes.Add(pressedName);
-                    target.DockHostBorder.PointerReleased += (s, e) => target.DockHostBorder.Classes.Remove(pressedName);
-                    target.DockHostBorder.PointerCaptureLost += (s, e) => target.DockHostBorder.Classes.Remove(pressedName);
-                }
-
-                splitter.PointerPressed += pressedHandler;
-                splitter.PointerMoved += movedHandler;
-                splitter.PointerReleased += releasedHandler;
-
-                _splitterPressedHandlers[splitter] = pressedHandler;
-                _splitterMovedHandlers[splitter] = movedHandler;
-                _splitterReleasedHandlers[splitter] = releasedHandler;
-            }
-        }
-
-        private double ComputeClampedSize(Point currentPoint)
-        {
-            switch (ActiveSide)
-            {
-                case DockSide.Right:
-                    {
-                        double deltaX = currentPoint.X - _splitterStartPoint.X;
-                        return Math.Clamp(_initialContentSize - deltaX, _minSize, _maxSize);
-                    }
-                case DockSide.Left:
-                    {
-                        double deltaX = currentPoint.X - _splitterStartPoint.X;
-                        return Math.Clamp(_initialContentSize + deltaX, _minSize, _maxSize);
-                    }
-                case DockSide.Bottom:
-                    {
-                        double deltaY = currentPoint.Y - _splitterStartPoint.Y;
-                        return Math.Clamp(_initialContentSize - deltaY, _minSize, _maxSize);
-                    }
-                case DockSide.Top:
-                    {
-                        double deltaY = currentPoint.Y - _splitterStartPoint.Y;
-                        return Math.Clamp(_initialContentSize + deltaY, _minSize, _maxSize);
-                    }
-                default:
-                    return _initialContentSize;
-            }
-        }
-
-        private void ApplySplitterSize(DockingTarget target, double newSize)
-        {
-            switch (ActiveSide)
-            {
-                case DockSide.Right:
-                case DockSide.Left:
-                    {
-                        if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
-                            target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
-                        SetSafeWidth(_initialParentSize + (newSize - _initialContentSize));
-                        _expandedSize = newSize;
-                        break;
-                    }
-                case DockSide.Bottom:
-                case DockSide.Top:
-                    {
-                        if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
-                            target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(newSize, GridUnitType.Pixel);
-                        SetSafeHeight(_initialParentSize + (newSize - _initialContentSize));
-                        _expandedSize = newSize;
-                        break;
-                    }
-            }
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_isDisposed) return;
-            _isDisposed = true;
-
-            if (disposing)
-            {
-                foreach ((Control? splitter, EventHandler<PointerPressedEventArgs>? handler) in _splitterPressedHandlers)
-                    splitter.PointerPressed -= handler;
-                foreach ((Control? splitter, EventHandler<PointerEventArgs>? handler) in _splitterMovedHandlers)
-                    splitter.PointerMoved -= handler;
-                foreach ((Control? splitter, EventHandler<PointerReleasedEventArgs>? handler) in _splitterReleasedHandlers)
-                    splitter.PointerReleased -= handler;
-
-                _splitterPressedHandlers.Clear();
-                _splitterMovedHandlers.Clear();
-                _splitterReleasedHandlers.Clear();
-
-                if (_dragTracker != null)
-                {
-                    _dragTracker.DragFinished -= OnDragFinished;
-                    _dragTracker.Dispose();
-                    _dragTracker = null;
-                }
-
-                (SharedControl as IDisposable)?.Dispose();
-                SharedControl = null;
-
-                Close();
-            }
         }
 
         public void Dispose()

@@ -8,7 +8,7 @@ using Avalonia.Media;
 using ModHearth.Models;
 using ModHearth.UI.Behaviors;
 using ModHearth.UI.Helpers;
-using ModHearth.Utilities.Workshop;
+using ModHearth.Utils.Workshop;
 
 namespace ModHearth.UI
 {

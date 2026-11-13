@@ -1,3 +1,4 @@
+using ModHearth.Config;
 using ModHearth.UI.Theme;
 
 namespace ModHearth.App.Tests
@@ -8,7 +9,7 @@ namespace ModHearth.App.Tests
     /// </summary>
     internal static class AvaloniaTestEnvironment
     {
-        private static readonly object SyncRoot = new();
+        private static readonly Lock SyncRoot = new();
         private static bool _initialized;
 
         public static void EnsureInitialized(Action<string> log)

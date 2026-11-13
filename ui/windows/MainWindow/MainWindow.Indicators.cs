@@ -152,8 +152,7 @@ namespace ModHearth.UI
 
             ModRefViewModel vm = matchingMods[cursors.Next(tier, matchingMods.Count)];
 
-            if (currentJumpHighlighted != null)
-                currentJumpHighlighted.IsJumpHighlighted = false;
+            currentJumpHighlighted?.IsJumpHighlighted = false;
 
             vm.IsJumpHighlighted = true;
             currentJumpHighlighted = vm;
@@ -204,8 +203,7 @@ namespace ModHearth.UI
             if (vm == null)
                 return;
 
-            if (currentJumpHighlighted != null)
-                currentJumpHighlighted.IsJumpHighlighted = false;
+            currentJumpHighlighted?.IsJumpHighlighted = false;
 
             vm.IsJumpHighlighted = true;
             currentJumpHighlighted = vm;

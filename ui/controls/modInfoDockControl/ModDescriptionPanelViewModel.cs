@@ -4,18 +4,16 @@ namespace ModHearth.UI.Controls.ModInfoDockControl
 {
     public sealed class ModDescriptionPanelViewModel : Tool
     {
-        private string descriptionHtml = string.Empty;
-
         public string DescriptionHtml
         {
-            get => descriptionHtml;
+            get;
             set
             {
-                if (descriptionHtml == value)
+                if (field == value)
                     return;
-                descriptionHtml = value;
+                field = value;
                 OnPropertyChanged();
             }
-        }
+        } = string.Empty;
     }
 }

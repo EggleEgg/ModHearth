@@ -26,3 +26,4 @@ Vectors and icons by <a href="https://github.com/540co/govicons?ref=svgrepo.com"
 Vectors and icons by <a href="https://www.figma.com/@thewolfkit?ref=svgrepo.com" target="_blank">Thewolfkit</a> in CC Attribution License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
 Vectors and icons by <a href="https://iconoir.com/?ref=svgrepo.com" target="_blank">Iconoir</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
 Vectors and icons by <a href="https://iconhub.io?ref=svgrepo.com" target="_blank">Iconhub</a> in CC Attribution License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+Vectors and icons by <a href="https://www.figma.com/community/file/1166831539721848736?ref=svgrepo.com" target="_blank">Solar Icons</a> in CC Attribution License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>

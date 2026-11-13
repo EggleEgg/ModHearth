@@ -1,6 +1,6 @@
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
-using ModHearth.Utilities;
+using ModHearth.Utils;
 
 namespace ModHearth.UI.Theme
 {

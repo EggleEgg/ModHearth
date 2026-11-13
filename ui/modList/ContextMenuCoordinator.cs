@@ -5,7 +5,7 @@ namespace ModHearth.UI.ModList
 {
     internal static class ContextMenuCoordinator
     {
-        private static readonly object gate = new();
+        private static readonly Lock gate = new();
 
         // Weak so a menu that never fires closed doesn't keep itself and everything it's rooted to (the avalonia visual tree)
         // alive for the rest of the app's lifetime via this static field

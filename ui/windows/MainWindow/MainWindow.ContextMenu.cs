@@ -1,8 +1,8 @@
 using System.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Interactivity;
 using Avalonia.Media;
+using ModHearth.Manager;
 using ModHearth.Metadata;
 using ModHearth.Models;
 using ModHearth.UI.Contracts;
@@ -50,46 +50,45 @@ namespace ModHearth.UI
             return [contextVm.ModReference];
         }
 
-        public void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+        public async Task OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
-            string? tag = item.Tag?.ToString();
-            switch (tag)
+            switch (item.Tag?.ToString())
             {
                 case "delete-mod":
-                    ModContextDeleteMod(item, new RoutedEventArgs());
+                    await ModContextDeleteModAsync(item);
                     break;
                 case "delete-cache-mod":
-                    ModContextDeleteCacheMod(item, new RoutedEventArgs());
+                    await ModContextDeleteCacheModAsync(item);
                     break;
                 case "unsubscribe-steam":
-                    ModContextUnsubscribeSteam(item, new RoutedEventArgs());
+                    await ModContextUnsubscribeSteamAsync(item);
                     break;
                 case "redownload-steam":
-                    ModContextRedownloadSteam(item, new RoutedEventArgs());
+                    await ModContextRedownloadSteamAsync(item);
                     break;
                 case "open":
-                    ModContextOpenFolder(item, new RoutedEventArgs());
+                    await ModContextOpenFolderAsync(item);
                     break;
                 case "open-steam":
-                    ModContextOpenSteam(item, new RoutedEventArgs());
+                    await ModContextOpenSteamAsync(item);
                     break;
                 case "copy-id":
-                    ModContextCopyId(item, new RoutedEventArgs());
+                    await ModContextCopyIdAsync(item);
                     break;
             }
         }
 
-        private async void ModContextDeleteMod(object? sender, RoutedEventArgs e)
+        private async Task ModContextDeleteModAsync(MenuItem item)
         {
-            if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
+            if (!TryGetContextModReferences(item, out List<ModReference> modReferences))
                 return;
 
             await DeleteSelectedModsAsync(modReferences);
         }
 
-        private async void ModContextDeleteCacheMod(object? sender, RoutedEventArgs e)
+        private async Task ModContextDeleteCacheModAsync(MenuItem item)
         {
-            if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
+            if (!TryGetContextModReferences(item, out List<ModReference> modReferences))
                 return;
 
             await DeleteSelectedCacheOnlyModsAsync(modReferences);
@@ -156,17 +155,17 @@ namespace ModHearth.UI
                 ShowFallbackInfo();
         }
 
-        private async void ModContextUnsubscribeSteam(object? sender, RoutedEventArgs e)
+        private async Task ModContextUnsubscribeSteamAsync(MenuItem item)
         {
-            if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
+            if (!TryGetContextModReferences(item, out List<ModReference> modReferences))
                 return;
 
             await ModContextMenuSupport.UnsubscribeSteamWithConfirmAsync(this, manager, modReferences);
         }
 
-        private async void ModContextRedownloadSteam(object? sender, RoutedEventArgs e)
+        private async Task ModContextRedownloadSteamAsync(MenuItem item)
         {
-            if (!TryGetContextModReferences(sender, out List<ModReference> modReferences))
+            if (!TryGetContextModReferences(item, out List<ModReference> modReferences))
                 return;
 
             manager.SplitActionableMods(modReferences, out _, out List<ModReference> steamMods);
@@ -177,7 +176,7 @@ namespace ModHearth.UI
                 return;
             }
 
-            if (new Utilities.Steam.SteamCmdService().IsAvailable() && _workshopDockManager != null)
+            if (new Utils.Steam.SteamCmdService().IsAvailable() && _workshopDockManager != null)
             {
                 List<ulong> workshopIds = [];
                 foreach (ModReference mod in modReferences)
@@ -206,22 +205,22 @@ namespace ModHearth.UI
             await ModContextMenuSupport.RedownloadSteamWithConfirmAsync(this, manager, modReferences);
         }
 
-        private async void ModContextOpenFolder(object? sender, RoutedEventArgs e) => await ModContextMenuSupport.OpenFolderFromContextMenuAsync(
-                sender,
+        private Task ModContextOpenFolderAsync(MenuItem item) => ModContextMenuSupport.OpenFolderFromContextMenuAsync(
+                item,
                 this,
-                GetContextMenuSelectedItems(sender),
+                GetContextMenuSelectedItems(item),
                 (ModRefViewModel vm) => vm.ModReference);
 
-        private async void ModContextCopyId(object? sender, RoutedEventArgs e) => await ModContextMenuSupport.CopyModIdFromContextMenuAsync(
-                sender,
+        private Task ModContextCopyIdAsync(MenuItem item) => ModContextMenuSupport.CopyModIdFromContextMenuAsync(
+                item,
                 this,
-                GetContextMenuSelectedItems(sender),
+                GetContextMenuSelectedItems(item),
                 (ModRefViewModel vm) => vm.ModReference);
 
-        private async void ModContextOpenSteam(object? sender, RoutedEventArgs e) => await ModContextMenuSupport.OpenSteamPageFromContextMenuAsync(
-                sender,
+        private Task ModContextOpenSteamAsync(MenuItem item) => ModContextMenuSupport.OpenSteamPageFromContextMenuAsync(
+                item,
                 this,
-                GetContextMenuSelectedItems(sender),
+                GetContextMenuSelectedItems(item),
                 (ModRefViewModel vm) => vm.ModReference);
 
         private void ConfigureModColorSubmenu(ContextMenu menu, ModRefViewModel contextVm, List<ModRefViewModel> selected)

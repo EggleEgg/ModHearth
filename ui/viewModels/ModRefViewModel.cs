@@ -6,8 +6,8 @@ using ModHearth.UI.Contracts;
 using ModHearth.UI.Helpers;
 using ModHearth.UI.Rendering;
 using ModHearth.UI.Theme;
-using ModHearth.Utilities;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils;
+using ModHearth.Utils.Logging;
 
 namespace ModHearth.UI.ViewModels
 {
@@ -15,34 +15,8 @@ namespace ModHearth.UI.ViewModels
     /// Represents a mod reference in the UI, with properties for display, filtering, selection, and theming.
     /// </summary>
     public sealed record RuleBadgeInfo(IImage? Icon, int Count);
-    public class ModRefViewModel : ObservableObject, ISelectableItem, IThemedViewModel
+    public class ModRefViewModel : ObservableObject, ISelectableItem, IThemedViewModel, IFilterableItem
     {
-        private ModIssueTier problemTier;
-        private ModIssueTier duplicateWarningTier;
-        private bool isDuplicateWarning;
-        private bool isFilteredOut;
-        private bool isVisible = true;
-        private bool isCached;
-        private bool isSelected;
-        private bool isJumpHighlighted;
-        private bool isDragging;
-        private bool isVanillaModSource;
-        private bool isLocalModSource;
-        private bool isSteamModSource;
-        private bool isSteamLocalModSource;
-        private bool isCacheOnlyModSource;
-        private bool showDropAbove;
-        private bool showDropBelow;
-        private string? problemTooltip;
-        private string? duplicateWarningTooltip;
-        private string? ruleBadgesTooltip;
-        private IEnumerable<RuleBadgeInfo> ruleBadges = [];
-
-        private IBrush backgroundBrush = Brushes.Transparent;
-        private IBrush textBrush = Brushes.Black;
-        private IBrush issueBrush = Brushes.Transparent;
-        private IBrush cacheBarBrush = Brushes.Transparent;
-        private IBrush dropHighlightBrush = Brushes.Transparent;
         private TextDecorationCollection? textDecorations;
 
         public ModRefViewModel(ModReference modref)
@@ -70,10 +44,10 @@ namespace ModHearth.UI.ViewModels
         /// </summary>
         public ModIssueTier ProblemTier
         {
-            get => problemTier;
+            get;
             set
             {
-                if (SetField(ref problemTier, value))
+                if (SetField(ref field, value))
                     OnProblemSeverityChanged();
             }
         }
@@ -85,10 +59,10 @@ namespace ModHearth.UI.ViewModels
         /// </summary>
         public ModIssueTier DuplicateWarningTier
         {
-            get => duplicateWarningTier;
+            get;
             set
             {
-                if (SetField(ref duplicateWarningTier, value))
+                if (SetField(ref field, value))
                     OnProblemSeverityChanged();
             }
         }
@@ -97,7 +71,7 @@ namespace ModHearth.UI.ViewModels
         /// Effective severity shown in the row. Combining here keeps the two problem sources
         /// independent while guaranteeing the worst tier wins.
         /// </summary>
-        public ModIssueTier IssueTier => (ModIssueTier)Math.Max((int)problemTier, (int)duplicateWarningTier);
+        public ModIssueTier IssueTier => (ModIssueTier)Math.Max((int)ProblemTier, (int)DuplicateWarningTier);
 
         public bool HasGuaranteedIssue => IssueTier != ModIssueTier.None;
         public bool IsErrorIssue => IssueTier == ModIssueTier.Error;
@@ -106,88 +80,88 @@ namespace ModHearth.UI.ViewModels
 
         public bool IsDuplicateWarning
         {
-            get => isDuplicateWarning;
+            get;
             set
             {
-                if (SetField(ref isDuplicateWarning, value))
+                if (SetField(ref field, value))
                     RefreshTextStyle();
             }
         }
 
         public bool IsFilteredOut
         {
-            get => isFilteredOut;
+            get;
             set
             {
-                if (SetField(ref isFilteredOut, value))
+                if (SetField(ref field, value))
                     RefreshTextStyle();
             }
         }
 
         public bool IsVisible
         {
-            get => isVisible;
-            set => SetField(ref isVisible, value);
-        }
+            get;
+            set => SetField(ref field, value);
+        } = true;
 
         public bool IsCached
         {
-            get => isCached;
-            set => SetField(ref isCached, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         public bool IsSelected
         {
-            get => isSelected;
+            get;
             set
             {
-                if (SetField(ref isSelected, value))
+                if (SetField(ref field, value))
                     RefreshBackground();
             }
         }
 
         public bool IsJumpHighlighted
         {
-            get => isJumpHighlighted;
+            get;
             set
             {
-                if (SetField(ref isJumpHighlighted, value))
+                if (SetField(ref field, value))
                     RefreshBackground();
             }
         }
 
         public bool IsDragging
         {
-            get => isDragging;
+            get;
             set
             {
-                if (SetField(ref isDragging, value))
+                if (SetField(ref field, value))
                     RefreshBackground();
             }
         }
 
         public bool IsLocalModSource
         {
-            get => isLocalModSource;
-            set => SetField(ref isLocalModSource, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         public bool IsVanillaModSource
         {
-            get => isVanillaModSource;
-            set => SetField(ref isVanillaModSource, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         public bool IsSteamModSource
         {
-            get => isSteamModSource;
-            set => SetField(ref isSteamModSource, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         public bool IsSteamLocalModSource
         {
-            get => isSteamLocalModSource;
-            set => SetField(ref isSteamLocalModSource, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         /// <summary>
@@ -196,27 +170,27 @@ namespace ModHearth.UI.ViewModels
         /// </summary>
         public bool IsCacheOnlyModSource
         {
-            get => isCacheOnlyModSource;
-            set => SetField(ref isCacheOnlyModSource, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         public bool ShowDropAbove
         {
-            get => showDropAbove;
-            set => SetField(ref showDropAbove, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         public bool ShowDropBelow
         {
-            get => showDropBelow;
-            set => SetField(ref showDropBelow, value);
+            get;
+            set => SetField(ref field, value);
         }
 
         public IBrush BackgroundBrush
         {
-            get => backgroundBrush;
-            private set => SetField(ref backgroundBrush, value);
-        }
+            get;
+            private set => SetField(ref field, value);
+        } = Brushes.Transparent;
 
         // Filter icons are tinted per text color; a handful of theme colors is all we should ever hold.
         private static readonly BoundedLruCache<Color, IImage?> filterIconTintCache = new(32);
@@ -225,27 +199,26 @@ namespace ModHearth.UI.ViewModels
 
         private Color filterIconColor;
         private Color lastFilterColor;
-        private IImage? cachedFilterIcon;
 
         public IImage? FilterIconImage
         {
             get
             {
                 Color color = filterIconColor;
-                if (cachedFilterIcon == null || lastFilterColor != color)
+                if (field == null || lastFilterColor != color)
                 {
                     lastFilterColor = color;
-                    cachedFilterIcon = GetTintedFilterIcon(color);
+                    field = GetTintedFilterIcon(color);
                 }
-                return cachedFilterIcon;
+                return field;
             }
         }
 
         public IBrush TextBrush
         {
-            get => textBrush;
-            private set => SetField(ref textBrush, value);
-        }
+            get;
+            private set => SetField(ref field, value);
+        } = Brushes.Black;
 
         /// <summary>
         /// Tint for the severity icon. Kept in sync with <see cref="TextBrush"/> so the icon and
@@ -253,21 +226,21 @@ namespace ModHearth.UI.ViewModels
         /// </summary>
         public IBrush IssueBrush
         {
-            get => issueBrush;
-            private set => SetField(ref issueBrush, value);
-        }
+            get;
+            private set => SetField(ref field, value);
+        } = Brushes.Transparent;
 
         public IBrush CacheBarBrush
         {
-            get => cacheBarBrush;
-            private set => SetField(ref cacheBarBrush, value);
-        }
+            get;
+            private set => SetField(ref field, value);
+        } = Brushes.Transparent;
 
         public IBrush DropHighlightBrush
         {
-            get => dropHighlightBrush;
-            private set => SetField(ref dropHighlightBrush, value);
-        }
+            get;
+            private set => SetField(ref field, value);
+        } = Brushes.Transparent;
 
         public TextDecorationCollection? TextDecorations
         {
@@ -277,20 +250,20 @@ namespace ModHearth.UI.ViewModels
 
         public string? ProblemTooltip
         {
-            get => problemTooltip;
+            get;
             set
             {
-                if (SetField(ref problemTooltip, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(HoverTooltip));
             }
         }
 
         public string? DuplicateWarningTooltip
         {
-            get => duplicateWarningTooltip;
+            get;
             set
             {
-                if (SetField(ref duplicateWarningTooltip, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(HoverTooltip));
             }
         }
@@ -299,82 +272,76 @@ namespace ModHearth.UI.ViewModels
         {
             get
             {
-                if (string.IsNullOrWhiteSpace(problemTooltip))
-                    return duplicateWarningTooltip;
-                if (string.IsNullOrWhiteSpace(duplicateWarningTooltip))
-                    return problemTooltip;
-                return $"{problemTooltip}{Environment.NewLine}{Environment.NewLine}{duplicateWarningTooltip}";
+                if (string.IsNullOrWhiteSpace(ProblemTooltip))
+                    return DuplicateWarningTooltip;
+                if (string.IsNullOrWhiteSpace(DuplicateWarningTooltip))
+                    return ProblemTooltip;
+                return $"{ProblemTooltip}{Environment.NewLine}{Environment.NewLine}{DuplicateWarningTooltip}";
             }
         }
 
         public string? RuleBadgesTooltip
         {
-            get => ruleBadgesTooltip;
-            set => SetField(ref ruleBadgesTooltip, value);
+            get;
+            set => SetField(ref field, value);
         }
         public IEnumerable<RuleBadgeInfo> RuleBadges
         {
-            get => ruleBadges;
+            get;
             set
             {
-                if (SetField(ref ruleBadges, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(HasRuleBadges));
             }
-        }
+        } = [];
         public bool HasRuleBadges => RuleBadges.Any();
-
-        private int relationshipCount;
-        private int beforeCount;
-        private int afterCount;
-        private int requiredCount;
-        private int incompatibleCount;
 
         public int RelationshipCount
         {
-            get => relationshipCount;
+            get;
             set
             {
-                if (SetField(ref relationshipCount, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(HasRelationships));
             }
         }
 
         public int BeforeCount
         {
-            get => beforeCount;
+            get;
             set
             {
-                if (SetField(ref beforeCount, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
 
         public int AfterCount
         {
-            get => afterCount;
+            get;
             set
             {
-                if (SetField(ref afterCount, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
 
         public int RequiredCount
         {
-            get => requiredCount;
+            get;
             set
             {
-                if (SetField(ref requiredCount, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
 
         public int IncompatibleCount
         {
-            get => incompatibleCount;
+            get;
             set
             {
-                if (SetField(ref incompatibleCount, value))
+                if (SetField(ref field, value))
                     OnPropertyChanged(nameof(RelationshipTooltipText));
             }
         }
@@ -592,13 +559,12 @@ namespace ModHearth.UI.ViewModels
             }
         }
 
-        private IBrush? colorUnderlayBrush;
         public IBrush? ColorUnderlayBrush
         {
-            get => colorUnderlayBrush;
+            get;
             set
             {
-                if (SetField(ref colorUnderlayBrush, value))
+                if (SetField(ref field, value))
                 {
                     OnPropertyChanged(nameof(HasColorUnderlay));
                     Loggers.Diag.Dev($"changed color {HasColorUnderlay}");

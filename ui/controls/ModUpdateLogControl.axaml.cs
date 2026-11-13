@@ -6,6 +6,8 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Media;
 using Avalonia.Threading;
+using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.UI.Contracts;
 using ModHearth.UI.Dialogs;
@@ -13,11 +15,12 @@ using ModHearth.UI.Helpers;
 using ModHearth.UI.ModList;
 using ModHearth.UI.Theme;
 using ModHearth.UI.ViewModels;
-using ModHearth.Utilities.Logging;
+using ModHearth.Utils.Logging;
+using ModHearth.Utils.Thread;
 
 namespace ModHearth.UI
 {
-    public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, IModRefContextMenuProvider, IDisposable
+    public partial class ModUpdateLogControl : UserControl, INotifyPropertyChanged, IModRefContextMenuProvider, IDisposable, IStyleAwareWindow
     {
         private readonly ModHearthManager? manager;
         private readonly List<ModUpdateLogItemViewModel> allEntries = [];
@@ -25,7 +28,6 @@ namespace ModHearth.UI
         public ObservableCollection<ModUpdateLogItemViewModel> Entries => entries;
         private readonly ListSelectionController<ModUpdateLogItemViewModel> selectionController = new();
         private ModRefControl? contextMenuHost;
-        private IBrush backgroundColorBrush = Brushes.Transparent;
         private readonly SemaphoreSlim loadGate = new(1, 1);
         private bool loadRerunRequested;
         private int loadedRawCount;
@@ -111,15 +113,15 @@ namespace ModHearth.UI
 
         public IBrush BackgroundColorBrush
         {
-            get => backgroundColorBrush;
+            get;
             set
             {
-                if (Equals(backgroundColorBrush, value))
+                if (Equals(field, value))
                     return;
-                backgroundColorBrush = value;
+                field = value;
                 OnPropertyChanged();
             }
-        }
+        } = Brushes.Transparent;
 
         public void LoadEntries() => _ = LoadEntriesAsync();
 
@@ -193,10 +195,7 @@ namespace ModHearth.UI
 
             if (rawEntries.Count > ParallelThreshold)
             {
-                _ = Parallel.For(0, rawEntries.Count, new ParallelOptions
-                {
-                    MaxDegreeOfParallelism = Environment.ProcessorCount
-                }, Build);
+                _ = Parallel.For(0, rawEntries.Count, Parallelism.CpuBound, Build);
             }
             else
             {
@@ -235,16 +234,7 @@ namespace ModHearth.UI
 
             // Build the filter once, then visit every entry exactly once.
             SearchFilterContext context = new(filter, searchMode);
-            List<ModUpdateLogItemViewModel> filtered = new(allEntries.Count);
-
-            foreach (ModUpdateLogItemViewModel vm in allEntries)
-            {
-                bool match = !context.HasFilter || vm.MatchesFilter(context);
-                vm.IsFilteredOut = context.HasFilter && !match;
-                vm.IsVisible = !hideFiltered || match;
-                if (vm.IsVisible)
-                    filtered.Add(vm);
-            }
+            List<ModUpdateLogItemViewModel> filtered = SearchFilterHelper.ApplyFilter(allEntries, context, hideFiltered);
 
             entries.ReplaceAll(filtered);
             selectionController.UpdateSelectionState(logList);
@@ -339,7 +329,7 @@ namespace ModHearth.UI
         public IEnumerable<ModReference> GetSelectedModReferences(ModRefViewModel contextVm) => logList.SelectedItems?.Cast<ModUpdateLogItemViewModel>().Select(item => item.ModReference)
                 ?? [];
 
-        public async void OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
+        public async Task OnModRefContextMenuItemClicked(MenuItem item, ModRefViewModel vm)
         {
             if (manager == null)
                 return;
@@ -367,11 +357,7 @@ namespace ModHearth.UI
         public void ApplyCustomStyle(Style style)
         {
             BackgroundColorBrush = BrushCache.GetBrush(style.PanelColor.ToAvaloniaColor());
-
-            if (logList != null)
-            {
-                logList.Background = BackgroundColorBrush;
-            }
+            logList?.Background = BackgroundColorBrush;
         }
 
         private void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
