@@ -16,6 +16,7 @@ namespace ModHearth.Manager
         private volatile Dictionary<string, List<ModProblem>> possibleIssueMap = new(StringComparer.OrdinalIgnoreCase);
         private DateTime? possibleIssueCacheWriteUtc;
         private HashSet<string>? possibleIssueActiveModIds;
+        private List<string>? possibleIssueLoadOrder;
 
         /// <summary>
         /// Asks for a fresh raw dependency scan (also required by ModSort) and then rebuilds the
@@ -62,7 +63,9 @@ namespace ModHearth.Manager
             }
 
             DateTime cacheWriteUtc = GetRawDependencyCacheWriteUtc();
-            HashSet<string> activeModIds = GetActiveModIds();
+            List<DfhMod> enabledSnapshot = [.. enabledMods];
+            List<string> loadOrder = [.. enabledSnapshot.Select(mod => mod.Id)];
+            HashSet<string> activeModIds = new(loadOrder, StringComparer.OrdinalIgnoreCase);
 
             lock (possibleIssueGate)
             {
@@ -70,7 +73,9 @@ namespace ModHearth.Manager
                     possibleIssueCacheWriteUtc.HasValue
                     && possibleIssueCacheWriteUtc.Value == cacheWriteUtc
                     && possibleIssueActiveModIds != null
-                    && possibleIssueActiveModIds.SetEquals(activeModIds);
+                    && possibleIssueActiveModIds.SetEquals(activeModIds)
+                    && possibleIssueLoadOrder != null
+                    && possibleIssueLoadOrder.SequenceEqual(loadOrder, StringComparer.OrdinalIgnoreCase);
 
                 if (upToDate)
                     return;
@@ -82,6 +87,7 @@ namespace ModHearth.Manager
                     possibleIssueMap = new Dictionary<string, List<ModProblem>>(StringComparer.OrdinalIgnoreCase);
                     possibleIssueCacheWriteUtc = cacheWriteUtc;
                     possibleIssueActiveModIds = activeModIds;
+                    possibleIssueLoadOrder = loadOrder;
                     return;
                 }
 
@@ -107,7 +113,8 @@ namespace ModHearth.Manager
                         List<ModPossibleIssue> issues = ModPossibleIssueAnalyzer.Analyze(
                             rawInfos,
                             activeModIds,
-                            vanillaBaseline);
+                            vanillaBaseline,
+                            loadOrder);
 
                         foreach (IGrouping<string, ModPossibleIssue> grouping in issues.GroupBy(issue => issue.ModId, StringComparer.OrdinalIgnoreCase))
                         {
@@ -146,6 +153,7 @@ namespace ModHearth.Manager
                 possibleIssueMap = newMap;
                 possibleIssueCacheWriteUtc = cacheWriteUtc;
                 possibleIssueActiveModIds = activeModIds;
+                possibleIssueLoadOrder = loadOrder;
             }
         }
 
@@ -159,13 +167,14 @@ namespace ModHearth.Manager
                 possibleIssueMap = new Dictionary<string, List<ModProblem>>(StringComparer.OrdinalIgnoreCase);
                 possibleIssueCacheWriteUtc = null;
                 possibleIssueActiveModIds = null;
+                possibleIssueLoadOrder = null;
             }
         }
 
         private static string BuildPossibleIssueText(List<ModPossibleIssue> issues)
         {
             StringBuilder builder = new(
-                "Dwarf Fortress would report these raw problems (detected without launching the game):" + Environment.NewLine);
+                "Dwarf Fortress could report these raw problems (detected without launching the game):" + Environment.NewLine);
 
             foreach (ModPossibleIssue issue in issues.Take(MaxPossibleIssuesPerMod))
                 _ = builder.AppendLine().Append("- ").Append(DescribePossibleIssue(issue));
@@ -240,7 +249,7 @@ namespace ModHearth.Manager
         private static string BuildInfoIssueText(string category, List<string> details)
         {
             StringBuilder builder = new(
-                "Dwarf Fortress would report these info.txt problems (detected without launching the game):");
+                "Dwarf Fortress could report these info.txt problems (detected without launching the game):");
 
             foreach (string detail in details.Take(MaxPossibleIssuesPerMod))
                 _ = builder.AppendLine().Append("- ").Append(category).Append(": ").Append(detail);

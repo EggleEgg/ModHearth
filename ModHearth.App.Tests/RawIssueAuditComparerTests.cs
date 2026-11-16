@@ -134,25 +134,25 @@ namespace ModHearth.App.Tests
         {
             ModRawDependencyInfo vanillaReactions = Info(
                 "vanilla_reactions",
-                definitions: ["REACTION:ACACIA_BARK_DYE"]);
+                definitions: ["REACTION:GLAZE_CRAFT"]);
             ModRawDependencyInfo cutter = Info(
-                "advanced_agriculture",
-                cuts: ["REACTION:ACACIA_BARK_DYE"]);
+                "ceramics_expanded",
+                cuts: ["REACTION:GLAZE_CRAFT"]);
             ModRawDependencyInfo entity = Info(
                 "entity_mod",
-                permittedReactions: ["ACACIA_BARK_DYE"]);
+                permittedReactions: ["GLAZE_CRAFT"]);
 
             AuditComparison comparison = Compare(
                 [],
-                ErrorLog([Issue("entity_mod", "Unrecognized permitted reaction token", "ACACIA_BARK_DYE")], considered: 1, attributed: 1),
+                ErrorLog([Issue("entity_mod", "Unrecognized permitted reaction token", "GLAZE_CRAFT")], considered: 1, attributed: 1),
                 Index(vanillaReactions, cutter, entity));
 
             ReferenceMismatch mismatch = Assert.Single(comparison.Mismatches);
             Assert.Equal(AuditMismatchStatus.ReportedNotPredicted, mismatch.Status);
             Assert.True(mismatch.ExplainedByCut);
             Assert.Equal(["vanilla_reactions"], mismatch.TargetDefinitionMods);
-            Assert.Equal(["advanced_agriculture"], mismatch.TargetCutMods);
-            Assert.Contains("CUT by advanced_agriculture", mismatch.RawEvidence, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(["ceramics_expanded"], mismatch.TargetCutMods);
+            Assert.Contains("CUT by ceramics_expanded", mismatch.RawEvidence, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(1, comparison.Summary.ReportedOnlyExplainedByCutCount);
         }
 

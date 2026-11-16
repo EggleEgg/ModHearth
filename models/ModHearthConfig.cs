@@ -166,8 +166,5 @@ namespace ModHearth.Models
 
         // Include issues parsed from Dwarf Fortress's errorlog.txt in the warning indicators.
         public bool SearchErrorLogIssues { get; set; } = true;
-
-        // Whether to use bleeding edge update channel.
-        public bool? IsBleedingEdge { get; set; }
     }
 }

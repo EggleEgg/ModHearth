@@ -1,4 +1,5 @@
 using ModHearth.Config;
+using ModHearth.Manager;
 using ModHearth.Models;
 using ModHearth.Utils.IO;
 using Xunit;
@@ -45,6 +46,14 @@ namespace ModHearth.App.Tests
             {
                 RestoreConfigFile(originalJson);
             }
+        }
+
+        [Fact]
+        public void ManagerConfigForwardsToConfigManagerConfig()
+        {
+            // A duplicate ModHearthManager.Config instance used to shadow the loaded config,
+            // making path checks such as IsDFHackInstalled read empty values.
+            Assert.Same(ConfigManager.Config, ModHearthManager.Config);
         }
 
         [Fact]

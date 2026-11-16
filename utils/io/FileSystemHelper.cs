@@ -30,6 +30,27 @@ namespace ModHearth.Utils.IO
         }
 
         /// <summary>
+        /// Deletes <paramref name="path"/> when it exists. Returns false only when the deletion was
+        /// attempted and failed (missing path counts as success).
+        /// </summary>
+        public static bool TryDeleteFile(string path, string label)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return true;
+
+            try
+            {
+                File.Delete(path);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Loggers.Storage.LogError($"Failed to delete {label} '{path}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Recursively copies <paramref name="sourceDir"/> into <paramref name="destinationDir"/>,
         /// overwriting existing files.
         /// </summary>

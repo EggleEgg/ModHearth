@@ -12,7 +12,7 @@ namespace ModHearth.RawIssueAudit
             Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
         };
 
-        public static void Write(AuditReport report, string path)
+        public static void Write<T>(T report, string path)
         {
             string fullPath = Path.GetFullPath(path);
             string? directory = Path.GetDirectoryName(fullPath);

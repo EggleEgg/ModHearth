@@ -4,11 +4,66 @@ using Xunit;
 namespace ModHearth.App.Tests
 {
     /// <summary>
-    /// Build versions are dotted numbers ("51.10"), not decimal numbers or plain text. These tests
-    /// keep the update checker ranking them numerically instead of trusting GitHub's API order.
+    /// Main builds use plain integer versions ("51") and bleeding-edge builds use dotted versions
+    /// ("51.10"). These tests keep the update checker ranking builds numerically instead of trusting
+    /// GitHub's API order, and keep the two channels from cross-comparing.
     /// </summary>
     public class UpdateHelpersTests
     {
+        [Theory]
+        [InlineData("51", UpdateChannel.Main)]
+        [InlineData("build-51", UpdateChannel.Main)]
+        [InlineData("v51", UpdateChannel.Main)]
+        [InlineData("51.1", UpdateChannel.BleedingEdge)]
+        [InlineData("build-51.10", UpdateChannel.BleedingEdge)]
+        [InlineData("51.10.1", UpdateChannel.BleedingEdge)]
+        [InlineData("none", UpdateChannel.BleedingEdge)]
+        [InlineData("local-dev", UpdateChannel.BleedingEdge)]
+        [InlineData("", UpdateChannel.BleedingEdge)]
+        public void GetBuildChannelUsesVersionShape(string version, UpdateChannel expected)
+            => Assert.Equal(expected, UpdateHelpers.GetBuildChannel(version));
+
+        [Fact]
+        public void SelectLatestReleaseFiltersToRequestedChannel()
+        {
+            List<GitHubRelease> releases =
+            [
+                Release("build-51"),
+                Release("build-51.9"),
+                Release("build-51.10")
+            ];
+
+            Assert.Equal("build-51", UpdateHelpers.SelectLatestRelease(releases, UpdateChannel.Main)!.TagName);
+            Assert.Equal("build-51.10", UpdateHelpers.SelectLatestRelease(releases, UpdateChannel.BleedingEdge)!.TagName);
+            Assert.Null(UpdateHelpers.SelectLatestRelease([Release("build-51")], UpdateChannel.BleedingEdge));
+        }
+
+        [Theory]
+        [InlineData("51", "build-51", false)]
+        [InlineData("51", "build-52", true)]
+        [InlineData("51", "build-52.1", false)]
+        [InlineData("51.1", "build-51.2", true)]
+        [InlineData("51.2", "build-51.2", false)]
+        [InlineData("51.2", "build-52", false)]
+        public void EvaluateUpdateAvailabilityOnlyComparesTheCurrentChannel(
+            string current,
+            string tagName,
+            bool expected)
+        {
+            UpdateCheckResult result = UpdateHelpers.EvaluateUpdateAvailability([Release(tagName)], current, ignoredVersion: null);
+
+            Assert.Equal(expected, result.IsAvailable);
+        }
+
+        [Fact]
+        public void EvaluateUpdateAvailabilityHonorsIgnoredVersion()
+        {
+            UpdateCheckResult result = UpdateHelpers.EvaluateUpdateAvailability([Release("build-52")], "51", "52");
+
+            Assert.False(result.IsAvailable);
+            Assert.Equal("52", result.LatestVersion);
+        }
+
         [Theory]
         [InlineData("51.10", "51.9", true)]
         [InlineData("51.9", "51.10", false)]

@@ -114,6 +114,63 @@ The audit uses two Lua scripts interacting with DFHack APIs:
    - `df.global.gamemode`: Preflight check against loaded game sessions.
    - `dfhack.timeout()`: Schedules asynchronous frame-based steps.
 
+### Hardcoded token report
+
+`--hardcoded-report` is a separate read-only mode that does not need `errorlog.txt` or DFHack. It
+inventories the tokens Dwarf Fortress resolves itself and checks how the active mods use them:
+
+```powershell
+dotnet run --project ModHearth.RawIssueAudit -- --hardcoded-report
+dotnet run --project ModHearth.RawIssueAudit -- --hardcoded-report --verify-hardcoded
+```
+
+The catalog lives in `utils/modRaws/DwarfFortressHardcodedTokens.cs`. Each group carries its
+domain, raw context, behavior, verification strategy, source, and the DF version it was verified
+against:
+
+| Group | What it models | Drift check |
+| --- | --- | --- |
+| Reaction buildings | The 31 built-in workshop/furnace ids accepted by a reaction's `[BUILDING:ID]` (`CARPENTER`, `SMELTER`, `DYER`, ...). No raw file defines them, and they are not valid `PERMITTED_BUILDING` ids. | Compares the catalog with the building ids vanilla reactions actually use. Several short ids are inlined in the executable and graphics use prefixed names such as `WORKSHOP_LOOM`, so standalone executable strings are not reliable. |
+| Cut-immune dye reactions | The vanilla dye reactions defined by `vanilla_reactions/objects/reaction_dyes.txt` and permitted by `entity_default.txt`. DF carries their ids in the executable and silently ignores `CUT_REACTION` for them. Mod-added dye reactions are cut normally. | The token list is derived at runtime by intersecting `[REACTION:...]` in `reaction_dyes.txt` with `[PERMITTED_REACTION:...]` in `entity_default.txt`, then checked by exact standalone NUL-terminated string comparison against the executable. |
+| Concrete built-in materials | The 18 materials DF constructs itself (`WATER`, `ASH`, `GLASS_CLEAR`, ...). They need no raw definition and are valid as the first material token in a `REAGENT`/`PRODUCT` slot. | Exact standalone NUL-terminated string comparison against the executable. |
+| Material grammar tokens | The 10 material keywords and sentinels (`NONE`, `INORGANIC`, `PLANT_MAT`, `LOCAL_PLANT_MAT`, `GET_MATERIAL_FROM_REAGENT`, ...). They describe how the rest of the slot is parsed; they are not material definitions. | Exact standalone NUL-terminated string comparison against the executable. |
+
+Only the dye group is derived; the other groups keep their token lists in the catalog. The
+distinction matters. The dye entries do **not** claim the reactions are built into raws or hidden
+from mods: `reaction_dyes.txt` defines them and `entity_default.txt` permits them. What is
+hardcoded is their cut immunity, which controlled runs confirmed by cutting one, three, and all 68
+dye ids from different files and load positions; every cut was ignored, while `PRESS_OIL_FRUIT`
+and a mod-added `DCCF_DEEP_OAK_BARK_DYE` were cut normally. The current DF 53.17 raws define 68
+dye reactions, permit 126 reactions, and the intersection is exactly those 68 dye ids. A DF update
+that changes either raw file updates the analyzer without a catalog edit; `--verify-hardcoded`
+reports drift if the derived set and the executable disagree.
+
+The report contains:
+
+1. **Catalog inventory**: every group, description, source, verification version and strategy, and
+   token.
+2. **Active-mod usage**: reaction building ids, ignored dye cuts, built-in materials, and material
+   grammar tokens used by the active modpack, with use counts and owning mods.
+3. **Invalid `PERMITTED_BUILDING` contexts**: mods that put a built-in workshop/furnace id where
+   only a raw-defined custom building is accepted.
+4. **Unresolved material references**: `REAGENT`/`PRODUCT` material tokens that name an
+   `INORGANIC`, `PLANT`, or `CREATURE` object no active mod or vanilla raw defines. The scan reads
+   the active mod folders from `mod_folder_snapshot.json`; it skips
+   `GET_ITEM_DATA_FROM_REAGENT` and creature-caste item types such as `FISH_RAW`.
+5. **Vanilla consistency checks**: catalog entries vanilla raws unexpectedly define, and vanilla
+   reactions that use a `BUILDING` id no raw defines and the catalog does not cover.
+6. **Unclassified material samples**: token shapes the parser does not model yet. These are
+   catalog-maintenance leads, not necessarily DF errors.
+7. **Optional executable verification**: `--verify-hardcoded` extracts standalone NUL-terminated
+   ASCII strings from the installed `Dwarf Fortress.exe`. Each derived dye reaction passes when it
+   appears exactly as a standalone string; material and grammar entries use the same
+   string-presence check. The report also fails if the executable contains a vanilla reaction id
+   that the derived dye set does not cover. Reaction building ids are covered by the vanilla
+   consistency check described above instead.
+
+`--verify-hardcoded` requires `--hardcoded-report` and a resolvable DF folder. `--hardcoded-report`
+cannot be combined with `--automate`; it never writes the log, cache, config, or DF data.
+
 ### Options
 
 | Option | Meaning |
@@ -129,6 +186,8 @@ The audit uses two Lua scripts interacting with DFHack APIs:
 | `--automate` | Opt in to automated errorlog generation with a short worldgen (see above). Alias: `--automate-worldgen`. |
 | `--automation-timeout <seconds>` | Maximum worldgen automation time. Default: `180`; range: `30`-`3600`. |
 | `--keep-df-running` | Leave DF running when the audit launched it. Has no effect on an already-running instance. |
+| `--hardcoded-report` | Inventory the hardcoded-token catalog and the active mods' use of it. Read-only; does not need `errorlog.txt`. Cannot be combined with `--automate`. |
+| `--verify-hardcoded` | With `--hardcoded-report`, verify the catalog against the installed Dwarf Fortress executable and vanilla raws. |
 | `--json <path>` | Write the complete report as JSON, including matches and warnings. |
 | `--show-matches` | List matched predictions in the text report. |
 | `--max-details <n>` | Maximum entries per text-report section. Default: `40`. |
@@ -138,11 +197,11 @@ The audit uses two Lua scripts interacting with DFHack APIs:
 
 | Code | Meaning |
 | --- | --- |
-| `0` | No mismatches. The analyzer and the log agree for every mapped reference category. |
-| `1` | Mismatches found. Inspect the sections in the report. |
+| `0` | No mismatches, or the hardcoded report completed without catalog drift. |
+| `1` | Mismatches found, or `--verify-hardcoded` found drift. Inspect the sections in the report. |
 | `2` | Invalid input or audit failure (missing files, unsupported cache schema, unreadable log, ...). |
 
-`--json` still writes the report when mismatches are found; the exit code remains `1`.
+`--json` still writes the report when mismatches or drift are found; the exit code remains `1`.
 
 ## Reading the report
 
@@ -178,14 +237,54 @@ Each mismatch also includes:
 
 ### `ExplainedByCut`
 
-`ModPossibleIssueAnalyzer` currently treats any direct definition as satisfying a reference. It does
-not model a later mod CUTting that definition out of the merged raw set. When a target is defined by
-one active mod and CUT by another, DF can still report the reference as unrecognized while the
-analyzer stays silent.
+`ModPossibleIssueAnalyzer` resolves the reference kinds `errorlog.txt` can verify
+(`PERMITTED_REACTION`, `PERMITTED_BUILDING`, and a reaction's `BUILDING`) against the final merged
+raw set. It walks the active mods in DF load order: vanilla definitions are the initial state, each
+mod removes its CUT targets, then adds its own definitions. A later definition restores a target an
+earlier mod cut. Within one mod, cuts are applied before definitions because the cache stores an
+unordered set per mod; a replacer that cuts a vanilla object and defines its own replacement keeps
+that replacement.
 
-The audit flags those false negatives with `ExplainedByCut`, lists the defining and cutting mods,
-and includes the same explanation in the evidence sentence. This is a known analyzer limitation, not
-automatically a scanner bug.
+One DF-specific exception is modeled explicitly. DF hardcodes the vanilla dye reactions defined by
+`vanilla_reactions/objects/reaction_dyes.txt` and permitted by `entity_default.txt`, and silently
+ignores `CUT_REACTION` for exactly those ids, even when the cut comes from the last-loaded mod. The
+analyzer derives the set from those two files at load time and exempts it; mod-added dye reactions
+such as `DCCF_DEEP_OAK_BARK_DYE` are cut normally. If the raw files are missing or unreadable, the
+derived set is empty and the hardcoded report records a warning.
+
+The exception was confirmed with controlled runs against the same 256-mod setup:
+
+- one dye cut, the three-entry pressing block, and all 68 dye cuts were all ignored;
+- moving the dye cut to `reaction_aa_pressing.txt`, then to a new file in the last-loaded
+  `VanillaDyeRebalance`, still left `ALDER_CONE_DYE` usable;
+- the control `PRESS_OIL_FRUIT` cut worked in the same files and positions;
+- `DCCF_DEEP_OAK_BARK_DYE` (defined by `dc_more_cavestuff`, cut by the later
+  `dc_cavern_flora_aa_patch`) was reported by DF.
+
+These runs rule out block size, file grouping, and load order. The derived ids are the same strings
+DF stores next to its "Unrecognized permitted reaction token" diagnostic in `Dwarf Fortress.exe`;
+`--verify-hardcoded` is the executable-string drift check for that assumption.
+
+Audit evidence on the 256-mod baseline:
+
+- Without the exemption, a load-order simulation listed all 68 vanilla dyes as predicted-only false
+  positives.
+- With the exemption, the 21 genuinely cut reactions (clay/glaze, metals, `PRESS_OIL_FRUIT`, and two
+  `DCCF_*` reactions) are predicted and match DF's log.
+- The remaining predicted-only entries are the two separate entity-replacement cases below; the
+  exemption adds no new predicted-only entries.
+
+`ExplainedByCut` still marks a mismatch where the raw scan sees both a definition and a CUT and the
+log disagrees with the prediction. That is now a lead to investigate, not an expected limitation.
+`SELECT`/`CUT`/`COPY_TAGS_FROM` predictions stay outside the load-order model because DF has no
+stable diagnostic for them.
+
+The reverse case can produce a predicted-only entry: a `SELECT_ENTITY` patch adds a permitted
+reaction, then a later mod CUTs and re-adds the entity, discarding the earlier patch. The 256-mod
+baseline's `SMELT_ANTIMONY_FROM_STIBNITE` and `PIG_IRON_MAKING` entries are this case; see Known
+limitations.
+This is consistent with the wiki's rule that a later CUT "will completely replace that mod's edit"
+([Modding pitfalls](https://dwarffortresswiki.org/Modding_pitfalls)).
 
 ### Unattributed reference errors
 
@@ -240,8 +339,14 @@ wording and are reported as not verifiable.
   preset DF recorded and fails if no modpack can be resolved.
 - **Automation does not refresh the raw cache**. Run ModHearth once after changing the modlist so
   the cache versions match the preset DF actually loads.
-- **CUT-aware resolution is not implemented** in `ModPossibleIssueAnalyzer`; the audit explains the
-  resulting false negatives rather than hiding them.
+- **Hardcoded vanilla dye cuts are exempt**. DF hardcodes the vanilla dye reaction ids and silently
+  ignores `CUT_REACTION` for them. The analyzer derives the ids by intersecting
+  `vanilla_reactions/objects/reaction_dyes.txt` with `entity_default.txt`; run
+  `--hardcoded-report --verify-hardcoded` after a DF update to check the derived set against the
+  executable. Mod-added dyes are still cut normally.
+- **CUT-aware resolution uses mod-level load order**. The cache stores cuts and definitions as
+  unordered per-mod sets, so a cut and a definition inside the same mod are applied as "cut first,
+  then define". `SELECT`/`CUT`/`COPY_TAGS_FROM` predictions are not load-order aware.
 - **Built-in workshop/furnace ids** such as `CARPENTER` and `SMELTER` are valid in a reaction's
   `[BUILDING:ID]` token even though no raw file defines them. A log line for one of those ids is
   not treated as a normal missing definition.
@@ -250,7 +355,9 @@ wording and are reported as not verifiable.
   different DF version.
 - **Cache versions can drift**: if the active modlist version is not present in the cache, the tool
   falls back to the newest cached row for that mod and records a warning. Rescan with ModHearth
-  before trusting the result.
+  before trusting the result. The hardcoded report's material scan also uses the cache's definition
+  ids, so a version fallback can show unresolved material references that the installed folder
+  actually defines.
 - **Attribution is heuristic**. The audit intentionally reports unattributed lines instead of
   silently dropping them or guessing a mod.
 - **SELECT_* patches can look like attribution mismatches**. When a mod adds a permitted reaction or
@@ -258,6 +365,16 @@ wording and are reported as not verifiable.
   object under its original mod. The log therefore names the base object's mod, while the analyzer
   names the patch owner. Use the mismatch's raw reference mods to find the real owner; the evidence
   sentence calls this out.
+- **Entity replacement can discard an earlier SELECT patch**. The 256-mod baseline has two
+  predicted-only entries. `SMELT_ANTIMONY_FROM_STIBNITE` is added to `MOUNTAIN` and `PLAINS` by
+  `real_alloys_reforged` at load position 139, then `march_of_wrath` CUTs both entities at 140.
+  `PIG_IRON_MAKING` is added to `MOUNTAIN`, `PLAINS`, and `EVIL` by `Vanilla_Materials_Overhaul` at
+  138, and `march_of_wrath` CUTs those entities at 140 after also cutting the reaction. In both
+  cases the finalized entities do not contain the patch, while later SELECT patches at positions
+  211 and 238 are validated. This is the documented behavior that a later CUT completely replaces an
+  earlier mod's edit ([Modding pitfalls](https://dwarffortresswiki.org/Modding_pitfalls)). The cache
+  stores permitted reactions per mod rather than per patched entity, so the analyzer cannot
+  distinguish a discarded patch from an active one without a schema change.
 - **No body-plan/tissue simulation**: only raw references that can be modeled reliably are compared.
   Tissue, body-part, graphics, and similar diagnostics remain outside this tool's scope.
 
@@ -269,13 +386,26 @@ wording and are reported as not verifiable.
 3. Run the audit with `--json` and keep the report.
 4. Start with `Reported but not predicted` and `Attribution mismatch`; these usually identify real
    analyzer or scanner gaps.
-5. For each `ExplainedByCut` entry, decide whether to implement cut-aware resolution in the analyzer
-   or accept the limitation.
+5. For each `ExplainedByCut` entry, verify whether DF actually honors the cut. A remaining entry is
+   either a DF exception that needs modeling or a scanner/cache gap.
 6. Treat `Predicted but not reported` as a false-positive lead only after confirming the log is
    from the same mod set and launch.
 7. Add regression tests in `ModHearth.App.Tests` for any analyzer change.
 8. Re-run the audit against the same inputs and confirm the mismatch set moves in the expected
    direction.
+
+After a Dwarf Fortress update, also run:
+
+```powershell
+dotnet run --project ModHearth.RawIssueAudit -- --hardcoded-report --verify-hardcoded
+```
+
+A clean run exits `0`. Exit `1` means the executable or vanilla raws changed relative to the
+catalog or the derived dye set. The report lists each drifted token and whether it is missing from
+the executable, newly present, unexpectedly defined by vanilla raws, or used by a vanilla reaction
+without being cataloged. Dye drift is reported when the executable no longer carries an id derived
+from `reaction_dyes.txt`/`entity_default.txt`, or when it carries a vanilla reaction id outside that
+derived set. Re-run the controlled cut probes before changing how cut immunity is modeled.
 
 ## Tests
 
@@ -287,3 +417,5 @@ wording and are reported as not verifiable.
 - `RawIssueAuditAutomationTests` for the automation options, status/state parsing, log rotation,
   missing-log handling, and DFHack path discovery.
 - `RawIssueAuditRunnerTests` for synthetic end-to-end cache/modlist/vanilla/errorlog runs.
+- `RawHardcodedTokenTests` for catalog invariants, material-token parsing, report option validation,
+  material scanning, drift verification, and synthetic hardcoded report runs.

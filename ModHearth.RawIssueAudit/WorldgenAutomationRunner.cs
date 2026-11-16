@@ -63,6 +63,9 @@ namespace ModHearth.RawIssueAudit
             if (!Directory.Exists(dfPath))
                 throw new AuditInputException($"Dwarf Fortress folder not found: {dfPath}");
 
+            string errorLogPath = paths.ErrorLogPath
+                ?? throw new AuditInputException("--automate requires a Dwarf Fortress errorlog path.");
+
             bool wasRunning = DFMonitor.Shared.IsProcessRunning();
             HashSet<string>? existingWorldSaves = TrySnapshotWorldSaves(dfPath, warnings);
             Process? launched = null;
@@ -86,7 +89,7 @@ namespace ModHearth.RawIssueAudit
                 DfScreenProbe probe = WaitForStartScreen(paths, launched);
                 warnings.Add($"Worldgen automation starting from {DescribeScreen(probe)}.");
 
-                string? backupPath = RotateErrorLog(paths.ErrorLogPath);
+                string? backupPath = RotateErrorLog(errorLogPath);
                 if (backupPath != null)
                 {
                     warnings.Add(
@@ -137,9 +140,9 @@ namespace ModHearth.RawIssueAudit
                     launched = null;
                 }
 
-                WaitForErrorLog(paths.ErrorLogPath, warnings, ErrorLogStabilityTimeout);
+                WaitForErrorLog(errorLogPath, warnings, ErrorLogStabilityTimeout);
                 warnings.Add(
-                    $"Worldgen automation completed; auditing '{paths.ErrorLogPath}'.");
+                    $"Worldgen automation completed; auditing '{errorLogPath}'.");
             }
             finally
             {

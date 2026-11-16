@@ -19,7 +19,10 @@
     <StackPanel x:Name="ProgressPanel" Spacing="6" IsVisible="False">
       <ProgressBar
         x:Name="SetupProgressBar"
-        IsIndeterminate="True"
+        IsIndeterminate="False"
+        Minimum="0"
+        Maximum="100"
+        Value="0"
         Height="8"
         Foreground="{DynamicResource ModRefHighlightBrush}" />
       <TextBlock

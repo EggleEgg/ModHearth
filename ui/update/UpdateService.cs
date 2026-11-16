@@ -76,7 +76,8 @@ namespace ModHearth.UI.Update
 
             try
             {
-                List<GitHubRelease> releases = await FetchRecentBuildsAsync(RecentBuildCount);
+                UpdateChannel channel = UpdateHelpers.GetBuildChannel(currentBuild);
+                List<GitHubRelease> releases = await FetchRecentBuildsAsync(RecentBuildCount, channel);
                 if (releases.Count == 0)
                 {
                     UpdateLogger.LogError("No builds found in the repository.");
@@ -84,7 +85,7 @@ namespace ModHearth.UI.Update
                     return false;
                 }
 
-                GitHubRelease? selected = await UpdateDialog.ShowAsync(owner, releases, currentBuild);
+                GitHubRelease? selected = await UpdateDialog.ShowAsync(owner, releases, currentBuild, channel);
                 if (selected == null)
                 {
                     UpdateLogger.Log("Update canceled by user.");
@@ -136,27 +137,13 @@ namespace ModHearth.UI.Update
             }
         }
 
-        internal static bool IsCurrentBuildBleedingEdge()
+        internal static UpdateChannel GetCurrentBuildChannel() =>
+            UpdateHelpers.GetBuildChannel(ModHearthManager.GetBuildVersionString());
+
+        internal static async Task<List<GitHubRelease>> FetchRecentBuildsAsync(int count, UpdateChannel? channel = null)
         {
-            if (ConfigManager.GetIsBleedingEdge() is { } configured)
-                return configured;
-
-            string version = ModHearthManager.GetBuildVersionString();
-            if (string.IsNullOrWhiteSpace(version))
-                return false;
-
-            return version.Contains("dev", StringComparison.OrdinalIgnoreCase)
-                || version.Contains("bleeding", StringComparison.OrdinalIgnoreCase)
-                || version.Contains("edge", StringComparison.OrdinalIgnoreCase)
-                || version.Contains("alpha", StringComparison.OrdinalIgnoreCase)
-                || version.Contains("beta", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(version, "none", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(version, "local-dev", StringComparison.OrdinalIgnoreCase);
-        }
-
-        internal static async Task<List<GitHubRelease>> FetchRecentBuildsAsync(int count, bool? isBleedingEdge = null)
-        {
-            bool bleeding = isBleedingEdge ?? IsCurrentBuildBleedingEdge();
+            UpdateChannel resolvedChannel = channel ?? GetCurrentBuildChannel();
+            bool bleeding = resolvedChannel == UpdateChannel.BleedingEdge;
             string owner = bleeding ? BleedingEdgeRepoOwner : UpdateRepoOwner;
             string repo = bleeding ? BleedingEdgeRepoName : UpdateRepoName;
 
@@ -172,8 +159,9 @@ namespace ModHearth.UI.Update
             }
 
             // GitHub orders releases by creation time, which does not match build order (build-51.10
-            // can appear below build-51.9), so rank by parsed build version before truncating.
-            return [.. UpdateHelpers.OrderByNewest(releases).Take(count)];
+            // can appear below build-51.9), so rank by parsed build version before truncating. The
+            // channel filter is a safety net in case a repository ever contains both build shapes.
+            return [.. UpdateHelpers.OrderByNewest(releases, resolvedChannel).Take(count)];
         }
 
         private static async Task<List<GitHubRelease>> FetchReleasePageAsync(string url)

@@ -36,7 +36,7 @@ namespace ModHearth.Models
             // Error-log problems are refined per category below.
             ModProblem.ProblemType.ErrorLogIssue => ModIssueTier.Warning,
 
-            // Statically predicted raw problems: DF would report them on load, but the game is
+            // Statically predicted raw problems: DF could report them on load, but the game is
             // not expected to fail outright.
             ModProblem.ProblemType.PossibleIssue => ModIssueTier.Warning,
             _ => ModIssueTier.Warning

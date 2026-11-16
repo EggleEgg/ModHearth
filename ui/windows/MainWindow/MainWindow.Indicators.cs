@@ -53,7 +53,7 @@ namespace ModHearth.UI
             string tooltip = (hasIssues
                 ? ((ModListIndicatorUpdater.BuildWarningIssuesTooltip(problemCount, duplicateCount) + Environment.NewLine) ?? string.Empty)
                 + Environment.NewLine + "Click to jump to the next issue." + Environment.NewLine : string.Empty)
-                + "Left click to choose issue search types";
+                + "Right click to choose issue search types";
 
             if (tooltip != lastWarningTooltip)
             {

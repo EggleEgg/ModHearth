@@ -19,6 +19,8 @@ namespace ModHearth.RawIssueAudit
         public bool HelpRequested { get; private set; }
         public bool AutomateWorldgen { get; private set; }
         public bool KeepDwarfFortressRunning { get; private set; }
+        public bool HardcodedReport { get; private set; }
+        public bool VerifyHardcoded { get; private set; }
         public int MaxDetails { get; private set; } = 40;
         public int AutomationTimeoutSeconds { get; private set; } = 180;
 
@@ -53,6 +55,14 @@ namespace ModHearth.RawIssueAudit
 
                     case "--keep-df-running":
                         options.KeepDwarfFortressRunning = true;
+                        break;
+
+                    case "--hardcoded-report":
+                        options.HardcodedReport = true;
+                        break;
+
+                    case "--verify-hardcoded":
+                        options.VerifyHardcoded = true;
                         break;
 
                     case "--errorlog":
@@ -146,6 +156,19 @@ namespace ModHearth.RawIssueAudit
             {
                 error = "--automate cannot be combined with --all-mods; automation always uses " +
                     "Dwarf Fortress's active mod preset.";
+                return options;
+            }
+
+            if (options.VerifyHardcoded && !options.HardcodedReport)
+            {
+                error = "--verify-hardcoded requires --hardcoded-report.";
+                return options;
+            }
+
+            if (options.HardcodedReport && options.AutomateWorldgen)
+            {
+                error = "--hardcoded-report cannot be combined with --automate; " +
+                    "the hardcoded token report is read-only.";
                 return options;
             }
 

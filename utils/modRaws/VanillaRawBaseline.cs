@@ -16,12 +16,25 @@ namespace ModHearth.Utils.ModRaws
 
         private readonly HashSet<ObjectKey> _baseline;
         private readonly HashSet<string> _objectTypes;
+        private readonly HashSet<string> _cutIgnoredDyeReactions;
 
         public VanillaRawBaseline(IEnumerable<ObjectKey> keys)
+            : this(keys, [])
+        {
+        }
+
+        public VanillaRawBaseline(
+            IEnumerable<ObjectKey> keys,
+            IEnumerable<string> cutIgnoredDyeReactions)
         {
             _baseline = [.. keys];
             _objectTypes = new HashSet<string>(
                 _baseline.Select(key => key.ObjectType).Where(type => !string.IsNullOrWhiteSpace(type)),
+                StringComparer.OrdinalIgnoreCase);
+            _cutIgnoredDyeReactions = new HashSet<string>(
+                cutIgnoredDyeReactions
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Select(id => id.Trim()),
                 StringComparer.OrdinalIgnoreCase);
         }
 
@@ -39,6 +52,35 @@ namespace ModHearth.Utils.ModRaws
 
         /// <summary>Number of vanilla object definitions captured by the baseline scan.</summary>
         public int Count => _baseline.Count;
+
+        /// <summary>
+        /// Vanilla dye reactions whose <c>CUT_REACTION</c> DF ignores, derived from
+        /// <c>reaction_dyes.txt</c> and <c>entity_default.txt</c>. Empty when the raws were not
+        /// loaded or the files could not be read; the hardcoded report surfaces that as a warning.
+        /// </summary>
+        public IReadOnlyCollection<string> CutIgnoredDyeReactions => _cutIgnoredDyeReactions;
+
+        /// <summary>
+        /// True when DF silently ignores a <c>CUT_REACTION</c> for this vanilla dye reaction.
+        /// </summary>
+        public bool IsCutIgnoredDyeReaction(string? id)
+            => !string.IsNullOrWhiteSpace(id) && _cutIgnoredDyeReactions.Contains(id.Trim());
+
+        /// <summary>
+        /// Ids the vanilla raws define for one object type. The analyzer seeds its merged
+        /// load-order state with these ids and lets active CUTs remove them.
+        /// </summary>
+        public IEnumerable<string> IdsOf(string objectType)
+        {
+            if (string.IsNullOrWhiteSpace(objectType))
+                yield break;
+
+            foreach (ObjectKey key in _baseline)
+            {
+                if (string.Equals(key.ObjectType, objectType, StringComparison.OrdinalIgnoreCase))
+                    yield return key.Id;
+            }
+        }
 
         public bool Contains(ObjectKey? key) => key != null && _baseline.Contains(key);
 
@@ -61,8 +103,12 @@ namespace ModHearth.Utils.ModRaws
         /// Loads the vanilla baseline by scanning the objects/ folders of all mods
         /// located under <paramref name="vanillaModsPath"/>. Each mod folder's scan is
         /// independent, so this mirrors EnsureModRawDependencyCacheAsync's parallel raw scan.
+        /// The cut-ignored dye reaction ids are derived from the vanilla raw definitions and
+        /// permissions so they follow a game update without a catalog edit.
         /// </summary>
-        public static VanillaRawBaseline Load(string vanillaModsPath)
+        public static VanillaRawBaseline Load(
+            string vanillaModsPath,
+            ICollection<string>? warnings = null)
         {
             if (string.IsNullOrWhiteSpace(vanillaModsPath) || !Directory.Exists(vanillaModsPath))
                 return Empty;
@@ -85,7 +131,9 @@ namespace ModHearth.Utils.ModRaws
                     }
                 });
 
-                return new VanillaRawBaseline(keys);
+                return new VanillaRawBaseline(
+                    keys,
+                    VanillaDyeReactionCatalog.Load(vanillaModsPath, warnings));
             }
             catch (Exception ex)
             {

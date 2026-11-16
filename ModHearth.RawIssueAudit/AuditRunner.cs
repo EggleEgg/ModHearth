@@ -26,20 +26,7 @@ namespace ModHearth.RawIssueAudit
                 warnings,
                 allowMissingErrorLog: options.AutomateWorldgen);
 
-            if (!ModRawDependencyCacheStore.TryLoadEntries(
-                paths.CachePath,
-                out List<ModRawDependencyInfo>? cacheEntries,
-                out int schemaVersion))
-            {
-                string message = schemaVersion == 0
-                    ? $"Raw dependency cache is unreadable: {paths.CachePath}"
-                    : $"Raw dependency cache schema {schemaVersion} is not supported " +
-                        $"(expected {ModRawDependencyCacheStore.CurrentSchemaVersion}). Run ModHearth once to rebuild it.";
-                throw new AuditInputException(message);
-            }
-
-            if (cacheEntries.Count == 0)
-                throw new AuditInputException($"Raw dependency cache has no mod entries: {paths.CachePath}");
+            List<ModRawDependencyInfo> cacheEntries = LoadCache(paths.CachePath, out int schemaVersion);
 
             // When automation runs, DF may rewrite an empty mod-manager.json with the preset it
             // actually loads. Validate the file now, but defer selection until after worldgen so
@@ -80,7 +67,8 @@ namespace ModHearth.RawIssueAudit
             List<ModPossibleIssue> predictions = ModPossibleIssueAnalyzer.Analyze(
                 selection.Entries,
                 activeModIds,
-                vanillaBaseline);
+                vanillaBaseline,
+                [.. selection.Entries.Select(entry => entry.ModId)]);
 
             RawReferenceIndex rawReferences = RawReferenceIndex.Build(cacheEntries, activeModIds);
 
@@ -97,8 +85,11 @@ namespace ModHearth.RawIssueAudit
                 };
             })];
 
+            string errorLogPath = paths.ErrorLogPath
+                ?? throw new AuditInputException("Audit mode requires a Dwarf Fortress errorlog path.");
+
             ModErrorLogAnalysis errorLog = ModErrorLogAnalyzer.Analyze(
-                paths.ErrorLogPath,
+                errorLogPath,
                 modReferences,
                 selection.Entries);
 
@@ -119,7 +110,7 @@ namespace ModHearth.RawIssueAudit
             }
 
             AuditInputSummary inputs = new(
-                paths.ErrorLogPath,
+                errorLogPath,
                 errorLog.LastWriteUtc,
                 paths.CachePath,
                 File.GetLastWriteTimeUtc(paths.CachePath),
@@ -147,6 +138,31 @@ namespace ModHearth.RawIssueAudit
                 comparison.UnverifiablePredictions,
                 comparison.UnmappedErrorLogCategories,
                 warnings);
+        }
+
+        /// <summary>
+        /// Loads and validates the persisted raw dependency cache. Shared by the comparison audit
+        /// and the hardcoded token report so both modes fail on the same inputs for the same reasons.
+        /// </summary>
+        internal static List<ModRawDependencyInfo> LoadCache(string cachePath, out int schemaVersion)
+        {
+            if (!ModRawDependencyCacheStore.TryLoadEntries(
+                cachePath,
+                out List<ModRawDependencyInfo>? cacheEntries,
+                out schemaVersion))
+            {
+                string message = schemaVersion == 0
+                    ? $"Raw dependency cache is unreadable: {cachePath}"
+                    : $"Raw dependency cache schema {schemaVersion} is not supported " +
+                        $"(expected {ModRawDependencyCacheStore.CurrentSchemaVersion}). Run ModHearth once to rebuild it.";
+                throw new AuditInputException(message);
+            }
+
+            cacheEntries ??= [];
+            if (cacheEntries.Count == 0)
+                throw new AuditInputException($"Raw dependency cache has no mod entries: {cachePath}");
+
+            return cacheEntries;
         }
 
         /// <summary>
@@ -196,7 +212,7 @@ namespace ModHearth.RawIssueAudit
             }
         }
 
-        private static ActiveModSelection SelectActiveMods(
+        internal static ActiveModSelection SelectActiveMods(
             AuditOptions options,
             string? modListPath,
             List<ModRawDependencyInfo> cacheEntries,
@@ -366,7 +382,7 @@ namespace ModHearth.RawIssueAudit
                 : -1;
         }
 
-        private static Dictionary<string, SnapshotEntry> LoadSnapshot(
+        internal static Dictionary<string, SnapshotEntry> LoadSnapshot(
             string cachePath,
             List<string> warnings)
         {
@@ -400,7 +416,7 @@ namespace ModHearth.RawIssueAudit
             }
         }
 
-        private sealed record ActiveModSelection(
+        internal sealed record ActiveModSelection(
             IReadOnlyList<ModRawDependencyInfo> Entries,
             string Source,
             string? ModListName);
@@ -426,7 +442,7 @@ namespace ModHearth.RawIssueAudit
             public int Version { get; set; }
         }
 
-        private sealed class SnapshotEntry
+        internal sealed class SnapshotEntry
         {
             public string ModId { get; set; } = string.Empty;
             public string ModName { get; set; } = string.Empty;

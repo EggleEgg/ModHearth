@@ -16,8 +16,11 @@
 
 local gui = require('gui')
 
-local status_path = ...
-local timeout_ms = tonumber((...)) or 180000
+local status_path, timeout_arg = ...
+local timeout_ms = tonumber(timeout_arg)
+if timeout_ms == nil or timeout_ms <= 0 then
+    timeout_ms = 180000
+end
 if status_path == nil or status_path == '' then
     qerror('status file path is required')
 end

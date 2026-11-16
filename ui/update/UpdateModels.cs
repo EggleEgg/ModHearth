@@ -37,6 +37,21 @@ namespace ModHearth.UI.Update
         public string? Digest { get; set; }
     }
 
+    /// <summary>
+    /// Release channel of a build. Main builds use plain integer versions ("51");
+    /// bleeding-edge builds use dotted versions ("51.10").
+    /// </summary>
+    public enum UpdateChannel
+    {
+        Main,
+        BleedingEdge
+    }
+
+    /// <summary>
+    /// Result of comparing the fetched releases with the running build.
+    /// </summary>
+    public readonly record struct UpdateCheckResult(bool IsAvailable, string? LatestVersion);
+
     internal static class UpdateHelpers
     {
         public static string? TryGetBuildNumber(GitHubRelease release)
@@ -71,6 +86,22 @@ namespace ModHearth.UI.Update
         /// </summary>
         public static string GetReleaseVersion(GitHubRelease release) =>
             TryGetBuildNumber(release) ?? CleanVersionString(release.TagName);
+
+        /// <summary>
+        /// Derives the release channel from a build version. Main builds are plain integers ("51");
+        /// bleeding-edge builds are dotted ("51.10"). Local or unknown versions are treated as
+        /// bleeding edge so they are never compared against stable builds.
+        /// </summary>
+        public static UpdateChannel GetBuildChannel(string? version)
+        {
+            string clean = CleanVersionString(version);
+            return clean.Length > 0 && clean.All(char.IsAsciiDigit)
+                ? UpdateChannel.Main
+                : UpdateChannel.BleedingEdge;
+        }
+
+        public static bool IsReleaseForChannel(GitHubRelease release, UpdateChannel channel) =>
+            GetBuildChannel(GetReleaseVersion(release)) == channel;
 
         /// <summary>
         /// Compares two build versions by their numeric parts, so "51.10" sorts after "51.9" even
@@ -112,10 +143,11 @@ namespace ModHearth.UI.Update
 
         /// <summary>
         /// Returns the release with the highest build version, regardless of the order the GitHub API
-        /// returned it in (the API sorts by creation time, not by build number). Releases without a
-        /// usable version are only used as a fallback when no versioned release exists.
+        /// returned it in (the API sorts by creation time, not by build number). When a channel is
+        /// supplied, releases from the other channel are ignored. Releases without a usable version
+        /// are only used as a fallback when no versioned release exists and no channel is required.
         /// </summary>
-        public static GitHubRelease? SelectLatestRelease(IEnumerable<GitHubRelease>? releases)
+        public static GitHubRelease? SelectLatestRelease(IEnumerable<GitHubRelease>? releases, UpdateChannel? channel = null)
         {
             if (releases == null)
                 return null;
@@ -129,9 +161,13 @@ namespace ModHearth.UI.Update
                 string version = GetReleaseVersion(release);
                 if (string.IsNullOrWhiteSpace(version))
                 {
-                    firstUnversioned ??= release;
+                    if (channel == null)
+                        firstUnversioned ??= release;
                     continue;
                 }
+
+                if (channel is { } requiredChannel && GetBuildChannel(version) != requiredChannel)
+                    continue;
 
                 if (latest == null || CompareVersions(version, latestVersion) > 0)
                 {
@@ -145,10 +181,13 @@ namespace ModHearth.UI.Update
 
         /// <summary>
         /// Orders releases newest-first by build version. LINQ's ordering is stable, so releases with
-        /// equal versions keep the order the API returned them in.
+        /// equal versions keep the order the API returned them in. When a channel is supplied,
+        /// releases from the other channel are filtered out first.
         /// </summary>
-        public static List<GitHubRelease> OrderByNewest(IEnumerable<GitHubRelease> releases) =>
-            [.. releases.OrderByDescending(GetReleaseVersion, VersionComparer.Instance)];
+        public static List<GitHubRelease> OrderByNewest(IEnumerable<GitHubRelease> releases, UpdateChannel? channel = null) =>
+            [.. releases
+                .Where(release => channel == null || IsReleaseForChannel(release, channel.Value))
+                .OrderByDescending(GetReleaseVersion, VersionComparer.Instance)];
 
         private sealed class VersionComparer : IComparer<string>
         {
@@ -163,6 +202,31 @@ namespace ModHearth.UI.Update
                 return false;
 
             return string.Equals(CleanVersionString(buildNumber), CleanVersionString(currentBuild), StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Picks the newest release from the running build's channel and decides whether it is a
+        /// newer, non-ignored build. Releases from the other channel can never trigger an update.
+        /// </summary>
+        public static UpdateCheckResult EvaluateUpdateAvailability(
+            IEnumerable<GitHubRelease>? releases,
+            string? currentBuild,
+            string? ignoredVersion)
+        {
+            UpdateChannel channel = GetBuildChannel(currentBuild);
+            GitHubRelease? latestRelease = SelectLatestRelease(releases, channel);
+            if (latestRelease == null)
+                return new UpdateCheckResult(false, null);
+
+            string latestVersion = GetReleaseVersion(latestRelease);
+            if (string.IsNullOrWhiteSpace(latestVersion))
+                return new UpdateCheckResult(false, null);
+
+            bool isNewer = IsNewerVersion(latestVersion, currentBuild);
+            bool isIgnored = !string.IsNullOrWhiteSpace(ignoredVersion) &&
+                IsCurrentVersion(latestVersion, ignoredVersion);
+
+            return new UpdateCheckResult(isNewer && !isIgnored, latestVersion);
         }
 
         public static string GetReleaseTitle(GitHubRelease release, int index)

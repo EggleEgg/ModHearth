@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace ModHearth.RawIssueAudit
 {
     internal sealed record AuditPathSet(
-        string ErrorLogPath,
+        string? ErrorLogPath,
         string CachePath,
         string VanillaPath,
         string? ModListPath,
@@ -14,9 +14,9 @@ namespace ModHearth.RawIssueAudit
     internal sealed class AuditInputException(string message) : Exception(message);
 
     /// <summary>
-    /// Resolves the three inputs the audit needs (errorlog, raw cache, vanilla raws) plus the
-    /// active modlist. Every path can be supplied explicitly; otherwise the local ModHearth config
-    /// and build output folders are probed. The tool deliberately never writes config or cache data.
+    /// Resolves the raw cache, vanilla raws, and active modlist, plus the errorlog when the mode
+    /// needs it. Every path can be supplied explicitly; otherwise the local ModHearth config and
+    /// build output folders are probed. The tool deliberately never writes config or cache data.
     /// </summary>
     internal static class AuditPathResolver
     {
@@ -28,7 +28,8 @@ namespace ModHearth.RawIssueAudit
         public static AuditPathSet Resolve(
             AuditOptions options,
             ICollection<string> warnings,
-            bool allowMissingErrorLog = false)
+            bool allowMissingErrorLog = false,
+            bool requireErrorLogPath = true)
         {
             string? explicitConfig = NormalizePath(options.ConfigPath);
             if (options.ConfigPath != null && explicitConfig == null)
@@ -83,19 +84,37 @@ namespace ModHearth.RawIssueAudit
             if (errorLogPath == null && dfPath != null)
                 errorLogPath = Path.Combine(dfPath, "errorlog.txt");
 
-            if (errorLogPath == null)
+            if (requireErrorLogPath)
             {
-                throw new AuditInputException(
-                    "Could not locate Dwarf Fortress. Pass --df <Dwarf Fortress folder> or --errorlog <path>.");
+                if (errorLogPath == null)
+                {
+                    throw new AuditInputException(
+                        "Could not locate Dwarf Fortress. Pass --df <Dwarf Fortress folder> or --errorlog <path>.");
+                }
+
+                if (Directory.Exists(errorLogPath))
+                    throw new AuditInputException($"Dwarf Fortress errorlog path is a directory: {errorLogPath}");
+
+                // Automation deletes the log before driving worldgen, so a missing file is expected.
+                // Every other mode still fails fast instead of silently auditing an empty result.
+                if (!File.Exists(errorLogPath) && !allowMissingErrorLog)
+                    throw new AuditInputException($"Dwarf Fortress errorlog not found: {errorLogPath}");
             }
+            else if (errorLogPath != null)
+            {
+                // The hardcoded token report never reads the log. Keep an explicitly supplied path
+                // visible in the report inputs, but do not fail a read-only report because DF has not
+                // been launched from this install yet.
+                if (Directory.Exists(errorLogPath))
+                    throw new AuditInputException($"Dwarf Fortress errorlog path is a directory: {errorLogPath}");
 
-            if (Directory.Exists(errorLogPath))
-                throw new AuditInputException($"Dwarf Fortress errorlog path is a directory: {errorLogPath}");
-
-            // Automation deletes the log before driving worldgen, so a missing file is expected.
-            // Every other mode still fails fast instead of silently auditing an empty result.
-            if (!File.Exists(errorLogPath) && !allowMissingErrorLog)
-                throw new AuditInputException($"Dwarf Fortress errorlog not found: {errorLogPath}");
+                if (!File.Exists(errorLogPath))
+                {
+                    warnings.Add(
+                        $"Dwarf Fortress errorlog not found: {errorLogPath}. The hardcoded token report " +
+                        "does not read it.");
+                }
+            }
 
             string? dfHackPath = explicitDfHack ?? configDfHackPath;
             if (dfHackPath != null && !Directory.Exists(dfHackPath))

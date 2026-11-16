@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using ModHearth.Config;
 using ModHearth.Models;
 using ModHearth.Utils.DwarfFortress;
 using ModHearth.Utils.IO;
@@ -189,7 +190,7 @@ namespace ModHearth.Manager
             }
         }
 
-        public static ModHearthConfig Config { get; private set; } = new();
+        public static ModHearthConfig Config => ConfigManager.Config;
 
         private readonly Lock installedCacheGate = new();
         private HashSet<string>? installedCacheModIds;

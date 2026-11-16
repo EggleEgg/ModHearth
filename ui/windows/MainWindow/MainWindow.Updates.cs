@@ -65,7 +65,8 @@ namespace ModHearth.UI
         {
             try
             {
-                List<GitHubRelease> releases = await UpdateService.FetchRecentBuildsAsync(5);
+                UpdateChannel channel = UpdateService.GetCurrentBuildChannel();
+                List<GitHubRelease> releases = await UpdateService.FetchRecentBuildsAsync(5, channel);
                 EvaluateAvailableUpdate(releases);
             }
             catch (Exception ex)
@@ -76,39 +77,15 @@ namespace ModHearth.UI
 
         private void EvaluateAvailableUpdate(List<GitHubRelease> releases)
         {
-            if (releases == null || releases.Count == 0)
-            {
-                IsUpdateAvailable = false;
-                latestAvailableVersion = null;
-                return;
-            }
-
             string currentBuild = ModHearthManager.GetBuildVersionString().Trim();
             string ignoredVersion = ConfigManager.GetIgnoredUpdateVersion().Trim();
 
-            GitHubRelease? latestRelease = UpdateHelpers.SelectLatestRelease(releases);
-            if (latestRelease == null)
-            {
-                IsUpdateAvailable = false;
-                latestAvailableVersion = null;
-                return;
-            }
+            UpdateCheckResult result = UpdateHelpers.EvaluateUpdateAvailability(releases, currentBuild, ignoredVersion);
+            latestAvailableVersion = result.LatestVersion;
+            IsUpdateAvailable = result.IsAvailable;
 
-            string fetchedVersion = UpdateHelpers.GetReleaseVersion(latestRelease);
-            if (string.IsNullOrWhiteSpace(fetchedVersion))
-            {
-                IsUpdateAvailable = false;
-                latestAvailableVersion = null;
-                return;
-            }
-
-            latestAvailableVersion = fetchedVersion;
-
-            bool isNewer = UpdateHelpers.IsNewerVersion(fetchedVersion, currentBuild);
-            bool isIgnored = !string.IsNullOrWhiteSpace(ignoredVersion) && UpdateHelpers.IsCurrentVersion(fetchedVersion, ignoredVersion);
-            IsUpdateAvailable = isNewer && !isIgnored;
-
-            Loggers.Updates.Dev($"EvaluateAvailableUpdate: fetchedVersion='{fetchedVersion}', currentBuild='{currentBuild}', ignoredVersion='{ignoredVersion}', isNewer={isNewer}, isIgnored={isIgnored}, IsUpdateAvailable={IsUpdateAvailable}");
+            UpdateChannel channel = UpdateHelpers.GetBuildChannel(currentBuild);
+            Loggers.Updates.Dev($"EvaluateAvailableUpdate: channel={channel}, currentBuild='{currentBuild}', latest='{result.LatestVersion}', ignoredVersion='{ignoredVersion}', IsUpdateAvailable={IsUpdateAvailable}");
 
             UpdateIgnoreButtonLabel();
         }

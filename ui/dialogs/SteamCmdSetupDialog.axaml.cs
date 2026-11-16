@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using ModHearth.Config;
 using ModHearth.Utils.Steam;
 
@@ -22,12 +23,13 @@ namespace ModHearth.UI.Dialogs
         {
             BtnInstall.IsEnabled = false;
             BtnBrowse.IsEnabled = false;
-            ProgressPanel.IsVisible = true;
+            PrepareProgress();
             Cts?.Dispose();
             Cts = new CancellationTokenSource();
 
             string installDir = Path.Combine(AppContext.BaseDirectory, "steamcmd");
-            IProgress<string> progress = CreateProgressReporter(StatusTextBlock, SetupProgressBar);
+            IProgress<SteamCmdInstallProgress> progress = new Progress<SteamCmdInstallProgress>(
+                update => Dispatcher.UIThread.Post(() => ApplyInstallProgress(update)));
 
             try
             {
@@ -90,11 +92,32 @@ namespace ModHearth.UI.Dialogs
             }
         }
 
+        private void PrepareProgress()
+        {
+            ProgressPanel.IsVisible = true;
+            StatusTextBlock.Text = "Preparing installation...";
+            SetupProgressBar.IsIndeterminate = false;
+            SetupProgressBar.Minimum = 0;
+            SetupProgressBar.Maximum = 100;
+            SetupProgressBar.Value = 0;
+        }
+
+        private void ApplyInstallProgress(SteamCmdInstallProgress update)
+        {
+            SetupProgressBar.IsIndeterminate = false;
+            SetupProgressBar.Minimum = 0;
+            SetupProgressBar.Maximum = 100;
+            SetupProgressBar.Value = Math.Clamp(update.Percentage, 0, 100);
+            StatusTextBlock.Text = update.Message;
+        }
+
         private void ResetUI()
         {
             BtnInstall.IsEnabled = true;
             BtnBrowse.IsEnabled = true;
             ProgressPanel.IsVisible = false;
+            SetupProgressBar.IsIndeterminate = false;
+            SetupProgressBar.Value = 0;
         }
 
         public static async Task<bool> ShowAsync(Window owner)

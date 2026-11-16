@@ -50,6 +50,146 @@ namespace ModHearth.App.Tests
         }
 
         [Fact]
+        public void CutAfterDefinitionMakesPermittedReferenceMissing()
+        {
+            // CUT removes earlier definitions. For the reference kinds errorlog.txt can verify,
+            // the analyzer follows the final merged raw set instead of accepting any definition.
+            ModRawDependencyInfo consumer = Info("consumer", permittedReactions: ["SHARED_REACTION"]);
+            ModRawDependencyInfo provider = Info("provider", definitions: ["REACTION:SHARED_REACTION"]);
+            ModRawDependencyInfo cutter = Info("cutter", cuts: ["REACTION:SHARED_REACTION"]);
+
+            ModPossibleIssue issue = Assert.Single(ModPossibleIssueAnalyzer.Analyze(
+                [consumer, provider, cutter],
+                ["consumer", "provider", "cutter"],
+                VanillaRawBaseline.Empty));
+
+            Assert.Equal("consumer", issue.ModId);
+            Assert.Equal("REACTION:SHARED_REACTION", issue.TargetKey);
+            Assert.Equal(ModPossibleIssueKind.MissingPermittedReaction, issue.Kind);
+        }
+
+        [Fact]
+        public void CutBeforeDefinitionLeavesLaterDefinitionActive()
+        {
+            ModRawDependencyInfo consumer = Info("consumer", permittedReactions: ["SHARED_REACTION"]);
+            ModRawDependencyInfo cutter = Info("cutter", cuts: ["REACTION:SHARED_REACTION"]);
+            ModRawDependencyInfo provider = Info("provider", definitions: ["REACTION:SHARED_REACTION"]);
+
+            List<ModPossibleIssue> issues = ModPossibleIssueAnalyzer.Analyze(
+                [consumer, cutter, provider],
+                ["consumer", "cutter", "provider"],
+                VanillaRawBaseline.Empty);
+
+            Assert.Empty(issues);
+        }
+
+        [Fact]
+        public void CutAndRedefinitionInTheSameModKeepsTheReplacement()
+        {
+            // The cache stores an unordered set per mod. Applying cuts before definitions lets a
+            // replacer that cuts a vanilla object and defines its own replacement stay active.
+            ModRawDependencyInfo consumer = Info("consumer", permittedReactions: ["SHARED_REACTION"]);
+            ModRawDependencyInfo replacer = Info(
+                "replacer",
+                definitions: ["REACTION:SHARED_REACTION"],
+                cuts: ["REACTION:SHARED_REACTION"]);
+
+            List<ModPossibleIssue> issues = ModPossibleIssueAnalyzer.Analyze(
+                [consumer, replacer],
+                ["consumer", "replacer"],
+                VanillaRawBaseline.Empty);
+
+            Assert.Empty(issues);
+        }
+
+        [Fact]
+        public void HardcodedVanillaDyeCutsAreIgnored()
+        {
+            // DF silently ignores CUT_REACTION for the vanilla dye reactions. The baseline supplies
+            // the raw-derived set, and the analyzer mirrors that exception so these cuts do not
+            // become false positives.
+            ModRawDependencyInfo consumer = Info(
+                "consumer",
+                permittedReactions: ["ALDER_CONE_DYE"]);
+            ModRawDependencyInfo cutter = Info(
+                "cutter",
+                cuts: ["REACTION:ALDER_CONE_DYE"]);
+
+            VanillaRawBaseline baseline = new(
+                [new ObjectKey("REACTION", "ALDER_CONE_DYE")],
+                ["ALDER_CONE_DYE"]);
+
+            List<ModPossibleIssue> issues = ModPossibleIssueAnalyzer.Analyze(
+                [consumer, cutter],
+                ["consumer", "cutter"],
+                baseline);
+
+            Assert.Empty(issues);
+        }
+
+        [Fact]
+        public void ModAddedDyeCutsAreHonored()
+        {
+            // The exception is the hardcoded vanilla set, not every reaction whose id ends in _DYE.
+            ModRawDependencyInfo consumer = Info(
+                "consumer",
+                permittedReactions: ["DCCF_DEEP_OAK_BARK_DYE"]);
+            ModRawDependencyInfo provider = Info(
+                "provider",
+                definitions: ["REACTION:DCCF_DEEP_OAK_BARK_DYE"]);
+            ModRawDependencyInfo cutter = Info(
+                "cutter",
+                cuts: ["REACTION:DCCF_DEEP_OAK_BARK_DYE"]);
+
+            ModPossibleIssue issue = Assert.Single(ModPossibleIssueAnalyzer.Analyze(
+                [consumer, provider, cutter],
+                ["consumer", "provider", "cutter"],
+                new VanillaRawBaseline([new ObjectKey("REACTION", "VANILLA_REACTION")])));
+
+            Assert.Equal("REACTION:DCCF_DEEP_OAK_BARK_DYE", issue.TargetKey);
+            Assert.Equal(ModPossibleIssueKind.MissingPermittedReaction, issue.Kind);
+        }
+
+        [Fact]
+        public void CutVanillaReactionIsMissingUnlessAReloaderRestoresIt()
+        {
+            VanillaRawBaseline baseline = new([new ObjectKey("REACTION", "GLAZE_CRAFT")]);
+            ModRawDependencyInfo consumer = Info("consumer", permittedReactions: ["GLAZE_CRAFT"]);
+            ModRawDependencyInfo cutter = Info("cutter", cuts: ["REACTION:GLAZE_CRAFT"]);
+            ModRawDependencyInfo replacer = Info(
+                "replacer",
+                definitions: ["REACTION:GLAZE_CRAFT"]);
+
+            ModPossibleIssue issue = Assert.Single(ModPossibleIssueAnalyzer.Analyze(
+                [consumer, cutter],
+                ["consumer", "cutter"],
+                baseline));
+            Assert.Equal("REACTION:GLAZE_CRAFT", issue.TargetKey);
+
+            Assert.Empty(ModPossibleIssueAnalyzer.Analyze(
+                [consumer, cutter, replacer],
+                ["consumer", "cutter", "replacer"],
+                baseline));
+        }
+
+        [Fact]
+        public void ExplicitLoadOrderOverridesInputOrderForCuts()
+        {
+            ModRawDependencyInfo consumer = Info("consumer", permittedReactions: ["SHARED_REACTION"]);
+            ModRawDependencyInfo definition = Info("definition", definitions: ["REACTION:SHARED_REACTION"]);
+            ModRawDependencyInfo cutter = Info("cutter", cuts: ["REACTION:SHARED_REACTION"]);
+
+            // The input lists the definition last, but DF loads the cutter after it.
+            List<ModPossibleIssue> issues = ModPossibleIssueAnalyzer.Analyze(
+                [consumer, cutter, definition],
+                ["consumer", "definition", "cutter"],
+                VanillaRawBaseline.Empty,
+                ["consumer", "definition", "cutter"]);
+
+            Assert.Single(issues);
+        }
+
+        [Fact]
         public void ReferencesResolvedByVanillaAreSilent()
         {
             ModRawDependencyInfo mod = Info(

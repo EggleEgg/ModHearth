@@ -16,6 +16,7 @@ namespace ModHearth.RawIssueAudit
 
             Usage:
               dotnet run --project ModHearth.RawIssueAudit -- [options]
+              dotnet run --project ModHearth.RawIssueAudit -- --hardcoded-report [--verify-hardcoded]
 
             Options:
               --df <folder>          Dwarf Fortress folder (auto-detected from ModHearth config.json)
@@ -30,6 +31,10 @@ namespace ModHearth.RawIssueAudit
               --automation-timeout <seconds>
                                      maximum worldgen automation time (default: 180, range: 30-3600)
               --keep-df-running      leave DF running if the audit launched it
+              --hardcoded-report     inventory the DF-hardcoded token catalog and the active mods' use
+                                     of it (read-only; does not need errorlog.txt)
+              --verify-hardcoded     with --hardcoded-report, compare the catalog with the installed
+                                     Dwarf Fortress executable and vanilla raws
               --json <path>          write the complete report as JSON
               --show-matches         list matched predictions in the text report
               --max-details <n>      maximum entries per section in the text report (default: 40)
@@ -42,11 +47,20 @@ namespace ModHearth.RawIssueAudit
               the generated save folder(s) under <df>/save/regionN. It refuses to run while a saved
               game or another worldgen is loaded, aborts on a failed mod preset, launches DF if
               necessary, and closes a DF instance it launched unless --keep-df-running is set.
-              --automate cannot be combined with --all-mods.
+              --automate cannot be combined with --all-mods or --hardcoded-report.
+
+            Hardcoded token report:
+              DF resolves some raw tokens itself: built-in workshop/furnace ids, the vanilla dye
+              reactions whose CUT_REACTION is ignored (derived from reaction_dyes.txt and
+              entity_default.txt), built-in materials, and material grammar keywords.
+              --hardcoded-report lists the catalog, counts how the active mods use it, and scans
+              REAGENT/PRODUCT material slots for references no active mod or vanilla raw defines.
+              --verify-hardcoded additionally checks the catalog against the installed executable
+              and vanilla raws, which is the post-DF-update drift check.
 
             Exit codes:
-              0  no mismatches
-              1  mismatches found
+              0  no mismatches (or the hardcoded report completed without drift)
+              1  mismatches found (or --verify-hardcoded found catalog drift)
               2  invalid input or audit failure
 
             Examples:
@@ -54,6 +68,7 @@ namespace ModHearth.RawIssueAudit
               dotnet run --project ModHearth.RawIssueAudit -- --automate
               dotnet run --project ModHearth.RawIssueAudit -- --json artifacts/raw-audit.json
               dotnet run --project ModHearth.RawIssueAudit -- --df "C:\...\Dwarf Fortress" --all-mods
+              dotnet run --project ModHearth.RawIssueAudit -- --hardcoded-report --verify-hardcoded
             """;
 
         public static int Main(string[] args)
@@ -75,18 +90,9 @@ namespace ModHearth.RawIssueAudit
 
             try
             {
-                AuditReport report = AuditRunner.Run(options);
-                AuditTextWriter.Write(report, options, Console.Out);
-
-                if (!string.IsNullOrWhiteSpace(options.JsonOutputPath))
-                {
-                    AuditJsonWriter.Write(report, options.JsonOutputPath);
-                    Console.Out.WriteLine($"JSON report written to: {Path.GetFullPath(options.JsonOutputPath)}");
-                }
-
-                return report.Summary.MismatchCount == 0
-                    ? ExitNoMismatches
-                    : ExitMismatches;
+                return options.HardcodedReport
+                    ? RunHardcodedReport(options)
+                    : RunComparisonAudit(options);
             }
             catch (AuditInputException ex)
             {
@@ -98,6 +104,40 @@ namespace ModHearth.RawIssueAudit
                 Console.Error.WriteLine($"Audit failed: {ex}");
                 return ExitInvalidInput;
             }
+        }
+
+        private static int RunComparisonAudit(AuditOptions options)
+        {
+            AuditReport report = AuditRunner.Run(options);
+            AuditTextWriter.Write(report, options, Console.Out);
+            WriteJsonIfRequested(report, options);
+
+            return report.Summary.MismatchCount == 0
+                ? ExitNoMismatches
+                : ExitMismatches;
+        }
+
+        private static int RunHardcodedReport(AuditOptions options)
+        {
+            HardcodedReport report = HardcodedReportRunner.Run(options);
+            HardcodedReportTextWriter.Write(report, options, Console.Out);
+            WriteJsonIfRequested(report, options);
+
+            // The inventory sections are informational; only drift makes the verification run fail.
+            // A plain report always completes successfully.
+            bool drift = report.Verification is { IsClean: false }
+                || (options.VerifyHardcoded && report.VanillaChecks.Count > 0);
+
+            return drift ? ExitMismatches : ExitNoMismatches;
+        }
+
+        private static void WriteJsonIfRequested<T>(T report, AuditOptions options)
+        {
+            if (string.IsNullOrWhiteSpace(options.JsonOutputPath))
+                return;
+
+            AuditJsonWriter.Write(report, options.JsonOutputPath);
+            Console.Out.WriteLine($"JSON report written to: {Path.GetFullPath(options.JsonOutputPath)}");
         }
     }
 }

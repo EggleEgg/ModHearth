@@ -1,7 +1,7 @@
 namespace ModHearth.Models
 {
     /// <summary>
-    /// Which kind of metadata problem Dwarf Fortress would report while reading a mod's
+    /// Which kind of metadata problem Dwarf Fortress coul report while reading a mod's
     /// <c>info.txt</c>. These mirror the error-log categories produced by
     /// <see cref="Utils.ModRaws.ModErrorLogAnalyzer"/>.
     /// </summary>

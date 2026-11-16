@@ -3,7 +3,7 @@
 
 - Code must be thread safe and compatible with both linux and windows os, and follow the Model–view–viewmodel (MVVM) architecture
 - Prefer logging catch exceptions over ignoring them
-- Prefer using clean, scalable implementations rather than quick solutions; even if that means refactoring code
+- Prefer using clean, scalable implementations (helpers) rather than quick solutions; even if that means refactoring code
 
 ## Codebase "do's and don'ts"
 

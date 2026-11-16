@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using ModHearth.Config;
 using ModHearth.UI.Theme;
 using ModHearth.UI.Update;
 using ModHearth.UI.ViewModels;
@@ -10,7 +9,7 @@ namespace ModHearth.UI
 {
     public partial class UpdateDialog : Window
     {
-        private bool _isBleedingEdge = UpdateService.IsCurrentBuildBleedingEdge();
+        private UpdateChannel _channel = UpdateChannel.Main;
         private string _currentBuild = string.Empty;
         private List<GitHubRelease> _releases = [];
 
@@ -23,7 +22,8 @@ namespace ModHearth.UI
         public static async Task<GitHubRelease?> ShowAsync(
             Window owner,
             IReadOnlyList<GitHubRelease> releases,
-            string currentBuild)
+            string currentBuild,
+            UpdateChannel channel)
         {
             UpdateDialog dialog = new()
             {
@@ -31,7 +31,7 @@ namespace ModHearth.UI
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 _currentBuild = currentBuild,
                 _releases = [.. releases],
-                _isBleedingEdge = UpdateService.IsCurrentBuildBleedingEdge()
+                _channel = channel
             };
 
             dialog.InitializeDialog();
@@ -48,14 +48,15 @@ namespace ModHearth.UI
 
         private void UpdateChannelButtonState()
         {
-            ChannelSwitchButton.Content = "Switch to " + (_isBleedingEdge ? "Main" : "Bleeding Edge");
-            BleedingEdgeWarningPanel.IsVisible = _isBleedingEdge;
+            bool bleedingEdge = _channel == UpdateChannel.BleedingEdge;
+            ChannelSwitchButton.Content = "Switch to " + (bleedingEdge ? "Main" : "Bleeding Edge");
+            BleedingEdgeWarningPanel.IsVisible = bleedingEdge;
         }
 
         private void RefreshReleaseList()
         {
             // Show the newest builds first even if the API returned them out of build order.
-            _releases = UpdateHelpers.OrderByNewest(_releases);
+            _releases = UpdateHelpers.OrderByNewest(_releases, _channel);
             ReleaseList.ItemsSource = _releases
                 .Select((release, index) => ReleaseEntry.FromRelease(release, index, _currentBuild))
                 .ToList();
@@ -63,15 +64,16 @@ namespace ModHearth.UI
 
         private async void ChannelSwitchClicked(object? sender, RoutedEventArgs e)
         {
-            _isBleedingEdge = !_isBleedingEdge;
-            ConfigManager.SetIsBleedingEdge(_isBleedingEdge);
+            _channel = _channel == UpdateChannel.Main ? UpdateChannel.BleedingEdge : UpdateChannel.Main;
             UpdateChannelButtonState();
             ChannelSwitchButton.IsEnabled = false;
 
             try
             {
-                HeaderText.Text = _isBleedingEdge ? "Fetching bleeding edge builds..." : "Fetching standard builds...";
-                _releases = await UpdateService.FetchRecentBuildsAsync(5, _isBleedingEdge);
+                HeaderText.Text = _channel == UpdateChannel.BleedingEdge
+                    ? "Fetching bleeding edge builds..."
+                    : "Fetching standard builds...";
+                _releases = await UpdateService.FetchRecentBuildsAsync(5, _channel);
                 HeaderText.Text = "Select a build to install:";
                 RefreshReleaseList();
             }

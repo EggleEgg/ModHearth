@@ -574,10 +574,6 @@ namespace ModHearth.Config
 
         public static void SetSearchErrorLogIssues(bool enabled) => Update(c => c.SearchErrorLogIssues = enabled, "Search errorlog issues");
 
-        public static bool? GetIsBleedingEdge() => Config.IsBleedingEdge;
-
-        public static void SetIsBleedingEdge(bool? isBleedingEdge) => Update(c => c.IsBleedingEdge = isBleedingEdge, "Bleeding edge update channel");
-
         [GeneratedRegex("\"path\"\\s+\"(?<path>.*?)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex SteamLibraryPathRegex();
         [GeneratedRegex("^\\s*\"\\d+\"\\s+\"(?<path>.*?)\"", RegexOptions.Compiled)]

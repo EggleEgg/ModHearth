@@ -425,7 +425,13 @@ namespace ModHearth.RawIssueAudit
         {
             bool definedByVanilla = IsDefinedByVanilla(kind, targetKey, vanillaBaseline);
             bool builtIn = IsBuiltInReactionBuilding(kind, targetKey);
-            string definitionState = BuildDefinitionState(targetDefinitions, targetCuts, rawReferences, targetKey);
+            string definitionState = BuildDefinitionState(
+                kind,
+                targetDefinitions,
+                targetCuts,
+                rawReferences,
+                vanillaBaseline,
+                targetKey);
             string stateSuffix = definitionState.Length > 0 ? " " + definitionState : string.Empty;
 
             switch (status)
@@ -513,9 +519,11 @@ namespace ModHearth.RawIssueAudit
             VanillaRawBaseline vanillaBaseline)
         {
             string definitionState = BuildDefinitionState(
+                kind,
                 rawReferences.GetActiveDefinitionMods(targetKey),
                 rawReferences.GetActiveCutMods(targetKey),
                 rawReferences,
+                vanillaBaseline,
                 targetKey);
             string stateSuffix = definitionState.Length > 0 ? " " + definitionState : string.Empty;
 
@@ -536,18 +544,28 @@ namespace ModHearth.RawIssueAudit
         }
 
         private static string BuildDefinitionState(
+            ModPossibleIssueKind kind,
             IReadOnlyCollection<string> activeDefinitions,
             IReadOnlyCollection<string> activeCuts,
             RawReferenceIndex rawReferences,
+            VanillaRawBaseline vanillaBaseline,
             string targetKey)
         {
             if (activeDefinitions.Count > 0)
             {
-                return activeCuts.Count > 0
-                    ? $"The target is directly defined by {FormatModList(activeDefinitions)} but CUT by " +
-                        $"{FormatModList(activeCuts)}; ModPossibleIssueAnalyzer currently treats any direct definition " +
-                        "as satisfying the reference."
-                    : $"The target is directly defined by {FormatModList(activeDefinitions)}.";
+                if (activeCuts.Count == 0)
+                    return $"The target is directly defined by {FormatModList(activeDefinitions)}.";
+
+                if (kind == ModPossibleIssueKind.MissingPermittedReaction
+                    && vanillaBaseline.IsCutIgnoredDyeReaction(ErrorLogReferenceMapping.TargetId(targetKey)))
+                {
+                    return $"The target is directly defined by {FormatModList(activeDefinitions)} and CUT by " +
+                        $"{FormatModList(activeCuts)}; DF ignores CUT_REACTION for its hardcoded vanilla dye " +
+                        "reactions, so the analyzer keeps the target active.";
+                }
+
+                return $"The target is directly defined by {FormatModList(activeDefinitions)} but CUT by " +
+                    $"{FormatModList(activeCuts)}; the analyzer applies CUTs in load order.";
             }
 
             IReadOnlyCollection<string> allDefinitions = rawReferences.GetAllDefinitionMods(targetKey);
@@ -568,7 +586,7 @@ namespace ModHearth.RawIssueAudit
 
         private static bool IsBuiltInReactionBuilding(ModPossibleIssueKind kind, string targetKey)
             => kind == ModPossibleIssueKind.MissingReactionBuilding
-                && ModPossibleIssueAnalyzer.IsBuiltInReactionBuildingId(ErrorLogReferenceMapping.TargetId(targetKey));
+                && DwarfFortressHardcodedTokens.IsReactionBuildingId(ErrorLogReferenceMapping.TargetId(targetKey));
 
         private static void RememberToken(
             Dictionary<string, TokenInfo> tokenInfo,

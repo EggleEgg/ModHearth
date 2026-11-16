@@ -71,7 +71,7 @@ namespace ModHearth.Utils.Workshop
 
             Progress<string> progressProxy = new(line =>
             {
-                if (TryParseProgressPercent(line, out double pct))
+                if (SteamCmdOutputParser.TryParseProgressPercent(line, out double pct))
                     progress.Report(new DownloadProgress((long)(pct * 1000), 100000, pct));
             });
 
@@ -148,7 +148,7 @@ namespace ModHearth.Utils.Workshop
                         currentlyDownloadingId = id;
                 }
 
-                if (!TryParseProgressPercent(line, out double pct))
+                if (!SteamCmdOutputParser.TryParseProgressPercent(line, out double pct))
                     return;
 
                 if (currentlyDownloadingId != 0 && itemLookup.TryGetValue(currentlyDownloadingId, out BatchDownloadItem? activeItem))
@@ -302,17 +302,6 @@ namespace ModHearth.Utils.Workshop
             return true;
         }
 
-        private static bool TryParseProgressPercent(string line, out double percent)
-        {
-            percent = 0;
-            if (!line.Contains("progress:", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            Match match = ProgressRegex().Match(line);
-            return match.Success
-                && double.TryParse(match.Groups[1].Value, NumberStyles.Any, CultureInfo.InvariantCulture, out percent);
-        }
-
         private static void MoveOrCopyDirectory(string sourceDir, string destinationDir)
         {
             _ = Directory.CreateDirectory(destinationDir);
@@ -332,8 +321,6 @@ namespace ModHearth.Utils.Workshop
             }
         }
 
-        [GeneratedRegex(@"progress:\s+([0-9.]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
-        private static partial Regex ProgressRegex();
         [GeneratedRegex(@"Downloading item (\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
         private static partial Regex DownloadingItemRegex();
     }
