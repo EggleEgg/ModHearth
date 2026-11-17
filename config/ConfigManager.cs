@@ -123,6 +123,29 @@ namespace ModHearth.Config
 
         public static void SetTheme(int theme) => Update(c => c.Theme = theme, "Theme");
 
+        public const int MinimumUiScalePercent = 50;
+        public const int MaximumUiScalePercent = 200;
+        public const int DefaultUiScalePercent = 100;
+
+        public static int GetUiScalePercent() => NormalizeUiScalePercent(Config.UiScalePercent);
+
+        public static void SetUiScalePercent(int percent) => Update(
+            c => c.UiScalePercent = NormalizeUiScalePercent(percent),
+            "UI scale");
+
+        /// <summary>
+        /// Keeps the configured scale inside the supported range. A zero or negative value can only
+        /// come from a hand-edited config file, so it falls back to the default instead of shrinking
+        /// the UI to the minimum.
+        /// </summary>
+        public static int NormalizeUiScalePercent(int percent)
+        {
+            if (percent <= 0)
+                return DefaultUiScalePercent;
+
+            return Math.Clamp(percent, MinimumUiScalePercent, MaximumUiScalePercent);
+        }
+
         public static int GetAutoReloadIntervalSeconds() => Config.AutoReloadIntervalSeconds;
 
         public static void SetAutoReloadIntervalSeconds(int seconds) => Update(c => c.AutoReloadIntervalSeconds = seconds, "Autoreload");

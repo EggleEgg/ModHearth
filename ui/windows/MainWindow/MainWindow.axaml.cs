@@ -383,6 +383,7 @@ namespace ModHearth.UI
                 autoReloadTimer?.Stop();
                 searchDebounceTimer?.Stop();
                 searchStateSaveTimer?.Stop();
+                CancelNotificationDrawerHide();
 
                 SetPreviewImage(null);
                 ClearPreviewCache();

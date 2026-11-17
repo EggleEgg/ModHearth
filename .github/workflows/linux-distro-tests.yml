@@ -128,11 +128,13 @@ jobs:
 
             # Avalonia uses its X11 backend here, so the UI smoke tests need a
             # virtual display. Skia also needs fontconfig/freetype (installed above).
+            # Local-environment tests are skipped because CI has no Dwarf Fortress install.
             - name: Test
               shell: bash
               run: |
                   xvfb-run -a --server-args="-screen 0 1280x1024x24" \
                     dotnet test ModHearth.sln -c Release --no-build --no-restore \
+                    --filter "Category!=RequiresDwarfFortress" \
                     --logger "trx;LogFileName=ModHearth.App.Tests.trx" \
                     --results-directory artifacts/test-results
 

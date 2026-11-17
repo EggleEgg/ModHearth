@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using ModHearth.Models;
 using ModHearth.RawIssueAudit;
+using ModHearth.Utils.DwarfFortress;
 using ModHearth.Utils.ModRaws;
 using Xunit;
 
@@ -491,7 +492,10 @@ namespace ModHearth.App.Tests
                 HardcodedDriftVerifier.Verify(temp.Combine("missing.exe"), [], []));
         }
 
+        // Runs the full report pipeline through the platform-specific executable locator. CI has no
+        // Dwarf Fortress installation, so keep this in the local-only category used by the workflows.
         [Fact]
+        [Trait(TestCategories.TraitName, TestCategories.RequiresDwarfFortress)]
         public void ReportRunnerBuildsUsageContextsMaterialsAndVerification()
         {
             using TempFolder temp = new("modhearth-hardcoded-report");
@@ -604,7 +608,7 @@ namespace ModHearth.App.Tests
                 .. DwarfFortressHardcodedTokens.Groups.SelectMany(group => group.Tokens),
                 .. SampleDyeReactionIds
             ];
-            WriteExecutable(Path.Combine(dfPath, "Dwarf Fortress.exe"), executableTokens);
+            WriteExecutable(GetDwarfFortressExecutablePath(dfPath), executableTokens);
 
             AuditOptions options = AuditOptions.Parse(
             [
@@ -657,8 +661,21 @@ namespace ModHearth.App.Tests
             Assert.Equal(0, report.DriftCount);
         }
 
+        private static string GetDwarfFortressExecutablePath(string dfFolder)
+        {
+            // Use the production locator's candidate list so the synthetic install always matches
+            // the layout the report runner probes on this platform.
+            IReadOnlyList<string> candidates = DwarfFortressExecutableLocator.GetCandidatePaths(dfFolder);
+            Assert.NotEmpty(candidates);
+            return candidates[0];
+        }
+
         private static void WriteExecutable(string path, IEnumerable<string> tokens)
         {
+            string? directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(directory))
+                _ = Directory.CreateDirectory(directory);
+
             List<byte> bytes = [];
             foreach (string token in tokens)
             {

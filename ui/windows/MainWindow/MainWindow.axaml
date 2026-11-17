@@ -863,7 +863,8 @@
             IsVisible="False"
             PointerPressed="OnNotificationBackdropClick" />
 
-        <!-- Sliding Notification Manager Drawer Panel -->
+        <!-- Sliding Notification Manager Drawer Panel. Kept collapsed while closed: a translated
+             panel still renders its edge on some UI scales, so only the slide animation may show it. -->
         <Border
             x:Name="NotificationDrawerPanel"
             Width="320"
@@ -873,11 +874,14 @@
             BorderBrush="{DynamicResource ButtonOutlineBrush}"
             BorderThickness="0,0,1,0"
             Classes="drawer"
+            IsVisible="False"
             ZIndex="1000">
 
             <Border.Styles>
                 <Style Selector="Border.drawer">
-                    <Setter Property="RenderTransform" Value="translate(-320px, 0px)" />
+                    <!-- Overshoot the panel width so the antialiased border edge never sits on the
+                         window's left edge (visible at some UI scales) during the slide-out. -->
+                    <Setter Property="RenderTransform" Value="translate(-340px, 0px)" />
                 </Style>
                 <Style Selector="Border.drawer.open">
                     <Setter Property="RenderTransform" Value="translate(0px, 0px)" />

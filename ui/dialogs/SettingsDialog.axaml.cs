@@ -1,4 +1,7 @@
+using System.Globalization;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using ModHearth.Config;
 using ModHearth.UI.Theme;
 using ModHearth.Utils.IO;
 using ModHearth.Utils.Logging;
@@ -11,6 +14,7 @@ namespace ModHearth.UI.Dialogs
         private readonly Func<Task>? redoConfigAsync;
         private bool busy;
         private bool hasBackup;
+        private bool syncingUiScale;
 
         public SettingsDialog()
         {
@@ -20,7 +24,13 @@ namespace ModHearth.UI.Dialogs
             restoreBackupButton.Click += async (_, _) => await RestoreBackupAsync();
             backupNowButton.Click += async (_, _) => await BackupNowAsync();
             redoConfigButton.Click += async (_, _) => await RedoConfigAsync();
+            uiScaleSlider.ValueChanged += UiScaleValueChanged;
+            uiScaleSlider.PointerReleased += (_, _) => ApplyUiScaleFromSlider();
+            uiScaleSlider.PointerCaptureLost += (_, _) => ApplyUiScaleFromSlider();
+            uiScaleSlider.LostFocus += (_, _) => ApplyUiScaleFromSlider();
+            uiScaleSlider.KeyUp += (_, _) => ApplyUiScaleFromSlider();
 
+            InitializeUiScaleSlider();
             RefreshBackupInfo();
         }
 
@@ -60,6 +70,42 @@ namespace ModHearth.UI.Dialogs
                 ? $"Backup found at '{archivePath}'."
                 : $"Backup from {info.CreatedUtc.ToLocalTime():yyyy-MM-dd HH:mm} (ModHearth {info.ModHearthVersion}).";
             restoreBackupButton.IsEnabled = !busy;
+        }
+
+        private void InitializeUiScaleSlider()
+        {
+            int current = ConfigManager.GetUiScalePercent();
+            syncingUiScale = true;
+            try
+            {
+                uiScaleSlider.Value = current;
+                uiScaleValueText.Text = current.ToString(CultureInfo.InvariantCulture) + "%";
+            }
+            finally
+            {
+                syncingUiScale = false;
+            }
+        }
+
+        private void UiScaleValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        {
+            int percent = (int)Math.Round(e.NewValue);
+            uiScaleValueText.Text = percent.ToString(CultureInfo.InvariantCulture) + "%";
+        }
+
+        private void ApplyUiScaleFromSlider()
+        {
+            if (syncingUiScale)
+                return;
+
+            int percent = (int)Math.Round(uiScaleSlider.Value);
+            int normalized = ConfigManager.NormalizeUiScalePercent(percent);
+            if (normalized == ConfigManager.GetUiScalePercent())
+                return;
+
+            ConfigManager.SetUiScalePercent(normalized);
+            UiScaleManager.ApplyToOpenWindows();
+            Loggers.Diag.Dev($"UI scale changed to {normalized}%.");
         }
 
         private async Task RestoreBackupAsync()
@@ -133,12 +179,13 @@ namespace ModHearth.UI.Dialogs
                 await redoConfigAsync();
         }
 
-        private void SetBusy(bool isBusy)
+        private void SetBusy(bool isBusy) //TODO Make this global
         {
             busy = isBusy;
             restoreBackupButton.IsEnabled = hasBackup && !isBusy;
             backupNowButton.IsEnabled = !isBusy;
             redoConfigButton.IsEnabled = !isBusy;
+            uiScaleSlider.IsEnabled = !isBusy;
         }
 
         private void SetStatus(string message, bool isError)

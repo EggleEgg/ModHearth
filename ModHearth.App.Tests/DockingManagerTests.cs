@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using ModHearth.UI.Docking;
+using ModHearth.UI.Theme;
 using Xunit;
 
 namespace ModHearth.App.Tests
@@ -87,6 +88,31 @@ namespace ModHearth.App.Tests
                     Assert.Null(target.DockHostControl.Content);
                     manager.Close();
                 }
+            }
+
+            parent.Close();
+        }
+
+        [AvaloniaFact]
+        public void DockingConvertsLogicalDockSizesToScaledWindowBounds()
+        {
+            (Window parent, DockingTarget target) = CreateParentWindow();
+            UiScaleManager.ApplyToWindow(parent, 1.5);
+
+            DockingManager<TestDockControl, TestDockWindow> manager = CreateManager(parent, target, initialDocked: true);
+            using (manager)
+            {
+                parent.Show();
+                manager.Open();
+
+                Assert.True(manager.IsDocked);
+                Assert.Equal(320, target.MainGrid.ColumnDefinitions[1].Width.Value, 3);
+                Assert.Equal((800 * 1.5) + ((320 + 7) * 1.5), parent.Width, 3);
+
+                manager.Close();
+
+                Assert.Equal(800 * 1.5, parent.Width, 3);
+                Assert.Equal(200 * 1.5, parent.MinWidth, 3);
             }
 
             parent.Close();

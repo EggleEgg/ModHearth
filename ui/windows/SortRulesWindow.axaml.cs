@@ -6,6 +6,8 @@ namespace ModHearth.UI
 {
     public partial class SortRulesWindow : Window, IDisposable
     {
+        private readonly SortRulesControl rulesControl;
+
         public static double DefaultWidth => 980;
         public static double DefaultMinWidth => 640;
         public static double DefaultMaxWidth => 1100;
@@ -26,23 +28,20 @@ namespace ModHearth.UI
         {
             InitializeComponent();
             WindowThemeManager.Register(this);
-            Content = control ?? new SortRulesControl(existingRules, modRefs, onRulesChanged);
+            rulesControl = control ?? new SortRulesControl(existingRules, modRefs, onRulesChanged);
+            Content = rulesControl;
 
             // old docking/undocking cycles need to be cleared to avoid memory leaks
-            if (Content is SortRulesControl rc)
+            void closeRequestedHandler(object? _1, EventArgs _2)
             {
-                void closeRequestedHandler(object? _1, EventArgs _2)
-                {
-                    Close();
-                }
-
-                rc.CloseRequested += closeRequestedHandler;
-                Closed += (_, _) => rc.CloseRequested -= closeRequestedHandler;
+                Close();
             }
+
+            rulesControl.CloseRequested += closeRequestedHandler;
             Closed += (_, _) =>
             {
-                if (Content is SortRulesControl rc2)
-                    rc2.SaveSplitterRatio();
+                rulesControl.CloseRequested -= closeRequestedHandler;
+                rulesControl.SaveSplitterRatio();
             };
         }
 
@@ -59,11 +58,8 @@ namespace ModHearth.UI
             if (_disposed)
                 return;
 
-            if (disposing && Content is SortRulesControl control)
-            {
-                control.Dispose();
-
-            }
+            if (disposing)
+                rulesControl.Dispose();
 
             _disposed = true;
         }

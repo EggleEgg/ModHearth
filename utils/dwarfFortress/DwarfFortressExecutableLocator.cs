@@ -2,24 +2,23 @@ namespace ModHearth.Utils.DwarfFortress
 {
     internal static class DwarfFortressExecutableLocator
     {
-        public static bool TryResolvePath(string? dfFolderPath, out string executablePath)
+        /// <summary>
+        /// Executable paths to probe for the current platform, in order of preference. Exposed so
+        /// tests and diagnostics can create or inspect the same layout the locator expects.
+        /// </summary>
+        public static IReadOnlyList<string> GetCandidatePaths(string? dfFolderPath)
         {
-            executablePath = string.Empty;
             if (string.IsNullOrWhiteSpace(dfFolderPath))
-                return false;
+                return [];
 
             if (OperatingSystem.IsWindows())
             {
-                foreach (string exe in new[] { "df.exe", "Dwarf Fortress.exe" })
-                {
-                    string candidate = Path.Combine(dfFolderPath, exe);
-                    if (File.Exists(candidate))
-                    {
-                        executablePath = candidate;
-                        return true;
-                    }
-                }
-                return false;
+                // Classic Bay12 installs use 'Dwarf Fortress.exe'; some packagings ship 'df.exe'.
+                return
+                [
+                    Path.Combine(dfFolderPath, "df.exe"),
+                    Path.Combine(dfFolderPath, "Dwarf Fortress.exe")
+                ];
             }
 
             if (OperatingSystem.IsLinux())
@@ -27,24 +26,35 @@ namespace ModHearth.Utils.DwarfFortress
                 // 'df' is a wrapper script (sets LD_LIBRARY_PATH, execs the real binary)
                 // on classic Bay12 tarball installs; some Steam native builds ship only
                 // the raw 'dwarfort' binary with no wrapper.
-                foreach (string exe in new[] { "df", "dwarfort" })
-                {
-                    string candidate = Path.Combine(dfFolderPath, exe);
-                    if (File.Exists(candidate))
-                    {
-                        executablePath = candidate;
-                        return true;
-                    }
-                }
-                return false;
+                return
+                [
+                    Path.Combine(dfFolderPath, "df"),
+                    Path.Combine(dfFolderPath, "dwarfort")
+                ];
             }
 
             if (OperatingSystem.IsMacOS())
             {
-                string appBundle = Path.Combine(dfFolderPath, "Dwarf Fortress.app", "Contents", "MacOS", "Dwarf Fortress");
-                if (File.Exists(appBundle))
+                return
+                [
+                    Path.Combine(dfFolderPath, "Dwarf Fortress.app", "Contents", "MacOS", "Dwarf Fortress")
+                ];
+            }
+
+            return [];
+        }
+
+        public static bool TryResolvePath(string? dfFolderPath, out string executablePath)
+        {
+            executablePath = string.Empty;
+            if (string.IsNullOrWhiteSpace(dfFolderPath))
+                return false;
+
+            foreach (string candidate in GetCandidatePaths(dfFolderPath))
+            {
+                if (File.Exists(candidate))
                 {
-                    executablePath = appBundle;
+                    executablePath = candidate;
                     return true;
                 }
             }

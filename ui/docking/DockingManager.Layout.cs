@@ -59,7 +59,7 @@ namespace ModHearth.UI.Docking
 
             DockingTarget target = ActiveTarget;
             _expandedSize = childSize;
-            double minIncrease = childSize + _splitterSize;
+            double minIncrease = (childSize + _splitterSize) * UiScale;
             _preExpandParentPrimary = IsHorizontal(ActiveSide) ? _parentWindow.Width : _parentWindow.Height;
             _preExpandMinWidth = _parentWindow.MinWidth;
             _preExpandMinHeight = _parentWindow.MinHeight;
@@ -96,7 +96,7 @@ namespace ModHearth.UI.Docking
             if (!_isExpanded || _isDisposed) return;
 
             DockingTarget target = ActiveTarget;
-            double collapseAmount = _expandedSize + _splitterSize;
+            double collapseAmount = (_expandedSize + _splitterSize) * UiScale;
 
             if (IsHorizontal(ActiveSide))
             {

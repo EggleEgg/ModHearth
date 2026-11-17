@@ -42,6 +42,7 @@ namespace ModHearth.App.Tests
             "TextInput",
             "TextChanged",
             "SelectionChanged",
+            "ValueChanged",
             "SizeChanged",
             "PointerPressed",
             "PointerReleased",
@@ -50,6 +51,7 @@ namespace ModHearth.App.Tests
             "PointerExited",
             "PointerWheelChanged",
             "PointerCaptureLost",
+            "LostFocus",
             "Tapped",
             "DoubleTapped",
             "DragOver",
@@ -171,6 +173,8 @@ namespace ModHearth.App.Tests
             Skip("SettingsDialog", "restoreBackupButton", "Prompts, overwrites data files, and restarts the app.");
             Skip("SettingsDialog", "backupNowButton", "Writes a backup archive to disk and may prompt.");
             Skip("SettingsDialog", "redoConfigButton", "Restarts the application.");
+            plans[new UiActionKey("SettingsDialog", "uiScaleSlider", "ValueChanged")] =
+                UiActionPlan.Skip("Persists the UI scale and re-lays out every open window; needs a real slider value.");
 
             Skip("SortRulesControl", "OpenColorPickerButton", "Opens a colour-picker flyout that needs a visual root.");
             Skip("SortRulesControl", "SearchModeButton", "Opens the search-mode flyout that needs a visual root.");

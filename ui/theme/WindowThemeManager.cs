@@ -55,6 +55,7 @@ namespace ModHearth.UI.Theme
             if (style == null)
             {
                 // No style to apply (shouldn't happen in practice), don't leave the window permanently invisible.
+                UiScaleManager.ApplyToWindow(window);
                 window.Opacity = 1;
                 return;
             }
@@ -75,6 +76,11 @@ namespace ModHearth.UI.Theme
         {
             if (window == null || style == null || isApplying)
                 return;
+
+            // Keep the configured UI scale applied even when a window replaces its Content after
+            // registration (progress dialogs, floating tool windows). The scale manager is
+            // idempotent, so this also runs safely on every theme refresh.
+            UiScaleManager.ApplyToWindow(window);
 
             Style.instance = style;
             isApplying = true;

@@ -104,6 +104,9 @@ namespace ModHearth.UI
         private const int MaxNotificationRecords = 500;
         private const int MaxShownNotifications = 4;
         private const int MaxNotificationDrawerProbeFrames = 30;
+
+        // Keep in sync with the NotificationDrawerPanel RenderTransform transition in MainWindow.axaml.
+        private static readonly TimeSpan NotificationDrawerSlideDuration = TimeSpan.FromSeconds(0.4);
         private readonly List<NotificationRecord> allNotificationRecords = [];
         private readonly BulkObservableCollection<NotificationRecord> notificationRecords = [];
         private readonly ObservableCollection<NotificationRecord> toasts = [];
@@ -114,6 +117,7 @@ namespace ModHearth.UI
         private long lastNotificationTimestamp;
         private Stopwatch? notificationDrawerProbeWatch;
         private DispatcherTimer? notificationDrawerProbeTimer;
+        private DispatcherTimer? notificationDrawerHideTimer;
         private int notificationDrawerProbeExpected;
         private int notificationDrawerProbeLayouts;
         private int notificationDrawerProbeFrames;
@@ -279,7 +283,11 @@ namespace ModHearth.UI
                 .OfType<ScrollViewer>()
                 .FirstOrDefault()?.Viewport.Height ?? -1;
 
-        private bool IsNotificationDrawerOpen => NotificationDrawerPanel.Classes.Contains("open");
+        /// <summary>
+        /// Whether the user has invoked the drawer. This is the intended state, not the animated
+        /// position: the panel stays collapsed while closed and is only shown while invoked.
+        /// </summary>
+        private bool IsNotificationDrawerOpen { get; set; }
 
         private static double ElapsedMs(long startTimestamp)
             => (Stopwatch.GetTimestamp() - startTimestamp) * 1000.0 / Stopwatch.Frequency;
@@ -511,37 +519,54 @@ namespace ModHearth.UI
 
         private void OnToggleNotificationDrawerClick(object? sender, RoutedEventArgs e)
         {
-            bool isOpen = NotificationDrawerPanel.Classes.Contains("open");
-            if (isOpen)
-            {
+            if (IsNotificationDrawerOpen)
                 CloseNotificationDrawer();
-            }
             else
-            {
-                // Populate the history before the slide-in starts so the drawer never opens empty
-                // while a coalesced background refresh is still queued.
-                long startedAt = Stopwatch.GetTimestamp();
-                int viewCountBefore = notificationRecords.Count;
-                ApplyNotificationFilterAndSort();
-                double applyMs = ElapsedMs(startedAt);
+                OpenNotificationDrawer();
+        }
 
-                Loggers.Notifications.Dev(
-                    $"Drawer opening: all={allNotificationRecords.Count} viewBefore={viewCountBefore} viewAfter={notificationRecords.Count} " +
-                    $"apply={applyMs:F1}ms listHeight={NotificationItemsControl.Bounds.Height:F1} " +
-                    $"populating={IsNotificationLogPopulating} pendingRefresh={notificationViewRefreshQueued}");
+        private void OpenNotificationDrawer()
+        {
+            IsNotificationDrawerOpen = true;
+            CancelNotificationDrawerHide();
 
-                NotificationDrawerPanel.Classes.Add("open");
-                NotificationBackdrop.IsVisible = true;
+            // Populate the history before the slide-in starts so the drawer never opens empty
+            // while a coalesced background refresh is still queued.
+            long startedAt = Stopwatch.GetTimestamp();
+            int viewCountBefore = notificationRecords.Count;
+            ApplyNotificationFilterAndSort();
+            double applyMs = ElapsedMs(startedAt);
 
-                // The slide-in only animates RenderTransform, which never invalidates layout, and a
-                // virtualized ListBox only realizes rows during a layout pass. Invalidate the list
-                // while the transform animates so the rows are realized as soon as the drawer
-                // becomes visible instead of waiting for some unrelated layout invalidation.
-                NotificationDrawerPanel.PropertyChanged += OnNotificationDrawerTransformChanged;
-                NotificationItemsControl.InvalidateMeasure();
+            Loggers.Notifications.Dev(
+                $"Drawer opening: all={allNotificationRecords.Count} viewBefore={viewCountBefore} viewAfter={notificationRecords.Count} " +
+                $"apply={applyMs:F1}ms listHeight={NotificationItemsControl.Bounds.Height:F1} " +
+                $"populating={IsNotificationLogPopulating} pendingRefresh={notificationViewRefreshQueued}");
 
-                BeginNotificationDrawerRealizationProbe();
-            }
+            NotificationDrawerPanel.IsVisible = true;
+            NotificationBackdrop.IsVisible = true;
+
+            // The panel is collapsed while closed, so it has never been rendered at its off-screen
+            // transform. Apply the open class one frame later so the slide-in animates from that
+            // position instead of snapping to the final one.
+            Dispatcher.UIThread.Post(AnimateNotificationDrawerOpen, DispatcherPriority.Background);
+        }
+
+        private void AnimateNotificationDrawerOpen()
+        {
+            if (!IsNotificationDrawerOpen)
+                return;
+
+            NotificationDrawerPanel.Classes.Add("open");
+
+            // The slide-in only animates RenderTransform, which never invalidates layout, and a
+            // virtualized ListBox only realizes rows during a layout pass. Invalidate the list
+            // while the transform animates so the rows are realized as soon as the drawer
+            // becomes visible instead of waiting for some unrelated layout invalidation.
+            NotificationDrawerPanel.PropertyChanged -= OnNotificationDrawerTransformChanged;
+            NotificationDrawerPanel.PropertyChanged += OnNotificationDrawerTransformChanged;
+            NotificationItemsControl.InvalidateMeasure();
+
+            BeginNotificationDrawerRealizationProbe();
         }
 
         private void OnNotificationBackdropClick(object? sender, PointerPressedEventArgs e) => CloseNotificationDrawer();
@@ -560,6 +585,11 @@ namespace ModHearth.UI
 
         private void CloseNotificationDrawer()
         {
+            if (!IsNotificationDrawerOpen)
+                return;
+
+            IsNotificationDrawerOpen = false;
+
             Loggers.Notifications.Dev(
                 $"Drawer closing: all={allNotificationRecords.Count} view={notificationRecords.Count} " +
                 $"realized={CountRealizedNotificationRows()} " +
@@ -569,6 +599,41 @@ namespace ModHearth.UI
             _ = NotificationDrawerPanel.Classes.Remove("open");
             NotificationBackdrop.IsVisible = false;
             StopNotificationDrawerRealizationProbe();
+
+            // Keep the panel alive until the slide-out finishes so the animation still plays, then
+            // collapse it. The panel must not rely on its render transform alone to stay hidden:
+            // at some UI scales the translated edge remains visible on the left side of the window.
+            ScheduleNotificationDrawerHide();
+        }
+
+        private void ScheduleNotificationDrawerHide()
+        {
+            CancelNotificationDrawerHide();
+
+            DispatcherTimer timer = new()
+            {
+                // A small buffer guarantees the transition has reached its final off-screen value.
+                Interval = NotificationDrawerSlideDuration + TimeSpan.FromMilliseconds(50)
+            };
+
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                if (ReferenceEquals(notificationDrawerHideTimer, timer))
+                    notificationDrawerHideTimer = null;
+
+                if (!IsNotificationDrawerOpen)
+                    NotificationDrawerPanel.IsVisible = false;
+            };
+
+            notificationDrawerHideTimer = timer;
+            timer.Start();
+        }
+
+        private void CancelNotificationDrawerHide()
+        {
+            notificationDrawerHideTimer?.Stop();
+            notificationDrawerHideTimer = null;
         }
 
         public void DismissAllNotifications()

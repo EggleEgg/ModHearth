@@ -68,13 +68,15 @@ jobs:
                     sudo apt-get install -y xvfb
                   fi
                   echo "Running UI tests under Xvfb (required for Skia smoke test)."
-                  if ! xvfb-run -a dotnet test ModHearth.sln -c Release --no-build --no-restore; then
+                  # CI is headless and has no Dwarf Fortress install; skip local-environment tests.
+                  if ! xvfb-run -a dotnet test ModHearth.sln -c Release --no-build --no-restore \
+                    --filter "Category!=RequiresDwarfFortress"; then
                     echo "Tests failed. This can include the Skia native smoke test on Linux."
                     exit 1
                   fi
             - name: Test (Windows)
               if: matrix.os != 'ubuntu-latest'
-              run: dotnet test ModHearth.sln -c Release --no-build --no-restore
+              run: dotnet test ModHearth.sln -c Release --no-build --no-restore --filter "Category!=RequiresDwarfFortress"
             - name: Publish
               run: dotnet publish ModHearth.csproj -c Release -r ${{ matrix.rid }} --self-contained true /p:UseAppHost=true --no-restore /p:InformationalVersion=${{ needs.compute-version.outputs.build_number }}
             - name: Publish Steam worker

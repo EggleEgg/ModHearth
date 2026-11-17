@@ -74,7 +74,7 @@ namespace ModHearth.UI.Docking
                     _splitterResizePending = false;
                     e.Pointer.Capture(null);
 
-                    double parentPrimary = IsHorizontal(ActiveSide) ? _parentWindow.Width : _parentWindow.Height;
+                    double parentPrimary = (IsHorizontal(ActiveSide) ? _parentWindow.Width : _parentWindow.Height) / UiScale;
                     if (parentPrimary > 0)
                     {
                         double proportion = _expandedSize / parentPrimary;
@@ -111,26 +111,28 @@ namespace ModHearth.UI.Docking
 
         private double ComputeClampedSize(Point currentPoint)
         {
+            // Pointer coordinates are physical window units; grid sizes are logical units.
+            double uiScale = UiScale;
             switch (ActiveSide)
             {
                 case DockSide.Right:
                     {
-                        double deltaX = currentPoint.X - _splitterStartPoint.X;
+                        double deltaX = (currentPoint.X - _splitterStartPoint.X) / uiScale;
                         return Math.Clamp(_initialContentSize - deltaX, _minSize, _maxSize);
                     }
                 case DockSide.Left:
                     {
-                        double deltaX = currentPoint.X - _splitterStartPoint.X;
+                        double deltaX = (currentPoint.X - _splitterStartPoint.X) / uiScale;
                         return Math.Clamp(_initialContentSize + deltaX, _minSize, _maxSize);
                     }
                 case DockSide.Bottom:
                     {
-                        double deltaY = currentPoint.Y - _splitterStartPoint.Y;
+                        double deltaY = (currentPoint.Y - _splitterStartPoint.Y) / uiScale;
                         return Math.Clamp(_initialContentSize - deltaY, _minSize, _maxSize);
                     }
                 case DockSide.Top:
                     {
-                        double deltaY = currentPoint.Y - _splitterStartPoint.Y;
+                        double deltaY = (currentPoint.Y - _splitterStartPoint.Y) / uiScale;
                         return Math.Clamp(_initialContentSize + deltaY, _minSize, _maxSize);
                     }
                 default:
@@ -147,7 +149,7 @@ namespace ModHearth.UI.Docking
                     {
                         if (target.MainGrid != null && target.MainGrid.ColumnDefinitions.Count > target.ContentIndex)
                             target.MainGrid.ColumnDefinitions[target.ContentIndex].Width = new GridLength(newSize, GridUnitType.Pixel);
-                        SetSafeWidth(_initialParentSize + (newSize - _initialContentSize));
+                        SetSafeWidth(_initialParentSize + ((newSize - _initialContentSize) * UiScale));
                         _expandedSize = newSize;
                         break;
                     }
@@ -156,7 +158,7 @@ namespace ModHearth.UI.Docking
                     {
                         if (target.MainGrid != null && target.MainGrid.RowDefinitions.Count > target.ContentIndex)
                             target.MainGrid.RowDefinitions[target.ContentIndex].Height = new GridLength(newSize, GridUnitType.Pixel);
-                        SetSafeHeight(_initialParentSize + (newSize - _initialContentSize));
+                        SetSafeHeight(_initialParentSize + ((newSize - _initialContentSize) * UiScale));
                         _expandedSize = newSize;
                         break;
                     }

@@ -22,11 +22,14 @@ namespace ModHearth.App.Tests
             {
                 int originalTheme = ConfigManager.GetTheme();
                 bool originalAutoSave = ConfigManager.IsAutoSaveEnabled();
+                int originalUiScale = ConfigManager.GetUiScalePercent();
                 int theme = originalTheme == 1 ? 0 : 1;
+                int uiScale = originalUiScale == 150 ? 125 : 150;
 
                 ConfigManager.SetTheme(theme);
                 ConfigManager.SetAutoSaveEnabled(!originalAutoSave);
                 ConfigManager.SetLeftSearchBarState("round-trip-state");
+                ConfigManager.SetUiScalePercent(uiScale);
                 ConfigManager.SaveConfigFile();
 
                 Assert.True(File.Exists(ConfigManager.ConfigPath));
@@ -35,12 +38,14 @@ namespace ModHearth.App.Tests
                 ConfigManager.Config.Theme = originalTheme;
                 ConfigManager.Config.IsAutoSaveEnabled = originalAutoSave;
                 ConfigManager.Config.LeftSearchBarState = "dirty-in-memory";
+                ConfigManager.Config.UiScalePercent = originalUiScale;
 
                 ConfigManager.AttemptLoadConfig(createLogs: false);
 
                 Assert.Equal(theme, ConfigManager.GetTheme());
                 Assert.Equal(!originalAutoSave, ConfigManager.IsAutoSaveEnabled());
                 Assert.Equal("round-trip-state", ConfigManager.GetLeftSearchBarState());
+                Assert.Equal(uiScale, ConfigManager.GetUiScalePercent());
             }
             finally
             {
@@ -70,6 +75,43 @@ namespace ModHearth.App.Tests
                 ModHearthConfig defaults = new();
                 Assert.Equal(defaults.Theme, ConfigManager.Config.Theme);
                 Assert.Equal(defaults.IsAutoSaveEnabled, ConfigManager.Config.IsAutoSaveEnabled);
+                Assert.Equal(defaults.UiScalePercent, ConfigManager.Config.UiScalePercent);
+                Assert.Equal(defaults.UiScalePercent, ConfigManager.GetUiScalePercent());
+            }
+            finally
+            {
+                RestoreConfigFile(originalJson);
+            }
+        }
+
+        [Theory]
+        [InlineData(0, ConfigManager.DefaultUiScalePercent)]
+        [InlineData(-25, ConfigManager.DefaultUiScalePercent)]
+        [InlineData(10, ConfigManager.MinimumUiScalePercent)]
+        [InlineData(50, 50)]
+        [InlineData(100, 100)]
+        [InlineData(200, 200)]
+        [InlineData(500, ConfigManager.MaximumUiScalePercent)]
+        public void NormalizeUiScalePercentKeepsConfiguredScaleInSupportedRange(int requested, int expected)
+        {
+            Assert.Equal(expected, ConfigManager.NormalizeUiScalePercent(requested));
+        }
+
+        [Fact]
+        public void SetUiScalePercentClampsBeforePersisting()
+        {
+            string? originalJson = SnapshotConfigFile();
+            try
+            {
+                ConfigManager.SetUiScalePercent(1000);
+
+                Assert.Equal(ConfigManager.MaximumUiScalePercent, ConfigManager.Config.UiScalePercent);
+                Assert.Equal(ConfigManager.MaximumUiScalePercent, ConfigManager.GetUiScalePercent());
+
+                ConfigManager.SetUiScalePercent(-1);
+
+                Assert.Equal(ConfigManager.DefaultUiScalePercent, ConfigManager.Config.UiScalePercent);
+                Assert.Equal(ConfigManager.DefaultUiScalePercent, ConfigManager.GetUiScalePercent());
             }
             finally
             {
@@ -86,7 +128,8 @@ namespace ModHearth.App.Tests
             {
                 Theme = 1,
                 IsAutoSaveEnabled = false,
-                LeftSearchBarState = "state"
+                LeftSearchBarState = "state",
+                UiScalePercent = 150
             };
 
             Assert.True(JsonFileStore.TrySave(path, expected, "TestConfig"));
@@ -96,6 +139,7 @@ namespace ModHearth.App.Tests
             Assert.Equal(expected.Theme, loaded.Theme);
             Assert.Equal(expected.IsAutoSaveEnabled, loaded.IsAutoSaveEnabled);
             Assert.Equal(expected.LeftSearchBarState, loaded.LeftSearchBarState);
+            Assert.Equal(expected.UiScalePercent, loaded.UiScalePercent);
 
             Assert.False(JsonFileStore.TryLoad(temp.Combine("missing.json"), "TestConfig", out ModHearthConfig? missing));
             Assert.Null(missing);

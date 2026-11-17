@@ -9,6 +9,8 @@
 
 - Verbose debugging logs/lines should use `Loggers.X.Dev($"...")`. Errors tipically should not be devmode specific
 - `VisualBrush` usage should be avoided and only used as a last resort, instead use tools like `TintedAssetConverter`
+- UI smoke tests discover event subscriptions and require every new UI action to be classified in `UiActionPolicy`
+- For double/float epsilon comparisons use `MMath.Equals()`
 
 ## Codebase help structure
 

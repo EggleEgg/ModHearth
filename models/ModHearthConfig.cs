@@ -46,6 +46,9 @@ namespace ModHearth.Models
         [System.Text.Json.Serialization.JsonPropertyName("theme")]
         public int Theme { get; set; } //TODO Fix naming rule
 
+        // Global UI scale in percent (100 keeps the default layout).
+        public int UiScalePercent { get; set; } = 100;
+
         // Auto-reload interval for modlists in seconds. -1 means disabled by checkbox.
         public int AutoReloadIntervalSeconds { get; set; } = -1;
 

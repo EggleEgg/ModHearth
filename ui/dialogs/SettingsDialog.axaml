@@ -9,6 +9,38 @@
     Title="Settings">
     <StackPanel Margin="16" Spacing="16">
         <StackPanel Spacing="6">
+            <TextBlock Text="Interface" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                <TextBlock
+                    Grid.Column="0"
+                    Text="UI scale"
+                    VerticalAlignment="Center" />
+                <Slider
+                    x:Name="uiScaleSlider"
+                    Grid.Column="1"
+                    MinWidth="140"
+                    Minimum="50"
+                    Maximum="200"
+                    TickFrequency="5"
+                    IsSnapToTickEnabled="True"
+                    VerticalAlignment="Center" />
+                <TextBlock
+                    x:Name="uiScaleValueText"
+                    Grid.Column="2"
+                    Width="40"
+                    TextAlignment="Right"
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource MainTextBrush}" />
+            </Grid>
+            <TextBlock
+                FontSize="11"
+                TextWrapping="Wrap"
+                Opacity="0.75"
+                Foreground="{DynamicResource MainTextBrush}"
+                Text="Scales controls, icons, and text across every window. Changes apply immediately." />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
             <TextBlock Text="Backup" FontWeight="SemiBold" />
             <Button
                 x:Name="restoreBackupButton"

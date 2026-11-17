@@ -83,6 +83,21 @@ namespace ModHearth.UI.Docking
         private IWindowDragTracker? _dragTracker;
         private DockSide? _hoverSide;
         private double _expandedSize;
+
+        /// <summary>
+        /// UI scale applied to the host window. Dock sizes are expressed in logical units while
+        /// window/pixel metrics are physical, so every conversion between the two goes through
+        /// this factor.
+        /// </summary>
+        private double UiScale
+        {
+            get
+            {
+                double scale = UiScaleManager.GetAppliedScaleFactor(_parentWindow);
+                return double.IsFinite(scale) && scale > 0 ? scale : 1.0;
+            }
+        }
+
         private double _preExpandParentPrimary;
         private double _preExpandMinWidth;
         private double _preExpandMinHeight;
@@ -205,7 +220,7 @@ namespace ModHearth.UI.Docking
                     return true;
 
                 double parentMinPrimary = GetParentMinPrimary(side);
-                double requiredPrimary = parentMinPrimary + _minSize + _splitterSize;
+                double requiredPrimary = parentMinPrimary + ((_minSize + _splitterSize) * UiScale);
                 double availablePrimary = DockingManager<TControl, TWindow>.GetAvailablePrimary(side, workingArea, parentScreenPos, scale);
 
                 if (requiredPrimary > availablePrimary)
@@ -222,36 +237,41 @@ namespace ModHearth.UI.Docking
 
         private bool TryComputeExpandedLayout(DockSide side, out double childSize, out double newParentPrimary)
         {
+            double uiScale = UiScale;
             childSize = _defaultSize;
             double currentPrimary = IsHorizontal(side) ? _parentWindow.Width : _parentWindow.Height;
+            double currentPrimaryLogical = currentPrimary / uiScale;
             double savedProportion = _proportionLoader?.Invoke(side) ?? 0.0;
-            if (savedProportion > 0 && savedProportion < 1 && currentPrimary > 0)
+            if (savedProportion > 0 && savedProportion < 1 && currentPrimaryLogical > 0)
             {
-                childSize = Math.Clamp(savedProportion * currentPrimary, _minSize, _maxSize);
+                childSize = Math.Clamp(savedProportion * currentPrimaryLogical, _minSize, _maxSize);
             }
             double parentMinPrimary = GetParentMinPrimary(side);
 
             if (!TryGetScreenLayout(out PixelRect workingArea, out PixelPoint parentScreenPos, out double scale))
             {
-                newParentPrimary = currentPrimary + childSize + _splitterSize;
+                newParentPrimary = currentPrimary + ((childSize + _splitterSize) * uiScale);
                 return true;
             }
 
             double availablePrimary = DockingManager<TControl, TWindow>.GetAvailablePrimary(side, workingArea, parentScreenPos, scale);
 
-            newParentPrimary = currentPrimary + childSize + _splitterSize;
+            newParentPrimary = currentPrimary + ((childSize + _splitterSize) * uiScale);
 
             if (newParentPrimary > availablePrimary)
             {
-                childSize = Math.Clamp(availablePrimary - currentPrimary - _splitterSize, _minSize, _defaultSize);
-                newParentPrimary = currentPrimary + childSize + _splitterSize;
+                // The available width is physical; convert the remainder back to logical units
+                // before clamping the dock content.
+                double availableChildLogical = ((availablePrimary - currentPrimary) / uiScale) - _splitterSize;
+                childSize = Math.Clamp(availableChildLogical, _minSize, _defaultSize);
+                newParentPrimary = currentPrimary + ((childSize + _splitterSize) * uiScale);
             }
 
             if (newParentPrimary > availablePrimary)
             {
                 childSize = _minSize;
                 newParentPrimary = availablePrimary;
-                double parentCore = newParentPrimary - childSize - _splitterSize;
+                double parentCore = newParentPrimary - ((childSize + _splitterSize) * uiScale);
                 if (parentCore < parentMinPrimary)
                     return false;
             }
